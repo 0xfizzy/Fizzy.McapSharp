@@ -1,0 +1,6 @@
+.tools/
+**/bin/
+**/obj/
+native/target/
+artifacts/
+*.user
