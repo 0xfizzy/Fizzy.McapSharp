@@ -2,7 +2,7 @@
 
 [English](native.md) | 简体中文
 
-.NET 通过 Cdecl P/Invoke 调用 Rust `cdylib`，直接使用官方 `mcap` crate 0.25.0，没有 C++ 层。实现位于 [lib.rs](../native/src/lib.rs)，托管声明位于 [Native.cs](../src/Fizzy.McapSharp/Native.cs)。当前原生资产为 Windows MSVC x64 的 `fizzy_mcap_native.dll`。
+.NET 通过 Cdecl P/Invoke 调用 Rust `cdylib`，直接使用官方 `mcap` crate 0.25.0，没有 C++ 层。实现位于 [lib.rs](../native/src/lib.rs)，托管声明位于 [Native.cs](../src/Native.cs)。当前原生资产为 Windows MSVC x64 的 `fizzy_mcap_native.dll`。
 
 ## 版本与入口
 

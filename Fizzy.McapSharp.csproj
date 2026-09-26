@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <EnableDefaultItems>false</EnableDefaultItems>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -13,11 +14,12 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="/" />
-    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
-    <None Include="../../native/target/release/fizzy_mcap_native.dll" Link="fizzy_mcap_native.dll" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="runtimes/win-x64/native" Condition="Exists('../../native/target/release/fizzy_mcap_native.dll')" />
+    <Compile Include="src/**/*.cs" Exclude="src/**/bin/**;src/**/obj/**" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+    <None Include="native/target/release/fizzy_mcap_native.dll" Link="fizzy_mcap_native.dll" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="runtimes/win-x64/native" Condition="Exists('native/target/release/fizzy_mcap_native.dll')" />
   </ItemGroup>
-  <Target Name="RequireNativeForPackage" BeforeTargets="GenerateNuspec" Condition="!Exists('../../native/target/release/fizzy_mcap_native.dll')">
+  <Target Name="RequireNativeForPackage" BeforeTargets="GenerateNuspec" Condition="!Exists('native/target/release/fizzy_mcap_native.dll')">
     <Error Text="Build the win-x64 native library with scripts/Build.ps1 before packing." />
   </Target>
 </Project>

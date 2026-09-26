@@ -2,7 +2,7 @@
 
 English | [简体中文](native.zh-CN.md)
 
-.NET calls a Rust `cdylib` through Cdecl P/Invoke, using the official `mcap` crate 0.25.0 directly, without a C++ layer. The implementation is in [lib.rs](../native/src/lib.rs), with managed declarations in [Native.cs](../src/Fizzy.McapSharp/Native.cs). The native asset is `fizzy_mcap_native.dll` for Windows MSVC x64.
+.NET calls a Rust `cdylib` through Cdecl P/Invoke, using the official `mcap` crate 0.25.0 directly, without a C++ layer. The implementation is in [lib.rs](../native/src/lib.rs), with managed declarations in [Native.cs](../src/Native.cs). The native asset is `fizzy_mcap_native.dll` for Windows MSVC x64.
 
 ## Version and entry points
 

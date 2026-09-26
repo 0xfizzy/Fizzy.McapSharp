@@ -8,13 +8,13 @@ if (Test-Path "$repo/.tools/cargo/bin/cargo.exe") {
 } else { $cargo = 'cargo' }
 & $cargo build --release --locked --manifest-path "$repo/native/Cargo.toml"
 if ($LASTEXITCODE) { throw 'Native build failed' }
-dotnet build "$repo/src/Fizzy.McapSharp/Fizzy.McapSharp.csproj" -c Release
+dotnet build "$repo/Fizzy.McapSharp.csproj" -c Release
 if ($LASTEXITCODE) { throw 'Managed build failed' }
 if ($Test) {
     dotnet test "$repo/tests/Fizzy.McapSharp.Tests/Fizzy.McapSharp.Tests.csproj" -c Release
     if ($LASTEXITCODE) { throw 'Tests failed' }
 }
 if ($Pack) {
-    dotnet pack "$repo/src/Fizzy.McapSharp/Fizzy.McapSharp.csproj" -c Release -o "$repo/artifacts/packages"
+    dotnet pack "$repo/Fizzy.McapSharp.csproj" -c Release -o "$repo/artifacts/packages"
     if ($LASTEXITCODE) { throw 'Pack failed' }
 }

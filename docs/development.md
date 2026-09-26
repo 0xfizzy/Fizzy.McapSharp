@@ -8,7 +8,8 @@ Run the PowerShell commands below from the repository root. Requirements: Window
 
 | Path | Responsibility |
 | --- | --- |
-| `src/Fizzy.McapSharp/` | Public .NET API, P/Invoke, and SafeHandle |
+| `Fizzy.McapSharp.csproj` | Library project and package metadata; compiles only `src/` |
+| `src/` | Public .NET API, P/Invoke, and SafeHandle |
 | `native/src/lib.rs` | Rust MCAP wrapper, private C ABI, file mapping, and validation |
 | `tests/Fizzy.McapSharp.Tests/` | Managed functionality and resource lifetime tests |
 | `tests/Interop/`, `tests/interop.py` | Bidirectional interoperability with official Python MCAP |

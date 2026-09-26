@@ -8,7 +8,8 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| `src/Fizzy.McapSharp/` | 公共 .NET API、P/Invoke 和 SafeHandle |
+| `Fizzy.McapSharp.csproj` | 库项目与包元数据；仅编译 `src/` 下的源码 |
+| `src/` | 公共 .NET API、P/Invoke 和 SafeHandle |
 | `native/src/lib.rs` | Rust MCAP 封装、私有 C ABI、文件映射与校验 |
 | `tests/Fizzy.McapSharp.Tests/` | 托管功能与资源生命周期测试 |
 | `tests/Interop/`、`tests/interop.py` | .NET 与官方 Python MCAP 双向互操作 |
