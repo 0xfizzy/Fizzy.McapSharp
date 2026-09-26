@@ -1,23 +1,48 @@
 # Fizzy.McapSharp
 
-.NET 8 bindings to the official Rust MCAP implementation, independent of robotics or business payloads. Version **0.1.0** initially supports **Windows x64**. The NuGet package includes the native runtime.
+[![NuGet](https://img.shields.io/nuget/v/Fizzy.McapSharp.svg?style=flat)](https://www.nuget.org/packages/Fizzy.McapSharp/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
+[![.NET 8](https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
+[![Platform: Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue.svg?style=flat)](docs/api.md)
+
+English | [简体中文](README.zh-CN.md)
+
+.NET bindings to the official Rust `mcap` implementation. Read and write messages, schemas, channels, metadata, and attachments, with compression, time filtering, and integrity validation.
+
+## Quick start
+
+Add the package to a .NET 8 application and run as an x64 process:
+
+```powershell
+dotnet add package Fizzy.McapSharp
+```
+
+The example uses C# 12. The output path must not exist; timestamps are in nanoseconds.
 
 ```csharp
 using Fizzy.McapSharp;
 
-using (var writer = new McapWriter("new-recording.mcap"))
+var path = Path.Combine(Path.GetTempPath(), $"sample-{Guid.NewGuid():N}.mcap");
+using (var writer = new McapWriter(path))
 {
     var channel = writer.RegisterChannel("/sample", "json");
     writer.WriteMessage(channel, 100, 100, 0, "{}"u8);
     writer.Complete();
 }
 
-var reader = new McapReader("new-recording.mcap");
+var reader = new McapReader(path);
 reader.Validate();
 foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
-    Console.WriteLine(message.LogTime);
+    Console.WriteLine($"{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}");
 ```
 
-Build and test: `./scripts/Build.ps1 -Test -Pack` (Rust 1.98.1, .NET 8 SDK and Visual C++ build tools).
+Call `Complete()` explicitly to finish a recording; `Dispose()` only releases resources. `ReadMessages()` does not replace full-file validation.
 
-[API and ownership](docs/api.md) · [Native ABI](docs/native.md) · [Release configuration](docs/releasing.md)
+## Documentation
+
+- [API, lifetime, and data ownership](docs/api.md)
+- [Building, testing, and consumer integration](docs/development.md)
+- [Native ABI and memory boundaries](docs/native.md)
+- [Repository guidelines](AGENTS.md)
+
+Licensed under [MIT](LICENSE). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for third-party dependencies.
