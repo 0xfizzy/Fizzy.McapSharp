@@ -46,10 +46,16 @@ static class Extended
                 var summary = r.GetSummary()!;
                 var chunk = summary.ChunkIndexes.First(c => c.MessageIndexOffsets.Count != 0);
                 var entry = r.ReadMessageIndexes(chunk)[0].Records[0];
+                // Exercise interface-only maps and indexes larger than the stack buffer.
+                var alternate = chunk with
+                {
+                    MessageIndexOffsets = new System.Collections.ObjectModel.ReadOnlyDictionary<ushort, ulong>(new Dictionary<ushort, ulong>(chunk.MessageIndexOffsets)),
+                    Compression = new string('x', 2048)
+                };
                 byte[] buffer = new byte[65536];
-                for (int i = 0; i < 10; i++) Random(snapshot, chunk, entry, summary, buffer);
+                for (int i = 0; i < 10; i++) { Random(snapshot, chunk, entry, summary, buffer); snapshot.ReadMessageIndexes(alternate, buffer, out _); }
                 long before = GC.GetAllocatedBytesForCurrentThread();
-                for (int i = 0; i < 50; i++) Random(snapshot, chunk, entry, summary, buffer);
+                for (int i = 0; i < 50; i++) { Random(snapshot, chunk, entry, summary, buffer); snapshot.ReadMessageIndexes(alternate, buffer, out _); }
                 long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
                 Check("random/index/attachment/metadata " + compression, allocated);
             }

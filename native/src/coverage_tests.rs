@@ -85,3 +85,129 @@ fn structured_errors_preserve_fields() {
     assert_eq!(v["details"]["saved"], 12);
     assert_eq!(v["details"]["calculated"], 34);
 }
+
+#[test]
+fn caller_indexes_match_official_helpers() {
+    for compression in [
+        None,
+        Some(mcap::Compression::Lz4),
+        Some(mcap::Compression::Zstd),
+    ] {
+        let data = fixture(mcap::WriteOptions::new().compression(compression));
+        let summary = mcap::Summary::read(&data).unwrap().unwrap();
+        let mut index = summary.chunk_indexes[0].clone();
+        unsafe {
+            let mut snapshot = ptr::null_mut();
+            let mut response = Response::default();
+            assert_eq!(
+                extended::fm_snapshot_bytes(
+                    data.as_ptr(),
+                    data.len(),
+                    &mut snapshot,
+                    &mut response
+                ),
+                0
+            );
+            // The chunk start is irrelevant to read_message_indexes. The supplied map
+            // is authoritative even when it differs from the summary's stored index.
+            index.chunk_start_offset = u64::MAX;
+            let expected = summary.read_message_indexes(&data, &index).unwrap();
+            let (_, encoded) =
+                buffer_reader::encode(records::Record::ChunkIndex(index.clone())).unwrap();
+            let mut output = vec![0; 1024];
+            let mut header = MessageHeader::default();
+            assert_eq!(
+                extended::fm_snapshot_call(
+                    snapshot,
+                    5,
+                    encoded.as_ptr(),
+                    encoded.len(),
+                    0,
+                    0,
+                    output.as_mut_ptr(),
+                    output.len(),
+                    &mut header,
+                    &mut response
+                ),
+                0
+            );
+            assert_eq!(
+                response.value as usize,
+                expected.values().map(|v| v.len() * 18).sum::<usize>()
+            );
+            index.message_index_offsets.clear();
+            let expected_error = summary.read_message_indexes(&data, &index).unwrap_err();
+            let (_, encoded) = buffer_reader::encode(records::Record::ChunkIndex(index)).unwrap();
+            assert_eq!(
+                extended::fm_snapshot_call(
+                    snapshot,
+                    5,
+                    encoded.as_ptr(),
+                    encoded.len(),
+                    0,
+                    0,
+                    output.as_mut_ptr(),
+                    output.len(),
+                    &mut header,
+                    &mut response
+                ),
+                -1
+            );
+            assert_eq!(
+                bytes(response.json, response.json_len).unwrap(),
+                errors::encode(&expected_error)
+            );
+            fm_buffer_free(response.json, response.json_len);
+            fm_buffer_free(response.data, response.data_len);
+            extended::fm_snapshot_free(snapshot);
+        }
+    }
+}
+
+#[test]
+fn raw_channel_lookup_matches_upstream_after_error() {
+    // Preserve a valid declaration preceding a conflicting declaration, with no messages.
+    let mut data = mcap::MAGIC.to_vec();
+    for topic in ["first", "conflict"] {
+        let (opcode, body) = buffer_reader::encode(records::Record::Channel(records::Channel {
+            id: u16::MAX,
+            schema_id: 0,
+            topic: topic.into(),
+            message_encoding: "raw".into(),
+            metadata: BTreeMap::new(),
+        }))
+        .unwrap();
+        data.push(opcode);
+        data.extend_from_slice(&(body.len() as u64).to_le_bytes());
+        data.extend_from_slice(&body);
+    }
+    data.extend_from_slice(mcap::MAGIC);
+    let mut official = mcap::read::RawMessageStream::new(&data).unwrap();
+    assert!(official.next().unwrap().is_err());
+    let expected = official.get_channel(u16::MAX).unwrap();
+    unsafe {
+        let mut reader = ptr::null_mut();
+        let mut response = Response::default();
+        assert_eq!(
+            buffer_reader::fm_buffer_reader_open(
+                4,
+                false,
+                data.as_ptr(),
+                data.len(),
+                &mut reader,
+                &mut response
+            ),
+            0
+        );
+        assert_eq!(
+            buffer_reader::fm_buffer_reader_channel(reader, u16::MAX, &mut response),
+            0
+        );
+        let channel: Value =
+            serde_json::from_slice(bytes(response.json, response.json_len).unwrap()).unwrap();
+        assert_eq!(channel["topic"], expected.topic);
+        fm_buffer_free(response.json, response.json_len);
+        fm_buffer_free(response.data, response.data_len);
+        buffer_reader::fm_buffer_reader_free(reader);
+    }
+}

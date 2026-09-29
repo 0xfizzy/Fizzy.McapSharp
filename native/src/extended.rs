@@ -590,8 +590,10 @@ fn record_body(data: &[u8], offset: u64, expected: u8) -> Outcome<&[u8]> {
 pub unsafe extern "C" fn fm_snapshot_call(
     p: *mut Snapshot,
     op: u32,
-    offset: u64,
-    argument: u64,
+    index_data: *const u8,
+    index_length: usize,
+    message_time: u64,
+    message_offset: u64,
     dest: *mut u8,
     capacity: usize,
     header: *mut MessageHeader,
@@ -623,21 +625,24 @@ pub unsafe extern "C" fn fm_snapshot_call(
             b.extend_from_slice(&f.summary_crc.to_le_bytes());
             return copy_body(&b, dest, capacity, out);
         }
-        let s = h.summary.as_ref().ok_or("File has no summary")?;
         match op {
             1 | 2 | 5 | 8 => {
-                let index = s
-                    .chunk_indexes
-                    .iter()
-                    .find(|i| i.chunk_start_offset == offset)
-                    .ok_or(mcap::McapError::BadIndex)?;
+                let records::Record::ChunkIndex(index) =
+                    mcap::parse_record(records::op::CHUNK_INDEX, bytes(index_data, index_length)?)?
+                else {
+                    unreachable!()
+                };
                 if op == 8 {
                     out.value = index.compressed_data_offset()?;
                     return Ok(0);
                 }
+                let s = h.summary.as_ref().ok_or("File has no summary")?;
+                if op == 1 || op == 2 {
+                    check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
+                }
                 if op == 1 {
                     let mut messages = VecDeque::new();
-                    for m in s.stream_chunk(&h.data, index)? {
+                    for m in s.stream_chunk(&h.data, &index)? {
                         messages.push_back(own_message(m?));
                     }
                     h.messages = messages;
@@ -646,10 +651,10 @@ pub unsafe extern "C" fn fm_snapshot_call(
                 if op == 2 {
                     let m = s.seek_message(
                         &h.data,
-                        index,
+                        &index,
                         &records::MessageIndexEntry {
-                            log_time: 0,
-                            offset: argument,
+                            log_time: message_time,
+                            offset: message_offset,
                         },
                     )?;
                     let (msg, data) = own_message(m);
@@ -658,7 +663,10 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     }
                     return copy_body(&data, dest, capacity, out);
                 }
-                let indexes = s.read_message_indexes(&h.data, index)?;
+                for offset in index.message_index_offsets.values() {
+                    check_index_range(&h.data, *offset, 15, 15)?;
+                }
+                let indexes = s.read_message_indexes(&h.data, &index)?;
                 let mut rows: Vec<_> = indexes.into_iter().collect();
                 rows.sort_by_key(|(c, _)| c.id);
                 let mut b = Vec::new();
@@ -672,28 +680,34 @@ pub unsafe extern "C" fn fm_snapshot_call(
                 copy_body(&b, dest, capacity, out)
             }
             3 => {
-                let index = s
-                    .metadata_indexes
-                    .iter()
-                    .find(|i| i.offset == offset)
-                    .ok_or(mcap::McapError::BadIndex)?;
-                mcap::read::metadata(&h.data, index)?;
+                let records::Record::MetadataIndex(index) = mcap::parse_record(
+                    records::op::METADATA_INDEX,
+                    bytes(index_data, index_length)?,
+                )?
+                else {
+                    unreachable!()
+                };
+                check_index_range(&h.data, index.offset, index.length, 0)?;
+                mcap::read::metadata(&h.data, &index)?;
                 copy_body(
-                    record_body(&h.data, offset, records::op::METADATA)?,
+                    record_body(&h.data, index.offset, records::op::METADATA)?,
                     dest,
                     capacity,
                     out,
                 )
             }
             4 => {
-                let index = s
-                    .attachment_indexes
-                    .iter()
-                    .find(|i| i.offset == offset)
-                    .ok_or(mcap::McapError::BadIndex)?;
-                mcap::read::attachment(&h.data, index)?;
+                let records::Record::AttachmentIndex(index) = mcap::parse_record(
+                    records::op::ATTACHMENT_INDEX,
+                    bytes(index_data, index_length)?,
+                )?
+                else {
+                    unreachable!()
+                };
+                check_index_range(&h.data, index.offset, index.length, 0)?;
+                mcap::read::attachment(&h.data, &index)?;
                 copy_body(
-                    record_body(&h.data, offset, records::op::ATTACHMENT)?,
+                    record_body(&h.data, index.offset, records::op::ATTACHMENT)?,
                     dest,
                     capacity,
                     out,
@@ -702,6 +716,17 @@ pub unsafe extern "C" fn fm_snapshot_call(
             _ => Err("Unknown snapshot operation".into()),
         }
     })
+}
+// Reject overflowing/out-of-bounds caller indexes before upstream slice arithmetic.
+fn check_index_range(data: &[u8], offset: u64, length: u64, minimum: u64) -> Outcome<()> {
+    if length < minimum
+        || offset
+            .checked_add(length)
+            .is_none_or(|end| end > data.len() as u64)
+    {
+        return Err(mcap::McapError::BadIndex.into());
+    }
+    Ok(())
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_free(p: *mut Snapshot) {

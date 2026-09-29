@@ -50,39 +50,48 @@ public sealed class McapIndexSnapshot : IDisposable
             yield return new(GetChannel(h.ChannelId), h.LogTime, h.PublishTime, h.Sequence, buffer.AsSpan(0, checked((int)n)).ToArray());
         }
     }
-    public void OpenChunkMessages(McapChunkIndex index) => Call(1, index.ChunkStartOffset, 0, [], out _, out _);
-    public McapReadStatus ReadNext(Span<byte> destination, out McapMessageHeader header, out ulong length) => Call(7, 0, 0, destination, out header, out length);
-    public McapReadStatus SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry message, Span<byte> destination, out McapMessageHeader header, out ulong length) => Call(2, chunk.ChunkStartOffset, message.Offset, destination, out header, out length);
-    public McapReadStatus ReadMetadata(McapMetadataIndex index, Span<byte> destination, out ulong length) => Call(3, index.Offset, 0, destination, out _, out length);
-    public McapReadStatus ReadAttachment(McapAttachmentIndex index, Span<byte> destination, out ulong length) => Call(4, index.Offset, 0, destination, out _, out length);
+    public void OpenChunkMessages(McapChunkIndex index) => Call(1, index, default, [], out _, out _);
+    public McapReadStatus ReadNext(Span<byte> destination, out McapMessageHeader header, out ulong length) => Call(7, null, default, destination, out header, out length);
+    public McapReadStatus SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry message, Span<byte> destination, out McapMessageHeader header, out ulong length) => Call(2, chunk, message, destination, out header, out length);
+    public McapReadStatus ReadMetadata(McapMetadataIndex index, Span<byte> destination, out ulong length) => Call(3, index, default, destination, out _, out length);
+    public McapReadStatus ReadAttachment(McapAttachmentIndex index, Span<byte> destination, out ulong length) => Call(4, index, default, destination, out _, out length);
     /// <summary>Copies packed entries: channel ID (u16), log time (u64), chunk-relative offset (u64), all little endian.</summary>
-    public McapReadStatus ReadMessageIndexes(McapChunkIndex index, Span<byte> destination, out ulong length) => Call(5, index.ChunkStartOffset, 0, destination, out _, out length);
-    public ulong GetCompressedDataOffset(McapChunkIndex index) { Call(8, index.ChunkStartOffset, 0, [], out _, out var value); return value; }
+    public McapReadStatus ReadMessageIndexes(McapChunkIndex index, Span<byte> destination, out ulong length) => Call(5, index, default, destination, out _, out length);
+    public ulong GetCompressedDataOffset(McapChunkIndex index) { Call(8, index, default, [], out _, out var value); return value; }
     public McapFooter ReadFooter()
     {
         Span<byte> b = stackalloc byte[20];
-        Call(6, 0, 0, b, out _, out _);
+        Call(6, null, default, b, out _, out _);
         var v = McapRecordView.Parse(2, b);
         return v.Footer;
     }
-    public McapMetadata ReadMetadata(McapMetadataIndex index) => RecordDecoder.Metadata(ReadOwned(3, index.Offset));
-    public McapAttachment ReadAttachment(McapAttachmentIndex index) => RecordDecoder.Attachment(ReadOwned(4, index.Offset));
-    byte[] ReadOwned(uint op, ulong offset)
+    public McapMetadata ReadMetadata(McapMetadataIndex index) => RecordDecoder.Metadata(ReadOwned(3, index));
+    public McapAttachment ReadAttachment(McapAttachmentIndex index) => RecordDecoder.Attachment(ReadOwned(4, index));
+    byte[] ReadOwned(uint op, object index)
     {
-        lock (gate) { Call(op, offset, 0, [], out _, out var n); var data = new byte[checked((int)n)]; Call(op, offset, 0, data, out _, out _); return data; }
+        lock (gate) { Call(op, index, default, [], out _, out var n); var data = new byte[checked((int)n)]; Call(op, index, default, data, out _, out _); return data; }
     }
-    unsafe McapReadStatus Call(uint op, ulong offset, ulong arg, Span<byte> destination, out McapMessageHeader header, out ulong length)
+    unsafe McapReadStatus Call(uint op, object? index, McapMessageIndexEntry message, Span<byte> destination, out McapMessageHeader header, out ulong length)
     {
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(handle.IsClosed, this);
-            fixed (byte* p = destination)
+            if (op is 1 or 2 or 3 or 4 or 5 or 8) ArgumentNullException.ThrowIfNull(index);
+            int size = IndexEncoding.Size(index);
+            byte* allocated = size > 1024 ? (byte*)NativeMemory.Alloc((nuint)size) : null;
+            Span<byte> encoded = size <= 1024 ? stackalloc byte[size] : new Span<byte>(allocated, size);
+            try
             {
-                int status = Native.fm_snapshot_call(handle, op, offset, arg, p, (nuint)destination.Length, out var h, out var r);
-                if (status < 0) throw Native.ConsumeError(r);
-                header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime); length = r.Value;
-                return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Message;
+                new IndexEncoding(encoded).Write(index);
+                fixed (byte* p = destination) fixed (byte* body = encoded)
+                {
+                    int status = Native.fm_snapshot_call(handle, op, body, (nuint)encoded.Length, message.LogTime, message.Offset, p, (nuint)destination.Length, out var h, out var r);
+                    if (status < 0) throw Native.ConsumeError(r);
+                    header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime); length = r.Value;
+                    return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Message;
+                }
             }
+            finally { NativeMemory.Free(allocated); }
         }
     }
     public void Dispose() { lock (gate) handle.Dispose(); }
@@ -135,7 +144,7 @@ internal static partial class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int fm_snapshot_open(ReaderHandle h, out IntPtr p, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_snapshot_call(SnapshotHandle h, uint op, ulong offset, ulong argument, byte* dest, nuint capacity, out NativeHeader header, out Result r);
+    internal static extern unsafe int fm_snapshot_call(SnapshotHandle h, uint op, byte* index, nuint indexLength, ulong messageTime, ulong messageOffset, byte* dest, nuint capacity, out NativeHeader header, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void fm_snapshot_free(IntPtr p);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

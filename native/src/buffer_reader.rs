@@ -165,6 +165,14 @@ pub unsafe extern "C" fn fm_buffer_reader_open(
                         }
                     }
                 }
+                // Upstream exposes lookup, not channel iteration. Query the bounded ID
+                // space after traversal to retain every successfully encountered declaration,
+                // including channels with no messages and declarations before an error.
+                for id in 0..=u16::MAX {
+                    if let Some(c) = iter.get_channel(id) {
+                        h.channels.entry(id).or_insert_with(|| own_channel(&c));
+                    }
+                }
             }
             5 => {
                 for message in mcap::MessageStream::new_with_options(data, options)? {
