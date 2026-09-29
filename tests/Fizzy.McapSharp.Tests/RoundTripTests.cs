@@ -95,7 +95,7 @@ public sealed class RoundTripTests : IDisposable
     public void FailedWriterIsTerminalAndNeverOverwrites()
     {
         var path = PathFor("failure.mcap");
-        using (var w = new McapWriter(path))
+        using (var w = new McapWriter(path, new() { RecoverableErrors = McapRecoverableWriterErrors.None }))
         {
             Assert.Throws<McapException>(() => w.WriteMessage(new McapMessageHeader(99, 1, 1, 1), [1]));
             Assert.Throws<InvalidOperationException>(() => w.Complete());

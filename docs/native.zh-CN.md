@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 4，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 5，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -26,6 +26,8 @@
 
 40 字节响应包含 JSON 指针/usize 长度、二进制指针/usize 长度和 u64 标量。支持的目标上指针及 C# nuint 均为 64 位。状态 0 成功、1 EOF、2 缓冲不足、负值错误。读取响应标量为所需/已复制长度，EOF 时为扫描计数。容量不足不修改目标缓冲，也不消费待处理记录。
 
+Writer 创建选项包含不可变位掩码 `recoverableErrors`：1 表示显式 Schema ID 无效，2 表示显式 Schema 冲突，4 表示 Channel 注册引用未知 Schema，8 表示显式 Channel 冲突，16 表示 header/payload 消息写入引用未知 Channel。省略时为 31；未知位在创建输出前被拒绝。Writer 状态 -2 保留普通结构化错误响应并允许继续使用；-1（包括 panic）表示终止。托管层先检查回调异常，再依据本次状态设置 `CanContinueWriting`，不依据异常类型放行。Reader 错误不采用恢复语义。
+
 ## 数据与生命周期
 
 消息热路径只使用固定数据和调用方缓冲；边界上不需要 JSON、托管 payload 数组、原生结果分配或逐消息 Channel 描述序列化。Reader 内部仍可分配原生缓冲，并将原生数据复制到托管调用方内存。冷路径请求/描述使用长度限定 UTF-8 JSON，二进制数据不使用 Base64。
@@ -42,7 +44,7 @@
 
 回调在发起线程同步执行。托管异常在回调内捕获并返回失败，退出原生边界后重新抛出原异常。禁止重入，也禁止同一 Stream 被两个会话同时占用。Seek 偏移相对捕获的 MCAP 起点；非寻址 Writer 只允许查询当前位置，采用上游 disable_seeking(true) 缓冲。
 
-Writer 操作串行化，原生错误为终止失败。Complete 调用上游 finish 后执行文件同步或 Stream Flush。Drop 使用上游 into_inner，避免隐式完成；free 捕获析构 panic，释放后回调指针不再可用。
+Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验的修改前拒绝；-1 及其他原生错误为终止失败。Complete 调用上游 finish 后执行文件同步或 Stream Flush。Drop 使用上游 into_inner，避免隐式完成；free 捕获析构 panic，释放后回调指针不再可用。
 
 ## 错误边界与验证
 

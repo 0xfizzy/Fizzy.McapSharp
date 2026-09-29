@@ -19,7 +19,7 @@ public sealed partial class McapWriter : IDisposable
     {
         Native.EnsureAvailable();
         options ??= new();
-        if (!Enum.IsDefined(options.Compression))
+        if (!Enum.IsDefined(options.Compression) || ((int)options.RecoverableErrors & ~31) != 0)
             throw new ArgumentOutOfRangeException(nameof(options));
         if (stream is null)
             ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -50,6 +50,15 @@ public sealed partial class McapWriter : IDisposable
         }
     }
 
+    void CheckResult(int status, Native.Result result, ref bool safeRejection)
+    {
+        if (status >= 0) { handle.Bridge?.ThrowIfError(); return; }
+        var error = Native.ConsumeError(result, status == -2);
+        handle.Bridge?.ThrowIfError();
+        safeRejection = status == -2;
+        throw error;
+    }
+
     void Check(bool allowAttachment = false)
     {
         handle.Bridge?.CheckReentry();
@@ -78,22 +87,18 @@ public sealed partial class McapWriter : IDisposable
                 LogTime = header.LogTime,
                 PublishTime = header.PublishTime
             };
+            bool safeRejection = false;
             try
             {
                 fixed (byte* p = data)
                 {
                     var status = Native.fm_writer_message(handle, &h, p, (nuint)data.Length, out var r);
-                    if (status < 0)
-                    {
-                        var error = Native.ConsumeError(r);
-                        handle.Bridge?.ThrowIfError();
-                        throw error;
-                    }
+                    CheckResult(status, r, ref safeRejection);
                 }
             }
             catch
             {
-                failed = true;
+                if (!safeRejection) failed = true;
                 throw;
             }
         }
@@ -137,8 +142,9 @@ public sealed partial class McapWriter : IDisposable
         lock (gate)
         {
             Check();
-            try { fixed (byte* p = data) { var status = Native.fm_writer_private(handle, opcode, includeInChunks, p, (nuint)data.Length, out var r); if (status < 0) { var error = Native.ConsumeError(r); handle.Bridge?.ThrowIfError(); throw error; } } }
-            catch { failed = true; throw; }
+            bool safeRejection = false;
+            try { fixed (byte* p = data) { var status = Native.fm_writer_private(handle, opcode, includeInChunks, p, (nuint)data.Length, out var r); CheckResult(status, r, ref safeRejection); } }
+            catch { if (!safeRejection) failed = true; throw; }
         }
     }
 
@@ -177,11 +183,13 @@ public sealed partial class McapWriter : IDisposable
         {
             Check(op is 9 or 10);
             var req = args is null ? [] : Native.Request(args);
+            bool safeRejection = false;
             try
             {
                 fixed (byte* payload = data)
                 {
                     var status = Native.fm_writer_call(handle, op, req, (nuint)req.Length, payload, (nuint)data.Length, out var r);
+                    CheckResult(status, r, ref safeRejection);
                     try
                     {
                         var response = Native.Consume(status, r);
@@ -196,7 +204,7 @@ public sealed partial class McapWriter : IDisposable
             }
             catch
             {
-                failed = true;
+                if (!safeRejection) failed = true;
                 throw;
             }
         }

@@ -377,7 +377,7 @@ pub unsafe extern "C" fn fm_writer_prepared(
     n: usize,
     out: *mut Response,
 ) -> i32 {
-    let status = guard(out, |out| {
+    let status = writer_guard(out, |out| {
         let op = operation.as_ref().ok_or("Null operation")?;
         writer_control(
             p,

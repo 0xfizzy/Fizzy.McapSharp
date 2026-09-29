@@ -267,7 +267,7 @@ public sealed class NativeInteropTests
         Assert.Equal(new byte[] { 1, 2, 3 }, message.Data);
         Assert.Equal(new byte[] { 1, 2, 3 }, message.Channel.Schema!.Data);
         using var other = new MemoryStream();
-        using var writer = new McapWriter(other, leaveOpen: true);
+        using var writer = new McapWriter(other, new() { RecoverableErrors = McapRecoverableWriterErrors.None }, leaveOpen: true);
         writer.RegisterSchema(1, "s", "raw", []);
         Assert.Throws<McapException>(() => writer.RegisterSchema(1, "different", "raw", []));
         Assert.Throws<InvalidOperationException>(() => writer.Complete());
@@ -343,7 +343,7 @@ public sealed class NativeInteropTests
     [Fact]
     public void AbiLayouts()
     {
-        Assert.Equal(4u, Native.fm_abi_version());
+        Assert.Equal(5u, Native.fm_abi_version());
         Assert.Equal(56, Marshal.SizeOf<Native.ReadEvent>());
         Assert.Equal(32, Marshal.OffsetOf<Native.ReadEvent>(nameof(Native.ReadEvent.Header)).ToInt32());
         Assert.Equal(24, Marshal.SizeOf<Native.NativeHeader>());

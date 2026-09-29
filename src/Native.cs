@@ -73,16 +73,16 @@ internal static partial class Native
     {
         if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
             throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
-        if (fm_abi_version() != 4)
+        if (fm_abi_version() != 5)
             throw new McapException("Incompatible native ABI.");
     }
 
-    internal static McapException ConsumeError(Result r)
+    internal static McapException ConsumeError(Result r, bool canContinueWriting = false)
     {
         try
         {
             var b = Copy(r.Json, r.JsonLength);
-            return McapException.Decode(Encoding.UTF8.GetString(b));
+            return McapException.Decode(Encoding.UTF8.GetString(b), canContinueWriting);
         }
         finally
         {

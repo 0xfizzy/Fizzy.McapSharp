@@ -224,3 +224,94 @@ fn raw_channel_lookup_matches_upstream_after_error() {
         buffer_reader::fm_buffer_reader_free(reader);
     }
 }
+
+#[test]
+fn writer_error_boundary_is_fail_closed() {
+    let mut out = Response::default();
+    assert_eq!(writer_guard(&mut out, |_| {
+        registration_result::<()>(Err(mcap::McapError::InvalidSchemaId), 1, true, true)?;
+        Ok(0)
+    }), -2);
+    unsafe { fm_buffer_free(out.json, out.json_len); }
+    for mode in 0..3 {
+        let status = writer_guard(&mut out, |_| {
+            if mode == 0 { panic!("injected writer panic"); }
+            if mode == 1 { return Err("unknown error".into()); }
+            registration_result::<()>(Err(mcap::McapError::InvalidSchemaId), 0, true, true)?;
+            Ok(0)
+        });
+        assert_eq!(status, -1);
+        unsafe { fm_buffer_free(out.json, out.json_len); }
+    }
+}
+
+#[test]
+fn recovered_registration_matches_official_output() {
+    for bit in [1u32, 2, 4, 8, 16] {
+        let path = std::env::temp_dir().join(format!("mcap-recovery-{}-{bit}.mcap", std::process::id()));
+        let config = json!({"compression":"none","chunkSize":64,"useChunks":true,"profile":""});
+        let mut upstream = options(&config, true).unwrap().create(std::io::Cursor::new(Vec::new())).unwrap();
+        let mut wrapper = Writer {
+            inner: Some(options(&config, true).unwrap().create(Output::File(File::create(&path).unwrap())).unwrap()),
+            failed: false, recoverable_errors: 31, attachment: None, summary: None, native_summary: None,
+        };
+        let mut out = Response::default();
+        upstream.add_schema_with_id(1, "s", "raw", &[]).unwrap();
+        upstream.add_channel_with_id(1, 1, "t", "raw", &BTreeMap::new()).unwrap();
+        unsafe {
+            writer_control(&mut wrapper, 1, &json!({"id":1,"name":"s","encoding":"raw"}), &[], &mut out).unwrap();
+            writer_control(&mut wrapper, 2, &json!({"id":1,"schema_id":1,"topic":"t","encoding":"raw","metadata":{}}), &[], &mut out).unwrap();
+        }
+        let header = records::MessageHeader { channel_id: 2, sequence: 99, log_time: 999, publish_time: 999 };
+        let error = match bit {
+            1 => upstream.add_schema_with_id(0, "s", "raw", &[]).unwrap_err(),
+            2 => upstream.add_schema_with_id(1, "conflict", "raw", &[]).unwrap_err(),
+            4 => upstream.add_channel_with_id(2, 2, "new", "raw", &BTreeMap::new()).unwrap_err(),
+            8 => upstream.add_channel_with_id(1, 1, "conflict", "raw", &BTreeMap::new()).unwrap_err(),
+            _ => upstream.write_to_known_channel(&header, &[]).unwrap_err(),
+        };
+        let status = unsafe {
+            if bit == 16 {
+                let h = MessageHeader { channel_id: 2, sequence: 99, log_time: 999, publish_time: 999, reserved: 0 };
+                fm_writer_message(&mut wrapper, &h, ptr::null(), 0, &mut out)
+            } else {
+                let (op, args) = match bit {
+                    1 => (1, json!({"id":0,"name":"s","encoding":"raw"})),
+                    2 => (1, json!({"id":1,"name":"conflict","encoding":"raw"})),
+                    4 => (2, json!({"id":2,"schema_id":2,"topic":"new","encoding":"raw","metadata":{}})),
+                    _ => (2, json!({"id":1,"schema_id":1,"topic":"conflict","encoding":"raw","metadata":{}})),
+                };
+                let args = serde_json::to_vec(&args).unwrap();
+                fm_writer_call(&mut wrapper, op, args.as_ptr(), args.len(), ptr::null(), 0, &mut out)
+            }
+        };
+        assert_eq!(status, -2);
+        assert!(!wrapper.failed);
+        unsafe {
+            assert_eq!(slice::from_raw_parts(out.json, out.json_len), errors::encode(&error));
+            fm_buffer_free(out.json, out.json_len);
+        }
+        let header = records::MessageHeader { channel_id: 1, sequence: 1, log_time: 10, publish_time: 10 };
+        upstream.write_to_known_channel(&header, &[42]).unwrap();
+        wrapper.inner.as_mut().unwrap().write_to_known_channel(&header, &[42]).unwrap();
+        upstream.finish().unwrap();
+        unsafe { writer_control(&mut wrapper, 7, &Value::Null, &[], &mut Response::default()).unwrap(); }
+        drop(wrapper);
+        assert_eq!(std::fs::read(&path).unwrap(), upstream.into_inner().into_inner());
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
+fn native_recovery_configuration_rejects_unknown_bits_before_creation() {
+    let path = std::env::temp_dir().join(format!("invalid-recovery-{}.mcap", std::process::id()));
+    let req = serde_json::to_vec(&json!({"path":path,"options":{"recoverableErrors":32}})).unwrap();
+    let mut out = Response::default();
+    let mut handle = ptr::null_mut();
+    unsafe {
+        assert_eq!(fm_writer_open(req.as_ptr(), req.len(), ptr::null(), &mut handle, &mut out), -1);
+        assert!(handle.is_null());
+        fm_buffer_free(out.json, out.json_len);
+    }
+    assert!(!path.exists());
+}

@@ -15,8 +15,25 @@ public enum McapReadStatus
     EndOfStream
 }
 
+[Flags]
+public enum McapRecoverableWriterErrors
+{
+    None = 0,
+    InvalidSchemaIdOnRegistration = 1,
+    ConflictingSchemaOnRegistration = 2,
+    UnknownSchemaOnChannelRegistration = 4,
+    ConflictingChannelOnRegistration = 8,
+    UnknownChannelOnMessageWrite = 16
+}
+
 public sealed record McapWriterOptions
 {
+    public McapRecoverableWriterErrors RecoverableErrors { get; init; } =
+        McapRecoverableWriterErrors.InvalidSchemaIdOnRegistration |
+        McapRecoverableWriterErrors.ConflictingSchemaOnRegistration |
+        McapRecoverableWriterErrors.UnknownSchemaOnChannelRegistration |
+        McapRecoverableWriterErrors.ConflictingChannelOnRegistration |
+        McapRecoverableWriterErrors.UnknownChannelOnMessageWrite;
     public const ulong DefaultChunkSize = 1024 * 1024;
     public McapCompression Compression { get; init; } = McapCompression.Zstd;
     public ulong? ChunkSize { get; init; } = DefaultChunkSize;

@@ -68,15 +68,16 @@ public sealed partial class McapWriter
             Check();
             ObjectDisposedException.ThrowIf(channel.Handle.IsClosed, channel);
             var h = new Native.NativeHeader { ChannelId = header.ChannelId, Sequence = header.Sequence, LogTime = header.LogTime, PublishTime = header.PublishTime };
+            bool safeRejection = false;
             try
             {
                 fixed (byte* p = data)
                 {
                     var status = Native.fm_writer_full_message(handle, channel.Handle, &h, p, (nuint)data.Length, out var r);
-                    if (status < 0) { var error = Native.ConsumeError(r); handle.Bridge?.ThrowIfError(); throw error; }
+                    CheckResult(status, r, ref safeRejection);
                 }
             }
-            catch { failed = true; throw; }
+            catch { if (!safeRejection) failed = true; throw; }
         }
     }
 

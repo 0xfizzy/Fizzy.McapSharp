@@ -6,7 +6,7 @@ English | [简体中文](native.zh-CN.md)
 
 ## ABI contract
 
-`fm_abi_version()` returns 4. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 5. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -26,6 +26,8 @@ The private message header is 24 bytes: `u16 channel_id`, `u16 reserved`, `u32 s
 
 The 40-byte response contains JSON pointer/`usize` length, binary pointer/`usize` length, and a `u64` value. Native pointer widths and C# `nuint` are 64 bits on supported targets. Status 0 means success, 1 reader EOF, 2 destination too small, negative error. A read response's value is required/copied byte length, or scan count at EOF. Insufficient capacity never writes a partial result or consumes the pending record.
 
+Writer open options include `recoverableErrors`, an immutable bit mask (1 invalid explicit schema ID, 2 explicit schema conflict, 4 unknown schema during channel registration, 8 explicit channel conflict, 16 unknown channel during header/payload message writing). Missing means 31; unknown bits fail before output creation. Writer status -2 preserves the ordinary structured error response and leaves the writer usable; status -1, including panic, is terminal. Managed code uses this call status only after checking callback exceptions, never the exception type, to set `CanContinueWriting`. Reader errors do not acquire recovery semantics.
+
 ## Data and lifetime
 
 Hot messages use only fixed data and caller buffers. No JSON, managed payload arrays, native result allocation or per-message channel description serialization is required at that boundary. The reader can allocate native buffers internally and copies native bytes into managed caller memory. Cold requests/descriptions use length-delimited UTF-8 JSON; binary data is never Base64-encoded.
@@ -42,7 +44,7 @@ The callback table is 48 bytes: context pointer, Read/Write/Seek/Flush function 
 
 Callbacks run synchronously on the initiating thread. Managed callback exceptions are captured and returned as failure; after native code unwinds normally, the original exception is rethrown. Reentry is rejected. A stream cannot belong to two concurrent sessions. Seek offsets are relative to the captured MCAP origin; non-seekable writers allow only a current-position query and use upstream `disable_seeking(true)` buffering.
 
-Writer operations are serialized. Native errors are terminal. `Complete` calls upstream finish and then file sync or stream flush. Drop uses upstream `into_inner`, preventing implicit completion. Free operations catch destructor panics. No callback pointers remain usable after release.
+Writer operations are serialized. Writer status -2 is a configured, audited pre-mutation rejection; -1 is terminal. Other native errors are terminal. `Complete` calls upstream finish and then file sync or stream flush. Drop uses upstream `into_inner`, preventing implicit completion. Free operations catch destructor panics. No callback pointers remain usable after release.
 
 ## Error boundary and validation
 

@@ -35,17 +35,18 @@ public sealed partial class McapWriter
         lock (gate)
         {
             Check(); ObjectDisposedException.ThrowIf(operation.Handle.IsClosed, operation);
+            bool safeRejection = false;
             try
             {
                 fixed (byte* p = payload)
                 {
                     int status = Native.fm_writer_prepared(handle, operation.Handle, p, (nuint)payload.Length, out var r);
-                    if (status < 0) { var error = Native.ConsumeError(r); handle.Bridge?.ThrowIfError(); throw error; }
+                    CheckResult(status, r, ref safeRejection);
                     if (operation.Operation == 8) attachment = true;
                     return r.Value;
                 }
             }
-            catch { failed = true; throw; }
+            catch { if (!safeRejection) failed = true; throw; }
         }
     }
 }

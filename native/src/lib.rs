@@ -98,7 +98,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    4
+    5
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
@@ -110,6 +110,7 @@ pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
 pub struct Writer {
     inner: Option<mcap::Writer<Output>>,
     failed: bool,
+    recoverable_errors: u32,
     attachment: Option<u64>,
     summary: Option<Value>,
     native_summary: Option<mcap::Summary>,
@@ -180,6 +181,10 @@ pub unsafe extern "C" fn fm_writer_open(
         }
         *handle = ptr::null_mut();
         let v = request(p, n)?;
+        let recoverable_errors = match v["options"].get("recoverableErrors") {
+            None => 31,
+            Some(value) => value.as_u64().filter(|n| n & !31 == 0).ok_or("Invalid recovery flags")? as u32,
+        };
         let output = if let Some(c) = callbacks.as_ref() {
             Output::Stream(*c)
         } else {
@@ -195,6 +200,7 @@ pub unsafe extern "C" fn fm_writer_open(
         *handle = Box::into_raw(Box::new(Writer {
             inner: Some(options(&v["options"], seekable)?.create(output)?),
             failed: false,
+            recoverable_errors,
             attachment: None,
             summary: None,
             native_summary: None,
@@ -202,8 +208,37 @@ pub unsafe extern "C" fn fm_writer_open(
         Ok(0)
     })
 }
+// Only audited, pre-mutation return sites may construct this marker.
+#[derive(Debug)]
+struct SafeRejection(mcap::McapError);
+impl std::fmt::Display for SafeRejection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) }
+}
+impl std::error::Error for SafeRejection {}
+fn registration_result<T>(result: mcap::McapResult<T>, mask: u32, schema: bool, explicit: bool) -> Outcome<T> {
+    result.map_err(|e| {
+        let bit = match (&e, schema, explicit) {
+            (mcap::McapError::InvalidSchemaId, true, true) => 1,
+            (mcap::McapError::ConflictingSchemas(_), true, true) => 2,
+            (mcap::McapError::UnknownSchema(..), false, _) => 4,
+            (mcap::McapError::ConflictingChannels(_), false, true) => 8,
+            _ => 0,
+        };
+        if mask & bit != 0 { Box::new(SafeRejection(e)) as Error } else { Box::new(e) as Error }
+    })
+}
+fn writer_guard(out: *mut Response, f: impl FnOnce(&mut Response) -> Outcome<i32>) -> i32 {
+    guard(out, |out| match f(out) {
+        Err(e) if e.is::<SafeRejection>() => {
+            let e = e.downcast::<SafeRejection>().unwrap();
+            respond(out, errors::encode(&e.0), vec![], 0);
+            Ok(-2)
+        }
+        result => result,
+    })
+}
 fn writer_result(handle: *mut Writer, status: i32) -> i32 {
-    if status < 0 {
+    if status < 0 && status != -2 {
         if let Some(w) = unsafe { handle.as_mut() } {
             w.failed = true;
         }
@@ -218,7 +253,7 @@ pub unsafe extern "C" fn fm_writer_message(
     n: usize,
     out: *mut Response,
 ) -> i32 {
-    let s = guard(out, |_| {
+    let s = writer_guard(out, |_| {
         let w = handle.as_mut().ok_or("Null writer")?;
         if w.failed || w.attachment.is_some() {
             return Err("Writer unavailable".into());
@@ -235,7 +270,11 @@ pub unsafe extern "C" fn fm_writer_message(
                     publish_time: h.publish_time,
                 },
                 bytes(p, n)?,
-            )?;
+            ).map_err(|e| {
+                if w.recoverable_errors & 16 != 0 && matches!(e, mcap::McapError::UnknownChannel(..)) {
+                    Box::new(SafeRejection(e)) as Error
+                } else { Box::new(e) as Error }
+            })?;
         Ok(0)
     });
     writer_result(handle, s)
@@ -250,7 +289,7 @@ pub unsafe extern "C" fn fm_writer_call(
     len: usize,
     out: *mut Response,
 ) -> i32 {
-    let status = guard(out, |out| {
+    let status = writer_guard(out, |out| {
         let v = if n == 0 { Value::Null } else { request(p, n)? };
         writer_control(handle, op, &v, bytes(data, len)?, out)
     });
@@ -283,34 +322,34 @@ unsafe fn writer_control(
         1 => {
             ({
                 if let Some(id) = v["id"].as_u64() {
-                    w.add_schema_with_id(
+                    registration_result(w.add_schema_with_id(
                         id.try_into()?,
                         string(v, "name")?,
                         string(v, "encoding")?,
                         payload,
-                    )?
+                    ), holder.recoverable_errors, true, true)?
                 } else {
-                    w.add_schema(string(v, "name")?, string(v, "encoding")?, payload)?
+                    registration_result(w.add_schema(string(v, "name")?, string(v, "encoding")?, payload), holder.recoverable_errors, true, false)?
                 }
             }) as u64
         }
         2 => {
             ({
                 if let Some(id) = v["id"].as_u64() {
-                    w.add_channel_with_id(
+                    registration_result(w.add_channel_with_id(
                         id.try_into()?,
                         number(v, "schema_id")?.try_into()?,
                         string(v, "topic")?,
                         string(v, "encoding")?,
                         &map(&v["metadata"])?,
-                    )?
+                    ), holder.recoverable_errors, false, true)?
                 } else {
-                    w.add_channel(
+                    registration_result(w.add_channel(
                         number(v, "schema_id")?.try_into()?,
                         string(v, "topic")?,
                         string(v, "encoding")?,
                         &map(&v["metadata"])?,
-                    )?
+                    ), holder.recoverable_errors, false, false)?
                 }
             }) as u64
         }
