@@ -24,6 +24,7 @@ pub(super) fn linear_options(v: &Value) -> Outcome<sans_io::LinearReaderOptions>
 }
 
 enum Engine {
+    Inactive,
     Linear(sans_io::LinearReader),
     Summary(Option<sans_io::SummaryReader>),
     Indexed(sans_io::IndexedReader),
@@ -61,6 +62,8 @@ pub unsafe extern "C" fn fm_engine_index_control(
     if status < 0 {
         if let Some(h) = p.as_mut() {
             h.failed = true;
+            h.delivery.discard();
+            h.engine = Engine::Inactive;
         }
     }
     status
@@ -68,11 +71,11 @@ pub unsafe extern "C" fn fm_engine_index_control(
 pub struct EngineHandle {
     engine: Engine,
     event: Event,
-    pending: Vec<u8>,
+    pub delivery: memory::Delivery,
     waiting: bool,
     failed: bool,
     ended: bool,
-    summary: Option<mcap::Summary>,
+    summary: Option<Arc<mcap::Summary>>,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -150,7 +153,14 @@ pub unsafe extern "C" fn fm_engine_open(
         *handle = Box::into_raw(Box::new(EngineHandle {
             engine,
             event: Event::default(),
-            pending: Vec::new(),
+            delivery: memory::Delivery {
+                options: if kind == 2 && v["Memory"].is_null() {
+                    summary.as_ref().ok_or("Missing summary")?.delivery.options
+                } else {
+                    memory::Options::parse(&v["Memory"])?
+                },
+                ..Default::default()
+            },
             waiting: false,
             failed: false,
             ended: false,
@@ -178,8 +188,9 @@ pub unsafe extern "C" fn fm_engine_next(
         }
         if !h.waiting && !h.ended {
             h.event = Event::default();
-            h.pending.clear();
+            h.delivery.data.clear();
             match &mut h.engine {
+                Engine::Inactive => return Err("Engine failed".into()),
                 Engine::Linear(r) => match r.next_event().transpose()? {
                     None => h.ended = true,
                     Some(sans_io::LinearReadEvent::ReadRequest(n)) => {
@@ -189,8 +200,12 @@ pub unsafe extern "C" fn fm_engine_next(
                     Some(sans_io::LinearReadEvent::Record { opcode, data }) => {
                         h.event.kind = 3;
                         h.event.opcode = opcode as u32;
-                        h.pending.extend_from_slice(data);
+
                         h.event.length = data.len() as u64;
+                        *event = h.event;
+                        let status = h.delivery.deliver(data, dest, capacity)?;
+                        h.waiting = status == 2;
+                        return Ok(status);
                     }
                 },
                 Engine::Summary(r) => match r
@@ -200,7 +215,7 @@ pub unsafe extern "C" fn fm_engine_next(
                     .transpose()?
                 {
                     None => {
-                        h.summary = r.take().unwrap().finish();
+                        h.summary = r.take().unwrap().finish().map(Arc::new);
                         h.ended = true;
                     }
                     Some(sans_io::SummaryReadEvent::ReadRequest(n)) => {
@@ -226,7 +241,7 @@ pub unsafe extern "C" fn fm_engine_next(
                     Some(sans_io::IndexedReadEvent::Message { header, data }) => {
                         h.event.kind = 4;
                         h.event.length = data.len() as u64;
-                        h.pending.extend_from_slice(data);
+
                         h.event.header = MessageHeader {
                             channel_id: header.channel_id,
                             sequence: header.sequence,
@@ -234,25 +249,25 @@ pub unsafe extern "C" fn fm_engine_next(
                             publish_time: header.publish_time,
                             reserved: 0,
                         };
+                        *event = h.event;
+                        let status = h.delivery.deliver(data, dest, capacity)?;
+                        h.waiting = status == 2;
+                        return Ok(status);
                     }
                 },
             }
             h.waiting = !h.ended;
         }
         if h.ended {
+            h.delivery.discard();
             *event = Event::default();
             return Ok(1);
         }
         *event = h.event;
         if h.event.kind == 3 || h.event.kind == 4 {
-            if capacity < h.pending.len() {
+            let status = h.delivery.retry(dest, capacity)?;
+            if status == 2 {
                 return Ok(2);
-            }
-            if !h.pending.is_empty() {
-                if dest.is_null() {
-                    return Err("Null destination".into());
-                }
-                ptr::copy_nonoverlapping(h.pending.as_ptr(), dest, h.pending.len());
             }
             h.waiting = false;
         }
@@ -261,6 +276,8 @@ pub unsafe extern "C" fn fm_engine_next(
     if status < 0 {
         if let Some(h) = p.as_mut() {
             h.failed = true;
+            h.delivery.discard();
+            h.engine = Engine::Inactive;
         }
     }
     status
@@ -299,12 +316,15 @@ pub unsafe extern "C" fn fm_engine_feed(
             (Engine::Indexed(r), 5) => r.insert_chunk_record_data(position, data)?,
             _ => return Err("Unexpected input".into()),
         }
+        h.delivery.stats.copied += n as u64;
         h.waiting = false;
         Ok(0)
     });
     if status < 0 {
         if let Some(h) = p.as_mut() {
             h.failed = true;
+            h.delivery.discard();
+            h.engine = Engine::Inactive;
         }
     }
     status
@@ -395,9 +415,11 @@ pub unsafe extern "C" fn fm_writer_prepared(
 }
 
 pub struct Snapshot {
-    data: Arc<Vec<u8>>,
+    pub stats: memory::Statistics,
+    pub data: Arc<memory::Backing>,
+    pub options: memory::Options,
     summary: Option<Arc<mcap::Summary>>,
-    cursor: Option<buffer_reader::BufferReader>,
+    pub cursor: Option<buffer_reader::BufferReader>,
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_summary(p: *const Snapshot, out: *mut Response) -> i32 {
@@ -416,15 +438,33 @@ pub unsafe extern "C" fn fm_snapshot_bytes(
     handle: *mut *mut Snapshot,
     out: *mut Response,
 ) -> i32 {
+    fm_snapshot_bytes_options(data, n, ptr::null(), 0, handle, out)
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_bytes_options(
+    data: *const u8,
+    n: usize,
+    config: *const u8,
+    config_len: usize,
+    handle: *mut *mut Snapshot,
+    out: *mut Response,
+) -> i32 {
     guard(out, |_| {
         if handle.is_null() {
             return Err("Null output".into());
         }
         *handle = ptr::null_mut();
-        let data = bytes(data, n)?.to_vec();
+        let options = if config_len == 0 {
+            memory::Options::default()
+        } else {
+            memory::Options::parse(&request(config, config_len)?)?
+        };
+        let data = memory::Backing::copy(bytes(data, n)?, options)?;
         let summary = mcap::Summary::read(&data)?;
         *handle = Box::into_raw(Box::new(Snapshot {
+            stats: memory::Statistics::default(),
             data: Arc::new(data),
+            options,
             summary: summary.map(Arc::new),
             cursor: None,
         }));
@@ -480,14 +520,19 @@ pub unsafe extern "C" fn fm_summary_records(
         }
         *handle = ptr::null_mut();
         let summary = match kind {
-            0 => (*(p as *const Snapshot)).summary.as_deref(),
+            0 => (*(p as *const Snapshot)).summary.as_ref(),
             1 => (*(p as *const EngineHandle)).summary.as_ref(),
             2 => (*(p as *const Writer)).native_summary.as_ref(),
             _ => return Err("Unknown summary source".into()),
         };
-        *handle = Box::into_raw(Box::new(buffer_reader::summary_records(
-            summary.ok_or("No summary available")?,
-        )?));
+        let mut cursor =
+            buffer_reader::summary_records(summary.ok_or("No summary available")?.clone())?;
+        cursor.delivery.options = match kind {
+            0 => (*(p as *const Snapshot)).options,
+            1 => (*(p as *const EngineHandle)).delivery.options,
+            _ => memory::Options::default(),
+        };
+        *handle = Box::into_raw(Box::new(cursor));
         Ok(0)
     })
 }
@@ -514,6 +559,16 @@ pub unsafe extern "C" fn fm_snapshot_open(
     handle: *mut *mut Snapshot,
     out: *mut Response,
 ) -> i32 {
+    fm_snapshot_open_options(reader, ptr::null(), 0, handle, out)
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_open_options(
+    reader: *mut Reader,
+    config: *const u8,
+    config_len: usize,
+    handle: *mut *mut Snapshot,
+    out: *mut Response,
+) -> i32 {
     guard(out, |_| {
         if handle.is_null() {
             return Err("Null output".into());
@@ -523,35 +578,36 @@ pub unsafe extern "C" fn fm_snapshot_open(
         if !r.input.seekable() {
             return Err("Snapshot requires a seekable source".into());
         }
+        let options = if config_len == 0 {
+            r.delivery.options
+        } else {
+            memory::Options::parse(&request(config, config_len)?)?
+        };
         let pos = r.input.stream_position()?;
         let result = (|| -> Outcome<Vec<u8>> {
             r.input.seek(SeekFrom::Start(0))?;
+            let length = usize::try_from(r.input.seek(SeekFrom::End(0))?)?;
+            memory::check("OwnedInput", options.owned, length)?;
+            r.input.seek(SeekFrom::Start(0))?;
             let mut data = Vec::new();
-            r.input.read_to_end(&mut data)?;
+            data.try_reserve_exact(length)?;
+            memory::check("OwnedInput", options.owned, data.capacity())?;
+            data.resize(length, 0);
+            r.input.read_exact(&mut data)?;
             Ok(data)
         })();
         r.input.seek(SeekFrom::Start(pos))?;
         let data = result?;
         let summary = mcap::Summary::read(&data)?;
         *handle = Box::into_raw(Box::new(Snapshot {
-            data: Arc::new(data),
+            stats: memory::Statistics::default(),
+            data: Arc::new(memory::Backing::Owned(data)),
+            options,
             summary: summary.map(Arc::new),
             cursor: None,
         }));
         Ok(0)
     })
-}
-fn own_message(m: mcap::Message<'_>) -> (MessageHeader, Vec<u8>) {
-    (
-        MessageHeader {
-            channel_id: m.channel.id,
-            sequence: m.sequence,
-            log_time: m.log_time,
-            publish_time: m.publish_time,
-            reserved: 0,
-        },
-        m.data.into_owned(),
-    )
 }
 pub(super) unsafe fn copy_body(
     data: &[u8],
@@ -599,7 +655,7 @@ pub unsafe extern "C" fn fm_snapshot_call(
     header: *mut MessageHeader,
     out: *mut Response,
 ) -> i32 {
-    guard(out, |out| {
+    let status = guard(out, |out| {
         let h = p.as_mut().ok_or("Null snapshot")?;
         if !header.is_null() {
             *header = MessageHeader::default();
@@ -614,10 +670,10 @@ pub unsafe extern "C" fn fm_snapshot_call(
         }
         if op == 6 {
             let f = mcap::read::footer(&h.data)?;
-            let mut b = Vec::new();
-            b.extend_from_slice(&f.summary_start.to_le_bytes());
-            b.extend_from_slice(&f.summary_offset_start.to_le_bytes());
-            b.extend_from_slice(&f.summary_crc.to_le_bytes());
+            let mut b = [0u8; 20];
+            b[..8].copy_from_slice(&f.summary_start.to_le_bytes());
+            b[8..16].copy_from_slice(&f.summary_offset_start.to_le_bytes());
+            b[16..].copy_from_slice(&f.summary_crc.to_le_bytes());
             return copy_body(&b, dest, capacity, out);
         }
         match op {
@@ -636,7 +692,14 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
                 }
                 if op == 1 {
-                    let cursor = buffer_reader::chunk_reader(h.data.clone(), s.clone(), &index)?;
+                    let mut cursor =
+                        buffer_reader::chunk_reader(h.data.clone(), s.clone(), &index)?;
+                    cursor.delivery.options = h.options;
+                    if let Some(old) = h.cursor.take() {
+                        h.stats.peak = h.stats.peak.max(old.delivery.stats.peak);
+                        h.stats.allocations += old.delivery.stats.allocations;
+                        h.stats.copied += old.delivery.stats.copied;
+                    }
                     h.cursor = Some(cursor);
                     return Ok(0);
                 }
@@ -649,11 +712,17 @@ pub unsafe extern "C" fn fm_snapshot_call(
                             offset: message_offset,
                         },
                     )?;
-                    let (msg, data) = own_message(m);
+                    let msg = MessageHeader {
+                        channel_id: m.channel.id,
+                        sequence: m.sequence,
+                        log_time: m.log_time,
+                        publish_time: m.publish_time,
+                        reserved: 0,
+                    };
                     if !header.is_null() {
                         *header = msg;
                     }
-                    return copy_body(&data, dest, capacity, out);
+                    return copy_body(&m.data, dest, capacity, out);
                 }
                 for offset in index.message_index_offsets.values() {
                     check_index_range(&h.data, *offset, 15, 15)?;
@@ -661,15 +730,32 @@ pub unsafe extern "C" fn fm_snapshot_call(
                 let indexes = s.read_message_indexes(&h.data, &index)?;
                 let mut rows: Vec<_> = indexes.into_iter().collect();
                 rows.sort_by_key(|(c, _)| c.id);
-                let mut b = Vec::new();
+                let length = rows
+                    .iter()
+                    .try_fold(0usize, |total, (_, entries)| {
+                        entries
+                            .len()
+                            .checked_mul(18)
+                            .and_then(|n| total.checked_add(n))
+                    })
+                    .ok_or("Message index length overflow")?;
+                out.value = length as u64;
+                if capacity < length {
+                    return Ok(2);
+                }
+                if length != 0 && dest.is_null() {
+                    return Err("Null destination".into());
+                }
+                let mut offset = 0;
                 for (c, entries) in rows {
                     for e in entries {
-                        b.extend_from_slice(&c.id.to_le_bytes());
-                        b.extend_from_slice(&e.log_time.to_le_bytes());
-                        b.extend_from_slice(&e.offset.to_le_bytes());
+                        memory::copy(&c.id.to_le_bytes(), dest.add(offset))?;
+                        memory::copy(&e.log_time.to_le_bytes(), dest.add(offset + 2))?;
+                        memory::copy(&e.offset.to_le_bytes(), dest.add(offset + 10))?;
+                        offset += 18;
                     }
                 }
-                copy_body(&b, dest, capacity, out)
+                Ok(0)
             }
             3 => {
                 let records::Record::MetadataIndex(index) = mcap::parse_record(
@@ -707,7 +793,11 @@ pub unsafe extern "C" fn fm_snapshot_call(
             }
             _ => Err("Unknown snapshot operation".into()),
         }
-    })
+    });
+    if status == 0 && matches!(op, 2 | 3 | 4 | 5 | 6) && !p.is_null() && !out.is_null() {
+        (*p).stats.copied += (*out).value;
+    }
+    status
 }
 // Reject overflowing/out-of-bounds caller indexes before upstream slice arithmetic.
 fn check_index_range(data: &[u8], offset: u64, length: u64, minimum: u64) -> Outcome<()> {
@@ -885,8 +975,36 @@ pub unsafe extern "C" fn fm_snapshot_chunk_reader(
             unreachable!()
         };
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
-        let cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index)?;
+        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index)?;
+        cursor.delivery.options = h.options;
         *handle = Box::into_raw(Box::new(cursor));
+        Ok(0)
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_mapped(
+    config: *const u8,
+    n: usize,
+    handle: *mut *mut Snapshot,
+    out: *mut Response,
+) -> i32 {
+    guard(out, |_| {
+        if handle.is_null() {
+            return Err("Null output".into());
+        }
+        *handle = ptr::null_mut();
+        let v = request(config, n)?;
+        let options = memory::Options::parse(&v["options"])?;
+        let data = memory::Backing::open(string(&v, "path")?)?;
+        let summary = mcap::Summary::read(&data)?.map(Arc::new);
+        *handle = Box::into_raw(Box::new(Snapshot {
+            stats: memory::Statistics::default(),
+            data: Arc::new(data),
+            options,
+            summary,
+            cursor: None,
+        }));
         Ok(0)
     })
 }

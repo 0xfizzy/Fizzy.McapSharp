@@ -5,13 +5,15 @@ mod coverage_tests;
 mod errors;
 mod extended;
 mod io;
+mod memory;
+mod sort_arena;
 use io::{Callbacks, Input, Output};
 use mcap::{records, sans_io};
 use memmap2::Mmap;
 use serde_json::{json, Value};
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, VecDeque},
+    collections::BTreeMap,
     fs::File,
     io::{Read, Seek, SeekFrom},
     panic::{catch_unwind, AssertUnwindSafe},
@@ -98,7 +100,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    5
+    6
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
@@ -113,7 +115,7 @@ pub struct Writer {
     recoverable_errors: u32,
     attachment: Option<u64>,
     summary: Option<Value>,
-    native_summary: Option<mcap::Summary>,
+    native_summary: Option<std::sync::Arc<mcap::Summary>>,
 }
 impl Drop for Writer {
     fn drop(&mut self) {
@@ -183,7 +185,10 @@ pub unsafe extern "C" fn fm_writer_open(
         let v = request(p, n)?;
         let recoverable_errors = match v["options"].get("recoverableErrors") {
             None => 31,
-            Some(value) => value.as_u64().filter(|n| n & !31 == 0).ok_or("Invalid recovery flags")? as u32,
+            Some(value) => value
+                .as_u64()
+                .filter(|n| n & !31 == 0)
+                .ok_or("Invalid recovery flags")? as u32,
         };
         let output = if let Some(c) = callbacks.as_ref() {
             Output::Stream(*c)
@@ -212,10 +217,17 @@ pub unsafe extern "C" fn fm_writer_open(
 #[derive(Debug)]
 struct SafeRejection(mcap::McapError);
 impl std::fmt::Display for SafeRejection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
 }
 impl std::error::Error for SafeRejection {}
-fn registration_result<T>(result: mcap::McapResult<T>, mask: u32, schema: bool, explicit: bool) -> Outcome<T> {
+fn registration_result<T>(
+    result: mcap::McapResult<T>,
+    mask: u32,
+    schema: bool,
+    explicit: bool,
+) -> Outcome<T> {
     result.map_err(|e| {
         let bit = match (&e, schema, explicit) {
             (mcap::McapError::InvalidSchemaId, true, true) => 1,
@@ -224,7 +236,11 @@ fn registration_result<T>(result: mcap::McapResult<T>, mask: u32, schema: bool, 
             (mcap::McapError::ConflictingChannels(_), false, true) => 8,
             _ => 0,
         };
-        if mask & bit != 0 { Box::new(SafeRejection(e)) as Error } else { Box::new(e) as Error }
+        if mask & bit != 0 {
+            Box::new(SafeRejection(e)) as Error
+        } else {
+            Box::new(e) as Error
+        }
     })
 }
 fn writer_guard(out: *mut Response, f: impl FnOnce(&mut Response) -> Outcome<i32>) -> i32 {
@@ -270,10 +286,15 @@ pub unsafe extern "C" fn fm_writer_message(
                     publish_time: h.publish_time,
                 },
                 bytes(p, n)?,
-            ).map_err(|e| {
-                if w.recoverable_errors & 16 != 0 && matches!(e, mcap::McapError::UnknownChannel(..)) {
+            )
+            .map_err(|e| {
+                if w.recoverable_errors & 16 != 0
+                    && matches!(e, mcap::McapError::UnknownChannel(..))
+                {
                     Box::new(SafeRejection(e)) as Error
-                } else { Box::new(e) as Error }
+                } else {
+                    Box::new(e) as Error
+                }
             })?;
         Ok(0)
     });
@@ -322,34 +343,54 @@ unsafe fn writer_control(
         1 => {
             ({
                 if let Some(id) = v["id"].as_u64() {
-                    registration_result(w.add_schema_with_id(
-                        id.try_into()?,
-                        string(v, "name")?,
-                        string(v, "encoding")?,
-                        payload,
-                    ), holder.recoverable_errors, true, true)?
+                    registration_result(
+                        w.add_schema_with_id(
+                            id.try_into()?,
+                            string(v, "name")?,
+                            string(v, "encoding")?,
+                            payload,
+                        ),
+                        holder.recoverable_errors,
+                        true,
+                        true,
+                    )?
                 } else {
-                    registration_result(w.add_schema(string(v, "name")?, string(v, "encoding")?, payload), holder.recoverable_errors, true, false)?
+                    registration_result(
+                        w.add_schema(string(v, "name")?, string(v, "encoding")?, payload),
+                        holder.recoverable_errors,
+                        true,
+                        false,
+                    )?
                 }
             }) as u64
         }
         2 => {
             ({
                 if let Some(id) = v["id"].as_u64() {
-                    registration_result(w.add_channel_with_id(
-                        id.try_into()?,
-                        number(v, "schema_id")?.try_into()?,
-                        string(v, "topic")?,
-                        string(v, "encoding")?,
-                        &map(&v["metadata"])?,
-                    ), holder.recoverable_errors, false, true)?
+                    registration_result(
+                        w.add_channel_with_id(
+                            id.try_into()?,
+                            number(v, "schema_id")?.try_into()?,
+                            string(v, "topic")?,
+                            string(v, "encoding")?,
+                            &map(&v["metadata"])?,
+                        ),
+                        holder.recoverable_errors,
+                        false,
+                        true,
+                    )?
                 } else {
-                    registration_result(w.add_channel(
-                        number(v, "schema_id")?.try_into()?,
-                        string(v, "topic")?,
-                        string(v, "encoding")?,
-                        &map(&v["metadata"])?,
-                    ), holder.recoverable_errors, false, false)?
+                    registration_result(
+                        w.add_channel(
+                            number(v, "schema_id")?.try_into()?,
+                            string(v, "topic")?,
+                            string(v, "encoding")?,
+                            &map(&v["metadata"])?,
+                        ),
+                        holder.recoverable_errors,
+                        false,
+                        false,
+                    )?
                 }
             }) as u64
         }
@@ -377,7 +418,7 @@ unsafe fn writer_control(
         7 => {
             let s = w.finish()?;
             holder.summary = Some(summary_json(&s));
-            holder.native_summary = Some(s);
+            holder.native_summary = Some(std::sync::Arc::new(s));
             let mut output = holder.inner.take().unwrap().into_inner();
             output.complete()?;
             0
@@ -469,16 +510,19 @@ fn empty_summary() -> Value {
 }
 
 pub struct Reader {
+    delivery: memory::Delivery,
+    scratch: memory::Delivery,
+    memory_peak: u64,
     indexed: Option<sans_io::IndexedReader>,
     sorted: bool,
     order: u64,
     topics: Option<std::collections::BTreeSet<String>>,
     limit: Option<usize>,
-    queue: VecDeque<(u8, Vec<u8>)>,
+    arena: sort_arena::Arena,
     indexed_summary: Option<Value>,
-    parser: sans_io::LinearReader,
+    parser: Option<sans_io::LinearReader>,
     input: Input,
-    pending: Option<(u8, Vec<u8>)>,
+
     schemas: BTreeMap<u16, (records::SchemaHeader, Vec<u8>)>,
     channels: BTreeMap<u16, records::Channel>,
     summary: Value,
@@ -505,58 +549,6 @@ fn parser(top: bool, limit: Option<usize>) -> sans_io::LinearReader {
     sans_io::LinearReader::new_with_options(o)
 }
 impl Reader {
-    fn next_raw(&mut self) -> Outcome<Option<(u8, Vec<u8>)>> {
-        if self.sorted {
-            let next = self.queue.pop_front();
-            if next.is_none() {
-                self.ended = true;
-            }
-            return Ok(next);
-        }
-        if let Some(indexed) = self.indexed.as_mut() {
-            loop {
-                match indexed.next_event() {
-                    None => {
-                        self.ended = true;
-                        return Ok(None);
-                    }
-                    Some(Err(e)) => return Err(e.into()),
-                    Some(Ok(sans_io::IndexedReadEvent::ReadChunkRequest { offset, length })) => {
-                        self.input.seek(SeekFrom::Start(offset))?;
-                        let mut data = vec![0; length];
-                        self.input.read_exact(&mut data)?;
-                        indexed.insert_chunk_record_data(offset, &data)?;
-                    }
-                    Some(Ok(sans_io::IndexedReadEvent::Message { header, data })) => {
-                        let mut body = Vec::with_capacity(22 + data.len());
-                        body.extend_from_slice(&header.channel_id.to_le_bytes());
-                        body.extend_from_slice(&header.sequence.to_le_bytes());
-                        body.extend_from_slice(&header.log_time.to_le_bytes());
-                        body.extend_from_slice(&header.publish_time.to_le_bytes());
-                        body.extend_from_slice(data);
-                        return Ok(Some((records::op::MESSAGE, body)));
-                    }
-                }
-            }
-        }
-
-        loop {
-            match self.parser.next_event() {
-                Some(Ok(sans_io::LinearReadEvent::ReadRequest(n))) => {
-                    let n = self.input.read(self.parser.insert(n.min(65536)))?;
-                    self.parser.notify_read(n);
-                }
-                Some(Ok(sans_io::LinearReadEvent::Record { opcode, data })) => {
-                    return Ok(Some((opcode, data.to_vec())))
-                }
-                Some(Err(e)) => return Err(e.into()),
-                None => {
-                    self.ended = true;
-                    return Ok(None);
-                }
-            }
-        }
-    }
     fn observe(&mut self, op: u8, data: &[u8]) -> Outcome<()> {
         self.count += 1;
         match mcap::parse_record(op, data)? {
@@ -575,7 +567,9 @@ impl Reader {
                         .unwrap()
                         .push(json!(header.id));
                 }
-                self.schemas.insert(header.id, (header, data.into_owned()));
+                if !self.schemas.contains_key(&header.id) {
+                    self.schemas.insert(header.id, (header, data.into_owned()));
+                }
             }
             records::Record::Channel(c) => {
                 if self.messages && c.schema_id != 0 && !self.schemas.contains_key(&c.schema_id) {
@@ -592,7 +586,7 @@ impl Reader {
                         .unwrap()
                         .push(json!(c.id));
                 }
-                self.channels.insert(c.id, c);
+                self.channels.entry(c.id).or_insert(c);
             }
             records::Record::DataEnd(_) => self.in_summary = true,
             records::Record::Footer(f) => self.summary_present = f.summary_start != 0,
@@ -616,41 +610,139 @@ impl Reader {
         }
         Ok(())
     }
-    fn advance(&mut self) -> Outcome<bool> {
-        if self.pending.is_some() {
-            return Ok(true);
+    fn select(&self, h: &records::MessageHeader) -> Outcome<bool> {
+        let c = self
+            .channels
+            .get(&h.channel_id)
+            .ok_or("Unknown message channel")?;
+        Ok(!self.start.is_some_and(|n| h.log_time < n)
+            && !self.end.is_some_and(|n| h.log_time >= n)
+            && !self.topic.as_ref().is_some_and(|t| t != &c.topic)
+            && !self.topics.as_ref().is_some_and(|t| !t.contains(&c.topic)))
+    }
+    fn next_with(
+        &mut self,
+        mut sink: impl FnMut(&mut Self, u8, &[u8], MessageHeader) -> Outcome<i32>,
+    ) -> Outcome<i32> {
+        if self.ended {
+            return Ok(1);
         }
-        while let Some((op, data)) = self.next_raw()? {
-            if !self.sorted {
-                self.observe(op, &data)?;
-            }
-            if self.messages {
-                if op != records::op::MESSAGE {
-                    continue;
+        if let Some(mut indexed) = self.indexed.take() {
+            let result = (|| loop {
+                match indexed.next_event().transpose()? {
+                    None => {
+                        self.ended = true;
+                        return Ok(1);
+                    }
+                    Some(sans_io::IndexedReadEvent::ReadChunkRequest { offset, length }) => {
+                        if let Input::Map {
+                            mapping, position, ..
+                        } = &mut self.input
+                        {
+                            let start = usize::try_from(offset)?;
+                            let end = start.checked_add(length).ok_or(mcap::McapError::BadIndex)?;
+                            let data = mapping.get(start..end).ok_or(mcap::McapError::BadIndex)?;
+                            indexed.insert_chunk_record_data(offset, data)?;
+                            *position = end;
+                        } else {
+                            self.input.seek(SeekFrom::Start(offset))?;
+                            self.scratch.data.clear();
+                            self.scratch.reserve(length)?;
+                            self.scratch.data.resize(length, 0);
+                            self.update_memory_peak();
+                            self.input.read_exact(&mut self.scratch.data)?;
+                            indexed.insert_chunk_record_data(offset, &self.scratch.data)?;
+                            self.scratch.stats.copied += length as u64;
+                            self.scratch.release();
+                        }
+                    }
+                    Some(sans_io::IndexedReadEvent::Message { header, data }) => {
+                        self.count += 1;
+                        if !self.select(&header)? {
+                            continue;
+                        }
+                        let h = MessageHeader {
+                            channel_id: header.channel_id,
+                            sequence: header.sequence,
+                            log_time: header.log_time,
+                            publish_time: header.publish_time,
+                            reserved: 0,
+                        };
+                        return sink(self, records::op::MESSAGE, data, h);
+                    }
                 }
-                let records::Record::Message { header, .. } = mcap::parse_record(op, &data)? else {
-                    unreachable!()
-                };
-                let c = self
-                    .channels
-                    .get(&header.channel_id)
-                    .ok_or("Unknown message channel")?;
-                if self.start.map(|n| header.log_time < n).unwrap_or(false)
-                    || self.end.map(|n| header.log_time >= n).unwrap_or(false)
-                    || self.topic.as_ref().map(|t| t != &c.topic).unwrap_or(false)
-                    || self
-                        .topics
-                        .as_ref()
-                        .map(|t| !t.contains(&c.topic))
-                        .unwrap_or(false)
-                {
-                    continue;
-                }
-            }
-            self.pending = Some((op, data));
-            return Ok(true);
+            })();
+            self.indexed = if self.ended { None } else { Some(indexed) };
+            return result;
         }
-        Ok(false)
+        let mut parser = self.parser.take().ok_or("Missing parser")?;
+        let result = (|| loop {
+            match parser.next_event().transpose()? {
+                None => {
+                    self.ended = true;
+                    return Ok(1);
+                }
+                Some(sans_io::LinearReadEvent::ReadRequest(n)) => {
+                    let n = self.input.read(parser.insert(n.min(65536)))?;
+                    self.delivery.stats.copied += n as u64;
+                    parser.notify_read(n);
+                }
+                Some(sans_io::LinearReadEvent::Record { opcode, data }) => {
+                    self.observe(opcode, data)?;
+                    if self.messages {
+                        if opcode != records::op::MESSAGE {
+                            continue;
+                        }
+                        let records::Record::Message { header, data } =
+                            mcap::parse_record(opcode, data)?
+                        else {
+                            unreachable!()
+                        };
+                        if !self.select(&header)? {
+                            continue;
+                        }
+                        let h = MessageHeader {
+                            channel_id: header.channel_id,
+                            sequence: header.sequence,
+                            log_time: header.log_time,
+                            publish_time: header.publish_time,
+                            reserved: 0,
+                        };
+                        return sink(self, opcode, &data, h);
+                    }
+                    return sink(self, opcode, data, MessageHeader::default());
+                }
+            }
+        })();
+        self.parser = if self.ended { None } else { Some(parser) };
+        result
+    }
+    fn update_memory_peak(&mut self) {
+        self.memory_peak = self.memory_peak.max(
+            self.delivery.stats.current + self.scratch.stats.current + self.arena.stats.current,
+        );
+    }
+    unsafe fn read(&mut self, dest: *mut u8, capacity: usize, out: &mut Response) -> Outcome<i32> {
+        if self.sorted {
+            let status = self
+                .arena
+                .read(dest, capacity, &mut self.delivery.header, out)?;
+            self.delivery.opcode = records::op::MESSAGE;
+            if status == 1 {
+                self.ended = true;
+            }
+            return Ok(status);
+        }
+        if self.delivery.active {
+            out.value = self.delivery.data.len() as u64;
+            return self.delivery.retry(dest, capacity);
+        }
+        self.next_with(|r, op, data, h| {
+            r.delivery.opcode = op;
+            r.delivery.header = h;
+            out.value = data.len() as u64;
+            r.delivery.deliver(data, dest, capacity)
+        })
     }
 }
 #[no_mangle]
@@ -677,6 +769,18 @@ pub unsafe extern "C" fn fm_reader_open(
             .map(usize::try_from)
             .transpose()?;
         let mut reader = Reader {
+            delivery: memory::Delivery {
+                options: memory::Options::parse(&v["options"]["Memory"])?,
+                ..Default::default()
+            },
+            memory_peak: 0,
+            scratch: memory::Delivery {
+                options: memory::Options {
+                    retained: memory::Options::parse(&v["options"]["Memory"])?.retained,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
             indexed: None,
             sorted: false,
             order: v["order"].as_u64().unwrap_or(2),
@@ -686,14 +790,13 @@ pub unsafe extern "C" fn fm_reader_open(
                     .collect()
             }),
             limit,
-            queue: VecDeque::new(),
+            arena: sort_arena::Arena::default(),
             indexed_summary: None,
-            parser: sans_io::LinearReader::new_with_options(
+            parser: Some(sans_io::LinearReader::new_with_options(
                 extended::linear_options(&v["options"])?
                     .with_emit_chunks(v["topLevel"].as_bool().unwrap_or(false)),
-            ),
+            )),
             input,
-            pending: None,
             schemas: BTreeMap::new(),
             channels: BTreeMap::new(),
             summary: empty_summary(),
@@ -731,15 +834,13 @@ pub unsafe extern "C" fn fm_reader_open(
             if v["allowBufferedSort"].as_bool() == Some(false) {
                 return Ok(3);
             }
-            let mut messages = Vec::new();
-            while reader.advance()? {
-                messages.push(reader.pending.take().unwrap());
-            }
-            messages.sort_by_key(|(_, b)| u64::from_le_bytes(b[6..14].try_into().unwrap()));
-            if reader.order == 1 {
-                messages.reverse();
-            }
-            reader.queue = messages.into();
+            while reader.next_with(|r, _op, data, h| {
+                r.arena.push(h, data, r.delivery.options.sort)?;
+                r.update_memory_peak();
+                Ok(0)
+            })? != 1
+            {}
+            reader.arena.sort(reader.order == 1);
             reader.sorted = true;
             reader.ended = false;
         }
@@ -767,62 +868,38 @@ pub unsafe extern "C" fn fm_reader_next(
         if r.failed {
             return Err("Reader failed".into());
         }
-        if !r.advance()? {
+        let result = r.read(dest, capacity, out);
+        r.update_memory_peak();
+        let status = result?;
+        if status == 1 {
+            r.delivery.discard();
+            r.scratch.discard();
             out.value = r.count;
             if !header.is_null() {
-                *header = MessageHeader {
-                    reserved: if r.indexed.is_some() || r.sorted {
-                        1
-                    } else {
-                        0
-                    },
-                    ..Default::default()
+                (*header).reserved = if r.indexed_summary.is_some() || r.sorted {
+                    1
+                } else {
+                    0
                 };
             }
-            return Ok(1);
-        }
-        let (op, data) = r.pending.as_ref().unwrap();
-        if !opcode.is_null() {
-            *opcode = *op;
-        }
-        let payload = if r.messages {
-            let records::Record::Message {
-                header: h,
-                data: payload,
-            } = mcap::parse_record(*op, data)?
-            else {
-                unreachable!()
-            };
-            if header.is_null() {
-                return Err("Null header".into());
-            }
-            *header = MessageHeader {
-                channel_id: h.channel_id,
-                reserved: 0,
-                sequence: h.sequence,
-                log_time: h.log_time,
-                publish_time: h.publish_time,
-            };
-            payload
         } else {
-            Cow::Borrowed(data.as_slice())
-        };
-        out.value = payload.len() as u64;
-        if capacity < payload.len() {
-            return Ok(2);
-        }
-        if !payload.is_empty() {
-            if dest.is_null() {
-                return Err("Null destination".into());
+            if !opcode.is_null() {
+                *opcode = r.delivery.opcode;
             }
-            ptr::copy_nonoverlapping(payload.as_ptr(), dest, payload.len());
+            if !header.is_null() {
+                *header = r.delivery.header;
+            }
         }
-        r.pending = None;
-        Ok(0)
+        Ok(status)
     });
     if s < 0 {
         if let Some(r) = handle.as_mut() {
             r.failed = true;
+            r.delivery.discard();
+            r.scratch.discard();
+            r.parser = None;
+            r.indexed = None;
+            r.arena.clear();
         }
     }
     s
@@ -1177,3 +1254,6 @@ impl Reader {
         result
     }
 }
+
+#[cfg(test)]
+mod memory_probe;

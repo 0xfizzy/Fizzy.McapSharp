@@ -151,3 +151,25 @@ var options = new McapWriterOptions { RecoverableErrors = McapRecoverableWriterE
 ```
 
 成功消息写入保持零托管分配契约；错误处理不属于该契约。
+
+
+## 原生内存策略
+
+大型录制优先使用增量会话和调用者缓冲。BufferReader 和现有 Snapshot 构造方法仍复制输入；`McapIndexSnapshot.OpenMapped(path, options)` 只读映射文件，不创建完整输入副本。快照和所有子游标释放前必须保持文件不变。Windows 在整个生命周期内保留只读共享限制；Linux 无法阻止并发截断。子游标共享输入，快照释放后仍可使用。
+
+会话、异步和线性 Sans-I/O 通过 `McapReaderOptions.Memory` 配置；摘要读取器通过 `McapSummaryReaderOptions.Memory` 配置；查询通过 `McapQuery.Memory` 配置。会话 reader Memory 非空时，整体优先于 query Memory。Sans-I/O 索引子读取器在 query 未指定时继承摘要策略。BufferReader 新增 `(data, mode, ignoreEndMagic, options)` 重载，复制快照支持 `(data, options)`，会话支持 `OpenIndexSnapshot(options)`。无参数快照方法继承会话策略。快照子游标继承其策略；writer 摘要游标使用默认值。策略在构造时固定。
+
+| `McapMemoryOptions` 属性 | 默认值 | 约束对象 |
+| --- | --- | --- |
+| `MaxOwnedInputBytes` | null／不限制 | 完整输入副本容量，不限制映射长度 |
+| `MaxPendingBufferBytes` | null／不限制 | 重试或摘要编码缓冲容量 |
+| `MaxBufferedSortBytes` | null／不限制 | 回退排序 payload 块、描述数组和块容器容量总和 |
+| `MaxRetainedBufferBytes` | 8 MiB | 成功交付后每个缓冲保留的容量，也适用于索引 Stream I/O 临时缓冲 |
+
+零是有效值。扩容前按容量而非有效长度检查预算。pending 数据保留至交付，超过保留阈值的缓冲在交付后释放。BufferReader 为支持记录／消息交替重试，保存完整消息体（包含 22 字节 header）；普通消息会话只保存 payload。目标充足时不创建 pending 副本。原始记录接口保留校验后的原始 body，包括官方允许的尾部扩展字节；owned 模型仍遵循官方字段解析语义。摘要游标仅编码当前请求的记录。
+
+这些是分类预算，不是原生／进程总内存限制。官方解析器和压缩器状态、声明、摘要、随机索引辅助分配、托管结果及映射驻留页不在预算内。索引 Stream 临时缓冲纳入统计和保留策略，但不计入 pending 预算；解析器记录长度限制用于约束上游记录／Chunk 大小。排序只移动描述，在块内最后一条消息交付后释放 payload 块。`AllowBufferedSort=false` 仍在收集前拒绝回退。
+
+预算错误使用 `McapException.Kind=Binding`，`Details.resource`、`limit`、`requested` 给出类别和字节数。推进失败会终止读取器。快照构造失败恢复源位置，不消费 pending 消息；底层 Stream 故障可能阻止位置恢复。不自动重试或转存磁盘。
+
+会话、BufferReader、Snapshot、Sans-I/O 和异步读取器的 `GetMemoryStatistics()` 返回无托管分配的值类型，包含当前／峰值受控容量、申请／扩容次数、受测数据路径复制字节数和映射长度。容量覆盖输入副本、交付缓冲、索引 Stream 临时缓冲和排序存储。复制计数覆盖输入复制、解析器供给、pending／arena 存储和调用者缓冲交付，不含冷路径描述序列化及上游内部复制。它不是分配器全局或工作集统计。Snapshot 包含默认游标，不包含独立子游标。每个视图只计一次共享输入，不要累加相关视图。异步统计必须在消费当前操作后查询。不注册 GC 内存压力估算。

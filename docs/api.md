@@ -151,3 +151,25 @@ var options = new McapWriterOptions { RecoverableErrors = McapRecoverableWriterE
 ```
 
 Successful message writes retain the zero-managed-allocation contract; error handling is outside that contract.
+
+
+## Native memory policy
+
+For large recordings, prefer incremental sessions and caller buffers. BufferReader and existing Snapshot constructors still copy input. `McapIndexSnapshot.OpenMapped(path, options)` instead maps a file read-only without a full owned copy. Keep the file unchanged until the snapshot and every child cursor are disposed. Windows retains read-only sharing restrictions throughout this lifetime; Linux cannot prevent concurrent truncation. Child cursors share input and survive snapshot disposal.
+
+Configure `McapReaderOptions.Memory` for sessions and asynchronous/linear Sans-I/O readers, `McapSummaryReaderOptions.Memory` for summary readers, or `McapQuery.Memory` for queries. Session reader Memory, when non-null, takes precedence over query Memory as a whole. Sans-I/O indexed children inherit the summary policy unless query Memory is supplied. BufferReader adds `(data, mode, ignoreEndMagic, options)`; copied snapshots accept `(data, options)` and sessions expose `OpenIndexSnapshot(options)`. The parameterless snapshot method inherits the session policy. Snapshot child cursors inherit its policy; writer summary cursors use defaults. Policies are captured at construction.
+
+| `McapMemoryOptions` property | Default | Resource |
+| --- | --- | --- |
+| `MaxOwnedInputBytes` | null / unlimited | Full owned input capacity; not mapped length |
+| `MaxPendingBufferBytes` | null / unlimited | Retry or summary-encoding capacity |
+| `MaxBufferedSortBytes` | null / unlimited | Fallback payload blocks, descriptors and block-container capacities |
+| `MaxRetainedBufferBytes` | 8 MiB | Per-buffer retained capacity after successful delivery, including indexed Stream I/O scratch |
+
+Zero is valid. Growth checks use capacity, not used length. Pending data remains available until delivery; oversized buffers are released after delivery. BufferReader retains the complete message body (including its 22-byte header) to support record/message retry interchange; message sessions retain payload only. Adequate caller buffers avoid pending copies. Raw record delivery preserves the validated original body, including trailing extension bytes accepted by upstream; owned models retain official parsed-field semantics. Summary cursors encode only the requested record.
+
+These are resource-specific budgets, not a native/process total limit. Upstream parser/compressor state, declarations, summaries, random-index helper allocations, managed results and mapped resident pages are excluded. Indexed Stream scratch is measured and subject to retention, but not the pending budget; parser record-length limits constrain upstream record/chunk sizes. Sorting uses payload blocks and sorts descriptors, releasing each block after its final message. `AllowBufferedSort=false` rejects fallback before collection.
+
+Budget errors use `McapException.Kind=Binding` and `Details.resource`, `limit`, `requested` (bytes). Advancement failure terminates the reader. Snapshot construction failures restore source position without consuming pending messages; underlying Stream failures may prevent restoration. There is no automatic retry or disk spill.
+
+`GetMemoryStatistics()` on sessions, buffer readers, snapshots, Sans-I/O and async readers returns an allocation-free value type. It reports current/peak controlled capacity, allocation/expansion count, instrumented data-path copy bytes and mapped length. Capacities cover owned input, delivery buffers, indexed Stream scratch and fallback storage. Copy counters cover input copying, parser feeding, pending/arena storage and caller-buffer delivery, excluding cold description serialization and upstream internal copies. They are not allocator-wide or working-set measurements. Snapshot statistics include its default cursor, not independent child cursors. Shared input is included once per view: do not sum related views. Async statistics require consumption of the outstanding operation. No GC memory-pressure estimate is registered.

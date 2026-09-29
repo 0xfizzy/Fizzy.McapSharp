@@ -36,6 +36,7 @@ public sealed class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskS
         // A consumer may resume on the completing I/O thread; no context is imposed.
         completion.RunContinuationsAsynchronously = false;
     }
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); if (active) throw new InvalidOperationException("Consume the pending operation first."); return parser.GetMemoryStatistics(); } }
     public ValueTask<McapRecordReadResult> ReadNextRecordAsync(Memory<byte> destination, CancellationToken cancellationToken = default)
     {
         lock (gate)

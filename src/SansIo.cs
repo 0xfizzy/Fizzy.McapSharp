@@ -33,7 +33,7 @@ public sealed class McapSansIoReader : IDisposable
     {
         query ??= new();
         if (!Enum.IsDefined(query.Order) || query.StartTime > query.EndTime || (query.Topic is not null && query.Topics is not null)) throw new ArgumentException("Invalid query.", nameof(query));
-        lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return new(2, new { query.Topic, query.Topics, query.StartTime, query.EndTime, query.Order, RecordLengthLimit = recordLengthLimit }, this); }
+        lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return new(2, new { query.Topic, query.Topics, query.StartTime, query.EndTime, query.Order, RecordLengthLimit = recordLengthLimit, query.Memory }, this); }
     }
     public unsafe McapReadStatus NextEvent(Span<byte> destination, out McapReadEvent readEvent)
     {
@@ -86,6 +86,7 @@ public sealed class McapSansIoReader : IDisposable
             return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options);
         }
     }
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return Native.MemoryStatistics(3, handle); } }
     public void Dispose() { lock (gate) { if (disposed) return; disposed = true; handle.Dispose(); } }
 }
 

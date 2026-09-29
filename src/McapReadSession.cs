@@ -11,6 +11,7 @@ public sealed partial class McapReadSession : IDisposable
     readonly bool messages;
     readonly bool topLevel;
     readonly bool strict;
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { handle.Bridge?.CheckReentry(); ObjectDisposedException.ThrowIf(disposed, this); return Native.MemoryStatistics(0, handle); } }
     public bool IsScanComplete => ended && !failed;
     public bool IsComplete => ended && !failed && fullyValidated;
     public ulong ScannedRecordCount { get; private set; }
@@ -23,6 +24,7 @@ public sealed partial class McapReadSession : IDisposable
         if (query?.StartTime > query?.EndTime)
             throw new ArgumentException("StartTime must not exceed EndTime.", nameof(query));
         options ??= new();
+        if (options.Memory is null && query?.Memory is not null) options = options with { Memory = query.Memory };
         strict = options.IsStrict;
         if (query is not null && !Enum.IsDefined(query.Order)) throw new ArgumentOutOfRangeException(nameof(query));
         if (query?.Topic is not null && query.Topics is not null) throw new ArgumentException("Specify Topic or Topics, not both.", nameof(query));

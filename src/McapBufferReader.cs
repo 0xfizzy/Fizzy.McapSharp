@@ -12,13 +12,16 @@ public sealed class McapBufferReader : IDisposable
     readonly BufferReaderHandle handle;
     readonly object gate = new();
     internal McapBufferReader(IntPtr p) => handle = new(p);
-    public unsafe McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode = McapBufferReadMode.Messages, bool ignoreEndMagic = false)
+    public McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode = McapBufferReadMode.Messages, bool ignoreEndMagic = false)
+        : this(data, mode, ignoreEndMagic, null) { }
+    public unsafe McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode, bool ignoreEndMagic, McapMemoryOptions? options)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
         Native.EnsureAvailable();
+        var config = Native.Request(options ?? new());
         fixed (byte* p = data)
         {
-            var status = Native.fm_buffer_reader_open((uint)mode, ignoreEndMagic, p, (nuint)data.Length, out var h, out var r);
+            var status = Native.fm_buffer_reader_open_options((uint)mode, ignoreEndMagic, p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r);
             Native.Consume(status, r).Json?.Dispose(); handle = new(h);
         }
     }
@@ -87,6 +90,7 @@ public sealed class McapBufferReader : IDisposable
             yield return new(GetChannel(h.ChannelId), h.LogTime, h.PublishTime, h.Sequence, message.Data);
         }
     }
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.MemoryStatistics(1, handle); } }
     public void Dispose() { lock (gate) handle.Dispose(); }
 }
 internal sealed class BufferReaderHandle : SafeHandleZeroOrMinusOneIsInvalid

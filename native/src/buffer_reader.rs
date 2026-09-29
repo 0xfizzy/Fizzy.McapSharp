@@ -3,10 +3,15 @@ use binrw::BinWrite;
 use std::sync::Arc;
 
 pub(super) fn encode(record: records::Record<'_>) -> Outcome<(u8, Vec<u8>)> {
-    let op = record.opcode();
     let mut out = std::io::Cursor::new(Vec::new());
+    write_record(&record, &mut out)?;
+    Ok((record.opcode(), out.into_inner()))
+}
+fn write_record<W: std::io::Write + std::io::Seek>(
+    record: &records::Record<'_>,
+    mut out: &mut W,
+) -> Outcome<()> {
     use records::Record::*;
-    use std::io::Write;
     match record {
         Header(v) => v.write_le(&mut out)?,
         Footer(v) => v.write_le(&mut out)?,
@@ -40,12 +45,15 @@ pub(super) fn encode(record: records::Record<'_>) -> Outcome<(u8, Vec<u8>)> {
         }
         Unknown { data, .. } => out.write_all(&data)?,
     }
-    Ok((op, out.into_inner()))
+    Ok(())
 }
 pub struct BufferReader {
-    records: VecDeque<Outcome<(u8, Vec<u8>)>>,
+    pub delivery: memory::Delivery,
+    summary_position: usize,
+    summary_keys: Vec<u16>,
+    summary_only: bool,
     parser: Option<sans_io::LinearReader>,
-    input: Arc<Vec<u8>>,
+    pub input: Arc<memory::Backing>,
     position: usize,
     end: usize,
     mode: u32,
@@ -57,9 +65,12 @@ pub struct BufferReader {
 impl BufferReader {
     fn empty() -> Self {
         Self {
-            records: VecDeque::new(),
+            delivery: memory::Delivery::default(),
+            summary_position: 0,
+            summary_keys: Vec::new(),
+            summary_only: false,
             parser: None,
-            input: Arc::new(Vec::new()),
+            input: Arc::new(memory::Backing::Owned(Vec::new())),
             position: 0,
             end: 0,
             mode: 0,
@@ -69,27 +80,31 @@ impl BufferReader {
             failed: false,
         }
     }
-    fn observe(&mut self, record: &records::Record<'_>) -> Outcome<()> {
+    fn observe(
+        schemas: &mut BTreeMap<u16, Arc<mcap::Schema<'static>>>,
+        channels: &mut BTreeMap<u16, Arc<mcap::Channel<'static>>>,
+        record: records::Record<'_>,
+    ) -> Outcome<()> {
         match record {
             records::Record::Schema { header, data } => {
                 if header.id == 0 {
                     return Err(mcap::McapError::InvalidSchemaId.into());
                 }
-                if let Some(old) = self.schemas.get(&header.id) {
+                if let Some(old) = schemas.get(&header.id) {
                     if old.name != header.name
                         || old.encoding != header.encoding
-                        || old.data != *data
+                        || old.data != data
                     {
                         return Err(mcap::McapError::ConflictingSchemas(header.name.clone()).into());
                     }
                 } else {
-                    self.schemas.insert(
+                    schemas.insert(
                         header.id,
                         Arc::new(mcap::Schema {
                             id: header.id,
-                            name: header.name.clone(),
-                            encoding: header.encoding.clone(),
-                            data: Cow::Owned(data.to_vec()),
+                            name: header.name,
+                            encoding: header.encoding,
+                            data: Cow::Owned(data.into_owned()),
                         }),
                     );
                 }
@@ -99,7 +114,7 @@ impl BufferReader {
                     None
                 } else {
                     Some(
-                        self.schemas
+                        schemas
                             .get(&c.schema_id)
                             .ok_or_else(|| {
                                 mcap::McapError::UnknownSchema(c.topic.clone(), c.schema_id)
@@ -107,7 +122,7 @@ impl BufferReader {
                             .clone(),
                     )
                 };
-                if let Some(old) = self.channels.get(&c.id) {
+                if let Some(old) = channels.get(&c.id) {
                     if old.topic != c.topic
                         || old.message_encoding != c.message_encoding
                         || old.metadata != c.metadata
@@ -116,13 +131,13 @@ impl BufferReader {
                         return Err(mcap::McapError::ConflictingChannels(c.topic.clone()).into());
                     }
                 } else {
-                    self.channels.insert(
+                    channels.insert(
                         c.id,
                         Arc::new(mcap::Channel {
                             id: c.id,
-                            topic: c.topic.clone(),
-                            message_encoding: c.message_encoding.clone(),
-                            metadata: c.metadata.clone(),
+                            topic: c.topic,
+                            message_encoding: c.message_encoding,
+                            metadata: c.metadata,
                             schema,
                         }),
                     );
@@ -132,60 +147,202 @@ impl BufferReader {
         }
         Ok(())
     }
-    fn advance(&mut self) -> Outcome<()> {
+    unsafe fn read(
+        &mut self,
+        dest: *mut u8,
+        capacity: usize,
+        message: bool,
+        out: &mut Response,
+    ) -> Outcome<i32> {
         if self.failed {
             return Err("Reader failed".into());
         }
-        if !self.records.is_empty() {
-            return Ok(());
+        if self.delivery.active {
+            let body = &self.delivery.data;
+            let payload = if message {
+                if self.delivery.opcode != records::op::MESSAGE {
+                    return Err("Message reader required".into());
+                }
+                // The original record was validated and its header cached before becoming pending.
+                Cow::Borrowed(&body[22..])
+            } else {
+                Cow::Borrowed(body.as_slice())
+            };
+            out.value = payload.len() as u64;
+            if capacity < payload.len() {
+                return Ok(2);
+            }
+            memory::copy(&payload, dest)?;
+            self.delivery.stats.copied += payload.len() as u64;
+            self.delivery.release();
+            return Ok(0);
+        }
+        if self.summary_only {
+            if message {
+                return Err("Message reader required".into());
+            }
+            let summary = self.summary.as_ref().unwrap().clone();
+            let Some(record) =
+                Self::summary_record(&summary, &self.summary_keys, self.summary_position)
+            else {
+                return Ok(1);
+            };
+            let mut measure = memory::Measure::default();
+            write_record(&record, &mut measure)?;
+            let n = usize::try_from(measure.length)?;
+            self.delivery.opcode = record.opcode();
+            out.value = n as u64;
+            if capacity >= n {
+                if n != 0 && dest.is_null() {
+                    return Err("Null destination".into());
+                }
+                let output = if n == 0 {
+                    &mut []
+                } else {
+                    slice::from_raw_parts_mut(dest, n)
+                };
+                write_record(&record, &mut std::io::Cursor::new(output))?;
+                self.delivery.stats.copied += n as u64;
+                self.summary_position += 1;
+                self.delivery.release();
+                return Ok(0);
+            }
+            self.delivery.data.clear();
+            self.delivery.reserve(n)?;
+            write_record(&record, &mut std::io::Cursor::new(&mut self.delivery.data))?;
+            self.delivery.stats.copied += n as u64;
+            self.summary_position += 1;
+            self.delivery.active = true;
+            return Ok(2);
         }
         loop {
             let Some(parser) = self.parser.as_mut() else {
-                return Ok(());
+                return Ok(1);
             };
-            let next = match parser.next_event().transpose()? {
+            match parser.next_event().transpose()? {
                 None => {
                     self.parser = None;
-                    return Ok(());
+                    return Ok(1);
                 }
                 Some(sans_io::LinearReadEvent::ReadRequest(n)) => {
                     let n = n.min(self.end - self.position);
                     parser
                         .insert(n)
                         .copy_from_slice(&self.input[self.position..self.position + n]);
+                    self.delivery.stats.copied += n as u64;
                     parser.notify_read(n);
                     self.position += n;
-                    continue;
                 }
                 Some(sans_io::LinearReadEvent::Record { opcode, data }) => {
-                    mcap::parse_record(opcode, data)?.into_owned()
-                }
-            };
-            if self.mode >= 4 {
-                if self.summary.is_none() {
-                    self.observe(&next)?;
-                }
-                let records::Record::Message { header, .. } = &next else {
-                    continue;
-                };
-                if self.mode != 4 {
-                    let known = self
-                        .summary
-                        .as_ref()
-                        .map(|s| s.channels.contains_key(&header.channel_id))
-                        .unwrap_or_else(|| self.channels.contains_key(&header.channel_id));
-                    if !known {
-                        return Err(mcap::McapError::UnknownChannel(
-                            header.sequence,
-                            header.channel_id,
-                        )
-                        .into());
+                    let record = mcap::parse_record(opcode, data)?;
+                    if self.mode >= 4 {
+                        if !matches!(record, records::Record::Message { .. }) {
+                            if self.summary.is_none() {
+                                Self::observe(&mut self.schemas, &mut self.channels, record)?;
+                            }
+                            continue;
+                        }
+                        let records::Record::Message { header, .. } = &record else {
+                            unreachable!()
+                        };
+                        if self.mode != 4
+                            && !self
+                                .summary
+                                .as_ref()
+                                .map(|s| s.channels.contains_key(&header.channel_id))
+                                .unwrap_or_else(|| self.channels.contains_key(&header.channel_id))
+                        {
+                            return Err(mcap::McapError::UnknownChannel(
+                                header.sequence,
+                                header.channel_id,
+                            )
+                            .into());
+                        }
                     }
+                    self.delivery.opcode = opcode;
+                    if let records::Record::Message { header, .. } = &record {
+                        self.delivery.header = native_header(header);
+                    }
+                    let payload = if message {
+                        let records::Record::Message { header, data } = &record else {
+                            return Err("Message reader required".into());
+                        };
+                        self.delivery.header = native_header(header);
+                        data.as_ref()
+                    } else {
+                        data
+                    };
+                    out.value = payload.len() as u64;
+                    if capacity < payload.len() {
+                        // Keep the original body so record/message retries may be interchanged.
+                        self.delivery.deliver(data, ptr::null_mut(), 0)?;
+                        return Ok(2);
+                    }
+                    memory::copy(payload, dest)?;
+                    self.delivery.stats.copied += payload.len() as u64;
+                    self.delivery.release();
+                    return Ok(0);
                 }
             }
-            self.records.push_back(encode(next));
-            return Ok(());
         }
+    }
+    fn summary_record<'a>(
+        s: &'a mcap::Summary,
+        keys: &[u16],
+        position: usize,
+    ) -> Option<records::Record<'a>> {
+        let mut n = position;
+        if n < s.channels.len() {
+            let c = &s.channels[&keys[n]];
+            return Some(records::Record::Channel(records::Channel {
+                id: c.id,
+                schema_id: c.schema.as_ref().map(|s| s.id).unwrap_or(0),
+                topic: c.topic.clone(),
+                message_encoding: c.message_encoding.clone(),
+                metadata: c.metadata.clone(),
+            }));
+        }
+        n -= s.channels.len();
+        if n < s.schemas.len() {
+            let v = &s.schemas[&keys[s.channels.len() + n]];
+            return Some(records::Record::Schema {
+                header: records::SchemaHeader {
+                    id: v.id,
+                    name: v.name.clone(),
+                    encoding: v.encoding.clone(),
+                },
+                data: Cow::Borrowed(&v.data),
+            });
+        }
+        n -= s.schemas.len();
+        if let Some(v) = &s.stats {
+            if n == 0 {
+                return Some(records::Record::Statistics(v.clone()));
+            }
+            n -= 1;
+        }
+        if n < s.chunk_indexes.len() {
+            return Some(records::Record::ChunkIndex(s.chunk_indexes[n].clone()));
+        }
+        n -= s.chunk_indexes.len();
+        if n < s.attachment_indexes.len() {
+            return Some(records::Record::AttachmentIndex(
+                s.attachment_indexes[n].clone(),
+            ));
+        }
+        n -= s.attachment_indexes.len();
+        s.metadata_indexes
+            .get(n)
+            .map(|v| records::Record::MetadataIndex(v.clone()))
+    }
+}
+fn native_header(h: &records::MessageHeader) -> MessageHeader {
+    MessageHeader {
+        channel_id: h.channel_id,
+        sequence: h.sequence,
+        log_time: h.log_time,
+        publish_time: h.publish_time,
+        reserved: 0,
     }
 }
 // for_chunk is private upstream. Feed a synthetic record prefix into the public
@@ -211,7 +368,7 @@ fn chunk_parser(
     Ok(parser)
 }
 pub(super) fn chunk_reader(
-    input: Arc<Vec<u8>>,
+    input: Arc<memory::Backing>,
     summary: Arc<mcap::Summary>,
     index: &records::ChunkIndex,
 ) -> Outcome<BufferReader> {
@@ -244,45 +401,12 @@ pub(super) fn chunk_reader(
         ..BufferReader::empty()
     })
 }
-pub(super) fn summary_records(s: &mcap::Summary) -> Outcome<BufferReader> {
+pub(super) fn summary_records(s: Arc<mcap::Summary>) -> Outcome<BufferReader> {
     let mut h = BufferReader::empty();
-    for c in s.channels.values() {
-        h.channels.insert(c.id, own_channel(c));
-        h.records
-            .push_back(encode(records::Record::Channel(records::Channel {
-                id: c.id,
-                schema_id: c.schema.as_ref().map(|s| s.id).unwrap_or(0),
-                topic: c.topic.clone(),
-                message_encoding: c.message_encoding.clone(),
-                metadata: c.metadata.clone(),
-            })));
-    }
-    for s in s.schemas.values() {
-        h.records.push_back(encode(records::Record::Schema {
-            header: records::SchemaHeader {
-                id: s.id,
-                name: s.name.clone(),
-                encoding: s.encoding.clone(),
-            },
-            data: Cow::Borrowed(&s.data),
-        }));
-    }
-    if let Some(v) = &s.stats {
-        h.records
-            .push_back(encode(records::Record::Statistics(v.clone())));
-    }
-    for v in &s.chunk_indexes {
-        h.records
-            .push_back(encode(records::Record::ChunkIndex(v.clone())));
-    }
-    for v in &s.attachment_indexes {
-        h.records
-            .push_back(encode(records::Record::AttachmentIndex(v.clone())));
-    }
-    for v in &s.metadata_indexes {
-        h.records
-            .push_back(encode(records::Record::MetadataIndex(v.clone())));
-    }
+    h.summary_keys.extend(s.channels.keys().copied());
+    h.summary_keys.extend(s.schemas.keys().copied());
+    h.summary = Some(s);
+    h.summary_only = true;
     Ok(h)
 }
 #[no_mangle]
@@ -294,11 +418,29 @@ pub unsafe extern "C" fn fm_buffer_reader_open(
     handle: *mut *mut BufferReader,
     out: *mut Response,
 ) -> i32 {
+    fm_buffer_reader_open_options(mode, ignore_end, p, n, ptr::null(), 0, handle, out)
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_buffer_reader_open_options(
+    mode: u32,
+    ignore_end: bool,
+    p: *const u8,
+    n: usize,
+    config: *const u8,
+    config_len: usize,
+    handle: *mut *mut BufferReader,
+    out: *mut Response,
+) -> i32 {
     guard(out, |_| {
         if handle.is_null() {
             return Err("Null output".into());
         }
         *handle = ptr::null_mut();
+        let memory_options = if config_len == 0 {
+            memory::Options::default()
+        } else {
+            memory::Options::parse(&request(config, config_len)?)?
+        };
         let data = bytes(p, n)?;
         if mode > 5 {
             return Err("Unknown buffer reader mode".into());
@@ -329,7 +471,11 @@ pub unsafe extern "C" fn fm_buffer_reader_open(
             (sans_io::LinearReader::new_with_options(options), 0)
         };
         let h = BufferReader {
-            input: Arc::new(data.to_vec()),
+            delivery: memory::Delivery {
+                options: memory_options,
+                ..Default::default()
+            },
+            input: Arc::new(memory::Backing::copy(data, memory_options)?),
             position,
             end: data.len(),
             parser: Some(parser),
@@ -338,22 +484,6 @@ pub unsafe extern "C" fn fm_buffer_reader_open(
         };
         *handle = Box::into_raw(Box::new(h));
         Ok(0)
-    })
-}
-fn own_channel(c: &mcap::Channel<'_>) -> Arc<mcap::Channel<'static>> {
-    Arc::new(mcap::Channel {
-        id: c.id,
-        topic: c.topic.clone(),
-        message_encoding: c.message_encoding.clone(),
-        metadata: c.metadata.clone(),
-        schema: c.schema.as_ref().map(|s| {
-            Arc::new(mcap::Schema {
-                id: s.id,
-                name: s.name.clone(),
-                encoding: s.encoding.clone(),
-                data: Cow::Owned(s.data.to_vec()),
-            })
-        }),
     })
 }
 pub(super) fn describe_channel(c: &mcap::Channel<'_>, out: &mut Response) -> Outcome<i32> {
@@ -408,25 +538,17 @@ pub unsafe extern "C" fn fm_buffer_reader_next(
         if h.failed {
             return Err("Reader failed".into());
         }
-        h.advance()?;
-        if h.records.front().is_some_and(|r| r.is_err()) {
-            return Err(h.records.pop_front().unwrap().unwrap_err());
-        }
-        let Some(Ok((op, data))) = h.records.front() else {
-            return Ok(1);
-        };
+        let status = h.read(dest, capacity, false, out)?;
         if !opcode.is_null() {
-            *opcode = *op;
-        }
-        let status = extended::copy_body(data, dest, capacity, out)?;
-        if status == 0 {
-            h.records.pop_front();
+            *opcode = if status == 1 { 0 } else { h.delivery.opcode };
         }
         Ok(status)
     });
     if status < 0 {
         if let Some(h) = p.as_mut() {
             h.failed = true;
+            h.delivery.discard();
+            h.parser = None;
         }
     }
     status
@@ -454,32 +576,19 @@ pub unsafe extern "C" fn fm_buffer_reader_message(
         if h.failed {
             return Err("Reader failed".into());
         }
-        h.advance()?;
-        if h.records.front().is_some_and(|r| r.is_err()) {
-            return Err(h.records.pop_front().unwrap().unwrap_err());
-        }
-        let Some(Ok((op, data))) = h.records.front() else {
-            return Ok(1);
+        let status = h.read(dest, capacity, true, out)?;
+        *header = if status == 1 {
+            MessageHeader::default()
+        } else {
+            h.delivery.header
         };
-        let records::Record::Message { header: m, data } = mcap::parse_record(*op, data)? else {
-            return Err("Message reader required".into());
-        };
-        *header = MessageHeader {
-            channel_id: m.channel_id,
-            sequence: m.sequence,
-            log_time: m.log_time,
-            publish_time: m.publish_time,
-            reserved: 0,
-        };
-        let status = extended::copy_body(&data, dest, capacity, out)?;
-        if status == 0 {
-            h.records.pop_front();
-        }
         Ok(status)
     });
     if status < 0 {
         if let Some(h) = p.as_mut() {
             h.failed = true;
+            h.delivery.discard();
+            h.parser = None;
         }
     }
     status
@@ -577,7 +686,7 @@ mod lazy_tests {
                         0
                     );
                     assert_eq!((*h).position, 0);
-                    assert!((*h).records.is_empty());
+                    assert!(!(*h).delivery.active);
                     let input_capacity = (*h).input.capacity();
                     let mut output = vec![0u8; 65536];
                     let mut opcode = 0;
@@ -593,7 +702,7 @@ mod lazy_tests {
                                 ),
                                 2
                             );
-                            assert_eq!((*h).records.len(), 1);
+                            assert_eq!((*h).delivery.active, true);
                             assert_eq!(response.value as usize, body.len());
                         }
                         assert_eq!(
@@ -608,7 +717,7 @@ mod lazy_tests {
                         );
                         assert_eq!(opcode, *op);
                         assert_eq!(&output[..response.value as usize], body);
-                        assert!((*h).records.is_empty());
+                        assert!(!(*h).delivery.active);
                         assert_eq!((*h).input.capacity(), input_capacity);
                     }
                     assert_eq!(
@@ -622,10 +731,10 @@ mod lazy_tests {
                         1
                     );
                     assert!((*h).parser.is_none());
-                    assert!((*h).records.is_empty());
+                    assert!(!(*h).delivery.active);
                     eprintln!(
-                        "mode {mode}, excluding input: queue capacity {} slots, declarations {}",
-                        (*h).records.capacity(),
+                        "mode {mode}, excluding input: pending capacity {} bytes, declarations {}",
+                        (*h).delivery.data.capacity(),
                         (*h).channels.len()
                     );
                     fm_buffer_reader_free(h);

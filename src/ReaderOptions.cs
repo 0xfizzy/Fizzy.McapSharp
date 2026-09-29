@@ -2,6 +2,7 @@ namespace Fizzy.McapSharp;
 
 public sealed record McapReaderOptions
 {
+    public McapMemoryOptions? Memory { get; init; }
     public bool SkipStartMagic { get; init; }
     public bool SkipEndMagic { get; init; }
     public bool CheckFinishesAfterEndMagic { get; init; }
@@ -17,6 +18,7 @@ public sealed record McapReaderOptions
 
 public sealed record McapSummaryReaderOptions
 {
+    public McapMemoryOptions? Memory { get; init; }
     public ulong? FileSize { get; init; }
     public ulong? RecordLengthLimit { get; init; }
 }

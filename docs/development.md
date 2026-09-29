@@ -143,3 +143,10 @@ Lifecycle stress samples private memory and handles after GC, discards the first
 Reports are retained for seven days and failed inputs for fourteen days. Successful stress files are not uploaded. Allocation remains a strict 0 B gate; throughput has no hosted-runner pass threshold. The deep job has a 90-minute timeout. Inspect the failing suite report and reproduce its input before changing expectations.
 
 Package jobs restore only the candidate nupkg into isolated caches. In addition to ordinary/RID-published smoke tests, they compile the shared public contract runner against the package and read all 18 exchanged platform fixtures with `python scripts/test_package.py --fixtures artifacts/exchanged`. They do not download source native assets or run a source ProjectReference for those checks. Package validation still requires all three matching native assets; host-only builds cannot substitute for it.
+
+
+### Native memory acceptance
+
+Release native tests include a test-only thread-local Rust allocation counter and a fixed 4096-message, 1 KiB payload workload under None/Lz4/Zstd (`memory_read_baseline`). It counts allocation/reallocation calls and cumulative requested bytes during advancement, excluding setup and input-copy construction; upstream Rust allocations are included, allocations internal to foreign compression libraries are not. Run the test with `--nocapture` and save output under ignored artifacts for before/after comparison. The gate rejects a return to per-message allocation and independently requires no wrapper delivery-buffer allocation with an adequate destination. Controlled capacity peaks/copy counters complement this measurement; they do not replace OS working-set profiling.
+
+Memory tests cover capacity boundaries, retry reuse, retained-buffer release, mapped child lifetimes, raw trailing-byte preservation, snapshot position restoration, sorting descriptors/large payloads and async direct delivery. The managed Release gate also measures mapped cursor reads and statistics queries at exactly 0 B. Linux deep/Valgrind checks and all three RID assets remain required for cross-platform release confidence.

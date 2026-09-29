@@ -4,17 +4,30 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-/// <summary>Owns a native copy of a seekable source and its official summary. Independent of the originating session.</summary>
+/// <summary>Owns copied or explicitly mapped input and its official summary, independently of the originating session.</summary>
 public sealed class McapIndexSnapshot : IDisposable
 {
     readonly SnapshotHandle handle;
     readonly object gate = new();
     internal McapIndexSnapshot(IntPtr p) => handle = new(p);
-    public unsafe McapIndexSnapshot(ReadOnlySpan<byte> data)
+    public McapIndexSnapshot(ReadOnlySpan<byte> data) : this(data, null) { }
+    public unsafe McapIndexSnapshot(ReadOnlySpan<byte> data, McapMemoryOptions? options)
     {
         Native.EnsureAvailable();
-        fixed (byte* p = data) { var status = Native.fm_snapshot_bytes(p, (nuint)data.Length, out var h, out var r); Native.Consume(status, r).Json?.Dispose(); handle = new(h); }
+        var config = Native.Request(options ?? new());
+        fixed (byte* p = data) { var status = Native.fm_snapshot_bytes_options(p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r); Native.Consume(status, r).Json?.Dispose(); handle = new(h); }
     }
+    /// <summary>Maps a file without an owned input copy. Keep the file unchanged until this snapshot and all child cursors are disposed.</summary>
+    public static McapIndexSnapshot OpenMapped(string path, McapMemoryOptions? options = null)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        Native.EnsureAvailable();
+        var config = Native.Request(new { path, options });
+        int status = Native.fm_snapshot_mapped(config, (nuint)config.Length, out var h, out var r);
+        Native.Consume(status, r).Json?.Dispose();
+        return new(h);
+    }
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.MemoryStatistics(2, handle); } }
     public McapSummary? GetSummary()
     {
         lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); var status = Native.fm_snapshot_summary(handle, out var r); var response = Native.Consume(status, r); using var j = response.Json; return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options); }
@@ -115,13 +128,15 @@ public sealed class McapIndexSnapshot : IDisposable
 
 public sealed partial class McapReadSession
 {
-    public McapIndexSnapshot OpenIndexSnapshot()
+    public McapIndexSnapshot OpenIndexSnapshot() => OpenIndexSnapshot(null);
+    public McapIndexSnapshot OpenIndexSnapshot(McapMemoryOptions? options)
     {
         lock (gate)
         {
             Check();
             if (!seekable) throw new NotSupportedException("Snapshot requires a seekable source.");
-            int status = Native.fm_snapshot_open(handle, out var p, out var r);
+            var config = options is null ? Array.Empty<byte>() : Native.Request(options);
+            int status = Native.fm_snapshot_open_options(handle, config, (nuint)config.Length, out var p, out var r);
             try { Native.Consume(status, r).Json?.Dispose(); return new(p); }
             finally { handle.Bridge?.ThrowIfError(); }
         }

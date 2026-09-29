@@ -6,7 +6,7 @@ English | [简体中文](native.zh-CN.md)
 
 ## ABI contract
 
-`fm_abi_version()` returns 5. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 6. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -62,3 +62,10 @@ The public [API contract](api.md) distinguishes complete validation, indexed que
 `fm_buffer_reader_*` owns an input copy and an official Sans-I/O parser configured to match each slice reader. Advancement retains one pending record and encountered declarations; no borrowed iterator survives a call. Chunk adapters feed a synthetic record prefix through the public parser because upstream for_chunk is private. `fm_snapshot_*` owns a copied seekable source and official summary; random helpers invoke upstream methods without borrowing across FFI. `fm_snapshot_call` accepts a synchronous pointer/length to a standard MCAP index record body and both message-index scalars (log time and offset). It parses the supplied index rather than looking it up in the summary. The managed bridge uses bounded stack storage or temporary native memory for index encoding, including UTF-8 strings and channel-offset maps. `fm_reader_record_into`, `fm_parse_record`, `fm_footer` and `fm_chunk_offset` provide caller-buffer or scalar utility operations. `fm_snapshot_chunk_reader` adds independent lazy Chunk cursors sharing immutable native input and summary; releasing a snapshot does not invalidate those cursors. Reader-open status 3 means buffered sorting was prohibited, mapped to managed NotSupportedException. These handles are private SafeHandles; cursor reads have no owned response allocation on success.
 
 The asynchronous reader drives the linear engine with .NET ReadAsync, retaining only managed Memory between waits. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.
+
+
+## Memory controls and diagnostics
+
+ABI 6 adds `fm_buffer_reader_open_options`, `fm_snapshot_bytes_options`, `fm_snapshot_open_options`, `fm_snapshot_mapped` and `fm_memory_statistics`. Existing unconfigured exports remain available internally. Options are construction-time JSON. Statistics use five sequential u64 fields (40 bytes): current controlled capacity, peak capacity, allocation/expansion count, copied bytes and mapped length. The source kind is 0 session, 1 buffer cursor, 2 snapshot, 3 Sans-I/O engine. No owned response is allocated on successful statistics calls.
+
+`memory::Backing` owns either bytes or a file mapping; child cursors share it through Arc. Direct delivery copies within the parser event lifetime; insufficient destinations use one reusable owned buffer. No native borrowed pointer is saved across calls. Summary cursors share the official Summary and encode lazily. Fallback sorting uses an arena plus descriptors; per-resource capacity checks precede growth. Binding budget errors include resource, limit and requested capacity. Parser state is released before shared input; mapped files must remain unchanged. See the API guide for the measured/excluded resources.

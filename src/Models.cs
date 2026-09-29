@@ -66,6 +66,7 @@ public sealed record McapAttachment(string Name, string MediaType, ulong LogTime
 public enum McapReadOrder { LogTime, ReverseLogTime, File }
 public sealed record McapQuery
 {
+    public McapMemoryOptions? Memory { get; init; }
     /// <summary>Allows scanning and buffering all selected messages when time ordering cannot use indexes.</summary>
     public bool AllowBufferedSort { get; init; } = true;
     public McapReadOrder Order { get; init; } = McapReadOrder.LogTime;

@@ -1,5 +1,8 @@
 use super::*;
 pub(super) fn encode(e: &(dyn std::error::Error + 'static)) -> Vec<u8> {
+    if let Some(e) = e.downcast_ref::<memory::Limit>() {
+        return serde_json::to_vec(&json!({"kind":"Binding","message":e.to_string(),"details":{"resource":e.resource,"limit":e.limit,"requested":e.requested}})).unwrap();
+    }
     use mcap::McapError::*;
     let (kind, details) = if let Some(e) = e.downcast_ref::<mcap::McapError>() {
         match e {

@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 5，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 6，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -62,3 +62,10 @@ Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验�
 `fm_buffer_reader_*` 拥有输入副本和配置匹配官方切片入口的 Sans-I/O 解析器，推进时只保留一条待交付记录及已遇到声明，不跨调用保留借用迭代器。由于上游 for_chunk 私有，Chunk 适配器通过公开解析器输入合成记录前缀。`fm_snapshot_*` 保存源文件副本和官方摘要，随机操作直接调用上游而不跨 FFI 借用。`fm_snapshot_call` 同步接收标准 MCAP 索引记录体的指针/长度，以及消息索引的 LogTime 和 offset 两个标量；解析传入索引，不在摘要中查找替代索引。托管桥接使用有界栈缓冲或临时非托管内存编码索引，包括 UTF-8 字符串和通道偏移映射。`fm_reader_record_into`、`fm_parse_record`、`fm_footer`、`fm_chunk_offset` 提供缓冲区或标量操作。`fm_snapshot_chunk_reader` 新增独立惰性 Chunk 游标，共享不可变原生输入与摘要，快照释放不影响已创建游标。Reader open 状态 3 表示禁止所需缓存排序，映射为 `NotSupportedException`。句柄均由私有 SafeHandle 管理，游标成功读取不分配响应缓冲。
 
 异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。
+
+
+## 内存控制与诊断
+
+ABI 6 新增 `fm_buffer_reader_open_options`、`fm_snapshot_bytes_options`、`fm_snapshot_open_options`、`fm_snapshot_mapped` 和 `fm_memory_statistics`，内部保留原有无配置导出。构造配置使用 JSON。统计为五个连续 u64 字段（40 字节）：当前受控容量、峰值容量、申请／扩容次数、复制字节数、映射长度。来源类型为 0 会话、1 buffer 游标、2 快照、3 Sans-I/O 引擎。成功的统计调用不创建 owned 响应。
+
+`memory::Backing` 拥有字节或文件映射，子游标通过 Arc 共享。在解析器事件生命周期内直接交付；目标不足时使用单个复用 owned 缓冲。不跨调用保存原生借用指针。摘要游标共享官方 Summary 并惰性编码。回退排序使用 arena 和描述，扩容前检查分类容量预算。Binding 预算错误包含 resource、limit 和 requested。解析状态先于共享输入释放；映射文件必须保持不变。统计范围及排除项见 API 指南。
