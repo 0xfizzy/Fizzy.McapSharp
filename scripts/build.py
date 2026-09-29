@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+import traceback
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
@@ -128,8 +129,9 @@ def build(test=False):
         run(cargo, "test", "--release", "--locked", "--target", target,
             "--target-dir", ROOT / "native/target", "--manifest-path", ROOT / "native/Cargo.toml")
         run(sys.executable, "scripts/check_api_coverage.py")
-        run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_build.py")
-        run("dotnet", "test", ROOT / "tests/Fizzy.McapSharp.Tests", "-c", "Release")
+        run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py")
+        run("dotnet", "test", ROOT / "tests/Fizzy.McapSharp.Tests", "-c", "Release",
+            "--logger", "trx;LogFileName=managed.trx", "--results-directory", ROOT / "artifacts/reports")
         run("dotnet", "run", "--project", ROOT / "tests/Allocations", "-c", "Release")
 
 
@@ -149,4 +151,18 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    report = {"status": "running", "command": sys.argv[1:]}
+    directory = ROOT / "artifacts/reports"
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "build.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    try:
+        main()
+        report["status"] = "passed"
+    except BaseException:
+        report["status"] = "failed"
+        report["error"] = traceback.format_exc()
+        raise
+    finally:
+        directory = ROOT / "artifacts/reports"
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "build.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

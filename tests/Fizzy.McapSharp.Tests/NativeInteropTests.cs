@@ -350,6 +350,12 @@ public sealed class NativeInteropTests
         Assert.Equal(8, Marshal.OffsetOf<Native.NativeHeader>(nameof(Native.NativeHeader.LogTime)).ToInt32());
         Assert.Equal(40, Marshal.SizeOf<Native.Result>());
         Assert.Equal(48, Marshal.SizeOf<Native.Callbacks>());
+        void Offsets<T>(string[] fields, int[] expected) where T : struct =>
+            Assert.Equal(expected, fields.Select(name => Marshal.OffsetOf<T>(name).ToInt32()));
+        Offsets<Native.Result>(["Json", "JsonLength", "Data", "DataLength", "Value"], [0, 8, 16, 24, 32]);
+        Offsets<Native.NativeHeader>(["ChannelId", "Reserved", "Sequence", "LogTime", "PublishTime"], [0, 2, 4, 8, 16]);
+        Offsets<Native.Callbacks>(["Context", "Read", "Write", "Seek", "Flush", "Seekable"], [0, 8, 16, 24, 32, 40]);
+        Offsets<Native.ReadEvent>(["Kind", "Opcode", "Length", "Offset", "Origin", "Reserved", "Header"], [0, 4, 8, 16, 24, 28, 32]);
     }
 
     [Fact]

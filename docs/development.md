@@ -77,6 +77,8 @@ runtimes/linux-arm64/native/libfizzy_mcap_native.so
 
 ### CI and release validation
 
+The `validate / verified` job is the final gate: it requires every enabled job to succeed, including deep checks for a release. Configure branch protection to require that check. A cancelled or unexpectedly skipped job cannot produce a verified package.
+
 The reusable validation workflow builds and runs xUnit plus Python interoperability on all three native runners, then packs once. Five package-test jobs run on Windows 2022 and Ubuntu 22.04/24.04 x64/ARM64. They restore the complete package into isolated caches, exercise ordinary and RID-published execution, and read fixtures produced by every build platform. Missing fixtures fail validation. Ubuntu is the tested distribution; other glibc distributions also need compatible system libraries and .NET 8.
 
 PRs, pushes to `main`, and manual dispatch run this workflow. Superseded builds on the same PR/ref are cancelled. Intermediate artifacts expire after one day; only packages passing every job are retained for seven days. Cargo caches are separated by OS, architecture, toolchain, lockfile and native source. Standard hosted runners are used; no paid larger runners or additional cache quota are configured. Public-repository runner time is free under GitHub's current rules; storage remains subject to account allowances.
@@ -103,3 +105,41 @@ In the combined workspace, API or behavior changes also require RobotController 
 Extended allocation tests cover prepared complete-message writes (including late declarations), prepared control records, private records, attachments, record views, direct buffer readers and random index/metadata/attachment reads under every compression mode. Asynchronous tests force suspension using a reusable source and a dedicated I/O thread, summing caller and worker allocation counts, and also exercise direct awaiting with inline completion. Initialization, caller growth, owned convenience objects and errors remain excluded. Native snapshot memory is intentionally outside the managed-allocation contract.
 
 Native differential tests compare all six slice modes against the locked upstream implementation under every compression mode. Lazy-reader checks assert no construction-time advancement and at most one pending record; these state/capacity checks exclude the input copy and do not measure total allocator or decompressor memory. Managed tests cover independent Chunk lifetimes, deferred errors, caller indexes and buffered-sort rejection. The Release allocation gate also measures independent lazy Chunk advancement.
+
+### External contract suites
+
+These suites are for maintainers checking interoperability and failure handling. Build the host native Release library first. Use Python dependencies from the interoperability section and Node 24 for conformance. Each invocation requires a fresh output directory; preserve failed runs for diagnosis.
+
+```powershell
+python scripts/test_suites.py conformance --output artifacts/check-conformance
+python scripts/test_abi.py
+python scripts/test_suites.py differential --no-build --seed 1 --samples 32 --output artifacts/check-differential
+python scripts/test_suites.py robustness --no-build --seed 1 --samples 32 --output artifacts/check-robustness
+python scripts/test_suites.py stress --no-build --budget 10 --output artifacts/check-stress
+```
+
+The first command builds the managed contract runner. `--no-build` reuses it; neither option builds Rust. Conformance downloads the commit pinned in `tests/conformance-lock.json`, verifies the archive and each Git LFS object's SHA-256, and preserves the upstream MIT license. Node imports the official expected-result and Rust support rules directly; no upstream multi-language build or npm installation is required. The inventory requires 416 sequential reads, 32 indexed reads and 208 exact-byte writes. The other 384 indexed cases lack prerequisites required by the official Rust runner; 208 padded writer cases cannot be emitted by the upstream writer. Unsupported cases carry explicit reasons. Count drift, missing data and supported-case failures fail the suite.
+
+Differential testing uses a version-independent xorshift32 generator, 32 fixed seeds, three compression settings and both .NET/Python producers. Each file contains at most 256 messages and is limited to 8 MiB. Tests compare payloads, declarations, metadata and attachments, sequential/buffer/async paths, indexed order and random access. Equal-time ordering across chunks is unspecified: sorted results must be monotonic and contain exactly the expected tied messages. Odd seeds disable chunks; even seeds exercise compression and indexes. Managed xUnit tests also cover every truncation of a small recording, extreme fields, length limits, short reads, injected I/O failures and session isolation. Existing async cancellation and ownership checks remain part of the host gate.
+
+The robustness runner mutates valid input and launches each parser probe in a separate process with a 30-second timeout. Expected MCAP errors are accepted; unexpected exceptions, panics, crashes and timeouts fail. Strict parsing uses an 8 MiB record-length limit. `--samples` selects bounded cases; a positive `--budget` instead runs until that many seconds have elapsed. `report.json` records configuration, commit, RID, runtime versions and current input. Replay with the recorded seed and configuration into a new output directory. The report's original command must have its output directory changed before rerunning.
+
+`test_abi.py` checks all managed P/Invoke export names and uses isolated child processes with an injected missing-library resolver and a test-only incompatible Rust library. The stub stays under ignored artifacts and is never packaged.
+
+### Weekly and manual deep checks
+
+PRs and main pushes run the fixed suites on all three native platforms. Every Sunday at 02:00 UTC, the build workflow additionally runs Linux x64 native mutation (20 minutes), Valgrind (10 minutes), lifecycle stress (10 minutes), and an actual file exceeding 4 GiB. Manual dispatch accepts `deep`, `seed` and mutation `budget` (1–1800 seconds). Publishing requires these deep checks against the same commit and publishes the same candidate package. Scheduled runs use the workflow run number as a recorded rotating seed. No daily job is configured. Hosted schedules may start later than their nominal time.
+
+On Linux x64 with the pinned Rust toolchain, built native asset, .NET and Valgrind installed:
+
+```sh
+python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stress-budget 600 --output artifacts/deep-check
+```
+
+The standalone Rust driver links the real private C ABI, checks layouts, and exercises record/chunk parsing, pending buffer reads, snapshots and indexed operations with valid handles. Native mutations run in bounded child processes with a 1 GiB address-space limit and 30-second timeout. Crashes preserve the original input and attempt bounded delta reduction; the reduced input is not guaranteed globally minimal. Valgrind rejects illegal accesses and definite/indirect leaks. This is mutation-based testing, not coverage-guided fuzzing or proof of memory safety.
+
+Lifecycle stress samples private memory and handles after GC, discards the first third of samples, and compares middle/tail medians when at least 30 samples exist. Growth above 32 handles or 256 MiB fails for investigation; smaller growth remains diagnostic, and native allocator caches can retain memory. The large-file test writes 4097 MiB of uncompressed payload with bounded buffers, validates the file and queries its tail through indexes, then removes the file. Ensure at least 6 GiB of free disk space. This does not require snapshot APIs to use constant memory.
+
+Reports are retained for seven days and failed inputs for fourteen days. Successful stress files are not uploaded. Allocation remains a strict 0 B gate; throughput has no hosted-runner pass threshold. The deep job has a 90-minute timeout. Inspect the failing suite report and reproduce its input before changing expectations.
+
+Package jobs restore only the candidate nupkg into isolated caches. In addition to ordinary/RID-published smoke tests, they compile the shared public contract runner against the package and read all 18 exchanged platform fixtures with `python scripts/test_package.py --fixtures artifacts/exchanged`. They do not download source native assets or run a source ProjectReference for those checks. Package validation still requires all three matching native assets; host-only builds cannot substitute for it.

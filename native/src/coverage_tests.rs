@@ -1,5 +1,17 @@
 use super::*;
 
+#[test]
+fn private_abi_layout_matches_managed_contract() {
+    use std::mem::{offset_of, size_of};
+    assert_eq!(size_of::<Response>(), 40);
+    assert_eq!([offset_of!(Response, json), offset_of!(Response, json_len), offset_of!(Response, data), offset_of!(Response, data_len), offset_of!(Response, value)], [0, 8, 16, 24, 32]);
+    assert_eq!(size_of::<MessageHeader>(), 24);
+    assert_eq!([offset_of!(MessageHeader, channel_id), offset_of!(MessageHeader, reserved), offset_of!(MessageHeader, sequence), offset_of!(MessageHeader, log_time), offset_of!(MessageHeader, publish_time)], [0, 2, 4, 8, 16]);
+    assert_eq!(size_of::<Callbacks>(), 48);
+    assert_eq!([offset_of!(Callbacks, context), offset_of!(Callbacks, read), offset_of!(Callbacks, write), offset_of!(Callbacks, seek), offset_of!(Callbacks, flush), offset_of!(Callbacks, seekable)], [0, 8, 16, 24, 32, 40]);
+    assert_eq!(size_of::<extended::Event>(), 56);
+}
+
 fn fixture(options: mcap::WriteOptions) -> Vec<u8> {
     let mut w = options.create(std::io::Cursor::new(Vec::new())).unwrap();
     let schema = w.add_schema_with_id(7, "schema", "raw", &[1, 2]).unwrap();

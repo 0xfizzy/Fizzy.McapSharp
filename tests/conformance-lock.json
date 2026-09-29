@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/foxglove/mcap",
+  "commit": "e2b6a19bdb475ba6dd6470398286158f1f5d3a56",
+  "archive_sha256": "a1ea35d49c118adb4b973c2e69e45c1ad97e69ef9e2e92f20b77e360cfc4633b",
+  "license": "MIT",
+  "license_path": "LICENSE",
+  "cases": 416,
+  "support_rules": {
+    "stream": "all cases",
+    "indexed": "pinned RustIndexedReaderTestRunner.supportsVariant",
+    "write": "pinned RustWriterTestRunner.supportsVariant (excludes pad)"
+  }
+}

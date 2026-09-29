@@ -9,6 +9,8 @@ concurrency:
 jobs:
   validate:
     uses: ./.github/workflows/validate.yml
+    with:
+      deep: true
   publish:
     needs: validate
     runs-on: windows-2022

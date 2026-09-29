@@ -103,3 +103,41 @@ PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧�
 扩展分配测试在各压缩模式下覆盖完整预准备消息（含晚到声明）、控制记录、私有记录、附件、记录视图、直接缓冲区读取和随机索引/Metadata/Attachment。异步测试使用可复用源和专用 I/O 线程强制挂起，合计调用线程及工作线程分配，并覆盖内联完成通知下的直接 await。初始化、调用方扩容、自有便利对象和错误仍排除在外；原生快照内存不属于托管分配保证。
 
 原生差分测试在所有压缩模式下对比六种切片模式与锁定上游实现。惰性读取检查断言构造时未推进、最多保留一条待交付记录；状态及容量检查排除输入副本，不代表完整分配器或解压器内存测量。托管测试覆盖独立 Chunk 生命周期、延迟错误、调用者索引和禁止缓存排序。Release 分配门禁还测量独立惰性 Chunk 推进。
+
+### 外部契约测试套件
+
+维护者验证互操作和错误处理时，应先构建本机原生 Release 库，安装互操作章节列出的 Python 依赖；conformance 另需 Node 24。每次使用新的输出目录，保留失败数据以便复现。
+
+```powershell
+python scripts/test_suites.py conformance --output artifacts/check-conformance
+python scripts/test_abi.py
+python scripts/test_suites.py differential --no-build --seed 1 --samples 32 --output artifacts/check-differential
+python scripts/test_suites.py robustness --no-build --seed 1 --samples 32 --output artifacts/check-robustness
+python scripts/test_suites.py stress --no-build --budget 10 --output artifacts/check-stress
+```
+
+第一条命令构建托管契约执行器；`--no-build` 复用已有构建，两者均不构建 Rust。Conformance 下载 `tests/conformance-lock.json` 固定的提交，验证归档及每个 Git LFS 对象的 SHA-256，保留上游 MIT 许可证。Node 直接导入官方预期结果和 Rust 支持规则，无需构建上游多语言工程或安装 npm 依赖。清单要求 416 次顺序读取、32 次索引读取及 208 次逐字节写入比较。其余 384 个索引用例缺少官方 Rust runner 要求的前提；208 个带 padding 的写入变体无法由上游 Writer 生成。不支持项记录具体原因；数量变化、数据缺失和应支持项失败均阻断验证。
+
+差分测试采用固定 xorshift32 算法，32 个固定种子、三种压缩设置及 .NET/Python 两个写入端。每个文件最多 256 条消息，限制为 8 MiB。检查 payload、声明、metadata、附件、顺序/缓冲/异步读取、索引排序与随机访问。跨 chunk 的相同时间戳顺序未规定：结果必须时间单调且同时间组内消息完全匹配。奇数种子关闭 chunk，偶数种子覆盖压缩和索引。xUnit 还覆盖小文件的每个截断位置、极值字段、长度限制、短读、I/O 故障注入和会话隔离；原有异步取消及所有权测试继续保留。
+
+Robustness 从合法文件生成变异，每个解析探针在独立进程中运行，超时为 30 秒。预期 MCAP 错误可以接受，非预期异常、panic、崩溃和超时均失败；严格解析设置 8 MiB 记录长度限制。`--samples` 控制用例数，正数 `--budget` 则改为按秒运行。`report.json` 保存配置、提交、RID、运行时版本和当前输入。按记录的种子和配置重放时必须换用新输出目录，不直接复用报告中的旧目录。
+
+`test_abi.py` 核对所有托管 P/Invoke 的原生导出名，并在独立进程中用注入的缺失库解析器及测试专用的不兼容 Rust 库检查拒绝行为。伪库仅位于被忽略的 artifacts 中，不进入包资产。
+
+### 每周及手动深度检查
+
+PR 和 main 提交在三个原生平台运行固定套件。每周日 02:00 UTC 额外运行 Linux x64 原生变异 20 分钟、Valgrind 10 分钟、生命周期压力 10 分钟和真实超过 4 GiB 的文件检查。手动触发支持 `deep`、`seed`、变异 `budget`（1–1800 秒）。发布要求同提交的深度检查通过，仍发布同一个候选包。定时运行以 workflow 运行编号作为轮换种子并记录。没有每日任务；托管定时任务实际启动时间可能延后。
+
+Linux x64 已安装固定 Rust 工具链、.NET、Valgrind 并完成原生库构建后运行：
+
+```sh
+python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stress-budget 600 --output artifacts/deep-check
+```
+
+独立 Rust 驱动链接真实私有 C ABI，检查布局，并以有效句柄覆盖记录/chunk 解析、待交付缓冲读取、快照和索引操作。原生变异子进程限制 1 GiB 地址空间及 30 秒执行时间。崩溃时保留原输入并尝试有预算的差分缩减，不保证获得全局最小样本。Valgrind 拒绝非法内存访问及确定/间接泄漏。这是变异测试，不是覆盖率引导的 fuzz，也不构成内存安全证明。
+
+生命周期压力在 GC 后采样私有内存和句柄；至少 30 个样本时丢弃前 1/3，比较中段及末段中位数。增长超过 32 个句柄或 256 MiB 时失败并要求排查；更小增长仅供诊断，原生分配器缓存也可能保留内存。大文件检查用有界缓冲写入 4097 MiB 未压缩 payload，完整校验并通过索引查询尾部，结束后删除文件。至少预留 6 GiB 磁盘空间；不要求自有快照 API 恒定内存。
+
+报告保留 7 天，失败输入保留 14 天，成功的压力文件不上传。分配仍严格要求 0 B，吞吐不设置托管 runner 硬门槛；深度 job 超时 90 分钟。先检查失败报告并重放输入，再考虑修改预期。
+
+`validate / verified` 是最终门禁，要求所有启用的 job 成功，包括发布启用的深度检查；建议将该检查设为分支保护必需项。取消或意外跳过不能生成已验证包。包任务只从候选 nupkg 恢复到隔离缓存，除普通/RID 发布 smoke 测试外，还针对包编译共享公共契约执行器，并用 `python scripts/test_package.py --fixtures artifacts/exchanged` 读取全部 18 个跨平台文件。此阶段不下载源码原生资产，也不使用源码 ProjectReference。仍需三个平台同源资产，本机单平台构建不能替代包验证。

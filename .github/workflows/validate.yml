@@ -1,6 +1,16 @@
 name: validate
 on:
   workflow_call:
+    inputs:
+      deep:
+        type: boolean
+        default: false
+      seed:
+        type: number
+        default: 1
+      budget:
+        type: number
+        default: 1200
 permissions:
   contents: read
 jobs:
@@ -19,6 +29,7 @@ jobs:
             runner: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -27,6 +38,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/cache@v4
+        with:
+          path: artifacts/conformance
+          key: conformance-${{ hashFiles('tests/conformance-lock.json') }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.98.1
@@ -44,6 +62,25 @@ jobs:
       - run: dotnet run --project tests/Interop -c Release -- write artifacts/interop
       - run: python tests/interop.py artifacts/interop
       - run: dotnet run --project tests/Interop -c Release -- read artifacts/interop
+      - run: python scripts/test_suites.py conformance --output artifacts/reports/conformance
+      - run: python scripts/test_abi.py
+      - run: python scripts/test_suites.py differential --no-build --samples 32 --output artifacts/reports/differential
+      - run: python scripts/test_suites.py robustness --no-build --samples 32 --output artifacts/reports/robustness
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ matrix.rid }}
+          path: |
+            artifacts/reports/**/*.json
+            artifacts/reports/**/*.trx
+            artifacts/reports/**/*.log
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failures-${{ matrix.rid }}
+          path: artifacts/reports/
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.rid }}
@@ -115,20 +152,77 @@ jobs:
         with:
           name: candidate-package
           path: artifacts/packages
-      - run: python scripts/test_package.py
-      - uses: actions/download-artifact@v4
-        with:
-          name: native-${{ matrix.rid }}
-          path: artifacts/native/${{ matrix.rid }}
       - uses: actions/download-artifact@v4
         with:
           pattern: fixtures-*
           path: artifacts/exchanged
-      - run: dotnet run --project tests/Interop -c Release -- read-all artifacts/exchanged
+      - run: python scripts/test_package.py --fixtures artifacts/exchanged
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: package-report-${{ matrix.runner }}
+          path: artifacts/package-report.json
+          retention-days: 7
+  deep:
+    if: inputs.deep
+    needs: native
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x64
+          path: artifacts/native/linux-x64
+      - run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Deep native and managed contracts
+        env:
+          TEST_SEED: ${{ inputs.seed }}
+          TEST_BUDGET: ${{ inputs.budget }}
+        run: python scripts/test_deep.py --seed "$TEST_SEED" --budget "$TEST_BUDGET" --output artifacts/deep
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deep-report
+          path: |
+            artifacts/deep/*.json
+            artifacts/deep/*.log
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: deep-failure
+          path: |
+            artifacts/deep/*.mcap
+            artifacts/deep/*.json
+            artifacts/deep/*.log
+          retention-days: 14
   verified:
-    needs: package-test
+    if: always()
+    needs: [native, pack, package-test, deep]
     runs-on: ubuntu-22.04
     steps:
+      - name: Require every enabled gate
+        env:
+          NATIVE: ${{ needs.native.result }}
+          PACK: ${{ needs.pack.result }}
+          PACKAGE: ${{ needs.package-test.result }}
+          DEEP: ${{ needs.deep.result }}
+          DEEP_ENABLED: ${{ inputs.deep }}
+        run: |
+          test "$NATIVE" = success
+          test "$PACK" = success
+          test "$PACKAGE" = success
+          if [ "$DEEP_ENABLED" = true ]; then test "$DEEP" = success; else test "$DEEP" = skipped; fi
       - uses: actions/download-artifact@v4
         with:
           name: candidate-package

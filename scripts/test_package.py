@@ -4,12 +4,16 @@ import hashlib
 from pathlib import Path
 import uuid
 import zipfile
+import shutil
+import json
+import traceback
 from build import ROOT, TARGETS, check_binary, host_rid, run, version
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package-directory", type=Path, default=ROOT / "artifacts/packages")
+    parser.add_argument("--fixtures", type=Path, help="All three platform fixture directories")
     args = parser.parse_args()
     rid = host_rid()
     package = args.package_directory.resolve() / f"Fizzy.McapSharp.{version()}.nupkg"
@@ -66,6 +70,38 @@ Console.WriteLine("Isolated native load and all compression roundtrips passed.")
         raise RuntimeError("Published native asset does not match selected RID")
     run("dotnet", published / "Smoke.dll")
 
+    # Compile exactly the same public-API contracts against the candidate package only.
+    contract = smoke / "contracts"
+    contract.mkdir()
+    for source in (ROOT / 'tests/ContractRunner').glob('*.cs'):
+        shutil.copy2(source, contract / source.name)
+    contract_project = contract / 'ContractRunner.csproj'
+    contract_project.write_text(project.read_text().replace('</PropertyGroup>', '<Nullable>enable</Nullable></PropertyGroup>'))
+    run('dotnet', 'restore', contract_project, '--configfile', config, '--packages', smoke / 'packages')
+    run('dotnet', 'build', contract_project, '-c', 'Release', '--no-restore')
+    contract_dll = contract / 'bin/Release/net8.0/ContractRunner.dll'
+    from test_suites import generate
+    spec = contract / 'fixture.json'
+    spec.write_text(json.dumps(generate(2), separators=(',', ':')), encoding='utf-8')
+    for compression in ['None', 'Lz4', 'Zstd']:
+        fixture = contract / (compression + '.mcap')
+        run('dotnet', contract_dll, 'write', spec, fixture, compression)
+        run('dotnet', contract_dll, 'check', fixture, spec)
+    if args.fixtures:
+        run('dotnet', contract_dll, 'exchange', args.fixtures.resolve())
+    return dict(rid=rid, package=str(package), sha256=hashlib.sha256(package.read_bytes()).hexdigest(),
+                fixture_directory=str(args.fixtures) if args.fixtures else None)
+
 
 if __name__ == "__main__":
-    main()
+    report = {'status': 'running'}
+    try:
+        report.update(main())
+        report['status'] = 'passed'
+    except BaseException:
+        report['status'] = 'failed'
+        report['error'] = traceback.format_exc()
+        raise
+    finally:
+        (ROOT / 'artifacts').mkdir(exist_ok=True)
+        (ROOT / 'artifacts/package-report.json').write_text(json.dumps(report, indent=2))
