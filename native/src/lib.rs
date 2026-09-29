@@ -245,7 +245,8 @@ fn open_map(path: &str) -> Outcome<(File, Mmap)> {
         options.share_mode(1);
     }
     let file = options.open(path)?;
-    // File is kept open, with Windows write/delete sharing disabled, for the mapping lifetime.
+    // File is kept open for the mapping lifetime. Only Windows denies ordinary writes/deletion.
+    // On every platform the caller must keep the mapped file unchanged (including its length).
     let mmap = unsafe { Mmap::map(&file)? };
     Ok((file, mmap))
 }

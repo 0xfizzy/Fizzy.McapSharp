@@ -2,7 +2,7 @@
 
 [English](api.md) | 简体中文
 
-公共类型位于 `Fizzy.McapSharp` 命名空间。当前仅支持 .NET 8、Windows x64 进程；以文件路径为入口，不提供 Stream、异步或取消接口。消息编码、Schema 内容及时间基准由应用定义，库不解码业务数据。
+公共类型位于 `Fizzy.McapSharp` 命名空间。支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64 进程。Linux 在 Ubuntu 22.04（glibc 2.35）上构建，在 Ubuntu 22.04 和 24.04 上验证完整包；其他发行版需具备兼容系统库与 .NET 8。不支持 macOS、musl、Windows ARM64 和 32 位进程；以文件路径为入口，不提供 Stream、异步或取消接口。消息编码、Schema 内容及时间基准由应用定义，库不解码业务数据。
 
 ## 写入文件
 
@@ -69,7 +69,7 @@ foreach (var message in reader.ReadMessages(new()
 
 消息、Schema、附件的 `Data` 是托管 `byte[]`，枚举器释放后仍可使用；数组可变，不是不可变数据。读取会分配托管内存，大记录可能引起大分配或超过托管数组限制。
 
-枚举期间 Windows 文件共享模式拒绝普通写入和删除。调用方仍须保持整个读取过程中文件稳定，尤其是多次枚举之间；打开前已存在的可写映射不在此保护之内。
+调用方必须在读取、校验和恢复的全过程（包括多次枚举之间）保持文件不变。Windows 在 Reader 打开期间通过共享模式拒绝普通写入和删除，但打开前已存在的可写映射不在保护之内。Linux 不强制阻止这些操作。并发修改映射文件，尤其是截断文件，可能导致进程终止，不保证转换为托管异常。
 
 ## 完整性校验与恢复
 
@@ -92,8 +92,8 @@ if (!result.IsComplete)
 
 | 场景 | 表现 |
 | --- | --- |
-| 非 Windows 或非 x64 进程 | `PlatformNotSupportedException` |
-| 原生 DLL 缺失、不可加载或入口缺失 | .NET 原生加载异常，保留原始类型 |
+| 不支持的操作系统或进程架构 | `PlatformNotSupportedException` |
+| 原生库 缺失、不可加载或入口缺失 | .NET 原生加载异常，保留原始类型 |
 | ABI 不匹配、原生文件或 MCAP 操作失败 | `McapException`，派生自 `IOException` |
 | 参数检查失败 | 标准参数异常 |
 | Writer 已完成、已失败或已释放 | `InvalidOperationException` 或 `ObjectDisposedException` |

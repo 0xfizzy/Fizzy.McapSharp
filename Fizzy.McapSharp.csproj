@@ -17,9 +17,22 @@
     <Compile Include="src/**/*.cs" Exclude="src/**/bin/**;src/**/obj/**" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
-    <None Include="native/target/release/fizzy_mcap_native.dll" Link="fizzy_mcap_native.dll" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="runtimes/win-x64/native" Condition="Exists('native/target/release/fizzy_mcap_native.dll')" />
+    <InternalsVisibleTo Include="Fizzy.McapSharp.Tests" />
+    <NativeAsset Include="$(MSBuildThisFileDirectory)artifacts/native/win-x64/fizzy_mcap_native.dll" Rid="win-x64" PackagePath="runtimes/win-x64/native" />
+    <NativeAsset Include="$(MSBuildThisFileDirectory)artifacts/native/linux-x64/libfizzy_mcap_native.so" Rid="linux-x64" PackagePath="runtimes/linux-x64/native" />
+    <NativeAsset Include="$(MSBuildThisFileDirectory)artifacts/native/linux-arm64/libfizzy_mcap_native.so" Rid="linux-arm64" PackagePath="runtimes/linux-arm64/native" />
+    <None Include="@(NativeAsset)" Pack="true" />
   </ItemGroup>
-  <Target Name="RequireNativeForPackage" BeforeTargets="GenerateNuspec" Condition="!Exists('native/target/release/fizzy_mcap_native.dll')">
-    <Error Text="Build the win-x64 native library with scripts/Build.ps1 before packing." />
+  <PropertyGroup>
+    <NativeRuntimeIdentifier Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</NativeRuntimeIdentifier>
+    <NativeRuntimeIdentifier Condition="'$(NativeRuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</NativeRuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Update="@(NativeAsset->WithMetadataValue('Rid', '$(NativeRuntimeIdentifier)'))"
+          Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="RequireNativeForPackage" BeforeTargets="GenerateNuspec">
+    <Error Condition="!Exists('%(NativeAsset.Identity)')" Text="Missing %(NativeAsset.Rid) native asset. Collect all three assets from the same commit before packing." />
+    <Exec Command="python &quot;$(MSBuildThisFileDirectory)scripts/build.py&quot; verify-assets" />
   </Target>
 </Project>

@@ -3,7 +3,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Fizzy.McapSharp.svg?style=flat)](https://www.nuget.org/packages/Fizzy.McapSharp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
-[![Platform: Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue.svg?style=flat)](docs/api.zh-CN.md)
+[![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/api.zh-CN.md)
 
 [English](README.md) | 简体中文
 
@@ -11,7 +11,7 @@
 
 ## 快速开始
 
-在 .NET 8 应用中添加依赖，并使用 x64 进程运行：
+在 .NET 8 应用中添加依赖。支持 Windows x64 和 glibc Linux x64/ARM64 进程，Linux 验证基线为 Ubuntu 22.04 及以上：
 
 ```powershell
 dotnet add package Fizzy.McapSharp

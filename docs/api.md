@@ -2,7 +2,7 @@
 
 English | [简体中文](api.zh-CN.md)
 
-Public types are in the `Fizzy.McapSharp` namespace. Execution requires .NET 8 and a Windows x64 process. APIs accept file paths; there are no Stream, async, or cancellation interfaces. Applications define payload encoding, schema contents, and clock semantics; the library does not decode business data.
+Public types are in the `Fizzy.McapSharp` namespace. Execution requires .NET 8 and a Windows x64 or glibc Linux x64/ARM64 process. Linux is built on Ubuntu 22.04 (glibc 2.35) and package-tested on Ubuntu 22.04 and 24.04; other distributions require compatible system libraries and .NET 8. macOS, musl, Windows ARM64, and 32-bit processes are unsupported. APIs accept file paths; there are no Stream, async, or cancellation interfaces. Applications define payload encoding, schema contents, and clock semantics; the library does not decode business data.
 
 ## Writing files
 
@@ -69,7 +69,7 @@ foreach (var message in reader.ReadMessages(new()
 
 Message, schema, and attachment `Data` properties are managed `byte[]` instances that remain valid after the enumerator is disposed. Arrays are mutable. Reading allocates managed memory; large records can require large allocations or exceed managed array limits.
 
-During enumeration, Windows file sharing denies ordinary writes and deletion. Callers must still keep files stable throughout reading, especially between separate enumerations. Writable mappings created before opening the file are outside this protection.
+Callers must keep files unchanged throughout reading, validation, and recovery, including between separate enumerations. Windows file sharing denies ordinary writes and deletion while a reader is open; pre-existing writable mappings remain outside this protection. Linux does not enforce this exclusion. Concurrent changes to a mapped file, especially truncation, can terminate the process and are not guaranteed to become managed exceptions.
 
 ## Validation and recovery
 
@@ -92,8 +92,8 @@ Recovery stops at a read error and runs full validation after enumeration finish
 
 | Condition | Result |
 | --- | --- |
-| Non-Windows or non-x64 process | `PlatformNotSupportedException` |
-| Missing or unloadable native DLL, or missing entry point | Original .NET native loader exception |
+| Unsupported operating system or process architecture | `PlatformNotSupportedException` |
+| Missing or unloadable native library, or missing entry point | Original .NET native loader exception |
 | ABI mismatch, native file error, or MCAP operation failure | `McapException`, derived from `IOException` |
 | Invalid arguments caught by validation | Standard argument exceptions |
 | Completed, failed, or disposed writer | `InvalidOperationException` or `ObjectDisposedException` |

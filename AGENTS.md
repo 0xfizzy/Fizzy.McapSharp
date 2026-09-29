@@ -13,12 +13,12 @@
 - Keep struct layouts, calling conventions, operation codes, and ownership consistent across the ABI. Update the ABI version and managed check together for incompatible changes. Catch panics in fallible native operations; unwinding must not cross FFI.
 - Serialize writer calls and consume input buffers before returning. Preserve create-only files, terminal failure, explicit `Complete`, and disposal without implicit completion.
 - Each reader handle belongs to one enumerator. Drop iterators before the summary, mapping, and file they borrow. Returned records must own managed copies. A successful query is not full-file validation.
-- Support .NET 8 / win-x64. Pin native dependencies exactly in `native/Cargo.toml`, retain `Cargo.lock`, and build with `--locked`. Use the toolchain specified in `rust-toolchain.toml`.
+- Support .NET 8 / win-x64, linux-x64 and linux-arm64. Linux uses glibc with an Ubuntu 22.04 build baseline and native ARM64 runners; macOS and musl are out of scope. Pin native dependencies exactly in `native/Cargo.toml`, retain `Cargo.lock`, and build with `--locked`. Use the toolchain specified in `rust-toolchain.toml`.
 
 ## Validation and delivery
 
-- Follow [development.md](docs/development.md). Build the native Release DLL before managed projects, and serialize builds that share output directories.
-- For managed or native behavior changes, run `./scripts/Build.ps1 -Test -Pack`. Also run Python interoperability checks for format, compression, ABI, or read/write changes. Run `./scripts/Test-Package.ps1` for packaging or runtime asset changes.
+- Follow [development.md](docs/development.md). Build the native Release library before managed projects, and serialize builds that share output directories.
+- For managed or native behavior changes, run `./scripts/Build.ps1 -Test -Pack` after collecting all three native assets from the same source, or the equivalent Python commands in CI. Local host-only validation uses `./scripts/Build.ps1 -Test`; report missing platform assets rather than manufacturing or bypassing them. Also run Python interoperability checks for format, compression, ABI, or read/write changes. Run `./scripts/Test-Package.ps1` for packaging or runtime asset changes.
 - For API or behavior changes, follow parent workspace requirements for RobotController and Parallax Source builds and relevant tests. Package mode validates published dependencies; report incompatibilities with current source. For documentation-only changes, check links, commands, and implementation contracts without claiming unperformed tests.
 - Default to NuGet. Consumer source integration uses `UseFizzyMcapSharpSource` / `FizzyMcapSharpRoot`; select exactly one reference type per project and restore after switching modes. Do not commit local paths or source configuration.
 - Do not commit `.tools/`, `native/target/`, `bin/`, `obj/`, `artifacts/`, or credentials. Publish only through GitHub Actions Trusted Publishing; follow the publishing rules below.
@@ -26,11 +26,11 @@
 
 ## Publishing
 
-- Version changes, commits, pushes, and publishing require user authorization. Check the working tree and release ref, complete applicable validation, and verify the package version and win-x64 native asset before manually triggering `.github/workflows/publish.yml`.
+- Version changes, commits, pushes, and publishing require user authorization. Check the working tree and release ref, complete applicable validation, and verify the package version and all three RID native assets before manually triggering `.github/workflows/publish.yml`.
 - Before publishing, configure a NuGet Trusted Publisher matching this repository, publishing workflow, and GitHub `nuget` environment. Configure the environment's protection rules and the `NUGET_USER` secret used by `NuGet/login@v1`. The workflow uses `id-token: write` for OIDC and obtains a temporary API key; do not store long-lived publishing credentials.
-- `.github/workflows/build.yml` runs on push, pull request, or manual dispatch. It builds native and managed code, runs xUnit, packs, runs bidirectional Python interoperability for all three compression modes, and uploads packages. Confirm it passed for the release commit.
-- The manual publish workflow rebuilds, runs xUnit, packs, and publishes to NuGet.org. It does not run Python interoperability. Neither workflow runs `Test-Package.ps1`; complete that isolated package validation before publishing. Do not describe either workflow as covering all checks.
-- For an authorized version update, check the managed project, native `Cargo.toml` / `Cargo.lock`, native library identifier, platform error text, and package test script for consistency. Retain the lockfile and exact native dependency versions.
+- `.github/workflows/build.yml` runs on pushes to main, pull requests, or manual dispatch. It calls `validate.yml` to build native and managed code on three platforms, run xUnit and bidirectional Python interoperability, pack once, validate the identical complete package on five OS/architecture combinations, and exchange platform fixtures. Confirm it passed for the release commit.
+- The manual publish workflow calls the same reusable validation, then publishes its verified package without rebuilding or repacking in the publish job. Both workflows run the cross-platform `test_package.py` implementation behind `Test-Package.ps1`. Consumer Source builds, hardware/UI checks and published-package validation are not covered by these workflows.
+- For an authorized version update, check the managed project, native `Cargo.toml` / `Cargo.lock`, native library identifier and metadata-driven package tests for consistency. Retain the lockfile and exact native dependency versions.
 - After publication, confirm the workflow result and NuGet availability, then validate consumers using the published package source. Local nupkg test success is not published-package validation.
 
 ## Documentation

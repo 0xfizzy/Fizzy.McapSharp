@@ -2,7 +2,7 @@
 
 English | [简体中文](native.zh-CN.md)
 
-.NET calls a Rust `cdylib` through Cdecl P/Invoke, using the official `mcap` crate 0.25.0 directly, without a C++ layer. The implementation is in [lib.rs](../native/src/lib.rs), with managed declarations in [Native.cs](../src/Native.cs). The native asset is `fizzy_mcap_native.dll` for Windows MSVC x64.
+.NET calls a Rust `cdylib` through Cdecl P/Invoke, using the official `mcap` crate 0.25.0 directly, without a C++ layer. The implementation is in [lib.rs](../native/src/lib.rs), with managed declarations in [Native.cs](../src/Native.cs). Native assets are `fizzy_mcap_native.dll` for Windows MSVC x64 and `libfizzy_mcap_native.so` for glibc Linux x64/ARM64. All use the same ABI; library lookup uses the extensionless name `fizzy_mcap_native`.
 
 ## Version and entry points
 
@@ -31,7 +31,7 @@ Handles are opaque native objects and must be freed exactly once by their matchi
 
 Reader iterators borrow fixed mapping and summary allocations. Internally extended reference lifetimes are valid only within the reader; fields must be dropped in this order: iterator, summary, mapping, file. Moving the reader must not move borrowed allocations. Returned data is copied; mapping references must not escape the reader.
 
-Windows opens allow read sharing only, preventing ordinary concurrent writes and deletion. Pre-existing writable mappings remain outside this protection. Full validation limits record lengths to the mapped file size; this is not a general memory quota and does not eliminate resource risks from untrusted input.
+Windows opens allow read sharing only, preventing ordinary concurrent writes and deletion. Pre-existing writable mappings remain outside this protection. Linux has no equivalent exclusion here. Callers must keep mapped files unchanged; concurrent truncation can cause a process-level fault, outside the panic/exception boundary. Full validation limits record lengths to the mapped file size; this is not a general memory quota and does not eliminate resource risks from untrusted input.
 
 Writer disposal uses the upstream `into_inner` path to avoid implicitly finishing through upstream Drop. Complete explicitly finishes the file and calls `sync_all`; a failed writer cannot continue writing.
 

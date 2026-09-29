@@ -2,7 +2,7 @@
 
 [English](native.md) | 简体中文
 
-.NET 通过 Cdecl P/Invoke 调用 Rust `cdylib`，直接使用官方 `mcap` crate 0.25.0，没有 C++ 层。实现位于 [lib.rs](../native/src/lib.rs)，托管声明位于 [Native.cs](../src/Native.cs)。当前原生资产为 Windows MSVC x64 的 `fizzy_mcap_native.dll`。
+.NET 通过 Cdecl P/Invoke 调用 Rust `cdylib`，直接使用官方 `mcap` crate 0.25.0，没有 C++ 层。实现位于 [lib.rs](../native/src/lib.rs)，托管声明位于 [Native.cs](../src/Native.cs)。原生资产为 Windows MSVC x64 的 `fizzy_mcap_native.dll` 和 glibc Linux x64/ARM64 的 `libfizzy_mcap_native.so`。三平台共用同一 ABI，使用不带扩展名的 `fizzy_mcap_native` 加载。
 
 ## 版本与入口
 
@@ -31,7 +31,7 @@
 
 Reader 的迭代器借用固定的映射和 summary 分配。内部延长的引用生命周期只在 Reader 内有效；字段释放顺序必须保持迭代器、summary、映射、文件。移动 Reader 不能改变被借用分配的地址。返回数据会复制，不能将映射引用带出 Reader。
 
-Windows 读取仅允许共享读取，阻止普通并发写入和删除；预先存在的可写映射无法由此排除。完整校验设置记录长度上限为映射文件长度，这不构成统一的内存配额，不能把不可信输入视为无资源风险。
+Windows 读取仅允许共享读取，阻止普通并发写入和删除；预先存在的可写映射无法由此排除。Linux 不提供对应的互斥保护。调用方必须保持映射文件不变；并发截断可能产生进程级故障，超出 panic/异常边界。完整校验设置记录长度上限为映射文件长度，这不构成统一的内存配额，不能把不可信输入视为无资源风险。
 
 Writer 释放走上游 `into_inner` 路径，避免上游 Drop 隐式完成录制。Complete 显式 finish 后执行文件 `sync_all`；失败状态不允许继续写入。
 

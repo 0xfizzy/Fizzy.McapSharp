@@ -64,7 +64,7 @@ public sealed class RoundTripTests : IDisposable
     {
         var path=PathFor("release.mcap");
         using(var w=new McapWriter(path)){var c=w.RegisterChannel("t","raw");w.WriteMessage(c,1,1,1,[1]);w.Complete();}
-        using(var e=new McapReader(path).ReadMessages().GetEnumerator()){Assert.True(e.MoveNext());Assert.Throws<IOException>(()=>File.OpenWrite(path));}
+        using(var e=new McapReader(path).ReadMessages().GetEnumerator()){Assert.True(e.MoveNext());if (OperatingSystem.IsWindows()) Assert.Throws<IOException>(()=>File.OpenWrite(path));}
         File.Delete(path);
     }
     [Fact] public void RecoveryReportsIncompleteInsteadOfSuccess()
@@ -92,5 +92,36 @@ public sealed class RoundTripTests : IDisposable
         Assert.True(index>0);bytes[index]^=1;File.WriteAllBytes(path,bytes);
         Assert.Throws<McapException>(()=>new McapReader(path).Validate());
     }
+    [Theory]
+    [InlineData(true, false, System.Runtime.InteropServices.Architecture.X64, true)]
+    [InlineData(true, false, System.Runtime.InteropServices.Architecture.Arm64, false)]
+    [InlineData(false, true, System.Runtime.InteropServices.Architecture.X64, true)]
+    [InlineData(false, true, System.Runtime.InteropServices.Architecture.Arm64, true)]
+    [InlineData(false, true, System.Runtime.InteropServices.Architecture.X86, false)]
+    [InlineData(false, true, System.Runtime.InteropServices.Architecture.Arm, false)]
+    [InlineData(false, false, System.Runtime.InteropServices.Architecture.X64, false)]
+    public void PlatformMatrix(bool windows, bool linux, System.Runtime.InteropServices.Architecture architecture, bool supported)
+        => Assert.Equal(supported, Native.IsSupportedPlatform(windows, linux, architecture));
+
+    [Fact]
+    public void UnicodePathAndOwnedDataSurviveEnumeratorDisposal()
+    {
+        var path = PathFor("机器人 sample.mcap");
+        using (var writer = new McapWriter(path))
+        {
+            var channel = writer.RegisterChannel("test", "raw");
+            writer.WriteMessage(channel, 1, 1, 0, [1, 2, 3]);
+            writer.Complete();
+        }
+        McapMessage message;
+        using (var enumerator = new McapReader(path).ReadMessages().GetEnumerator())
+        {
+            Assert.True(enumerator.MoveNext());
+            message = enumerator.Current;
+        }
+        File.Delete(path);
+        Assert.Equal(new byte[] { 1, 2, 3 }, message.Data);
+    }
+
     public void Dispose() => Directory.Delete(root,true);
 }

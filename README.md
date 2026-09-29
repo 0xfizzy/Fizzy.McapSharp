@@ -3,7 +3,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Fizzy.McapSharp.svg?style=flat)](https://www.nuget.org/packages/Fizzy.McapSharp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
-[![Platform: Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue.svg?style=flat)](docs/api.md)
+[![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/api.md)
 
 English | [简体中文](README.zh-CN.md)
 
@@ -11,7 +11,7 @@ English | [简体中文](README.zh-CN.md)
 
 ## Quick start
 
-Add the package to a .NET 8 application and run as an x64 process:
+Add the package to a .NET 8 application. Supported processes: Windows x64 and glibc Linux x64/ARM64 (Ubuntu 22.04 or newer validation baseline):
 
 ```powershell
 dotnet add package Fizzy.McapSharp

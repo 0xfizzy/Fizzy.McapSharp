@@ -19,10 +19,14 @@ internal static class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void fm_reader_free(IntPtr handle);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void fm_buffer_free(IntPtr data, nuint length);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int fm_validate(byte[] request, nuint length, out Result result);
+    internal static bool IsSupportedPlatform(bool windows, bool linux, Architecture architecture) =>
+        (windows && architecture == Architecture.X64) ||
+        (linux && architecture is Architecture.X64 or Architecture.Arm64);
+
     internal static void EnsureAvailable()
     {
-        if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
-            throw new PlatformNotSupportedException("Fizzy.McapSharp 0.1.0 supports Windows x64 only.");
+        if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
+            throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
         if (fm_abi_version() != 1) throw new McapException("Incompatible Fizzy.McapSharp native ABI.");
     }
     internal static byte[] Request(object value) => JsonSerializer.SerializeToUtf8Bytes(value);

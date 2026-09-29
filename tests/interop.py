@@ -2,7 +2,9 @@ import json, pathlib, sys
 from mcap.reader import make_reader
 from mcap.writer import Writer, CompressionType
 root=pathlib.Path(sys.argv[1]); root.mkdir(parents=True, exist_ok=True)
-for path in root.glob('dotnet-*.mcap'):
+paths = list(root.glob('dotnet-*.mcap'))
+assert len(paths) == 3, 'Expected all three .NET compression fixtures'
+for path in paths:
     with path.open('rb') as stream:
         reader=make_reader(stream,validate_crcs=True)
         messages=list(reader.iter_messages(topics=['/test'],start_time=200,end_time=500))

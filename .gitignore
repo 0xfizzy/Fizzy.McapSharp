@@ -4,3 +4,4 @@
 native/target/
 artifacts/
 *.user
+**/__pycache__/
