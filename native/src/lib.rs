@@ -615,13 +615,10 @@ pub unsafe extern "C" fn fm_reader_open(
         } else {
             open_input(string(&v, "path")?)?
         };
-        let limit = match &input {
-            Input::Map { mapping, .. } => Some(mapping.len()),
-            _ => v["recordLengthLimit"]
-                .as_u64()
-                .map(usize::try_from)
-                .transpose()?,
-        };
+        let limit = v["recordLengthLimit"]
+            .as_u64()
+            .map(usize::try_from)
+            .transpose()?;
         let mut reader = Reader {
             indexed: None,
             queue: VecDeque::new(),
@@ -892,10 +889,10 @@ pub unsafe extern "C" fn fm_validate(p: *const u8, n: usize, out: *mut Response)
     guard(out, |out| {
         let v = request(p, n)?;
         let mut input = open_input(string(&v, "path")?)?;
-        let limit = match &input {
-            Input::Map { mapping, .. } => Some(mapping.len()),
-            _ => None,
-        };
+        let limit = v["recordLengthLimit"]
+            .as_u64()
+            .map(usize::try_from)
+            .transpose()?;
         let mut parser = parser(false, limit);
         let mut count = 0;
         while let Some(e) = parser.next_event() {

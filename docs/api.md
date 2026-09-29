@@ -97,6 +97,8 @@ Mapped files must remain unchanged across reads, validation and recovery. Window
 
 ## Validation, recovery and allocation guarantees
 
+File length is not used as a record or decompressed-chunk size limit. Highly compressed chunks can expand beyond the file size; native memory and upstream parser limits still apply.
+
 `McapReader.Validate()` scans the whole file and checks record parsing, present Chunk/Attachment/Data/Summary CRCs, framing and final magic. It returns a scan record count, not a message count. CRC zero means no checksum was supplied; payload schema semantics are not checked.
 
 Expanded sequential sessions validate as they advance. `ValidateRemaining()` drains such a session through EOF and returns the total scan count. `IsComplete` becomes true only after a successful full sequential scan. It stays false for indexed queries, top-level raw scans, early disposal and failures. A successful query is not full-file validation. Non-seekable validation and recovery use a single pass.
