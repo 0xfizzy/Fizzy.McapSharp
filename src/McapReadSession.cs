@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Fizzy.McapSharp;
 /// <summary>Owns one native reader. Calls are serialized and cannot be reentered from Stream callbacks.</summary>
-public sealed class McapReadSession : IDisposable
+public sealed partial class McapReadSession : IDisposable
 {
     readonly ReaderHandle handle;
     readonly bool seekable;
@@ -10,20 +10,27 @@ public sealed class McapReadSession : IDisposable
     bool disposed, failed, ended, fullyValidated;
     readonly bool messages;
     readonly bool topLevel;
+    readonly bool strict;
+    public bool IsScanComplete => ended && !failed;
     public bool IsComplete => ended && !failed && fullyValidated;
     public ulong ScannedRecordCount { get; private set; }
 
-    internal unsafe McapReadSession(string? path, Stream? stream, McapQuery? query, bool messages, McapRecordMode mode, bool leaveOpen)
+    internal unsafe McapReadSession(string? path, Stream? stream, McapQuery? query, bool messages, McapRecordMode mode, bool leaveOpen, McapReaderOptions? options = null, bool indexedOnly = false)
     {
         if (!Enum.IsDefined(mode))
             throw new ArgumentOutOfRangeException(nameof(mode));
         Native.EnsureAvailable();
         if (query?.StartTime > query?.EndTime)
             throw new ArgumentException("StartTime must not exceed EndTime.", nameof(query));
+        options ??= new();
+        strict = options.IsStrict;
+        if (query is not null && !Enum.IsDefined(query.Order)) throw new ArgumentOutOfRangeException(nameof(query));
+        if (query?.Topic is not null && query.Topics is not null) throw new ArgumentException("Specify Topic or Topics, not both.", nameof(query));
         this.messages = messages;
-        topLevel = mode == McapRecordMode.TopLevel;
+        topLevel = mode == McapRecordMode.TopLevel || options.EmitChunks;
+        if (messages && topLevel) throw new ArgumentException("Messages require expanded chunks.", nameof(options));
         seekable = stream?.CanSeek ?? true;
-        var request = Native.Request(new { path, messages, topLevel = mode == McapRecordMode.TopLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime });
+        var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), indexedOnly, options, recordLengthLimit = options.RecordLengthLimit });
         StreamBridge? bridge = stream is null ? null : new(stream, false, leaveOpen);
         try
         {
@@ -85,13 +92,13 @@ public sealed class McapReadSession : IDisposable
                     {
                         var error = Native.ConsumeError(r);
                         handle.Bridge?.ThrowIfError();
-                        throw new McapException(error);
+                        throw error;
                     }
 
                     if (status == 1)
                     {
                         ended = true;
-                        fullyValidated = h.Reserved == 0 && !topLevel;
+                        fullyValidated = strict && h.Reserved == 0 && !topLevel;
                         ScannedRecordCount = r.Value;
                         requiredLength = 0;
                         header = default;
@@ -276,6 +283,7 @@ public sealed class McapReadSession : IDisposable
 
     public ulong ValidateRemaining()
     {
+        if (!strict) throw new InvalidOperationException("Open with McapReaderOptions.Strict to validate the entire scan.");
         if (topLevel)
             throw new InvalidOperationException("Full validation requires expanded chunks.");
         byte[] buffer = new byte[65536];
@@ -329,6 +337,18 @@ public sealed class McapReadSession : IDisposable
         foreach (var r in ReadRecords())
             if (r.Opcode == 9)
                 yield return RecordDecoder.Attachment(r.Data);
+    }
+
+    public Stream IntoInner()
+    {
+        lock (gate)
+        {
+            handle.Bridge?.CheckReentry();
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var stream = handle.Bridge?.Detach() ?? throw new NotSupportedException("Only Stream-backed sessions can transfer ownership.");
+            Dispose();
+            return stream;
+        }
     }
 
     public void Dispose()

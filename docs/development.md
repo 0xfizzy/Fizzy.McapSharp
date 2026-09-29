@@ -61,7 +61,7 @@ python tests/interop.py $interopDirectory
 dotnet run --project tests/Interop -c Release -- read $interopDirectory
 ```
 
-Keep this order: .NET writes files, Python validates them and generates files, then .NET validates the Python output. Checks cover None, Lz4, Zstd, queries, metadata, and attachments. Use a fresh directory each time because the writer refuses to overwrite existing files. `Build.ps1 -Test` does not run interoperability checks.
+Keep this order: .NET writes files, Python validates them and generates files, then .NET validates the Python output. Checks cover None, Lz4, Zstd, queries, metadata, and attachments. Use a fresh directory each time because the writer's path overload only creates new files. `Build.ps1 -Test` does not run interoperability checks.
 
 ## Package contents
 
@@ -94,3 +94,10 @@ Use `PackageReference` by default. Consumer MSBuild conditions select source ref
 For source mode, run this repository's `./scripts/Build.ps1` before restoring and building consumers. The managed project uses an explicit `RuntimeIdentifier` when supplied, otherwise the SDK host RID, and propagates only that native library to source consumer outputs; `dotnet build` alone does not compile Rust. Use the current checkout without fetching or switching branches. Restore after switching Source/Package mode, and serialize builds sharing outputs. Do not commit local paths or mode configuration.
 
 In the combined workspace, API or behavior changes also require RobotController and Parallax Source builds and relevant tests; use the parent workspace README for entry points. Standalone use does not require those consumers. Distinguish source, local package, and published package validation in reports.
+
+
+### Official API and extended allocation gates
+
+`Build.ps1 -Test` also runs locked Release native differential tests and `scripts/check_api_coverage.py`. The reviewed [coverage inventory](coverage.md) is checked against the exact Cargo source, including optional Tokio public declarations. It does not replace behavior tests. The existing locked binrw version is also a direct dependency for encoding owned upstream records; no dependency versions are upgraded.
+
+Extended allocation tests cover prepared complete-message writes (including late declarations), prepared control records, private records, attachments, record views, direct buffer readers and random index/metadata/attachment reads under every compression mode. Asynchronous tests force suspension using a reusable source and a dedicated I/O thread, summing caller and worker allocation counts, and also exercise direct awaiting with inline completion. Initialization, caller growth, owned convenience objects and errors remain excluded. Native snapshot memory is intentionally outside the managed-allocation contract.

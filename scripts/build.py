@@ -125,6 +125,9 @@ def build(test=False):
     (folder / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     run("dotnet", "build", ROOT / "Fizzy.McapSharp.csproj", "-c", "Release")
     if test:
+        run(cargo, "test", "--release", "--locked", "--target", target,
+            "--target-dir", ROOT / "native/target", "--manifest-path", ROOT / "native/Cargo.toml")
+        run(sys.executable, "scripts/check_api_coverage.py")
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_build.py")
         run("dotnet", "test", ROOT / "tests/Fizzy.McapSharp.Tests", "-c", "Release")
         run("dotnet", "run", "--project", ROOT / "tests/Allocations", "-c", "Release")

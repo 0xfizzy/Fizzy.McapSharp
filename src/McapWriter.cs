@@ -1,7 +1,7 @@
 using System.Text.Json;
 
 namespace Fizzy.McapSharp;
-public sealed class McapWriter : IDisposable
+public sealed partial class McapWriter : IDisposable
 {
     readonly WriterHandle handle;
     readonly object gate = new();
@@ -19,7 +19,7 @@ public sealed class McapWriter : IDisposable
     {
         Native.EnsureAvailable();
         options ??= new();
-        if (!Enum.IsDefined(options.Compression) || options.ChunkSize == 0)
+        if (!Enum.IsDefined(options.Compression))
             throw new ArgumentOutOfRangeException(nameof(options));
         if (stream is null)
             ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -87,7 +87,7 @@ public sealed class McapWriter : IDisposable
                     {
                         var error = Native.ConsumeError(r);
                         handle.Bridge?.ThrowIfError();
-                        throw new McapException(error);
+                        throw error;
                     }
                 }
             }
@@ -131,11 +131,15 @@ public sealed class McapWriter : IDisposable
         }
     }
 
-    public void WritePrivateRecord(byte opcode, ReadOnlySpan<byte> data, bool includeInChunks = false)
+    public unsafe void WritePrivateRecord(byte opcode, ReadOnlySpan<byte> data, bool includeInChunks = false)
     {
-        if (opcode < 0x80)
-            throw new ArgumentOutOfRangeException(nameof(opcode));
-        Call(11, new { opcode, includeInChunks }, data);
+        if (opcode < 0x80) throw new ArgumentOutOfRangeException(nameof(opcode));
+        lock (gate)
+        {
+            Check();
+            try { fixed (byte* p = data) { var status = Native.fm_writer_private(handle, opcode, includeInChunks, p, (nuint)data.Length, out var r); if (status < 0) { var error = Native.ConsumeError(r); handle.Bridge?.ThrowIfError(); throw error; } } }
+            catch { failed = true; throw; }
+        }
     }
 
     public void Flush() => Call(6, null);
@@ -195,6 +199,18 @@ public sealed class McapWriter : IDisposable
                 failed = true;
                 throw;
             }
+        }
+    }
+
+    public Stream IntoInner()
+    {
+        lock (gate)
+        {
+            handle.Bridge?.CheckReentry();
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var stream = handle.Bridge?.Detach() ?? throw new NotSupportedException("Only Stream-backed sessions can transfer ownership.");
+            Dispose();
+            return stream;
         }
     }
 

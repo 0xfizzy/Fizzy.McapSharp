@@ -1,5 +1,5 @@
 namespace Fizzy.McapSharp;
-public sealed class McapException(string message) : IOException(message);
+
 public enum McapCompression
 {
     None,
@@ -17,17 +17,20 @@ public enum McapReadStatus
 
 public sealed record McapWriterOptions
 {
-    public McapCompression Compression { get; init; } = McapCompression.None;
-    public ulong? ChunkSize { get; init; } = 4 * 1024 * 1024;
+    public const ulong DefaultChunkSize = 1024 * 1024;
+    public McapCompression Compression { get; init; } = McapCompression.Zstd;
+    public ulong? ChunkSize { get; init; } = DefaultChunkSize;
     public bool UseChunks { get; init; } = true;
     public string Profile { get; init; } = "";
     public string? Library { get; init; }
-    public bool? EmitSummaryOffsets { get; init; } = true;
-    public bool? EmitStatistics { get; init; } = true;
-    public bool? EmitMessageIndexes { get; init; } = true;
-    public bool? EmitChunkIndexes { get; init; } = true;
-    public bool? EmitAttachmentIndexes { get; init; } = true;
-    public bool? EmitMetadataIndexes { get; init; } = true;
+    public bool? DisableSeeking { get; init; }
+    public bool? EmitSummaryRecords { get; init; }
+    public bool? EmitSummaryOffsets { get; init; }
+    public bool? EmitStatistics { get; init; }
+    public bool? EmitMessageIndexes { get; init; }
+    public bool? EmitChunkIndexes { get; init; }
+    public bool? EmitAttachmentIndexes { get; init; }
+    public bool? EmitMetadataIndexes { get; init; }
     public bool? RepeatChannels { get; init; }
     public bool? RepeatSchemas { get; init; }
     public bool? CalculateChunkCrcs { get; init; } = true;
@@ -43,8 +46,11 @@ public sealed record McapChannel(ushort Id, string Topic, string MessageEncoding
 public sealed record McapMessage(McapChannel Channel, ulong LogTime, ulong PublishTime, uint Sequence, byte[] Data);
 public sealed record McapMetadata(string Name, IReadOnlyDictionary<string, string> Values);
 public sealed record McapAttachment(string Name, string MediaType, ulong LogTime, ulong CreateTime, byte[] Data);
+public enum McapReadOrder { LogTime, ReverseLogTime, File }
 public sealed record McapQuery
 {
+    public McapReadOrder Order { get; init; } = McapReadOrder.LogTime;
+    public IReadOnlyCollection<string>? Topics { get; init; }
     public string? Topic { get; init; }
     public ulong? StartTime { get; init; }
     public ulong? EndTime { get; init; }

@@ -36,7 +36,7 @@ public sealed class NativeInteropTests
 
         storage.Position = 17;
         using (var stream = new TestStream(storage, seekable, 3))
-        using (var r = McapReader.OpenMessages(stream, leaveOpen: true))
+        using (var r = McapReader.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             if (seekable)
             {
@@ -158,7 +158,7 @@ public sealed class NativeInteropTests
         }
 
         s.Position = 0;
-        using (var r = McapReader.OpenMessages(s, new() { Topic = "t" }, true))
+        using (var r = McapReader.OpenMessages(s, new() { Topic = "t", Order = McapReadOrder.File }, true, McapReaderOptions.Strict))
         {
             Assert.Empty(r.GetSummary()!.SchemaIds);
             Assert.Single(r.ReadMessages());
@@ -186,7 +186,7 @@ public sealed class NativeInteropTests
         }
 
         stream.Position = 0;
-        using (var r = McapReader.OpenMessages(stream, leaveOpen: true))
+        using (var r = McapReader.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             Assert.Null(r.GetSummary());
             Assert.Single(r.ReadMessages());
@@ -215,7 +215,7 @@ public sealed class NativeInteropTests
 
         McapChunkIndex damaged;
         stream.Position = 0;
-        using (var r = McapReader.OpenMessages(stream, leaveOpen: true))
+        using (var r = McapReader.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             damaged = r.GetSummary()!.ChunkIndexes.Last(c => c.MessageIndexOffsets.Count > 0);
         }
@@ -231,7 +231,7 @@ public sealed class NativeInteropTests
         }
 
         stream.Position = 0;
-        using (var r = McapReader.OpenMessages(stream, leaveOpen: true))
+        using (var r = McapReader.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             Assert.Throws<McapException>(() => r.ValidateRemaining());
         }
@@ -259,7 +259,7 @@ public sealed class NativeInteropTests
 
         stream.Position = 0;
         McapMessage message;
-        using (var r = McapReader.OpenMessages(stream, leaveOpen: true))
+        using (var r = McapReader.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             message = Assert.Single(r.ReadMessages());
         }
@@ -298,7 +298,7 @@ public sealed class NativeInteropTests
         }
 
         stream.Position = 0;
-        using (var r = McapReader.OpenMessages(stream, leaveOpen: true))
+        using (var r = McapReader.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             Assert.Throws<ApplicationException>(() => r.RecoverMessages(_ => throw new ApplicationException()));
         }
@@ -317,7 +317,7 @@ public sealed class NativeInteropTests
         }
 
         stream.Position = 0;
-        var r = McapReader.OpenMessages(stream, leaveOpen: true);
+        var r = McapReader.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict);
         Assert.Equal(McapReadStatus.BufferTooSmall, r.ReadNext([], out _, out _));
         var summary = r.GetSummary()!;
         Assert.Equal((byte)6, r.ReadChunk(summary.ChunkIndexes[0]).Opcode);
@@ -343,7 +343,9 @@ public sealed class NativeInteropTests
     [Fact]
     public void AbiLayouts()
     {
-        Assert.Equal(2u, Native.fm_abi_version());
+        Assert.Equal(3u, Native.fm_abi_version());
+        Assert.Equal(56, Marshal.SizeOf<Native.ReadEvent>());
+        Assert.Equal(32, Marshal.OffsetOf<Native.ReadEvent>(nameof(Native.ReadEvent.Header)).ToInt32());
         Assert.Equal(24, Marshal.SizeOf<Native.NativeHeader>());
         Assert.Equal(8, Marshal.OffsetOf<Native.NativeHeader>(nameof(Native.NativeHeader.LogTime)).ToInt32());
         Assert.Equal(40, Marshal.SizeOf<Native.Result>());

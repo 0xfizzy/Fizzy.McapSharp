@@ -1,0 +1,25 @@
+# Official Rust API coverage
+
+English | [简体中文](coverage.zh-CN.md)
+
+For API users choosing a direct Rust-equivalent operation, this map targets the exact `mcap` dependency in `native/Cargo.toml`. The [declaration inventory](api-coverage.json) records 344 public declarations, including methods, fields, error variants and constants, with managed/native mappings and verification references. `python scripts/check_api_coverage.py` compares it against the locked Cargo source; inventory completeness is separate from behavioral testing.
+
+| Official surface | Managed entry | Verification |
+| --- | --- | --- |
+| `Writer::write` | `WriteMessage(McapMessage)` and prepared-channel overload, both directly invoking upstream write | Automatic declarations, immutable snapshots, allocation gate |
+| Other `Writer` methods | Registration, known-channel messages, attachments, metadata, private records, Flush, Finish and IntoInner | Round-trip, ownership, interoperability and allocation tests |
+| `WriteOptions` | `McapWriterOptions`; aggregate switch before explicit individual overrides | Native differential default/configuration tests |
+| `read::LinearReader`, `ChunkReader`, `ChunkFlattener`, `RawMessageStream`, `MessageStream` | `McapBufferReader` modes; direct upstream iterators | Slice-reader, record-model and allocation tests |
+| `Summary::read`, `stream_chunk`, `seek_message`, `read_message_indexes` | `McapIndexSnapshot` and its summary/chunk/message/index operations | Random-access and retry tests |
+| `read::attachment`, `metadata`, `footer`, `parse_record` | Snapshot indexed reads; `McapRecords` and `McapRecordView` | Record models, footer, CRC and allocation tests |
+| `records::*`, opcodes, format constants | Owned record models, caller-memory field views, `McapOpcode`, `McapFormat` | All standard record models; unknown record preservation |
+| Sans-I/O linear, summary and indexed readers/options/events | `McapSansIoReader`, reader/query options and value-type events | Input/seek events, sorted multi-topic reads, limits and retries |
+| Public decompressor trait | Not exposed: upstream has no custom-decompressor registration hook | Source review only; no managed implementation |
+| Optional Tokio linear reader | `McapAsyncReader`, driven by .NET asynchronous I/O and official Sans-I/O | Cancellation, ownership, forced-suspension allocation gate |
+| `McapError` / `McapResult` | `McapException.Kind/Details`; return values and exceptions | Exhaustive native variant match and field tests |
+
+Rust lifetimes, `Cow`, `Arc`, iterator traits and builder methods map to owned results, caller-memory views, disposable sessions and .NET option properties. No public Rust layouts or handles cross the boundary. Buffer adapters snapshot parsed results; index snapshots copy their source, and sorted fallback collects selected messages. These ownership choices require native memory proportional to the input/results; streaming sessions remain available.
+
+Defaults follow the corresponding upstream API: Zstd, 1 MiB writer chunks, upstream Library, file order for sequential messages, LogTime for indexed queries, and disabled optional Sans-I/O CRC checks. Direct slice readers retain their own upstream defaults. Path creation protection, terminal failure, explicit completion and disposal without implicit completion remain deliberate safety differences.
+
+For zero managed allocation, use prepared writes, caller-buffer reads, record views, summary cursors or the reusable asynchronous reader. Owned convenience results allocate. See [API contracts](api.md), [ABI](native.md) and [validation](development.md) before selecting an entry point.

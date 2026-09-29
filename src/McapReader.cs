@@ -1,6 +1,6 @@
 namespace Fizzy.McapSharp;
 /// <summary>File reader factory. Each session owns its native handle and file mapping.</summary>
-public sealed class McapReader
+public sealed partial class McapReader
 {
     readonly string path;
     public McapReader(string path)
@@ -10,10 +10,10 @@ public sealed class McapReader
         this.path = Path.GetFullPath(path);
     }
 
-    public McapReadSession OpenMessages(McapQuery? query = null) => new(path, null, query, true, McapRecordMode.ExpandChunks, false);
-    public McapReadSession OpenRecords(McapRecordMode mode = McapRecordMode.ExpandChunks) => new(path, null, null, false, mode, false);
-    public static McapReadSession OpenMessages(Stream stream, McapQuery? query = null, bool leaveOpen = false) => new(null, stream ?? throw new ArgumentNullException(nameof(stream)), query, true, McapRecordMode.ExpandChunks, leaveOpen);
-    public static McapReadSession OpenRecords(Stream stream, McapRecordMode mode = McapRecordMode.ExpandChunks, bool leaveOpen = false) => new(null, stream ?? throw new ArgumentNullException(nameof(stream)), null, false, mode, leaveOpen);
+    public McapReadSession OpenMessages(McapQuery? query = null, McapReaderOptions? options = null) => new(path, null, query, true, McapRecordMode.ExpandChunks, false, options);
+    public McapReadSession OpenRecords(McapRecordMode mode = McapRecordMode.ExpandChunks, McapReaderOptions? options = null) => new(path, null, null, false, mode, false, options);
+    public static McapReadSession OpenMessages(Stream stream, McapQuery? query = null, bool leaveOpen = false, McapReaderOptions? options = null) => new(null, stream ?? throw new ArgumentNullException(nameof(stream)), query, true, McapRecordMode.ExpandChunks, leaveOpen, options);
+    public static McapReadSession OpenRecords(Stream stream, McapRecordMode mode = McapRecordMode.ExpandChunks, bool leaveOpen = false, McapReaderOptions? options = null) => new(null, stream ?? throw new ArgumentNullException(nameof(stream)), null, false, mode, leaveOpen, options);
     public IEnumerable<McapMessage> ReadMessages(McapQuery? query = null)
     {
         using var session = OpenMessages(query);
@@ -51,7 +51,7 @@ public sealed class McapReader
 
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
-        using var s = OpenMessages();
+        using var s = OpenMessages(options: McapReaderOptions.Strict);
         return s.RecoverMessages(accept);
     }
 

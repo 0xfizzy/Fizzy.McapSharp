@@ -1,0 +1,4989 @@
+{
+  "version": "0.25.0",
+  "items": [
+    {
+      "rust": "lib.rs::McapError",
+      "kind": "type",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::AttachmentNotInProgress",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::AttachmentNotInProgress",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::AttachmentTooLarge",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::AttachmentTooLarge",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::AttachmentIncomplete",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::AttachmentIncomplete",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadMagic",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadMagic",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadFooter",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadFooter",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadAttachmentCrc",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadAttachmentCrc",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadChunkCrc",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadChunkCrc",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadDataCrc",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadDataCrc",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadSummaryCrc",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadSummaryCrc",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadIndex",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadIndex",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadAttachmentLength",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadAttachmentLength",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadChunkLength",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadChunkLength",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadSchemaLength",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadSchemaLength",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::PrivateRecordOpcodeIsReserved",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::PrivateRecordOpcodeIsReserved",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::ConflictingChannels",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::ConflictingChannels",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::ConflictingSchemas",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::ConflictingSchemas",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::Parse",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::Parse",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::Io",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::Io",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::InvalidSchemaId",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::InvalidSchemaId",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::UnexpectedEof",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::UnexpectedEof",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::UnexpectedEoc",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::UnexpectedEoc",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::UnknownChannel",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::UnknownChannel",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::UnknownSchema",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::UnknownSchema",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::UnsupportedCompression",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::UnsupportedCompression",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::DecompressionError",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::DecompressionError",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::ChunkBufferTooLarge",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::ChunkBufferTooLarge",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::RecordTooLarge",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::RecordTooLarge",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::ChunkTooLarge",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::ChunkTooLarge",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BadChunkStartOffset",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BadChunkStartOffset",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::TooManyChannels",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::TooManyChannels",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::TooManySchemas",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::TooManySchemas",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::UnexpectedChunkDataInserted",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::UnexpectedChunkDataInserted",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::AttemptedWriteAfterFailure",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::AttemptedWriteAfterFailure",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::BytesAfterEndMagic",
+      "kind": "variant",
+      "managed": "McapErrorKind / McapException.Details",
+      "native": "lib::McapError::BytesAfterEndMagic",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapResult",
+      "kind": "type",
+      "managed": "return value / McapException",
+      "native": "lib::McapResult",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::MAGIC",
+      "kind": "constant",
+      "managed": "McapFormat.Magic",
+      "native": "lib::MAGIC",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::VERSION",
+      "kind": "constant",
+      "managed": "McapFormat.RustVersion",
+      "native": "lib::VERSION",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::LIBRARY_IDENTIFIER",
+      "kind": "constant",
+      "managed": "McapFormat.LibraryIdentifier",
+      "native": "lib::LIBRARY_IDENTIFIER",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Compression",
+      "kind": "type",
+      "managed": "McapCompression",
+      "native": "lib::Compression",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Compression::Zstd",
+      "kind": "variant",
+      "managed": "McapCompression",
+      "native": "lib::Compression::Zstd",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Compression::Lz4",
+      "kind": "variant",
+      "managed": "McapCompression",
+      "native": "lib::Compression::Lz4",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Schema",
+      "kind": "type",
+      "managed": "McapSchema",
+      "native": "lib::Schema",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Schema::id",
+      "kind": "field",
+      "managed": "McapSchema",
+      "native": "lib::Schema::id",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Schema::name",
+      "kind": "field",
+      "managed": "McapSchema",
+      "native": "lib::Schema::name",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Schema::encoding",
+      "kind": "field",
+      "managed": "McapSchema",
+      "native": "lib::Schema::encoding",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Schema::data",
+      "kind": "field",
+      "managed": "McapSchema",
+      "native": "lib::Schema::data",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Channel",
+      "kind": "type",
+      "managed": "McapChannel",
+      "native": "lib::Channel",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Channel::id",
+      "kind": "field",
+      "managed": "McapChannel",
+      "native": "lib::Channel::id",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Channel::topic",
+      "kind": "field",
+      "managed": "McapChannel",
+      "native": "lib::Channel::topic",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Channel::schema",
+      "kind": "field",
+      "managed": "McapChannel",
+      "native": "lib::Channel::schema",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Channel::message_encoding",
+      "kind": "field",
+      "managed": "McapChannel",
+      "native": "lib::Channel::message_encoding",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Channel::metadata",
+      "kind": "field",
+      "managed": "McapChannel",
+      "native": "lib::Channel::metadata",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Message",
+      "kind": "type",
+      "managed": "McapMessage / McapMessageHeader",
+      "native": "lib::Message",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Message::channel",
+      "kind": "field",
+      "managed": "McapMessage / McapMessageHeader",
+      "native": "lib::Message::channel",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Message::sequence",
+      "kind": "field",
+      "managed": "McapMessage / McapMessageHeader",
+      "native": "lib::Message::sequence",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Message::log_time",
+      "kind": "field",
+      "managed": "McapMessage / McapMessageHeader",
+      "native": "lib::Message::log_time",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Message::publish_time",
+      "kind": "field",
+      "managed": "McapMessage / McapMessageHeader",
+      "native": "lib::Message::publish_time",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Message::data",
+      "kind": "field",
+      "managed": "McapMessage / McapMessageHeader",
+      "native": "lib::Message::data",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Attachment",
+      "kind": "type",
+      "managed": "McapAttachment",
+      "native": "lib::Attachment",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Attachment::log_time",
+      "kind": "field",
+      "managed": "McapAttachment",
+      "native": "lib::Attachment::log_time",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Attachment::create_time",
+      "kind": "field",
+      "managed": "McapAttachment",
+      "native": "lib::Attachment::create_time",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Attachment::name",
+      "kind": "field",
+      "managed": "McapAttachment",
+      "native": "lib::Attachment::name",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Attachment::media_type",
+      "kind": "field",
+      "managed": "McapAttachment",
+      "native": "lib::Attachment::media_type",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::Attachment::data",
+      "kind": "field",
+      "managed": "McapAttachment",
+      "native": "lib::Attachment::data",
+      "test": "CoverageTests.DefaultsMatchRustAndCompleteMessageDeclaresChannel / CoverageTests.LengthLimitsAndStructuredErrors / coverage_tests.structured_errors_preserve_fields",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/Models.cs",
+        "src/McapException.cs",
+        "src/McapRecordView.cs",
+        "native/src/errors.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::PrivateRecordOptions",
+      "kind": "type",
+      "managed": "McapWriter.WritePrivateRecord(includeInChunks)",
+      "native": "write::PrivateRecordOptions",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::PrivateRecordOptions::IncludeInChunks",
+      "kind": "variant",
+      "managed": "McapWriter.WritePrivateRecord(includeInChunks)",
+      "native": "write::PrivateRecordOptions::IncludeInChunks",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions",
+      "kind": "type",
+      "managed": "McapWriter / McapWriterOptions",
+      "native": "write::WriteOptions",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::DEFAULT_CHUNK_SIZE",
+      "kind": "constant",
+      "managed": "McapWriterOptions.DefaultChunkSize",
+      "native": "write::WriteOptions::DEFAULT_CHUNK_SIZE",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::new",
+      "kind": "method",
+      "managed": "McapWriter / McapWriterOptions",
+      "native": "write::WriteOptions::new",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::compression",
+      "kind": "method",
+      "managed": "McapWriterOptions.Compression",
+      "native": "write::WriteOptions::compression",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::profile",
+      "kind": "method",
+      "managed": "McapWriterOptions.Profile",
+      "native": "write::WriteOptions::profile",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::library",
+      "kind": "method",
+      "managed": "McapWriterOptions.Library",
+      "native": "write::WriteOptions::library",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::chunk_size",
+      "kind": "method",
+      "managed": "McapWriterOptions.ChunkSize",
+      "native": "write::WriteOptions::chunk_size",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::use_chunks",
+      "kind": "method",
+      "managed": "McapWriterOptions.UseChunks",
+      "native": "write::WriteOptions::use_chunks",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::disable_seeking",
+      "kind": "method",
+      "managed": "McapWriterOptions.DisableSeeking",
+      "native": "write::WriteOptions::disable_seeking",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::emit_summary_records",
+      "kind": "method",
+      "managed": "McapWriterOptions.EmitSummaryRecords",
+      "native": "write::WriteOptions::emit_summary_records",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::emit_summary_offsets",
+      "kind": "method",
+      "managed": "McapWriterOptions.EmitSummaryOffsets",
+      "native": "write::WriteOptions::emit_summary_offsets",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::emit_statistics",
+      "kind": "method",
+      "managed": "McapWriterOptions.EmitStatistics",
+      "native": "write::WriteOptions::emit_statistics",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::emit_message_indexes",
+      "kind": "method",
+      "managed": "McapWriterOptions.EmitMessageIndexes",
+      "native": "write::WriteOptions::emit_message_indexes",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::emit_chunk_indexes",
+      "kind": "method",
+      "managed": "McapWriterOptions.EmitChunkIndexes",
+      "native": "write::WriteOptions::emit_chunk_indexes",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::emit_attachment_indexes",
+      "kind": "method",
+      "managed": "McapWriterOptions.EmitAttachmentIndexes",
+      "native": "write::WriteOptions::emit_attachment_indexes",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::emit_metadata_indexes",
+      "kind": "method",
+      "managed": "McapWriterOptions.EmitMetadataIndexes",
+      "native": "write::WriteOptions::emit_metadata_indexes",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::repeat_channels",
+      "kind": "method",
+      "managed": "McapWriterOptions.RepeatChannels",
+      "native": "write::WriteOptions::repeat_channels",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::repeat_schemas",
+      "kind": "method",
+      "managed": "McapWriterOptions.RepeatSchemas",
+      "native": "write::WriteOptions::repeat_schemas",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::compression_level",
+      "kind": "method",
+      "managed": "McapWriterOptions.CompressionLevel",
+      "native": "write::WriteOptions::compression_level",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::compression_threads",
+      "kind": "method",
+      "managed": "McapWriterOptions.CompressionThreads",
+      "native": "write::WriteOptions::compression_threads",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::create",
+      "kind": "method",
+      "managed": "McapWriter / McapWriterOptions",
+      "native": "write::WriteOptions::create",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::calculate_chunk_crcs",
+      "kind": "method",
+      "managed": "McapWriterOptions.CalculateChunkCrcs",
+      "native": "write::WriteOptions::calculate_chunk_crcs",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::calculate_data_section_crc",
+      "kind": "method",
+      "managed": "McapWriterOptions.CalculateDataSectionCrc",
+      "native": "write::WriteOptions::calculate_data_section_crc",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::calculate_summary_section_crc",
+      "kind": "method",
+      "managed": "McapWriterOptions.CalculateSummarySectionCrc",
+      "native": "write::WriteOptions::calculate_summary_section_crc",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::calculate_attachment_crcs",
+      "kind": "method",
+      "managed": "McapWriterOptions.CalculateAttachmentCrcs",
+      "native": "write::WriteOptions::calculate_attachment_crcs",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer",
+      "kind": "type",
+      "managed": "McapWriter.Writer",
+      "native": "write::Writer",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::new",
+      "kind": "method",
+      "managed": "McapWriter.McapWriter",
+      "native": "write::Writer::new",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::with_options",
+      "kind": "method",
+      "managed": "McapWriter.McapWriter",
+      "native": "write::Writer::with_options",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::add_schema",
+      "kind": "method",
+      "managed": "McapWriter.RegisterSchema",
+      "native": "write::Writer::add_schema",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::add_schema_with_id",
+      "kind": "method",
+      "managed": "McapWriter.RegisterSchema",
+      "native": "write::Writer::add_schema_with_id",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::add_channel",
+      "kind": "method",
+      "managed": "McapWriter.RegisterChannel",
+      "native": "write::Writer::add_channel",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::add_channel_with_id",
+      "kind": "method",
+      "managed": "McapWriter.RegisterChannel",
+      "native": "write::Writer::add_channel_with_id",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::write",
+      "kind": "method",
+      "managed": "McapWriter.WriteMessage(McapMessage) / WriteMessage(McapPreparedChannel, header, span)",
+      "native": "write::Writer::write",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::write_to_known_channel",
+      "kind": "method",
+      "managed": "McapWriter.WriteMessage(header, span)",
+      "native": "write::Writer::write_to_known_channel",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::write_private_record",
+      "kind": "method",
+      "managed": "McapWriter.WritePrivateRecord",
+      "native": "write::Writer::write_private_record",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::start_attachment",
+      "kind": "method",
+      "managed": "McapWriter.StartAttachment",
+      "native": "write::Writer::start_attachment",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::put_attachment_bytes",
+      "kind": "method",
+      "managed": "McapWriter.WriteAttachmentBytes",
+      "native": "write::Writer::put_attachment_bytes",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::finish_attachment",
+      "kind": "method",
+      "managed": "McapWriter.FinishAttachment",
+      "native": "write::Writer::finish_attachment",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::attach",
+      "kind": "method",
+      "managed": "McapWriter.WriteAttachment",
+      "native": "write::Writer::attach",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::write_metadata",
+      "kind": "method",
+      "managed": "McapWriter.WriteMetadata",
+      "native": "write::Writer::write_metadata",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::flush",
+      "kind": "method",
+      "managed": "McapWriter.Flush",
+      "native": "write::Writer::flush",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::finish",
+      "kind": "method",
+      "managed": "McapWriter.Finish / Complete / OpenSummaryRecords",
+      "native": "write::Writer::finish",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::into_inner",
+      "kind": "method",
+      "managed": "McapWriter.IntoInner",
+      "native": "write::Writer::into_inner",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapWriter.cs",
+        "src/PreparedChannel.cs",
+        "src/PreparedOperation.cs",
+        "native/src/lib.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Options",
+      "kind": "type",
+      "managed": "McapBufferReader(ignoreEndMagic) / ReadNextRecord / GetChannel",
+      "native": "read::Options",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Options::IgnoreEndMagic",
+      "kind": "variant",
+      "managed": "McapBufferReader(ignoreEndMagic) / ReadNextRecord / GetChannel",
+      "native": "read::Options::IgnoreEndMagic",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::LinearReader",
+      "kind": "type",
+      "managed": "McapBufferReader(Linear / SansMagic) / ReadNextRecord / GetChannel",
+      "native": "read::LinearReader",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::LinearReader::new",
+      "kind": "method",
+      "managed": "McapBufferReader(Linear / SansMagic) / ReadNextRecord / GetChannel",
+      "native": "read::LinearReader::new",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::LinearReader::new_with_options",
+      "kind": "method",
+      "managed": "McapBufferReader(Linear / SansMagic) / ReadNextRecord / GetChannel",
+      "native": "read::LinearReader::new_with_options",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::LinearReader::sans_magic",
+      "kind": "method",
+      "managed": "McapBufferReader(Linear / SansMagic) / ReadNextRecord / GetChannel",
+      "native": "read::LinearReader::sans_magic",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::parse_record",
+      "kind": "function",
+      "managed": "McapRecords.Parse / McapRecordView.Parse",
+      "native": "read::parse_record",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::ChunkReader",
+      "kind": "type",
+      "managed": "McapBufferReader(Chunk) / ReadNextRecord / GetChannel",
+      "native": "read::ChunkReader",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::ChunkReader::new",
+      "kind": "method",
+      "managed": "McapBufferReader(Chunk) / ReadNextRecord / GetChannel",
+      "native": "read::ChunkReader::new",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::ChunkFlattener",
+      "kind": "type",
+      "managed": "McapBufferReader(FlattenChunks) / ReadNextRecord / GetChannel",
+      "native": "read::ChunkFlattener",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::ChunkFlattener::new",
+      "kind": "method",
+      "managed": "McapBufferReader(FlattenChunks) / ReadNextRecord / GetChannel",
+      "native": "read::ChunkFlattener::new",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::ChunkFlattener::new_with_options",
+      "kind": "method",
+      "managed": "McapBufferReader(FlattenChunks) / ReadNextRecord / GetChannel",
+      "native": "read::ChunkFlattener::new_with_options",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::RawMessageStream",
+      "kind": "type",
+      "managed": "McapBufferReader(RawMessages) / ReadNextRecord / GetChannel",
+      "native": "read::RawMessageStream",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::RawMessageStream::new",
+      "kind": "method",
+      "managed": "McapBufferReader(RawMessages) / ReadNextRecord / GetChannel",
+      "native": "read::RawMessageStream::new",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::RawMessageStream::new_with_options",
+      "kind": "method",
+      "managed": "McapBufferReader(RawMessages) / ReadNextRecord / GetChannel",
+      "native": "read::RawMessageStream::new_with_options",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::RawMessageStream::get_channel",
+      "kind": "method",
+      "managed": "McapBufferReader(RawMessages) / ReadNextRecord / GetChannel",
+      "native": "read::RawMessageStream::get_channel",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::RawMessage",
+      "kind": "type",
+      "managed": "McapBufferReader(RawMessages) / ReadNextRecord / GetChannel",
+      "native": "read::RawMessage",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::RawMessage::header",
+      "kind": "field",
+      "managed": "McapBufferReader(RawMessages) / ReadNextRecord / GetChannel",
+      "native": "read::RawMessage::header",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::RawMessage::data",
+      "kind": "field",
+      "managed": "McapBufferReader(RawMessages) / ReadNextRecord / GetChannel",
+      "native": "read::RawMessage::data",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::MessageStream",
+      "kind": "type",
+      "managed": "McapBufferReader(Messages) / ReadNextRecord / GetChannel",
+      "native": "read::MessageStream",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::MessageStream::new",
+      "kind": "method",
+      "managed": "McapBufferReader(Messages) / ReadNextRecord / GetChannel",
+      "native": "read::MessageStream::new",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::MessageStream::new_with_options",
+      "kind": "method",
+      "managed": "McapBufferReader(Messages) / ReadNextRecord / GetChannel",
+      "native": "read::MessageStream::new_with_options",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::footer",
+      "kind": "function",
+      "managed": "McapRecords.ReadFooter",
+      "native": "read::footer",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary",
+      "kind": "type",
+      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "native": "read::Summary",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::stats",
+      "kind": "field",
+      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "native": "read::Summary::stats",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::channels",
+      "kind": "field",
+      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "native": "read::Summary::channels",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::schemas",
+      "kind": "field",
+      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "native": "read::Summary::schemas",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::chunk_indexes",
+      "kind": "field",
+      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "native": "read::Summary::chunk_indexes",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::attachment_indexes",
+      "kind": "field",
+      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "native": "read::Summary::attachment_indexes",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::metadata_indexes",
+      "kind": "field",
+      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "native": "read::Summary::metadata_indexes",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::read",
+      "kind": "method",
+      "managed": "McapIndexSnapshot.McapIndexSnapshot",
+      "native": "read::Summary::read",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::stream_chunk",
+      "kind": "method",
+      "managed": "McapIndexSnapshot.OpenChunkMessages / ReadChunkMessages",
+      "native": "read::Summary::stream_chunk",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::read_message_indexes",
+      "kind": "method",
+      "managed": "McapIndexSnapshot.ReadMessageIndexes",
+      "native": "read::Summary::read_message_indexes",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::seek_message",
+      "kind": "method",
+      "managed": "McapIndexSnapshot.SeekMessage",
+      "native": "read::Summary::seek_message",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::attachment",
+      "kind": "function",
+      "managed": "McapIndexSnapshot.ReadAttachment",
+      "native": "read::attachment",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::metadata",
+      "kind": "function",
+      "managed": "McapIndexSnapshot.ReadMetadata",
+      "native": "read::metadata",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapBufferReader.cs",
+        "src/McapIndexSnapshot.cs",
+        "src/McapRecordTypes.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::HEADER",
+      "kind": "constant",
+      "managed": "McapOpcode.Header",
+      "native": "records::op::HEADER",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::FOOTER",
+      "kind": "constant",
+      "managed": "McapOpcode.Footer",
+      "native": "records::op::FOOTER",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::SCHEMA",
+      "kind": "constant",
+      "managed": "McapOpcode.Schema",
+      "native": "records::op::SCHEMA",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::CHANNEL",
+      "kind": "constant",
+      "managed": "McapOpcode.Channel",
+      "native": "records::op::CHANNEL",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::MESSAGE",
+      "kind": "constant",
+      "managed": "McapOpcode.Message",
+      "native": "records::op::MESSAGE",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::CHUNK",
+      "kind": "constant",
+      "managed": "McapOpcode.Chunk",
+      "native": "records::op::CHUNK",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::MESSAGE_INDEX",
+      "kind": "constant",
+      "managed": "McapOpcode.MessageIndex",
+      "native": "records::op::MESSAGE_INDEX",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::CHUNK_INDEX",
+      "kind": "constant",
+      "managed": "McapOpcode.ChunkIndex",
+      "native": "records::op::CHUNK_INDEX",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::ATTACHMENT",
+      "kind": "constant",
+      "managed": "McapOpcode.Attachment",
+      "native": "records::op::ATTACHMENT",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::ATTACHMENT_INDEX",
+      "kind": "constant",
+      "managed": "McapOpcode.AttachmentIndex",
+      "native": "records::op::ATTACHMENT_INDEX",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::STATISTICS",
+      "kind": "constant",
+      "managed": "McapOpcode.Statistics",
+      "native": "records::op::STATISTICS",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::METADATA",
+      "kind": "constant",
+      "managed": "McapOpcode.Metadata",
+      "native": "records::op::METADATA",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::METADATA_INDEX",
+      "kind": "constant",
+      "managed": "McapOpcode.MetadataIndex",
+      "native": "records::op::METADATA_INDEX",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::SUMMARY_OFFSET",
+      "kind": "constant",
+      "managed": "McapOpcode.SummaryOffset",
+      "native": "records::op::SUMMARY_OFFSET",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::op::DATA_END",
+      "kind": "constant",
+      "managed": "McapOpcode.DataEnd",
+      "native": "records::op::DATA_END",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record",
+      "kind": "type",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Header",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Header",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Footer",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Footer",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Schema",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Schema",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Channel",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Channel",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Message",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Message",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Chunk",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Chunk",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::MessageIndex",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::MessageIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::ChunkIndex",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::ChunkIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Attachment",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Attachment",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::AttachmentIndex",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::AttachmentIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Statistics",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Statistics",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Metadata",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Metadata",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::MetadataIndex",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::MetadataIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::SummaryOffset",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::SummaryOffset",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::DataEnd",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::DataEnd",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::Unknown",
+      "kind": "variant",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::Unknown",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::opcode",
+      "kind": "method",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::opcode",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Record::into_owned",
+      "kind": "method",
+      "managed": "McapRecordView.Opcode / ToOwned / McapRecords.Parse",
+      "native": "records::Record::into_owned",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Header",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapHeader / McapRecordView.Fields",
+      "native": "records::Header",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Header::profile",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapHeader / McapRecordView.Fields",
+      "native": "records::Header::profile",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Header::library",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapHeader / McapRecordView.Fields",
+      "native": "records::Header::library",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Footer",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapFooter / McapRecordView.Fields",
+      "native": "records::Footer",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Footer::summary_start",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapFooter / McapRecordView.Fields",
+      "native": "records::Footer::summary_start",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Footer::summary_offset_start",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapFooter / McapRecordView.Fields",
+      "native": "records::Footer::summary_offset_start",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Footer::summary_crc",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapFooter / McapRecordView.Fields",
+      "native": "records::Footer::summary_crc",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SchemaHeader",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "native": "records::SchemaHeader",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SchemaHeader::id",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "native": "records::SchemaHeader::id",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SchemaHeader::name",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "native": "records::SchemaHeader::name",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SchemaHeader::encoding",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "native": "records::SchemaHeader::encoding",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Channel",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "native": "records::Channel",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Channel::id",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "native": "records::Channel::id",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Channel::schema_id",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "native": "records::Channel::schema_id",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Channel::topic",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "native": "records::Channel::topic",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Channel::message_encoding",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "native": "records::Channel::message_encoding",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Channel::metadata",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "native": "records::Channel::metadata",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageHeader",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "native": "records::MessageHeader",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageHeader::channel_id",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "native": "records::MessageHeader::channel_id",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageHeader::sequence",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "native": "records::MessageHeader::sequence",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageHeader::log_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "native": "records::MessageHeader::log_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageHeader::publish_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "native": "records::MessageHeader::publish_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkHeader",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "native": "records::ChunkHeader",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkHeader::message_start_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "native": "records::ChunkHeader::message_start_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkHeader::message_end_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "native": "records::ChunkHeader::message_end_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkHeader::uncompressed_size",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "native": "records::ChunkHeader::uncompressed_size",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkHeader::uncompressed_crc",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "native": "records::ChunkHeader::uncompressed_crc",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkHeader::compression",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "native": "records::ChunkHeader::compression",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkHeader::compressed_size",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "native": "records::ChunkHeader::compressed_size",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageIndexEntry",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapMessageIndexEntry / McapRecordView.Fields",
+      "native": "records::MessageIndexEntry",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageIndexEntry::log_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageIndexEntry / McapRecordView.Fields",
+      "native": "records::MessageIndexEntry::log_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageIndexEntry::offset",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageIndexEntry / McapRecordView.Fields",
+      "native": "records::MessageIndexEntry::offset",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageIndex",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapMessageIndex / McapRecordView.Fields",
+      "native": "records::MessageIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageIndex::channel_id",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageIndex / McapRecordView.Fields",
+      "native": "records::MessageIndex::channel_id",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MessageIndex::records",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMessageIndex / McapRecordView.Fields",
+      "native": "records::MessageIndex::records",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::message_start_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::message_start_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::message_end_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::message_end_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::chunk_start_offset",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::chunk_start_offset",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::chunk_length",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::chunk_length",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::message_index_offsets",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::message_index_offsets",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::message_index_length",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::message_index_length",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::compression",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::compression",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::compressed_size",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::compressed_size",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::uncompressed_size",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapChunkIndex / McapRecordView.Fields",
+      "native": "records::ChunkIndex::uncompressed_size",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::ChunkIndex::compressed_data_offset",
+      "kind": "method",
+      "managed": "McapRecords.GetCompressedDataOffset",
+      "native": "records::ChunkIndex::compressed_data_offset",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentHeader",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "native": "records::AttachmentHeader",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentHeader::log_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "native": "records::AttachmentHeader::log_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentHeader::create_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "native": "records::AttachmentHeader::create_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentHeader::name",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "native": "records::AttachmentHeader::name",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentHeader::media_type",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "native": "records::AttachmentHeader::media_type",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex::offset",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex::offset",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex::length",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex::length",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex::log_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex::log_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex::create_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex::create_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex::data_size",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex::data_size",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex::name",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex::name",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::AttachmentIndex::media_type",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapAttachmentIndex / McapRecordView.Fields",
+      "native": "records::AttachmentIndex::media_type",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::message_count",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::message_count",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::schema_count",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::schema_count",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::channel_count",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::channel_count",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::attachment_count",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::attachment_count",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::metadata_count",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::metadata_count",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::chunk_count",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::chunk_count",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::message_start_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::message_start_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::message_end_time",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::message_end_time",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Statistics::channel_message_counts",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapStatistics / McapRecordView.Fields",
+      "native": "records::Statistics::channel_message_counts",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Metadata",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapMetadata / McapRecordView.Fields",
+      "native": "records::Metadata",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Metadata::name",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMetadata / McapRecordView.Fields",
+      "native": "records::Metadata::name",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::Metadata::metadata",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMetadata / McapRecordView.Fields",
+      "native": "records::Metadata::metadata",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MetadataIndex",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapMetadataIndex / McapRecordView.Fields",
+      "native": "records::MetadataIndex",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MetadataIndex::offset",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMetadataIndex / McapRecordView.Fields",
+      "native": "records::MetadataIndex::offset",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MetadataIndex::length",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMetadataIndex / McapRecordView.Fields",
+      "native": "records::MetadataIndex::length",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::MetadataIndex::name",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapMetadataIndex / McapRecordView.Fields",
+      "native": "records::MetadataIndex::name",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryOffset",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapSummaryOffset / McapRecordView.Fields",
+      "native": "records::SummaryOffset",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryOffset::group_opcode",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapSummaryOffset / McapRecordView.Fields",
+      "native": "records::SummaryOffset::group_opcode",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryOffset::group_start",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapSummaryOffset / McapRecordView.Fields",
+      "native": "records::SummaryOffset::group_start",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryOffset::group_length",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapSummaryOffset / McapRecordView.Fields",
+      "native": "records::SummaryOffset::group_length",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::DataEnd",
+      "kind": "type",
+      "managed": "McapRecords.Parse -> McapDataEnd / McapRecordView.Fields",
+      "native": "records::DataEnd",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::DataEnd::data_section_crc",
+      "kind": "field",
+      "managed": "McapRecords.Parse -> McapDataEnd / McapRecordView.Fields",
+      "native": "records::DataEnd::data_section_crc",
+      "test": "CoverageTests.DirectSliceReadersAndRecordModels",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapRecordTypes.cs",
+        "src/McapRecordView.cs",
+        "src/Models.cs",
+        "native/src/buffer_reader.rs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions",
+      "kind": "type",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::skip_start_magic",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::skip_start_magic",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::skip_end_magic",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::skip_end_magic",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::check_finishes_after_end_magic",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::check_finishes_after_end_magic",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::emit_chunks",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::emit_chunks",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::validate_chunk_crcs",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::validate_chunk_crcs",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::prevalidate_chunk_crcs",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::prevalidate_chunk_crcs",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::validate_data_section_crc",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::validate_data_section_crc",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::validate_summary_section_crc",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::validate_summary_section_crc",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::record_length_limit",
+      "kind": "field",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::record_length_limit",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_skip_start_magic",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_skip_start_magic",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_skip_end_magic",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_skip_end_magic",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_check_finishes_after_end_magic",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_check_finishes_after_end_magic",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_emit_chunks",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_emit_chunks",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_validate_chunk_crcs",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_validate_chunk_crcs",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_prevalidate_chunk_crcs",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_prevalidate_chunk_crcs",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_validate_data_section_crc",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_validate_data_section_crc",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_validate_summary_section_crc",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_validate_summary_section_crc",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReaderOptions::with_record_length_limit",
+      "kind": "method",
+      "managed": "McapReaderOptions",
+      "native": "sans_io/linear_reader::LinearReaderOptions::with_record_length_limit",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader",
+      "kind": "type",
+      "managed": "McapSansIoReader.NextEvent",
+      "native": "sans_io/linear_reader::LinearReader",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::new",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateLinear",
+      "native": "sans_io/linear_reader::LinearReader::new",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::new_with_options",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateLinear",
+      "native": "sans_io/linear_reader::LinearReader::new_with_options",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::insert",
+      "kind": "method",
+      "managed": "McapSansIoReader.SupplyInput",
+      "native": "sans_io/linear_reader::LinearReader::insert",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::notify_read",
+      "kind": "method",
+      "managed": "McapSansIoReader.SupplyInput",
+      "native": "sans_io/linear_reader::LinearReader::notify_read",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::next_event",
+      "kind": "method",
+      "managed": "McapSansIoReader.NextEvent",
+      "native": "sans_io/linear_reader::LinearReader::next_event",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReadEvent",
+      "kind": "type",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/linear_reader::LinearReadEvent",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReadEvent::ReadRequest",
+      "kind": "variant",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/linear_reader::LinearReadEvent::ReadRequest",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReadEvent::Record",
+      "kind": "variant",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/linear_reader::LinearReadEvent::Record",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReadEvent",
+      "kind": "type",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/indexed_reader::IndexedReadEvent",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReadEvent::ReadChunkRequest",
+      "kind": "variant",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/indexed_reader::IndexedReadEvent::ReadChunkRequest",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReadEvent::Message",
+      "kind": "variant",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/indexed_reader::IndexedReadEvent::Message",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader",
+      "kind": "type",
+      "managed": "McapSansIoReader.NextEvent",
+      "native": "sans_io/indexed_reader::IndexedReader",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::record_length_limit",
+      "kind": "field",
+      "managed": "McapSansIoReader.SetRecordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReader::record_length_limit",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::new",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateIndexed",
+      "native": "sans_io/indexed_reader::IndexedReader::new",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::new_with_options",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateIndexed",
+      "native": "sans_io/indexed_reader::IndexedReader::new_with_options",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::next_event",
+      "kind": "method",
+      "managed": "McapSansIoReader.NextEvent",
+      "native": "sans_io/indexed_reader::IndexedReader::next_event",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::insert_chunk_record_data",
+      "kind": "method",
+      "managed": "McapSansIoReader.InsertChunkData",
+      "native": "sans_io/indexed_reader::IndexedReader::insert_chunk_record_data",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::ReadOrder",
+      "kind": "type",
+      "managed": "McapReadOrder",
+      "native": "sans_io/indexed_reader::ReadOrder",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::ReadOrder::LogTime",
+      "kind": "variant",
+      "managed": "McapReadOrder",
+      "native": "sans_io/indexed_reader::ReadOrder::LogTime",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::ReadOrder::ReverseLogTime",
+      "kind": "variant",
+      "managed": "McapReadOrder",
+      "native": "sans_io/indexed_reader::ReadOrder::ReverseLogTime",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::ReadOrder::File",
+      "kind": "variant",
+      "managed": "McapReadOrder",
+      "native": "sans_io/indexed_reader::ReadOrder::File",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions",
+      "kind": "type",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::start",
+      "kind": "field",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::start",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::end",
+      "kind": "field",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::end",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::order",
+      "kind": "field",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::order",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::include_topics",
+      "kind": "method",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::include_topics",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::record_length_limit",
+      "kind": "field",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::record_length_limit",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::new",
+      "kind": "method",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::new",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::with_order",
+      "kind": "method",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::with_order",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::log_time_on_or_after",
+      "kind": "method",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::log_time_on_or_after",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::log_time_before",
+      "kind": "method",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::log_time_before",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::with_record_length_limit",
+      "kind": "method",
+      "managed": "McapQuery / recordLengthLimit",
+      "native": "sans_io/indexed_reader::IndexedReaderOptions::with_record_length_limit",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReadEvent",
+      "kind": "type",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/summary_reader::SummaryReadEvent",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReadEvent::ReadRequest",
+      "kind": "variant",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/summary_reader::SummaryReadEvent::ReadRequest",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReadEvent::SeekRequest",
+      "kind": "variant",
+      "managed": "McapReadEvent / McapReadEventKind",
+      "native": "sans_io/summary_reader::SummaryReadEvent::SeekRequest",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader",
+      "kind": "type",
+      "managed": "McapSansIoReader.NextEvent",
+      "native": "sans_io/summary_reader::SummaryReader",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReaderOptions",
+      "kind": "type",
+      "managed": "McapSummaryReaderOptions",
+      "native": "sans_io/summary_reader::SummaryReaderOptions",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReaderOptions::file_size",
+      "kind": "field",
+      "managed": "McapSummaryReaderOptions",
+      "native": "sans_io/summary_reader::SummaryReaderOptions::file_size",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReaderOptions::record_length_limit",
+      "kind": "field",
+      "managed": "McapSummaryReaderOptions",
+      "native": "sans_io/summary_reader::SummaryReaderOptions::record_length_limit",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReaderOptions::with_file_size",
+      "kind": "method",
+      "managed": "McapSummaryReaderOptions",
+      "native": "sans_io/summary_reader::SummaryReaderOptions::with_file_size",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReaderOptions::with_record_length_limit",
+      "kind": "method",
+      "managed": "McapSummaryReaderOptions",
+      "native": "sans_io/summary_reader::SummaryReaderOptions::with_record_length_limit",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::new",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateSummary",
+      "native": "sans_io/summary_reader::SummaryReader::new",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::new_with_options",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateSummary",
+      "native": "sans_io/summary_reader::SummaryReader::new_with_options",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::next_event",
+      "kind": "method",
+      "managed": "McapSansIoReader.NextEvent",
+      "native": "sans_io/summary_reader::SummaryReader::next_event",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::next_event_inner",
+      "kind": "method",
+      "managed": "McapSansIoReader.NextEvent",
+      "native": "sans_io/summary_reader::SummaryReader::next_event_inner",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::notify_read",
+      "kind": "method",
+      "managed": "McapSansIoReader.SupplyInput",
+      "native": "sans_io/summary_reader::SummaryReader::notify_read",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::notify_seeked",
+      "kind": "method",
+      "managed": "McapSansIoReader.NotifySeeked",
+      "native": "sans_io/summary_reader::SummaryReader::notify_seeked",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::insert",
+      "kind": "method",
+      "managed": "McapSansIoReader.SupplyInput",
+      "native": "sans_io/summary_reader::SummaryReader::insert",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::finish",
+      "kind": "method",
+      "managed": "McapSansIoReader.GetSummary / OpenSummaryRecords",
+      "native": "sans_io/summary_reader::SummaryReader::finish",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::DecompressResult",
+      "kind": "type",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::DecompressResult::consumed",
+      "kind": "field",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::DecompressResult::wrote",
+      "kind": "field",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::Decompressor",
+      "kind": "type",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::Decompressor::next_read_size",
+      "kind": "method",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::Decompressor::decompress",
+      "kind": "method",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::Decompressor::reset",
+      "kind": "method",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "sans_io/decompressor.rs::Decompressor::name",
+      "kind": "method",
+      "managed": "Not exposed: upstream has no custom-decompressor registration hook",
+      "native": "Built-in decompression remains internal to the official Rust library",
+      "test": "Source review only; no managed implementation or behavioral coverage claimed",
+      "files": [
+        "docs/coverage.md",
+        "docs/coverage.zh-CN.md"
+      ]
+    },
+    {
+      "rust": "tokio/linear_reader.rs::LinearReader",
+      "kind": "type",
+      "managed": "McapAsyncReader.ReadNextRecordAsync",
+      "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
+      "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapAsyncReader.cs",
+        "src/SansIo.cs",
+        "tests/Allocations/Extended.cs"
+      ]
+    },
+    {
+      "rust": "tokio/linear_reader.rs::LinearReader::new",
+      "kind": "method",
+      "managed": "McapAsyncReader.McapAsyncReader",
+      "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
+      "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapAsyncReader.cs",
+        "src/SansIo.cs",
+        "tests/Allocations/Extended.cs"
+      ]
+    },
+    {
+      "rust": "tokio/linear_reader.rs::LinearReader::new_with_options",
+      "kind": "method",
+      "managed": "McapAsyncReader.McapAsyncReader",
+      "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
+      "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapAsyncReader.cs",
+        "src/SansIo.cs",
+        "tests/Allocations/Extended.cs"
+      ]
+    },
+    {
+      "rust": "tokio/linear_reader.rs::LinearReader::into_inner",
+      "kind": "method",
+      "managed": "McapAsyncReader.IntoInner",
+      "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
+      "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapAsyncReader.cs",
+        "src/SansIo.cs",
+        "tests/Allocations/Extended.cs"
+      ]
+    },
+    {
+      "rust": "tokio/linear_reader.rs::LinearReader::next_record",
+      "kind": "method",
+      "managed": "McapAsyncReader.ReadNextRecordAsync",
+      "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
+      "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/McapAsyncReader.cs",
+        "src/SansIo.cs",
+        "tests/Allocations/Extended.cs"
+      ]
+    }
+  ]
+}

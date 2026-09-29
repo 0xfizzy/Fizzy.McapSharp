@@ -2,11 +2,13 @@
 
 [English](api.md) | 简体中文
 
-`Fizzy.McapSharp` 提供同步 MCAP 文件及 Stream 操作，支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；不提供异步、取消、业务数据解码或按时间排序接口。
+`Fizzy.McapSharp` 提供 MCAP 文件、Stream、缓冲区和 Sans-I/O 操作，支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；支持可取消的异步记录读取和时间排序；业务解码由应用实现。参见[官方 API 覆盖表](coverage.zh-CN.md)。
 
 ## 写入录制
 
-`McapWriter(path, options)` 创建新文件，拒绝覆盖。`McapWriter(stream, options, leaveOpen: false)` 接受可写的可寻址或非寻址流。可寻址输出必须位于流末尾，当前位置作为 MCAP 偏移零点；非寻址写入使用原生 Chunk 缓冲。
+文件创建语义：`McapWriter(path, options)` 原子地创建新文件，路径已存在时失败，保留已有文件内容。这是路径重载默认的防误覆盖行为，并非 MCAP 格式的要求。
+
+`McapWriter(stream, options, leaveOpen: false)` 接受可写的可寻址或非寻址流，由调用方在打开流时选择创建或截断方式。若需显式覆盖文件，使用 `FileMode.Create` 和 `FileAccess.Write` 打开 `FileStream`，再传给 Writer；打开该流时就会立即截断已有文件。可寻址输出必须位于流末尾，当前位置作为 MCAP 偏移零点；非寻址写入使用原生 Chunk 缓冲。
 
 ```csharp
 using Fizzy.McapSharp;
@@ -39,15 +41,15 @@ Writer 操作串行化，业务顺序由应用协调。原生操作或 Stream �
 
 | 选项 | 默认值与含义 |
 | --- | --- |
-| `Compression`、`ChunkSize`、`UseChunks` | None、4 MiB、true；ChunkSize 为正数或 null，null 不按目标大小结束 Chunk。 |
-| `Profile`、`Library` | 空 profile；Library 为 null 时使用本库原生标识。 |
+| `Compression`、`ChunkSize`、`UseChunks` | Zstd、1 MiB、true；ChunkSize 遵循上游语义，允许零；null 不按目标大小结束 Chunk。 |
+| `Profile`、`Library` | 空 profile；Library 为 null 时使用官方 Rust 库标识。 |
 | `EmitSummaryOffsets`、`EmitStatistics` | true，分别控制 Summary offsets 与统计。 |
 | `EmitMessageIndexes`、`EmitChunkIndexes`、`EmitAttachmentIndexes`、`EmitMetadataIndexes` | true，分别控制各类索引。 |
 | `RepeatChannels`、`RepeatSchemas` | null，采用上游默认 true，控制摘要中的重复声明。 |
 | `CalculateChunkCrcs`、`CalculateDataSectionCrc`、`CalculateSummarySectionCrc`、`CalculateAttachmentCrcs` | true，独立控制各区段 CRC。 |
 | `CompressionLevel`、`CompressionThreads` | null，采用上游默认和算法支持范围。 |
 
-可空开关为 null 时采用上游行为。Summary 内容由各记录开关控制，没有存在覆盖优先级的总开关。省略摘要记录时关闭统计、Chunk/附件/元数据索引和重复声明；Summary offsets 另行关闭。不使用 Chunk 时不会产生 Chunk 压缩和 Chunk 消息索引，不受相关请求值影响。这些选项不是统一内存配额。
+可空开关为 null 时采用上游行为。先应用 `EmitSummaryRecords` 总开关，再应用显式指定的单项开关。`DisableSeeking` 对可定位输出默认 false、不可定位输出默认 true；后者显式指定 false 会失败。省略摘要记录时关闭统计、Chunk/附件/元数据索引和重复声明；Summary offsets 另行关闭。不使用 Chunk 时不会产生 Chunk 压缩和 Chunk 消息索引，不受相关请求值影响。这些选项不是统一内存配额。
 
 ## 使用可复用缓冲读取消息
 
@@ -71,7 +73,9 @@ while (true)
 
 `BufferTooSmall` 返回所需 payload 长度和消息头，不修改目标缓冲，也不消费待处理记录。空消息成功返回 Message，长度为零。EOF 可重复读取。错误会终止消息/记录推进；公共接口不暴露原生地址或借用 span。
 
-查询按完整 Topic 匹配，对 LogTime 使用 `[StartTime, EndTime)`；null 表示无边界，起点大于终点抛异常，相等表示空区间。结果保留文件/Chunk 顺序。可寻址查询在摘要声明及 Chunk 覆盖充分、且没有 Chunk 外消息时按索引选择重叠 Chunk，否则顺序扫描；非寻址查询始终顺序扫描。
+查询指定完整 `Topic` 或 `Topics` 集合，对 LogTime 使用 `[StartTime, EndTime)`；null 为无边界，起点大于终点抛异常，相等为空区间。查询默认 `LogTime` 顺序，可选 `ReverseLogTime` 或 `File`；同时间消息按文件顺序排列，逆序时也反转。不传查询对象时按官方消息流的文件顺序读取。
+
+可定位查询在摘要声明和 Chunk 覆盖充分、无 Chunk 外消息时直接使用官方 `IndexedReader`，否则扫描回退。排序回退在返回会话前将选中消息收集到原生内存，非定位源同样适用；文件顺序扫描仍为增量读取。`OpenIndexedMessages` 拒绝缺失/不完整索引。非默认线性解析选项使高层查询回退扫描；显式索引入口拒绝这些不受支持的选项。
 
 `GetChannel(id)` 和 `GetSchema(id)` 复制已遇到或从 Summary 加载的描述。文件中途新增声明不会在消息循环创建托管对象，热路径只返回 ID。描述查询与 Summary 操作允许分配。
 
@@ -99,7 +103,7 @@ while (true)
 
 `McapReader.Validate()` 扫描全文件，检查记录解析、存在的 Chunk/Attachment/Data/Summary CRC、记录边界和结束 magic，返回扫描记录数而非消息数。CRC 为零表示未提供校验和；不检查业务 Schema 语义。
 
-展开 Chunk 的顺序会话在推进时校验。`ValidateRemaining()` 将此类会话读至 EOF，返回累计扫描数。只有完整顺序扫描成功后 IsComplete 才为 true；索引查询、顶层原始扫描、提前释放及失败时为 false。查询成功不能代替完整校验。非寻址校验和恢复只扫描一遍。
+`McapReaderOptions` 对应官方 Sans-I/O 的 magic、尾随字节、Chunk 输出、CRC 校验/预校验及长度限制。可选 CRC 和尾随字节校验默认关闭。`IsScanComplete` 只表示游标到 EOF；`IsComplete` 要求严格选项下完整顺序扫描成功。用 `McapReaderOptions.Strict` 打开展开记录/消息会话，再调用 `ValidateRemaining()`；非严格会话拒绝该调用，不会声称校验此前消费的数据。索引查询、排序回退和顶层原始扫描不声明全文件校验成功。
 
 `RecoverMessages(accept)` 交付有效消息前缀，遇到第一条损坏记录或 Chunk 停止；必须检查 IsComplete 和 Error，收到消息不代表文件完整。回调异常直接传播，不转换成恢复结果。尚未写入底层流的缓冲内容无法恢复。
 
@@ -108,3 +112,28 @@ while (true)
 不支持的平台抛 PlatformNotSupportedException；原生加载错误保留 .NET 类型；原生操作/ABI 失败抛 McapException（继承 IOException）。托管参数/状态检查使用标准异常，已释放对象抛 ObjectDisposedException。参见 [ABI](native.zh-CN.md) 与[分配验收和构建](development.zh-CN.md)。
 
 文件总长度不作为记录或解压后 Chunk 的大小上限。高压缩率 Chunk 解压后的大小可以超过文件大小，但仍受原生内存和上游解析器限制。
+
+
+## 完整消息与预准备写入
+
+`WriteMessage(McapMessage)` 直接调用官方 `Writer::write`，按传入 ID 自动声明。零分配重载接收 `McapPreparedChannel`、匹配的 Header 和 payload Span。预准备对象保存 Schema 字节与元数据的不可变快照，但不注册声明；便利重载每次读取当前对象内容。
+
+`McapPreparedOperation` 提供 Schema、Channel、Metadata 和附件描述；`WritePrepared` 零托管分配执行并返回注册 ID，payload 单独通过 Span 传入。附件续写、私有记录及 Flush 也提供零分配路径。`Finish()` 完成并返回自有摘要；`Complete()` 后的 `OpenSummaryRecords()` 提供缓冲区摘要游标。`IntoInner()` 释放原生状态并交还 Stream 所有权，不隐式完成文件。
+
+## 官方读取器直接适配
+
+`McapBufferReader` 直接适配官方 `LinearReader`、`sans_magic`、`ChunkReader`、`ChunkFlattener`、`RawMessageStream` 和 `MessageStream`，通过 `McapBufferReadMode` 选择；Chunk 模式接收 Chunk 记录体。`ignoreEndMagic` 对应官方切片读取选项。构造时在原生内存收集解析结果，记录错误延迟至推进时抛出；需要增量输入时使用 Stream 或 Sans-I/O。`ReadNextRecord` 复制记录体，消息模式另有 Header/payload `ReadNext`。描述和自有对象枚举允许分配。
+
+`McapRecords.Parse` 为所有标准记录返回强类型自有模型，未知记录返回 `McapRecord`。`McapRecordView.Parse` 使用官方 `parse_record` 校验，在调用方托管内存上提供视图；标量属性和 `Fields` 游标可零分配读取 UTF-8、映射、数组和二进制字段。`ToOwned` 显式复制；`ReadFooter` 和 `GetCompressedDataOffset` 直接调用上游辅助函数。
+
+`OpenIndexSnapshot()` 复制可定位源并读取官方摘要，不移动顺序游标；也可用 `new McapIndexSnapshot(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。缺失摘要/声明保留上游错误。打开 Chunk 游标会在原生内存收集消息。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
+
+`McapSansIoReader.CreateLinear/CreateSummary` 及已完成摘要会话的 `CreateIndexed` 提供值类型事件。用 `SupplyInput` 送入字节、`NotifySeeked` 确认定位、`InsertChunkData` 插入索引 Chunk 压缩数据。索引会话支持 `SetRecordLengthLimit`。输出复制到调用方 Span，不返回原生指针。`GetSummary` 返回自有快照，`OpenSummaryRecords` 返回缓冲区游标。上游没有自定义解压器注册入口，因此封装不公开自定义解压接口。内置 Lz4/Zstd 解压由官方 Rust 库处理。
+
+## 异步记录和错误
+
+`McapAsyncReader.ReadNextRecordAsync(Memory<byte>, CancellationToken)` 返回 `ValueTask<McapRecordReadResult>`，由 .NET Stream 异步 I/O 驱动官方线性解析器，对应可选 Tokio 能力，不引入 Tokio runtime。保留待处理记录重试契约。每会话仅一个在途操作；ValueTask 只能消费一次，消费后才能再次读取、转移所有权或释放。取消及 I/O/解析失败使会话终止。Stream 独占、`leaveOpen` 和 `IntoInner` 沿用同步所有权规则。
+
+复用完成源和 continuation，在预热后的实际 I/O 挂起路径也提供 0 B 托管分配。门禁同时计量调用线程和专用 I/O 线程，包含直接 await 循环。完成通知可在 I/O 线程内联恢复调用方，库不强制派发 ThreadPool。第三方 Stream、调用方 await 机制、初始化、错误、扩容及自有结果不在保证内；原生分配不受此保证约束。
+
+`McapException.Kind` 对应全部上游错误变体，`Details` 保留结构化字段；封装层错误使用 `Binding`，原始 Stream 异常仍保留。

@@ -61,7 +61,7 @@ python tests/interop.py $interopDirectory
 dotnet run --project tests/Interop -c Release -- read $interopDirectory
 ```
 
-顺序不能交换：先由 .NET 写文件，再由 Python 校验并生成文件，最后由 .NET 校验 Python 输出。覆盖 None、Lz4、Zstd，以及查询、元数据和附件。每次使用新目录，因为 Writer 不覆盖已有文件。`Build.ps1 -Test` 本身不包含互操作测试。
+顺序不能交换：先由 .NET 写文件，再由 Python 校验并生成文件，最后由 .NET 校验 Python 输出。覆盖 None、Lz4、Zstd，以及查询、元数据和附件。每次使用新目录，因为 Writer 的路径重载仅创建新文件。`Build.ps1 -Test` 本身不包含互操作测试。
 
 ## 包内容
 
@@ -94,3 +94,10 @@ PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧�
 源码模式先运行本仓库 `./scripts/Build.ps1`，再 restore/build 消费者。托管项目优先使用显式 `RuntimeIdentifier`，否则使用 SDK 宿主 RID，只将对应的已有原生库传播到源码消费者输出；直接 `dotnet build` 不会编译 Rust。使用当前 checkout，不擅自拉取或切换分支；切换 Source/Package 模式后重新 restore，共享输出串行构建。本机路径和切换配置不提交。
 
 在联合工作区中，API 或行为变化还应验证 RobotController、Parallax 的 Source 构建及相关测试，具体入口以父工作区 README 为准；独立使用本仓库不要求这些消费者存在。报告需区分源码、本地包和已发布包的验证范围。
+
+
+### 官方 API 与扩展分配门禁
+
+`Build.ps1 -Test` 同时运行锁定依赖的 Release 原生差分测试和 `scripts/check_api_coverage.py`；[覆盖清单](coverage.zh-CN.md) 对照实际 Cargo 源码，包含可选 Tokio 公共声明。清单检查不能替代行为测试。已有锁定版本的 binrw 增为直接依赖，用于编码上游自有记录，没有升级依赖版本。
+
+扩展分配测试在各压缩模式下覆盖完整预准备消息（含晚到声明）、控制记录、私有记录、附件、记录视图、直接缓冲区读取和随机索引/Metadata/Attachment。异步测试使用可复用源和专用 I/O 线程强制挂起，合计调用线程及工作线程分配，并覆盖内联完成通知下的直接 await。初始化、调用方扩容、自有便利对象和错误仍排除在外；原生快照内存不属于托管分配保证。

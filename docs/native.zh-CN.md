@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 2，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 3，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -22,7 +22,7 @@
 
 控制操作码：1 Schema、2 Channel、4 元数据、5 附件、6 Flush、7 Complete、8 开始附件、9 附件片段、10 结束附件、11 私有记录、12 已完成 Writer 的摘要。消息通过专用入口处理。
 
-私有消息头为 24 字节：u16 channel_id、u16 reserved、u32 sequence、u64 log_time、u64 publish_time，偏移分别为 0、2、4、8、16。与上游记录逐字段转换，不依赖 Rust 记录布局。读取 EOF 时，索引扫描的 reserved 为 1，顺序扫描为 0；托管层据此判断是否能报告完整校验。
+私有消息头为 24 字节：u16 channel_id、u16 reserved、u32 sequence、u64 log_time、u64 publish_time，偏移分别为 0、2、4、8、16。与上游记录逐字段转换，不依赖 Rust 记录布局。读取 EOF 时，索引扫描及排序回退的 reserved 为 1，顺序扫描为 0；托管层据此判断是否能报告完整校验。
 
 40 字节响应包含 JSON 指针/usize 长度、二进制指针/usize 长度和 u64 标量。支持的目标上指针及 C# nuint 均为 64 位。状态 0 成功、1 EOF、2 缓冲不足、负值错误。读取响应标量为所需/已复制长度，EOF 时为扫描计数。容量不足不修改目标缓冲，也不消费待处理记录。
 
@@ -30,9 +30,9 @@
 
 消息热路径只使用固定数据和调用方缓冲；边界上不需要 JSON、托管 payload 数组、原生结果分配或逐消息 Channel 描述序列化。Reader 内部仍可分配原生缓冲，并将原生数据复制到托管调用方内存。冷路径请求/描述使用长度限定 UTF-8 JSON，二进制数据不使用 Base64。
 
-非空冷路径响应缓冲属于 Rust。Native.Consume 在 finally 中释放两个缓冲，包括错误路径；错误 JSON 缓冲存放普通 UTF-8 错误文本。成功热路径不返回需要释放的响应缓冲。输入 span 只在同步调用期间固定，原生代码不保留它。公共便利记录持有托管副本，不公开指针或原生借用视图。
+非空冷路径响应缓冲属于 Rust。Native.Consume 在 finally 中释放两个缓冲，包括错误路径；错误使用含 kind、message、details 的 UTF-8 JSON；panic 回退文本按 Binding 错误处理。成功热路径不返回需要释放的响应缓冲。输入 span 只在同步调用期间固定，原生代码不保留它。公共便利记录持有托管副本，不公开指针或原生借用视图。
 
-每个会话独占一个原生 Reader。映射输入同时拥有文件；增量 sans_io::LinearReader 状态和待处理记录使用原生自有缓冲，无需延长借用迭代器生命周期。Stream 增量读取并支持短读。索引查询逐个解码选中的 Chunk，保持文件顺序，不宣称完整校验；摘要声明不足时回退顺序读取，解析部分摘要可能需要一次冷路径全扫描。
+每个会话独占一个原生 Reader。映射输入同时拥有文件；增量 sans_io::LinearReader 状态和待处理记录使用原生自有缓冲，无需延长借用迭代器生命周期。Stream 增量读取并支持短读。索引查询直接使用官方 IndexedReader，时间排序可同时保留重叠 Chunk，不宣称完整校验；排序扫描回退会在原生内存收集匹配消息；摘要声明不足时回退顺序读取，解析部分摘要可能需要一次冷路径全扫描。
 
 映射文件必须保持不变。Windows 拒绝普通竞争写入/删除，但之前已有的可写映射不受此保护；Linux 不强制互斥。并发截断可终止进程，超出 panic/异常边界。随机读取按源长度检查记录边界，但原生分配和解压仍需要与记录/Chunk 大小相应的内存，没有统一配额。
 
@@ -49,3 +49,14 @@ Writer 操作串行化，原生错误为终止失败。Complete 调用上游 fin
 可失败原生入口捕获 panic 并转换成错误响应。分配器 abort 和外部非法指针无法转换成托管异常；调用方必须传入有效缓冲及本 ABI 创建的句柄。Rust 编译期断言和托管测试验证支持平台上的布局大小及偏移。
 
 [公共 API](api.zh-CN.md) 区分完整校验、索引查询和原始记录。[构建与分配验收](development.zh-CN.md) 分别验证托管分配和格式互操作；托管零分配不等于原生零分配。
+
+
+## 扩展操作族
+
+`fm_channel_prepare/free` 保存不可变原生 Channel/Schema 快照，`fm_writer_full_message` 使用该描述和同步借用的 payload 直接调用上游 write。`fm_operation_prepare/free` 保存冷路径控制描述，`fm_writer_prepared` 复用描述，避免托管序列化；`fm_writer_private` 使用标量标志和 Span。
+
+`fm_engine_open/next/feed/free` 封装官方线性、摘要和索引 Sans-I/O 状态。事件为 56 字节：u32 kind、u32 opcode、u64 length、u64 offset、u32 seek origin、u32 reserved、24 字节消息头。kind 0–5 对应 End、Read、Seek、Record、Message、ReadChunk；Current/End 定位偏移保留有符号补码。输入请求等待供给，记录/消息在缓冲不足时保持待取。`fm_engine_index_control` 支持索引插入及长度限制更新；`fm_engine_summary` 和 `fm_summary_records` 输出自有摘要或原生记录游标。
+
+`fm_buffer_reader_*` 直接运行官方切片读取器并保存自有结果，构造返回前释放所有借用迭代器。`fm_snapshot_*` 保存源文件副本和官方摘要，随机操作直接调用上游而不跨 FFI 借用。`fm_reader_record_into`、`fm_parse_record`、`fm_footer`、`fm_chunk_offset` 提供缓冲区或标量操作。句柄均由私有 SafeHandle 管理，游标成功读取不分配响应缓冲。
+
+异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。

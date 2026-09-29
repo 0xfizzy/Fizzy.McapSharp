@@ -12,7 +12,7 @@ internal sealed unsafe class StreamBridge
     static readonly Native.SeekCallback SeekFn = Seek;
     static readonly Native.FlushCallback FlushFn = Flush;
     readonly Stream stream;
-    readonly bool leaveOpen;
+    bool leaveOpen;
     readonly long start;
     GCHandle root;
     internal Native.Callbacks Callbacks;
@@ -28,7 +28,7 @@ internal sealed unsafe class StreamBridge
         {
             if (Active.TryGetValue(stream, out _))
                 throw new InvalidOperationException("Stream already has an active MCAP session.");
-            Active.Add(stream, new object ());
+            Active.Add(stream, new object());
         }
 
         this.stream = stream;
@@ -174,6 +174,8 @@ internal sealed unsafe class StreamBridge
         Error = null;
         e?.Throw();
     }
+
+    internal Stream Detach() { CheckReentry(); leaveOpen = true; return stream; }
 
     internal void Release()
     {

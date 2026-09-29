@@ -1,4 +1,9 @@
 //! Private C ABI. No borrowed native memory crosses the public managed API.
+mod buffer_reader;
+#[cfg(test)]
+mod coverage_tests;
+mod errors;
+mod extended;
 mod io;
 use io::{Callbacks, Input, Output};
 use mcap::{records, sans_io};
@@ -54,7 +59,7 @@ fn guard(out: *mut Response, f: impl FnOnce(&mut Response) -> Outcome<i32>) -> i
     match catch_unwind(AssertUnwindSafe(|| f(out))) {
         Ok(Ok(s)) => s,
         Ok(Err(e)) => {
-            respond(out, e.to_string().into_bytes(), vec![], 0);
+            respond(out, errors::encode(e.as_ref()), vec![], 0);
             -1
         }
         Err(_) => {
@@ -93,7 +98,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    2
+    3
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
@@ -107,6 +112,7 @@ pub struct Writer {
     failed: bool,
     attachment: Option<u64>,
     summary: Option<Value>,
+    native_summary: Option<mcap::Summary>,
 }
 impl Drop for Writer {
     fn drop(&mut self) {
@@ -127,12 +133,11 @@ fn options(v: &Value, seekable: bool) -> Outcome<mcap::WriteOptions> {
         .chunk_size(v["chunkSize"].as_u64())
         .use_chunks(v["useChunks"].as_bool().unwrap_or(true))
         .profile(string(v, "profile")?)
-        .library(
-            v["library"]
-                .as_str()
-                .unwrap_or("Fizzy.McapSharp 0.1.0 / mcap-rust 0.25.0"),
-        )
-        .disable_seeking(!seekable);
+        .library(v["library"].as_str().unwrap_or(mcap::LIBRARY_IDENTIFIER))
+        .disable_seeking(v["disableSeeking"].as_bool().unwrap_or(!seekable));
+    if !seekable && v["disableSeeking"].as_bool() == Some(false) {
+        return Err("Non-seekable output requires DisableSeeking".into());
+    }
     macro_rules! flag {
         ($key:literal,$method:ident) => {
             if let Some(x) = v[$key].as_bool() {
@@ -140,6 +145,7 @@ fn options(v: &Value, seekable: bool) -> Outcome<mcap::WriteOptions> {
             }
         };
     }
+    flag!("emitSummaryRecords", emit_summary_records);
     flag!("emitSummaryOffsets", emit_summary_offsets);
     flag!("emitStatistics", emit_statistics);
     flag!("emitMessageIndexes", emit_message_indexes);
@@ -191,6 +197,7 @@ pub unsafe extern "C" fn fm_writer_open(
             failed: false,
             attachment: None,
             summary: None,
+            native_summary: None,
         }));
         Ok(0)
     })
@@ -244,131 +251,142 @@ pub unsafe extern "C" fn fm_writer_call(
     out: *mut Response,
 ) -> i32 {
     let status = guard(out, |out| {
-        let holder = handle.as_mut().ok_or("Null writer")?;
-        if holder.failed {
-            return Err("Writer failed".into());
-        }
-        if op == 12 {
-            if let Some(s) = &holder.summary {
-                respond(out, serde_json::to_vec(s)?, vec![], 0);
-                return Ok(0);
-            }
-            return Err("Complete must succeed first".into());
-        }
-        if holder.attachment.is_some() && op != 9 && op != 10 {
-            return Err("Attachment is in progress".into());
-        }
         let v = if n == 0 { Value::Null } else { request(p, n)? };
-        let payload = bytes(data, len)?;
-        let w = holder.inner.as_mut().ok_or("Writer completed")?;
-        out.value = match op {
-            1 => {
-                ({
-                    if let Some(id) = v["id"].as_u64() {
-                        w.add_schema_with_id(
-                            id.try_into()?,
-                            string(&v, "name")?,
-                            string(&v, "encoding")?,
-                            payload,
-                        )?
-                    } else {
-                        w.add_schema(string(&v, "name")?, string(&v, "encoding")?, payload)?
-                    }
-                }) as u64
-            }
-            2 => {
-                ({
-                    if let Some(id) = v["id"].as_u64() {
-                        w.add_channel_with_id(
-                            id.try_into()?,
-                            number(&v, "schema_id")?.try_into()?,
-                            string(&v, "topic")?,
-                            string(&v, "encoding")?,
-                            &map(&v["metadata"])?,
-                        )?
-                    } else {
-                        w.add_channel(
-                            number(&v, "schema_id")?.try_into()?,
-                            string(&v, "topic")?,
-                            string(&v, "encoding")?,
-                            &map(&v["metadata"])?,
-                        )?
-                    }
-                }) as u64
-            }
-            4 => {
-                w.write_metadata(&records::Metadata {
-                    name: string(&v, "name")?.into(),
-                    metadata: map(&v["metadata"])?,
-                })?;
-                0
-            }
-            5 => {
-                w.attach(&mcap::Attachment {
-                    name: string(&v, "name")?.into(),
-                    media_type: string(&v, "media_type")?.into(),
-                    log_time: number(&v, "log_time")?,
-                    create_time: number(&v, "create_time")?,
-                    data: Cow::Borrowed(payload),
-                })?;
-                0
-            }
-            6 => {
-                w.flush()?;
-                0
-            }
-            7 => {
-                let s = w.finish()?;
-                holder.summary = Some(summary_json(&s));
-                let mut output = holder.inner.take().unwrap().into_inner();
-                output.complete()?;
-                0
-            }
-            8 => {
-                let size = number(&v, "length")?;
-                w.start_attachment(
-                    size,
-                    records::AttachmentHeader {
-                        name: string(&v, "name")?.into(),
-                        media_type: string(&v, "media_type")?.into(),
-                        log_time: number(&v, "log_time")?,
-                        create_time: number(&v, "create_time")?,
-                    },
-                )?;
-                holder.attachment = Some(size);
-                0
-            }
-            9 => {
-                let left = holder.attachment.as_mut().ok_or("No attachment")?;
-                *left = left
-                    .checked_sub(len as u64)
-                    .ok_or("Attachment length exceeded")?;
-                w.put_attachment_bytes(payload)?;
-                0
-            }
-            10 => {
-                if holder.attachment != Some(0) {
-                    return Err("Attachment length mismatch".into());
-                }
-                w.finish_attachment()?;
-                holder.attachment = None;
-                0
-            }
-            11 => {
-                let opts = if v["includeInChunks"].as_bool().unwrap_or(false) {
-                    enumset::enum_set!(mcap::write::PrivateRecordOptions::IncludeInChunks)
-                } else {
-                    enumset::EnumSet::new()
-                };
-                w.write_private_record(number(&v, "opcode")?.try_into()?, payload, opts)?;
-                0
-            }
-            _ => return Err("Unknown writer operation".into()),
-        };
-        Ok(0)
+        writer_control(handle, op, &v, bytes(data, len)?, out)
     });
     writer_result(handle, status)
 }
+unsafe fn writer_control(
+    handle: *mut Writer,
+    op: u32,
+    v: &Value,
+    payload: &[u8],
+    out: &mut Response,
+) -> Outcome<i32> {
+    let holder = handle.as_mut().ok_or("Null writer")?;
+    if holder.failed {
+        return Err("Writer failed".into());
+    }
+    if op == 12 {
+        if let Some(s) = &holder.summary {
+            respond(out, serde_json::to_vec(s)?, vec![], 0);
+            return Ok(0);
+        }
+        return Err("Complete must succeed first".into());
+    }
+    if holder.attachment.is_some() && op != 9 && op != 10 {
+        return Err("Attachment is in progress".into());
+    }
+    let len = payload.len();
+    let w = holder.inner.as_mut().ok_or("Writer completed")?;
+    out.value = match op {
+        1 => {
+            ({
+                if let Some(id) = v["id"].as_u64() {
+                    w.add_schema_with_id(
+                        id.try_into()?,
+                        string(v, "name")?,
+                        string(v, "encoding")?,
+                        payload,
+                    )?
+                } else {
+                    w.add_schema(string(v, "name")?, string(v, "encoding")?, payload)?
+                }
+            }) as u64
+        }
+        2 => {
+            ({
+                if let Some(id) = v["id"].as_u64() {
+                    w.add_channel_with_id(
+                        id.try_into()?,
+                        number(v, "schema_id")?.try_into()?,
+                        string(v, "topic")?,
+                        string(v, "encoding")?,
+                        &map(&v["metadata"])?,
+                    )?
+                } else {
+                    w.add_channel(
+                        number(v, "schema_id")?.try_into()?,
+                        string(v, "topic")?,
+                        string(v, "encoding")?,
+                        &map(&v["metadata"])?,
+                    )?
+                }
+            }) as u64
+        }
+        4 => {
+            w.write_metadata(&records::Metadata {
+                name: string(v, "name")?.into(),
+                metadata: map(&v["metadata"])?,
+            })?;
+            0
+        }
+        5 => {
+            w.attach(&mcap::Attachment {
+                name: string(v, "name")?.into(),
+                media_type: string(v, "media_type")?.into(),
+                log_time: number(v, "log_time")?,
+                create_time: number(v, "create_time")?,
+                data: Cow::Borrowed(payload),
+            })?;
+            0
+        }
+        6 => {
+            w.flush()?;
+            0
+        }
+        7 => {
+            let s = w.finish()?;
+            holder.summary = Some(summary_json(&s));
+            holder.native_summary = Some(s);
+            let mut output = holder.inner.take().unwrap().into_inner();
+            output.complete()?;
+            0
+        }
+        8 => {
+            let size = number(v, "length")?;
+            w.start_attachment(
+                size,
+                records::AttachmentHeader {
+                    name: string(v, "name")?.into(),
+                    media_type: string(v, "media_type")?.into(),
+                    log_time: number(v, "log_time")?,
+                    create_time: number(v, "create_time")?,
+                },
+            )?;
+            holder.attachment = Some(size);
+            0
+        }
+        9 => {
+            let left = holder.attachment.as_mut().ok_or("No attachment")?;
+            *left = left
+                .checked_sub(len as u64)
+                .ok_or("Attachment length exceeded")?;
+            w.put_attachment_bytes(payload)?;
+            0
+        }
+        10 => {
+            if holder.attachment != Some(0) {
+                return Err("Attachment length mismatch".into());
+            }
+            w.finish_attachment()?;
+            holder.attachment = None;
+            0
+        }
+        11 => {
+            let opts = if v["includeInChunks"].as_bool().unwrap_or(false) {
+                enumset::enum_set!(mcap::write::PrivateRecordOptions::IncludeInChunks)
+            } else {
+                enumset::EnumSet::new()
+            };
+            w.write_private_record(number(v, "opcode")?.try_into()?, payload, opts)?;
+            0
+        }
+        _ => return Err("Unknown writer operation".into()),
+    };
+    Ok(0)
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn fm_writer_free(p: *mut Writer) {
     if !p.is_null() {
@@ -412,7 +430,11 @@ fn empty_summary() -> Value {
 }
 
 pub struct Reader {
-    indexed: Option<VecDeque<records::ChunkIndex>>,
+    indexed: Option<sans_io::IndexedReader>,
+    sorted: bool,
+    order: u64,
+    topics: Option<std::collections::BTreeSet<String>>,
+    limit: Option<usize>,
     queue: VecDeque<(u8, Vec<u8>)>,
     indexed_summary: Option<Value>,
     parser: sans_io::LinearReader,
@@ -445,46 +467,35 @@ fn parser(top: bool, limit: Option<usize>) -> sans_io::LinearReader {
 }
 impl Reader {
     fn next_raw(&mut self) -> Outcome<Option<(u8, Vec<u8>)>> {
-        if self.indexed.is_some() {
+        if self.sorted {
+            let next = self.queue.pop_front();
+            if next.is_none() {
+                self.ended = true;
+            }
+            return Ok(next);
+        }
+        if let Some(indexed) = self.indexed.as_mut() {
             loop {
-                if let Some(r) = self.queue.pop_front() {
-                    return Ok(Some(r));
-                }
-                let Some(index) = self.indexed.as_mut().unwrap().pop_front() else {
-                    self.ended = true;
-                    return Ok(None);
-                };
-                let (op, body) = self.record_at(index.chunk_start_offset)?;
-                if op != records::op::CHUNK || body.len() as u64 + 9 != index.chunk_length {
-                    return Err("Invalid chunk index".into());
-                }
-                // Feed a single chunk followed by a synthetic footer. This parser validates the chunk,
-                // not the file's data/summary CRCs; indexed queries never claim full-file validation.
-                let mut encoded = Vec::with_capacity(body.len() + 38);
-                encoded.push(op);
-                encoded.extend_from_slice(&(body.len() as u64).to_le_bytes());
-                encoded.extend_from_slice(&body);
-                encoded.push(records::op::FOOTER);
-                encoded.extend_from_slice(&20u64.to_le_bytes());
-                encoded.extend_from_slice(&[0u8; 20]);
-                let mut input = std::io::Cursor::new(encoded);
-                let mut p = sans_io::LinearReader::new_with_options(
-                    sans_io::LinearReaderOptions::default()
-                        .with_skip_start_magic(true)
-                        .with_skip_end_magic(true)
-                        .with_prevalidate_chunk_crcs(true),
-                );
-                while let Some(e) = p.next_event() {
-                    match e? {
-                        sans_io::LinearReadEvent::ReadRequest(n) => {
-                            let n = input.read(p.insert(n.min(65536)))?;
-                            p.notify_read(n);
-                        }
-                        sans_io::LinearReadEvent::Record { opcode, data } => {
-                            if opcode != records::op::FOOTER {
-                                self.queue.push_back((opcode, data.to_vec()));
-                            }
-                        }
+                match indexed.next_event() {
+                    None => {
+                        self.ended = true;
+                        return Ok(None);
+                    }
+                    Some(Err(e)) => return Err(e.into()),
+                    Some(Ok(sans_io::IndexedReadEvent::ReadChunkRequest { offset, length })) => {
+                        self.input.seek(SeekFrom::Start(offset))?;
+                        let mut data = vec![0; length];
+                        self.input.read_exact(&mut data)?;
+                        indexed.insert_chunk_record_data(offset, &data)?;
+                    }
+                    Some(Ok(sans_io::IndexedReadEvent::Message { header, data })) => {
+                        let mut body = Vec::with_capacity(22 + data.len());
+                        body.extend_from_slice(&header.channel_id.to_le_bytes());
+                        body.extend_from_slice(&header.sequence.to_le_bytes());
+                        body.extend_from_slice(&header.log_time.to_le_bytes());
+                        body.extend_from_slice(&header.publish_time.to_le_bytes());
+                        body.extend_from_slice(data);
+                        return Ok(Some((records::op::MESSAGE, body)));
                     }
                 }
             }
@@ -571,7 +582,9 @@ impl Reader {
             return Ok(true);
         }
         while let Some((op, data)) = self.next_raw()? {
-            self.observe(op, &data)?;
+            if !self.sorted {
+                self.observe(op, &data)?;
+            }
             if self.messages {
                 if op != records::op::MESSAGE {
                     continue;
@@ -586,6 +599,11 @@ impl Reader {
                 if self.start.map(|n| header.log_time < n).unwrap_or(false)
                     || self.end.map(|n| header.log_time >= n).unwrap_or(false)
                     || self.topic.as_ref().map(|t| t != &c.topic).unwrap_or(false)
+                    || self
+                        .topics
+                        .as_ref()
+                        .map(|t| !t.contains(&c.topic))
+                        .unwrap_or(false)
                 {
                     continue;
                 }
@@ -621,9 +639,20 @@ pub unsafe extern "C" fn fm_reader_open(
             .transpose()?;
         let mut reader = Reader {
             indexed: None,
+            sorted: false,
+            order: v["order"].as_u64().unwrap_or(2),
+            topics: v["topics"].as_array().map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(str::to_owned))
+                    .collect()
+            }),
+            limit,
             queue: VecDeque::new(),
             indexed_summary: None,
-            parser: parser(v["topLevel"].as_bool().unwrap_or(false), limit),
+            parser: sans_io::LinearReader::new_with_options(
+                extended::linear_options(&v["options"])?
+                    .with_emit_chunks(v["topLevel"].as_bool().unwrap_or(false)),
+            ),
             input,
             pending: None,
             schemas: BTreeMap::new(),
@@ -639,11 +668,38 @@ pub unsafe extern "C" fn fm_reader_open(
             end: v["end"].as_u64(),
             messages: v["messages"].as_bool().unwrap_or(true),
         };
+        let linear_settings = v["options"]
+            .as_object()
+            .is_some_and(|o| o.iter().any(|(_, v)| v.as_bool() == Some(true)));
+        if v["indexedOnly"].as_bool().unwrap_or(false) && linear_settings {
+            return Err("Linear parser options cannot be applied to indexed reading".into());
+        }
         if reader.messages
-            && (reader.start.is_some() || reader.end.is_some() || reader.topic.is_some())
+            && !linear_settings
+            && (reader.order != 2
+                || reader.start.is_some()
+                || reader.end.is_some()
+                || reader.topic.is_some()
+                || reader.topics.is_some())
             && reader.input.seekable()
         {
             reader.try_indexed()?;
+        }
+        if v["indexedOnly"].as_bool().unwrap_or(false) && reader.indexed.is_none() {
+            return Err("Indexed reading requires a complete indexed summary".into());
+        }
+        if reader.messages && reader.order != 2 && reader.indexed.is_none() {
+            let mut messages = Vec::new();
+            while reader.advance()? {
+                messages.push(reader.pending.take().unwrap());
+            }
+            messages.sort_by_key(|(_, b)| u64::from_le_bytes(b[6..14].try_into().unwrap()));
+            if reader.order == 1 {
+                messages.reverse();
+            }
+            reader.queue = messages.into();
+            reader.sorted = true;
+            reader.ended = false;
         }
         *handle = Box::into_raw(Box::new(reader));
         Ok(0)
@@ -673,7 +729,11 @@ pub unsafe extern "C" fn fm_reader_next(
             out.value = r.count;
             if !header.is_null() {
                 *header = MessageHeader {
-                    reserved: if r.indexed.is_some() { 1 } else { 0 },
+                    reserved: if r.indexed.is_some() || r.sorted {
+                        1
+                    } else {
+                        0
+                    },
                     ..Default::default()
                 };
             }
@@ -774,7 +834,11 @@ impl Reader {
         }
         let pos = self.input.stream_position()?;
         let result = (|| {
-            let mut s = sans_io::SummaryReader::new();
+            let mut opts = sans_io::SummaryReaderOptions::default();
+            if let Some(n) = self.limit {
+                opts = opts.with_record_length_limit(n);
+            }
+            let mut s = sans_io::SummaryReader::new_with_options(opts);
             while let Some(e) = s.next_event() {
                 match e? {
                     sans_io::SummaryReadEvent::ReadRequest(n) => {
@@ -802,6 +866,13 @@ impl Reader {
             let mut h = [0u8; 9];
             self.input.read_exact(&mut h)?;
             let n = usize::try_from(u64::from_le_bytes(h[1..].try_into()?))?;
+            if self.limit.is_some_and(|limit| n > limit) {
+                return Err(mcap::McapError::RecordTooLarge {
+                    opcode: h[0],
+                    len: n as u64,
+                }
+                .into());
+            }
             let body_start = self.input.stream_position()?;
             let end = self.input.seek(SeekFrom::End(0))?;
             if n as u64 > end.saturating_sub(body_start) {
@@ -989,16 +1060,21 @@ impl Reader {
             );
         }
         self.indexed_summary = Some(summary_json(&summary));
-        let mut chunks: Vec<_> = summary
-            .chunk_indexes
-            .into_iter()
-            .filter(|c| {
-                self.start.map(|n| c.message_end_time >= n).unwrap_or(true)
-                    && self.end.map(|n| c.message_start_time < n).unwrap_or(true)
-            })
-            .collect();
-        chunks.sort_by_key(|c| c.chunk_start_offset);
-        self.indexed = Some(chunks.into());
+        let mut opts = sans_io::IndexedReaderOptions::default();
+        opts.start = self.start;
+        opts.end = self.end;
+        opts.order = match self.order {
+            0 => sans_io::indexed_reader::ReadOrder::LogTime,
+            1 => sans_io::indexed_reader::ReadOrder::ReverseLogTime,
+            _ => sans_io::indexed_reader::ReadOrder::File,
+        };
+        opts.include_topics = self.topics.clone().or_else(|| {
+            self.topic
+                .as_ref()
+                .map(|t| [t.clone()].into_iter().collect())
+        });
+        opts.record_length_limit = self.limit;
+        self.indexed = Some(sans_io::IndexedReader::new_with_options(&summary, opts)?);
         Ok(())
     }
 }

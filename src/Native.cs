@@ -4,7 +4,7 @@ using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
-internal static class Native
+internal static partial class Native
 {
     const string Library = "fizzy_mcap_native";
     [StructLayout(LayoutKind.Sequential)]
@@ -73,16 +73,16 @@ internal static class Native
     {
         if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
             throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
-        if (fm_abi_version() != 2)
+        if (fm_abi_version() != 3)
             throw new McapException("Incompatible native ABI.");
     }
 
-    internal static string ConsumeError(Result r)
+    internal static McapException ConsumeError(Result r)
     {
         try
         {
             var b = Copy(r.Json, r.JsonLength);
-            return Encoding.UTF8.GetString(b);
+            return McapException.Decode(Encoding.UTF8.GetString(b));
         }
         finally
         {
@@ -94,7 +94,7 @@ internal static class Native
     internal static byte[] Copy(IntPtr p, nuint n)
     {
         if (n == 0)
-            return[];
+            return [];
         var a = new byte[checked((int)n)];
         Marshal.Copy(p, a, 0, a.Length);
         return a;
@@ -106,7 +106,7 @@ internal static class Native
         {
             var j = Copy(r.Json, r.JsonLength);
             if (status < 0)
-                throw new McapException(Encoding.UTF8.GetString(j));
+                throw McapException.Decode(Encoding.UTF8.GetString(j));
             return (j.Length == 0 ? null : JsonDocument.Parse(j), Copy(r.Data, r.DataLength), r.Value);
         }
         finally

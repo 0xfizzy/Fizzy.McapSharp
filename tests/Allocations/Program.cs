@@ -4,6 +4,7 @@ using System.Diagnostics;
 #if DEBUG
 throw new InvalidOperationException("Run allocation acceptance in Release.");
 #endif
+if (args.Contains("extended")) { Extended.Run(); return; }
 const int count = 10000;
 foreach (var compression in Enum.GetValues<McapCompression>())
     foreach (var mode in new[]
@@ -98,6 +99,8 @@ foreach (var compression in Enum.GetValues<McapCompression>())
                 throw new Exception($"Allocation regression: {bytes} bytes");
         }
     }
+
+Extended.Run();
 
 sealed class SpanStream(Stream inner, bool seekable) : Stream
 {
