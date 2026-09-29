@@ -43,6 +43,12 @@ Linux 构建检查 ELF 架构、动态依赖和 GLIBC 符号版本（不得高�
 
 现有 xUnit 覆盖三种压缩、时间与 Topic 过滤、元数据与附件、无索引读取、未完成文件、CRC 损坏、恢复结果、写入失败终止、不覆盖文件、枚举释放与无消息声明。测试使用临时文件，无需设备。
 
+### 分配验收
+
+`Build.ps1 -Test` 还会运行 `dotnet run --project tests/Allocations -c Release`。门禁在 Writer/Reader 预热后测量 GC.GetAllocatedBytesForCurrentThread，排除准备和报告，要求消息循环托管分配严格为零，这是库热路径的强制契约。覆盖 None/Lz4/Zstd、原生文件 I/O、实际 FileStream、可寻址/非寻址 span 流，以及跨 Chunk、多 Channel、中途声明、空/大消息、缓冲不足重试、重复 EOF 和查询。程序报告吞吐量及平均每条耗时，这是特定负载测量，不是延迟分位数或通用性能保证。功能测试另外检查重试正确性和回调失败。
+
+只使用 Release。调用方扩容、初始化、描述/摘要快照、错误及自有记录便利 API 不属于门禁范围。用户 Stream 可能分配；桥接专用测试使用预分配 span 流，并在数组回退时抛异常。原生分配需另用原生分析器。基线数据保存在忽略的 artifacts 中，不写入 API 文档。
+
 ### Python 双向互操作
 
 在准备好 Python 的环境中执行（CI 使用 Python 3.12）：

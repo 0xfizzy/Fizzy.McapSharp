@@ -1,61 +1,220 @@
-namespace Fizzy.McapSharp;
+using System.Text.Json;
 
-/// <summary>A serialized, file-backed MCAP writer. Complete must succeed before the file is considered complete.</summary>
+namespace Fizzy.McapSharp;
 public sealed class McapWriter : IDisposable
 {
-    private readonly WriterHandle handle;
-    private readonly object gate = new();
-    private bool completed, failed, disposed;
-    public McapWriter(string path, McapWriterOptions? options = null)
+    readonly WriterHandle handle;
+    readonly object gate = new();
+    bool completed, failed, disposed;
+    bool attachment;
+    public McapWriter(string path, McapWriterOptions? options = null) : this(path, null, options, false)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+    }
+
+    public McapWriter(Stream stream, McapWriterOptions? options = null, bool leaveOpen = false) : this(null, stream ?? throw new ArgumentNullException(nameof(stream)), options, leaveOpen)
+    {
+    }
+
+    unsafe McapWriter(string? path, Stream? stream, McapWriterOptions? options, bool leaveOpen)
+    {
         Native.EnsureAvailable();
         options ??= new();
-        if (!Enum.IsDefined(options.Compression)) throw new ArgumentOutOfRangeException(nameof(options));
-        if (options.ChunkSize == 0) throw new ArgumentOutOfRangeException(nameof(options));
-        var request = Native.Request(new { path = Path.GetFullPath(path), compression = options.Compression.ToString().ToLowerInvariant(), chunk_size = options.ChunkSize, use_chunks = options.UseChunks, indexes = options.EmitIndexes, profile = options.Profile });
-        var status = Native.fm_writer_open(request, (nuint)request.Length, out var pointer, out var result);
-        Native.Consume(status, result).Json?.Dispose();
-        handle = new(pointer);
+        if (!Enum.IsDefined(options.Compression) || options.ChunkSize == 0)
+            throw new ArgumentOutOfRangeException(nameof(options));
+        if (stream is null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var config = JsonSerializer.SerializeToElement(options, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(config)!;
+        dict["compression"] = JsonSerializer.SerializeToElement(options.Compression.ToString().ToLowerInvariant());
+        var req = Native.Request(new { path = path is null ? null : Path.GetFullPath(path), options = dict });
+        StreamBridge? bridge = stream is null ? null : new(stream, true, leaveOpen);
+        try
+        {
+            var cb = bridge?.Callbacks ?? default;
+            var status = Native.fm_writer_open(req, (nuint)req.Length, bridge is null ? null : &cb, out var p, out var r);
+            try
+            {
+                Native.Consume(status, r).Json?.Dispose();
+            }
+            finally
+            {
+                bridge?.ThrowIfError();
+            }
+
+            handle = new(p, bridge);
+        }
+        catch
+        {
+            bridge?.Release();
+            throw;
+        }
     }
-    public ushort RegisterSchema(string name, string encoding, ReadOnlySpan<byte> data)
-        => checked((ushort)Call(1, new { name, encoding }, data));
-    public ushort RegisterChannel(string topic, string messageEncoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null)
-        => checked((ushort)Call(2, new { topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string,string>() }));
-    public void WriteMessage(ushort channelId, ulong logTime, ulong publishTime, uint sequence, ReadOnlySpan<byte> data)
-        => Call(3, new { channel_id = channelId, log_time = logTime, publish_time = publishTime, sequence }, data);
-    public void WriteMetadata(string name, IReadOnlyDictionary<string, string> metadata)
-        => Call(4, new { name, metadata });
-    public void WriteAttachment(string name, string mediaType, ulong logTime, ulong createTime, ReadOnlySpan<byte> data)
-        => Call(5, new { name, media_type = mediaType, log_time = logTime, create_time = createTime }, data);
-    public void Flush() => Call(6, new { });
+
+    void Check(bool allowAttachment = false)
+    {
+        handle.Bridge?.CheckReentry();
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (completed)
+            throw new InvalidOperationException("Writer is complete.");
+        if (failed)
+            throw new InvalidOperationException("Writer failed; start a new recording.");
+        if (attachment && !allowAttachment)
+            throw new InvalidOperationException("Finish the attachment first.");
+    }
+
+    public ushort RegisterSchema(string name, string encoding, ReadOnlySpan<byte> data) => checked((ushort)Call(1, new { name, encoding }, data));
+    public ushort RegisterSchema(ushort id, string name, string encoding, ReadOnlySpan<byte> data) => checked((ushort)Call(1, new { id, name, encoding }, data));
+    public ushort RegisterChannel(string topic, string messageEncoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null) => checked((ushort)Call(2, new { topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>() }));
+    public ushort RegisterChannel(ushort id, string topic, string messageEncoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null) => checked((ushort)Call(2, new { id, topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>() }));
+    public unsafe void WriteMessage(in McapMessageHeader header, ReadOnlySpan<byte> data)
+    {
+        lock (gate)
+        {
+            Check();
+            var h = new Native.NativeHeader
+            {
+                ChannelId = header.ChannelId,
+                Sequence = header.Sequence,
+                LogTime = header.LogTime,
+                PublishTime = header.PublishTime
+            };
+            try
+            {
+                fixed (byte* p = data)
+                {
+                    var status = Native.fm_writer_message(handle, &h, p, (nuint)data.Length, out var r);
+                    if (status < 0)
+                    {
+                        var error = Native.ConsumeError(r);
+                        handle.Bridge?.ThrowIfError();
+                        throw new McapException(error);
+                    }
+                }
+            }
+            catch
+            {
+                failed = true;
+                throw;
+            }
+        }
+    }
+
+    public void WriteMetadata(string name, IReadOnlyDictionary<string, string> metadata) => Call(4, new { name, metadata });
+    public void WriteAttachment(string name, string mediaType, ulong logTime, ulong createTime, ReadOnlySpan<byte> data) => Call(5, new { name, media_type = mediaType, log_time = logTime, create_time = createTime }, data);
+    public void StartAttachment(string name, string mediaType, ulong logTime, ulong createTime, ulong length)
+    {
+        lock (gate)
+        {
+            Call(8, new { name, media_type = mediaType, log_time = logTime, create_time = createTime, length });
+            attachment = true;
+        }
+    }
+
+    public void WriteAttachmentBytes(ReadOnlySpan<byte> data)
+    {
+        lock (gate)
+        {
+            if (!attachment)
+                throw new InvalidOperationException("No attachment in progress.");
+            Call(9, null, data);
+        }
+    }
+
+    public void FinishAttachment()
+    {
+        lock (gate)
+        {
+            if (!attachment)
+                throw new InvalidOperationException("No attachment in progress.");
+            Call(10, null);
+            attachment = false;
+        }
+    }
+
+    public void WritePrivateRecord(byte opcode, ReadOnlySpan<byte> data, bool includeInChunks = false)
+    {
+        if (opcode < 0x80)
+            throw new ArgumentOutOfRangeException(nameof(opcode));
+        Call(11, new { opcode, includeInChunks }, data);
+    }
+
+    public void Flush() => Call(6, null);
     public void Complete()
     {
         lock (gate)
         {
+            handle.Bridge?.CheckReentry();
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (completed) return;
-            Call(7, new { }); completed = true;
+            if (completed)
+                return;
+            Call(7, null);
+            completed = true;
         }
     }
-    private ulong Call(uint operation, object args, ReadOnlySpan<byte> data = default)
+
+    public unsafe McapSummary GetSummary()
     {
         lock (gate)
         {
+            handle.Bridge?.CheckReentry();
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (completed) throw new InvalidOperationException("Writer is complete.");
-            if (failed) throw new InvalidOperationException("Writer failed; dispose it and start a new file.");
-            var request = Native.Request(args); var payload = data.ToArray();
-            try
-            {
-                var status = Native.fm_writer_call(handle, operation, request, (nuint)request.Length, payload, (nuint)payload.Length, out var result);
-                var response = Native.Consume(status, result); response.Json?.Dispose(); return response.Value;
-            }
-            catch { failed = true; throw; }
+            if (!completed)
+                throw new InvalidOperationException("Complete must succeed first.");
+            var status = Native.fm_writer_call(handle, 12, [], 0, null, 0, out var r);
+            var response = Native.Consume(status, r);
+            using var json = response.Json!;
+            return json.RootElement.Deserialize<McapSummary>(JsonSupport.Options)!;
         }
     }
+
+    unsafe ulong Call(uint op, object? args, ReadOnlySpan<byte> data = default)
+    {
+        lock (gate)
+        {
+            Check(op is 9 or 10);
+            var req = args is null ? [] : Native.Request(args);
+            try
+            {
+                fixed (byte* payload = data)
+                {
+                    var status = Native.fm_writer_call(handle, op, req, (nuint)req.Length, payload, (nuint)data.Length, out var r);
+                    try
+                    {
+                        var response = Native.Consume(status, r);
+                        response.Json?.Dispose();
+                        return response.Value;
+                    }
+                    finally
+                    {
+                        handle.Bridge?.ThrowIfError();
+                    }
+                }
+            }
+            catch
+            {
+                failed = true;
+                throw;
+            }
+        }
+    }
+
     public void Dispose()
     {
-        lock (gate) { if (disposed) return; disposed = true; handle.Dispose(); }
+        lock (gate)
+        {
+            handle.Bridge?.CheckReentry();
+            if (disposed)
+                return;
+            disposed = true;
+            handle.Dispose();
+        }
     }
+}
+
+internal static class JsonSupport
+{
+    internal static readonly JsonSerializerOptions Options = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 }

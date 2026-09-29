@@ -2,100 +2,107 @@
 
 English | [简体中文](api.zh-CN.md)
 
-Public types are in the `Fizzy.McapSharp` namespace. Execution requires .NET 8 and a Windows x64 or glibc Linux x64/ARM64 process. Linux is built on Ubuntu 22.04 (glibc 2.35) and package-tested on Ubuntu 22.04 and 24.04; other distributions require compatible system libraries and .NET 8. macOS, musl, Windows ARM64, and 32-bit processes are unsupported. APIs accept file paths; there are no Stream, async, or cancellation interfaces. Applications define payload encoding, schema contents, and clock semantics; the library does not decode business data.
+`Fizzy.McapSharp` provides synchronous MCAP file and Stream operations on .NET 8: Windows x64 and glibc Linux x64/ARM64, built against Ubuntu 22.04. macOS, musl and 32-bit processes are unsupported. Applications define payload encodings and nanosecond clock semantics. There is no asynchronous, cancellation, payload decoding or time-sorting API.
 
-## Writing files
+## Write a recording
 
-`McapWriter(path, options)` creates a new file and refuses to overwrite an existing path. Register the schema and channel needed by each message before writing it; additional channels can be registered during recording. IDs are assigned by the implementation, and equivalent registrations may return an existing ID. Do not assume IDs are consecutive or reusable across files.
-
-| Method | Contract |
-| --- | --- |
-| `RegisterSchema(name, encoding, data)` | Returns a `ushort` schema ID; data contains raw bytes. |
-| `RegisterChannel(topic, messageEncoding, schemaId = 0, metadata = null)` | Returns a `ushort` channel ID; schemaId 0 means no schema. |
-| `WriteMessage(channelId, logTime, publishTime, sequence, data)` | Requires a registered channel. The caller supplies `ulong` timestamps in nanoseconds and a `uint` sequence number. |
-| `WriteMetadata(name, metadata)` | Writes a name and string key/value pairs. |
-| `WriteAttachment(name, mediaType, logTime, createTime, data)` | Writes an attachment with timestamps and media type. |
-| `Flush()` | Calls the underlying flush; does not finish the file or provide Complete's disk synchronization. |
-| `Complete()` | Finishes the MCAP file and synchronizes it to disk. Repeated calls after success do nothing; other write operations are rejected. |
-| `Dispose()` | Releases resources without finishing the recording. Treat files without a successful Complete as incomplete. |
-
-An internal lock serializes writer operations; applications still coordinate ordering between threads. Input spans are copied and consumed before the call returns, so their source buffers can then be reused. Errors during native calls or response handling make the writer terminal. Subsequent operations throw `InvalidOperationException`; dispose the instance and start a new recording at a new path instead of retrying writes on it.
-
-### Writer options
-
-| `McapWriterOptions` property | Default | Meaning |
-| --- | --- | --- |
-| `Compression` | `McapCompression.None` | None, Lz4, or Zstd; compression applies to chunks. |
-| `ChunkSize` | `4 * 1024 * 1024` | Target chunk size in bytes; must be positive. This is not a file or message size limit. |
-| `UseChunks` | `true` | Write messages into chunks. |
-| `EmitIndexes` | `true` | Controls summary records, message indexes, and chunk indexes. Sequential reading remains available when disabled. |
-| `Profile` | Empty string | Writes the MCAP profile without checking application constraints. |
-
-The writer enables chunk, data, summary, and attachment CRC calculation supported by the underlying implementation. Which sections exist depends on options and content.
+`McapWriter(path, options)` creates a new file and refuses to overwrite it. `McapWriter(stream, options, leaveOpen: false)` accepts writable seekable or non-seekable streams. A seekable output must be positioned at its end; its current position becomes MCAP offset zero. Non-seekable output uses native chunk buffering.
 
 ```csharp
 using Fizzy.McapSharp;
 
-var path = Path.Combine(Path.GetTempPath(), $"recording-{Guid.NewGuid():N}.mcap");
-using (var writer = new McapWriter(path, new() { Compression = McapCompression.Zstd }))
+using var writer = new McapWriter(path, new() { Compression = McapCompression.Zstd });
+var schema = writer.RegisterSchema("sample", "jsonschema", "{}"u8);
+var channel = writer.RegisterChannel("/sample", "json", schema);
+var header = new McapMessageHeader(channel, Sequence: 0, LogTime: 1000, PublishTime: 900);
+writer.WriteMessage(in header, "{\"value\":42}"u8);
+writer.Complete();
+```
+
+| Operation | Contract |
+| --- | --- |
+| `RegisterSchema(name, encoding, data)` | Returns a native-allocated `ushort` ID; overload with leading `id` requests an explicit nonzero ID. Equivalent content can deduplicate. |
+| `RegisterChannel(topic, messageEncoding, schemaId, metadata)` | Returns a channel ID; overload with leading `id` supports explicit IDs, including zero. Schema ID zero means no schema. Conflicting content for an existing ID fails. |
+| `WriteMessage(in header, data)` | Writes to a registered channel using a message header and payload span. Consumes the input synchronously without a managed payload copy. |
+| `WriteMetadata(name, metadata)` | Writes string key/value metadata. |
+| `WriteAttachment(name, mediaType, logTime, createTime, data)` | Writes one attachment. |
+| `StartAttachment(..., length)`, `WriteAttachmentBytes(data)`, `FinishAttachment()` | Writes an attachment in parts with an exact declared length. Other writer operations are rejected until completion. Length mismatch is terminal. |
+| `WritePrivateRecord(opcode, data, includeInChunks)` | Accepts opcodes 0x80–0xFF; optionally writes inside chunks. |
+| `Flush()` | Flushes the upstream writer, without completing the MCAP footer or guaranteeing durable storage. |
+| `Complete()` | Finishes MCAP once. Files also receive `sync_all`; streams receive `Flush`, without a durability guarantee. Repeated successful calls are no-ops. |
+| `GetSummary()` | Copies the upstream finish result after successful Complete; may allocate. |
+| `Dispose()` | Releases resources without implicit Complete. |
+
+Writer calls are serialized. Applications determine cross-thread business ordering. Native failures and Stream callback failures make the writer terminal: dispose it and begin a new recording. Argument/state checks before native operations do not by themselves fail a writer. Input buffers can be reused immediately after return.
+
+### Writer options
+
+| Option | Default / meaning |
+| --- | --- |
+| `Compression`, `ChunkSize`, `UseChunks` | None, 4 MiB, true. ChunkSize must be positive or null; null disables the target-size cutoff. |
+| `Profile`, `Library` | Empty profile; null Library selects this library's native identifier. |
+| `EmitSummaryOffsets`, `EmitStatistics` | true; independently control summary offsets and statistics. |
+| `EmitMessageIndexes`, `EmitChunkIndexes`, `EmitAttachmentIndexes`, `EmitMetadataIndexes` | true; independently control each index type. |
+| `RepeatChannels`, `RepeatSchemas` | null; upstream defaults (true). Control declarations repeated in the summary. |
+| `CalculateChunkCrcs`, `CalculateDataSectionCrc`, `CalculateSummarySectionCrc`, `CalculateAttachmentCrcs` | true; independently control CRC computation. |
+| `CompressionLevel`, `CompressionThreads` | null; upstream defaults and algorithm support. |
+
+Nullable flags use upstream behavior when null. Summary content is selected through its individual record switches; there is no aggregate switch with override precedence. To omit summary records, disable statistics, chunk/attachment/metadata indexes and repeated declarations. Disable summary offsets separately. No chunks means no chunk compression or chunk message indexes, regardless of their requested settings. Options do not impose a unified memory quota.
+
+## Read messages into reusable buffers
+
+A file `McapReader` is a factory; constructing it does not open the file. Every `OpenMessages` or `OpenRecords` call owns a separate disposable `McapReadSession` and native handle. Dispose sessions or use `using`.
+
+```csharp
+using var session = new McapReader(path).OpenMessages(new() { Topic = "/sample" });
+byte[] buffer = new byte[64 * 1024];
+while (true)
 {
-    var schema = writer.RegisterSchema("sample", "jsonschema", "{}"u8);
-    var channel = writer.RegisterChannel("/sample", "json", schema);
-    writer.WriteMessage(channel, 1_000, 900, 0, "{\"value\":42}"u8);
-    writer.WriteMetadata("session", new Dictionary<string, string> { ["clock"] = "application" });
-    writer.WriteAttachment("note.txt", "text/plain", 1_000, 900, "example"u8);
-    writer.Complete();
+    var status = session.ReadNext(buffer, out var header, out var length);
+    if (status == McapReadStatus.EndOfStream) break;
+    if (status == McapReadStatus.BufferTooSmall)
+    {
+        buffer = new byte[checked((int)length)]; // caller-chosen growth, outside zero-allocation contract
+        continue;
+    }
+    // Process buffer.AsSpan(0, checked((int)length)) before reusing it.
 }
 ```
 
-## Reading and querying
+`BufferTooSmall` returns the required payload length and message header, leaves the destination untouched and keeps the same record pending. Successful empty messages return `Message` with length zero. EOF is repeatable. Errors terminate message/record advancement. The API exposes no native addresses or borrowed spans.
 
-`McapReader(path)` checks the platform and ABI and stores the absolute path; it does not read the file during construction. Each enumeration opens an independent native reader. File errors generally appear when enumeration begins or advances. The reader itself does not implement `IDisposable`; dispose enumerators, which `foreach` does automatically, including when using break.
+Queries match the complete Topic string and apply `[StartTime, EndTime)` to LogTime. Null boundaries are unbounded; reversed boundaries throw, equal boundaries select nothing. Results retain file/chunk order. Seekable queries select overlapping indexed chunks when summary declarations and chunk coverage are sufficient and no top-level messages exist; otherwise they scan sequentially. Non-seekable queries always scan.
 
-```csharp
-var reader = new McapReader(path);
-foreach (var message in reader.ReadMessages(new()
-{
-    Topic = "/sample", StartTime = 1_000, EndTime = 2_000
-}))
-    Console.WriteLine($"{message.Channel.Topic}: {message.Data.Length} bytes");
-```
+`GetChannel(id)` and `GetSchema(id)` copy descriptions already encountered or loaded from a summary. New declarations can appear during reading without creating managed objects in the message loop. IDs alone are returned on the hot path. Description lookup and summary operations allocate.
 
-- `Topic = null` selects all topics; otherwise matching uses the entire string, without wildcards.
-- Time filtering uses `LogTime` and the interval `[StartTime, EndTime)`. A null boundary is unbounded. Start greater than end throws `ArgumentException`; equal boundaries select an empty interval.
-- Results follow file/chunk order, without timestamp sorting. Usable indexes select chunks overlapping the time range; missing usable indexes or messages outside chunks cause sequential filtering.
-- `ReadSchemas()` and `ReadChannels()` include declarations with no messages and deduplicate by ID. A channel's Schema may be null. `ReadChannels()` enumerates schemas before enumerating channels.
-- `ReadMetadata()` and `ReadAttachments()` enumerate their respective records independently of `McapQuery`.
+## Owned records, summaries and raw records
 
-Message, schema, and attachment `Data` properties are managed `byte[]` instances that remain valid after the enumerator is disposed. Arrays are mutable. Reading allocates managed memory; large records can require large allocations or exceed managed array limits.
+`ReadMessages`, `ReadSchemas`, `ReadChannels`, `ReadMetadata` and `ReadAttachments` provide convenient owned records. File-factory methods open independent sessions. Session convenience methods consume the current cursor; schema/channel/metadata/attachment methods require a record session. Message data and schema/attachment data are managed arrays and remain valid after disposal. Arrays are mutable. Message enumeration caches channel descriptions within that enumeration, so channel/schema objects may be shared between its messages.
 
-Callers must keep files unchanged throughout reading, validation, and recovery, including between separate enumerations. Windows file sharing denies ordinary writes and deletion while a reader is open; pre-existing writable mappings remain outside this protection. Linux does not enforce this exclusion. Concurrent changes to a mapped file, especially truncation, can terminate the process and are not guaranteed to become managed exceptions.
+`GetSummary()` returns a managed snapshot of statistics, chunk/attachment/metadata indexes and schema/channel IDs, or null if the file has no summary. Retrieve full declarations with session lookup methods. A writer's finish summary describes its in-memory recording result, even when summary records were disabled in the output.
 
-## Validation and recovery
+`OpenRecords(McapRecordMode.TopLevel)` yields top-level records including encoded Chunk bodies. `ExpandChunks` replaces chunks with their decompressed records. `ReadNextRecord(destination, out opcode, out length)` follows the same retry contract as messages; `ReadRecords()` returns allocated `McapRecord` objects. The body excludes the opcode and eight-byte length prefix. Unknown/private record bodies are preserved.
 
-`Validate()` scans the entire file, checking record parsing, present chunk/attachment/data/summary CRCs, record framing, and final magic. It returns a `ulong` count of records observed by the validation scan, **not a message count**. Failure throws `McapException`. Under MCAP, CRC 0 means no checksum is provided; it cannot establish integrity for the corresponding content. Validation does not check business schema semantics.
+On seekable sources, `ReadRecordAt(offset)`, `ReadChunk(index)` and `ReadMessageIndexes(index)` perform random reads without consuming the sequential cursor or pending record. Offsets are relative to the MCAP start. `ReadChunk` returns the raw Chunk record; `OpenRecords(ExpandChunks)` provides sequential decompression. Index entries contain chunk-relative message offsets. Raw random reads do not validate the whole file.
 
-Normal reading rejects incomplete files, but queries only check visited chunks and parsed records. A successful query does not prove whole-file integrity. Call `Validate()` explicitly when full validation is required.
+## Stream sessions and ownership
 
-`RecoverMessages(accept)` recovers a valid message prefix without modifying the source or skipping damaged records or chunks:
+Use `McapReader.OpenMessages(stream, query, leaveOpen)` or `OpenRecords(stream, mode, leaveOpen)` for Stream input. The current stream position is MCAP offset zero. Sessions consume streams incrementally without a whole-stream copy or temporary file. A stream must contain exactly one MCAP from that position to its end.
 
-```csharp
-var recovered = new List<McapMessage>();
-var result = new McapReader(path).RecoverMessages(recovered.Add);
-if (!result.IsComplete)
-    Console.WriteLine($"Recovered {result.RecoveredMessageCount} messages: {result.Error}");
-```
+Only one MCAP session can own a Stream at a time. Do not reposition, truncate, read, write or dispose it externally while the session is active. Stream callbacks run synchronously on the initiating thread; reentry into the same writer/session is rejected. Callback exceptions propagate after leaving native code. `leaveOpen` defaults to false; disposing a session closes its stream unless true.
 
-Recovery stops at a read error and runs full validation after enumeration finishes. Always inspect `IsComplete`; receiving messages does not mean the file is complete. `RecoveredMessageCount` counts successful callbacks, and `Error` is null on complete success. Callback exceptions propagate instead of becoming recovery results; earlier callbacks are not rolled back. Buffered content never written to the file cannot be recovered.
+Non-seekable streams do not support random reads or an early summary: those calls throw `NotSupportedException`. After a complete sequential scan, `GetSummary` returns the actual summary encountered, including null when absent. To restart or change reading modes, dispose the session and reopen/reposition the source yourself.
 
-## Errors
+Mapped files must remain unchanged across reads, validation and recovery. Windows denies ordinary concurrent write/delete opens while mapped; pre-existing writable mappings are not covered. Linux does not enforce this exclusion. Concurrent truncation of a mapped file can terminate the process.
 
-| Condition | Result |
-| --- | --- |
-| Unsupported operating system or process architecture | `PlatformNotSupportedException` |
-| Missing or unloadable native library, or missing entry point | Original .NET native loader exception |
-| ABI mismatch, native file error, or MCAP operation failure | `McapException`, derived from `IOException` |
-| Invalid arguments caught by validation | Standard argument exceptions |
-| Completed, failed, or disposed writer | `InvalidOperationException` or `ObjectDisposedException` |
+## Validation, recovery and allocation guarantees
 
-Allocation, managed deserialization, and callback exceptions are not guaranteed to be wrapped in `McapException`. See [native.md](native.md) for native boundaries.
+`McapReader.Validate()` scans the whole file and checks record parsing, present Chunk/Attachment/Data/Summary CRCs, framing and final magic. It returns a scan record count, not a message count. CRC zero means no checksum was supplied; payload schema semantics are not checked.
+
+Expanded sequential sessions validate as they advance. `ValidateRemaining()` drains such a session through EOF and returns the total scan count. `IsComplete` becomes true only after a successful full sequential scan. It stays false for indexed queries, top-level raw scans, early disposal and failures. A successful query is not full-file validation. Non-seekable validation and recovery use a single pass.
+
+`RecoverMessages(accept)` delivers the valid prefix and stops at the first malformed record or chunk. Check its `IsComplete` and `Error`; delivered messages alone do not establish integrity. Callback exceptions propagate directly and are not recovery results. Buffers never written to the underlying stream cannot be recovered.
+
+After initialization, registration and warm-up, normal `WriteMessage` and buffered `ReadNext` calls are required to allocate exactly zero managed bytes. This hard hot-path contract includes chunk/compression boundaries, newly encountered declarations, insufficient-buffer retries and EOF. This is not zero-copy reading: native data is copied into caller memory. It is not a promise that the process never collects or that Rust never allocates. Buffer growth, owned-record enumeration, description access, startup and errors are outside the guarantee. Arbitrary user Stream implementations can allocate internally; the guarantee covers the library's bridge, not those implementations.
+
+Unsupported platforms throw `PlatformNotSupportedException`; native loading errors retain their .NET type. Native operation/ABI failures throw `McapException` (an `IOException`). Managed parameter/state checks use standard exceptions, and disposed objects throw `ObjectDisposedException`. See [ABI details](native.md) and [allocation acceptance and builds](development.md).

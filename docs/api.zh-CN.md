@@ -2,100 +2,107 @@
 
 [English](api.md) | 简体中文
 
-公共类型位于 `Fizzy.McapSharp` 命名空间。支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64 进程。Linux 在 Ubuntu 22.04（glibc 2.35）上构建，在 Ubuntu 22.04 和 24.04 上验证完整包；其他发行版需具备兼容系统库与 .NET 8。不支持 macOS、musl、Windows ARM64 和 32 位进程；以文件路径为入口，不提供 Stream、异步或取消接口。消息编码、Schema 内容及时间基准由应用定义，库不解码业务数据。
+`Fizzy.McapSharp` 提供同步 MCAP 文件及 Stream 操作，支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；不提供异步、取消、业务数据解码或按时间排序接口。
 
-## 写入文件
+## 写入录制
 
-`McapWriter(path, options)` 创建新文件，拒绝覆盖已有路径。先注册消息所用的 Schema 和 Channel，再写消息；录制过程中可以注册其他 Channel。ID 由底层分配，等价注册可能返回已有 ID，不应假定 ID 连续或跨文件可复用。
-
-| 方法 | 契约 |
-| --- | --- |
-| `RegisterSchema(name, encoding, data)` | 返回 `ushort` Schema ID，data 为原始字节。 |
-| `RegisterChannel(topic, messageEncoding, schemaId = 0, metadata = null)` | 返回 `ushort` Channel ID；schemaId 为 0 表示无 Schema。 |
-| `WriteMessage(channelId, logTime, publishTime, sequence, data)` | Channel 必须已注册；时间为 `ulong` 纳秒，序号为 `uint`，均由调用方提供。 |
-| `WriteMetadata(name, metadata)` | 写入名称和字符串键值对。 |
-| `WriteAttachment(name, mediaType, logTime, createTime, data)` | 写入附件及时间、媒体类型。 |
-| `Flush()` | 调用底层 flush，不完成文件尾，也不等同于 Complete 的磁盘同步。 |
-| `Complete()` | 完成 MCAP 尾部并同步文件；成功后重复调用无操作，其他写操作被拒绝。 |
-| `Dispose()` | 释放资源，不隐式完成录制；未成功 Complete 的文件按未完成文件处理。 |
-
-所有 Writer 操作由内部锁串行化；多线程的业务顺序仍由应用协调。输入 span 会复制，并在调用返回前消费，返回后可复用源缓冲区。原生调用及响应处理阶段的错误会使 Writer 终止，后续操作抛出 `InvalidOperationException`；应释放实例并选择新路径开始新录制，不在同一实例重试写入。
-
-### 写入选项
-
-| `McapWriterOptions` 属性 | 默认值 | 含义 |
-| --- | --- | --- |
-| `Compression` | `McapCompression.None` | 可选 None、Lz4、Zstd；压缩作用于 Chunk。 |
-| `ChunkSize` | `4 * 1024 * 1024` | Chunk 目标字节数，必须大于 0，不是文件或消息大小上限。 |
-| `UseChunks` | `true` | 是否将消息写入 Chunk。 |
-| `EmitIndexes` | `true` | 控制摘要记录、消息索引和 Chunk 索引；关闭后仍可顺序读取。 |
-| `Profile` | 空字符串 | 写入 MCAP profile，不替应用检查业务约束。 |
-
-写入端开启底层支持的 Chunk、Data、Summary 和 Attachment CRC 计算；实际区段取决于选项与内容。
+`McapWriter(path, options)` 创建新文件，拒绝覆盖。`McapWriter(stream, options, leaveOpen: false)` 接受可写的可寻址或非寻址流。可寻址输出必须位于流末尾，当前位置作为 MCAP 偏移零点；非寻址写入使用原生 Chunk 缓冲。
 
 ```csharp
 using Fizzy.McapSharp;
 
-var path = Path.Combine(Path.GetTempPath(), $"recording-{Guid.NewGuid():N}.mcap");
-using (var writer = new McapWriter(path, new() { Compression = McapCompression.Zstd }))
+using var writer = new McapWriter(path, new() { Compression = McapCompression.Zstd });
+var schema = writer.RegisterSchema("sample", "jsonschema", "{}"u8);
+var channel = writer.RegisterChannel("/sample", "json", schema);
+var header = new McapMessageHeader(channel, Sequence: 0, LogTime: 1000, PublishTime: 900);
+writer.WriteMessage(in header, "{\"value\":42}"u8);
+writer.Complete();
+```
+
+| 操作 | 契约 |
+| --- | --- |
+| `RegisterSchema(name, encoding, data)` | 返回原生分配的 ushort ID；首参数为 id 的重载指定非零 ID，等价内容可能去重。 |
+| `RegisterChannel(topic, messageEncoding, schemaId, metadata)` | 返回 Channel ID；首参数为 id 的重载指定 ID，允许零。Schema ID 零表示无 Schema；同一 ID 的冲突内容会失败。 |
+| `WriteMessage(in header, data)` | 使用消息头和 payload span 写入已注册 Channel，同步消费输入，不创建托管 payload 副本。 |
+| `WriteMetadata(name, metadata)` | 写入字符串键值对。 |
+| `WriteAttachment(name, mediaType, logTime, createTime, data)` | 一次写入附件。 |
+| `StartAttachment(..., length)`、`WriteAttachmentBytes(data)`、`FinishAttachment()` | 按准确声明长度分段写附件；结束前拒绝其他写入操作，长度不符使 Writer 终止失败。 |
+| `WritePrivateRecord(opcode, data, includeInChunks)` | 接受 0x80–0xFF 的私有操作码，可选择写入 Chunk。 |
+| `Flush()` | 调用上游 flush，不完成 MCAP 尾部，也不保证持久化。 |
+| `Complete()` | 完成 MCAP；文件额外执行 sync_all，Stream 执行 Flush，但不承诺物理持久化。成功后重复调用无操作。 |
+| `GetSummary()` | 成功 Complete 后复制上游完成摘要，允许分配。 |
+| `Dispose()` | 释放资源，不隐式 Complete。 |
+
+Writer 操作串行化，业务顺序由应用协调。原生操作或 Stream 回调失败使 Writer 终止，需释放并开始新录制；进入原生调用前的参数/状态检查失败本身不使 Writer 终止。输入缓冲可在调用返回后立即复用。
+
+### 写入选项
+
+| 选项 | 默认值与含义 |
+| --- | --- |
+| `Compression`、`ChunkSize`、`UseChunks` | None、4 MiB、true；ChunkSize 为正数或 null，null 不按目标大小结束 Chunk。 |
+| `Profile`、`Library` | 空 profile；Library 为 null 时使用本库原生标识。 |
+| `EmitSummaryOffsets`、`EmitStatistics` | true，分别控制 Summary offsets 与统计。 |
+| `EmitMessageIndexes`、`EmitChunkIndexes`、`EmitAttachmentIndexes`、`EmitMetadataIndexes` | true，分别控制各类索引。 |
+| `RepeatChannels`、`RepeatSchemas` | null，采用上游默认 true，控制摘要中的重复声明。 |
+| `CalculateChunkCrcs`、`CalculateDataSectionCrc`、`CalculateSummarySectionCrc`、`CalculateAttachmentCrcs` | true，独立控制各区段 CRC。 |
+| `CompressionLevel`、`CompressionThreads` | null，采用上游默认和算法支持范围。 |
+
+可空开关为 null 时采用上游行为。Summary 内容由各记录开关控制，没有存在覆盖优先级的总开关。省略摘要记录时关闭统计、Chunk/附件/元数据索引和重复声明；Summary offsets 另行关闭。不使用 Chunk 时不会产生 Chunk 压缩和 Chunk 消息索引，不受相关请求值影响。这些选项不是统一内存配额。
+
+## 使用可复用缓冲读取消息
+
+文件 `McapReader` 是工厂，构造时不打开文件；每次 `OpenMessages` 或 `OpenRecords` 创建独立的可释放 `McapReadSession` 和原生句柄。会话必须释放，建议使用 using。
+
+```csharp
+using var session = new McapReader(path).OpenMessages(new() { Topic = "/sample" });
+byte[] buffer = new byte[64 * 1024];
+while (true)
 {
-    var schema = writer.RegisterSchema("sample", "jsonschema", "{}"u8);
-    var channel = writer.RegisterChannel("/sample", "json", schema);
-    writer.WriteMessage(channel, 1_000, 900, 0, "{\"value\":42}"u8);
-    writer.WriteMetadata("session", new Dictionary<string, string> { ["clock"] = "application" });
-    writer.WriteAttachment("note.txt", "text/plain", 1_000, 900, "example"u8);
-    writer.Complete();
+    var status = session.ReadNext(buffer, out var header, out var length);
+    if (status == McapReadStatus.EndOfStream) break;
+    if (status == McapReadStatus.BufferTooSmall)
+    {
+        buffer = new byte[checked((int)length)]; // 调用方扩容，不属于零分配承诺
+        continue;
+    }
+    // 在复用缓冲前处理 buffer.AsSpan(0, checked((int)length))。
 }
 ```
 
-## 读取与查询
+`BufferTooSmall` 返回所需 payload 长度和消息头，不修改目标缓冲，也不消费待处理记录。空消息成功返回 Message，长度为零。EOF 可重复读取。错误会终止消息/记录推进；公共接口不暴露原生地址或借用 span。
 
-`McapReader(path)` 检查平台和 ABI 并保存绝对路径，不在构造时读取文件。每次枚举独立打开原生 Reader，文件错误通常在开始或推进枚举时出现。Reader 本身不实现 `IDisposable`；枚举器需要释放，`foreach`（包括 break）会自动处理。
+查询按完整 Topic 匹配，对 LogTime 使用 `[StartTime, EndTime)`；null 表示无边界，起点大于终点抛异常，相等表示空区间。结果保留文件/Chunk 顺序。可寻址查询在摘要声明及 Chunk 覆盖充分、且没有 Chunk 外消息时按索引选择重叠 Chunk，否则顺序扫描；非寻址查询始终顺序扫描。
 
-```csharp
-var reader = new McapReader(path);
-foreach (var message in reader.ReadMessages(new()
-{
-    Topic = "/sample", StartTime = 1_000, EndTime = 2_000
-}))
-    Console.WriteLine($"{message.Channel.Topic}: {message.Data.Length} bytes");
-```
+`GetChannel(id)` 和 `GetSchema(id)` 复制已遇到或从 Summary 加载的描述。文件中途新增声明不会在消息循环创建托管对象，热路径只返回 ID。描述查询与 Summary 操作允许分配。
 
-- `Topic = null` 表示所有 Topic，否则按完整字符串匹配，不支持通配符。
-- 时间条件作用于 `LogTime`，区间为 `[StartTime, EndTime)`；null 表示不限对应边界。起点大于终点抛出 `ArgumentException`，相等表示空区间。
-- 返回文件/Chunk 顺序，不按时间戳排序。有可用索引时按时间选取重叠 Chunk；无可用索引或存在 Chunk 外消息时顺序过滤。
-- `ReadSchemas()` 和 `ReadChannels()` 包含没有消息引用的声明，按 ID 去重；Channel 的 Schema 可以为 null。`ReadChannels()` 先枚举 Schema，再枚举 Channel。
-- `ReadMetadata()` 和 `ReadAttachments()` 分别读取元数据与附件，不受 `McapQuery` 过滤。
+## 自有记录、摘要和原始记录
 
-消息、Schema、附件的 `Data` 是托管 `byte[]`，枚举器释放后仍可使用；数组可变，不是不可变数据。读取会分配托管内存，大记录可能引起大分配或超过托管数组限制。
+`ReadMessages`、`ReadSchemas`、`ReadChannels`、`ReadMetadata`、`ReadAttachments` 提供自有数据便利接口。文件工厂方法各自打开独立会话；会话上的便利方法消费当前游标，Schema/Channel/元数据/附件枚举要求记录会话。消息、Schema、附件的数据是托管数组，释放会话后仍有效；数组可变。消息枚举在自身范围内缓存 Channel 描述，因此同一枚举的消息可能共享 Channel/Schema 对象。
 
-调用方必须在读取、校验和恢复的全过程（包括多次枚举之间）保持文件不变。Windows 在 Reader 打开期间通过共享模式拒绝普通写入和删除，但打开前已存在的可写映射不在保护之内。Linux 不强制阻止这些操作。并发修改映射文件，尤其是截断文件，可能导致进程终止，不保证转换为托管异常。
+`GetSummary()` 返回统计、Chunk/附件/元数据索引及 Schema/Channel ID 的托管快照，无 Summary 返回 null；完整声明通过会话查询获取。Writer 的完成摘要描述内存中的录制结果，即使输出中关闭了摘要记录也可获取。
 
-## 完整性校验与恢复
+`OpenRecords(McapRecordMode.TopLevel)` 返回顶层记录，包括编码后的 Chunk body；`ExpandChunks` 用解压后的内部记录替代 Chunk。`ReadNextRecord(destination, out opcode, out length)` 与消息读取采用相同重试契约，`ReadRecords()` 返回分配的 McapRecord。Body 不含 opcode 和八字节长度前缀，保留未知/私有记录内容。
 
-`Validate()` 扫描整个文件，检查记录解析、存在的 Chunk/Attachment/Data/Summary CRC、记录边界及结束 magic。返回 `ulong` 校验扫描记录计数，**不是消息条数**。失败抛出 `McapException`。MCAP 的 CRC 为 0 表示未提供校验和，不能保证对应内容完整性；校验也不检查业务 Schema 语义。
+可寻址源上的 `ReadRecordAt(offset)`、`ReadChunk(index)`、`ReadMessageIndexes(index)` 不消费顺序游标或待处理记录。偏移相对 MCAP 起点。ReadChunk 返回原始 Chunk 记录；OpenRecords(ExpandChunks) 用于顺序解压。消息索引包含 Chunk 内相对偏移。原始随机读取不校验全文件。
 
-普通读取拒绝未完成文件，但查询只检查经过的 Chunk 和解析到的记录，查询成功不证明整份文件完整。需要完整性检查时显式调用 `Validate()`。
+## Stream 会话与所有权
 
-`RecoverMessages(accept)` 恢复有效消息前缀，不修改源文件，不跳过损坏记录或 Chunk：
+使用 `McapReader.OpenMessages(stream, query, leaveOpen)` 或 `OpenRecords(stream, mode, leaveOpen)` 读取 Stream。当前位置作为 MCAP 偏移零点，从此位置到流末尾必须是一份完整 MCAP。会话增量读取，不完整复制流，不使用临时文件。
 
-```csharp
-var recovered = new List<McapMessage>();
-var result = new McapReader(path).RecoverMessages(recovered.Add);
-if (!result.IsComplete)
-    Console.WriteLine($"Recovered {result.RecoveredMessageCount} messages: {result.Error}");
-```
+一个 Stream 同时只能由一个 MCAP 会话占用。会话活动期间，调用方不得自行定位、截断、读写或释放 Stream。回调在发起线程同步执行，拒绝回调重入同一 Writer/会话；回调异常在退出原生边界后传播。leaveOpen 默认 false，释放会话时关闭流，true 时保留。
 
-恢复遇到读取错误即停止；枚举结束后还会完整校验。必须检查 `IsComplete`，收到消息不代表文件完整。`RecoveredMessageCount` 为成功回调的消息数，完整成功时 `Error` 为 null。回调异常直接传播，不转换为恢复结果，已执行的回调不会回滚。尚未写入文件的缓冲内容无法恢复。
+非寻址流不支持随机读取或提前获取 Summary，相应调用抛 NotSupportedException。顺序扫描至 EOF 后，GetSummary 返回实际读到的摘要，没有摘要则返回 null。重新开始或切换读取模式需要先释放会话，再由调用方重新打开/定位数据源。
 
-## 错误类型
+映射文件在读取、校验和恢复期间必须保持不变。Windows 在映射期间拒绝普通写入/删除打开，但无法排除之前已有的可写映射；Linux 不强制互斥。并发截断映射文件可能终止进程。
 
-| 场景 | 表现 |
-| --- | --- |
-| 不支持的操作系统或进程架构 | `PlatformNotSupportedException` |
-| 原生库 缺失、不可加载或入口缺失 | .NET 原生加载异常，保留原始类型 |
-| ABI 不匹配、原生文件或 MCAP 操作失败 | `McapException`，派生自 `IOException` |
-| 参数检查失败 | 标准参数异常 |
-| Writer 已完成、已失败或已释放 | `InvalidOperationException` 或 `ObjectDisposedException` |
+## 校验、恢复和分配承诺
 
-内存分配、托管反序列化及回调等异常不保证包装为 `McapException`。原生边界见 [native.md](native.zh-CN.md)。
+`McapReader.Validate()` 扫描全文件，检查记录解析、存在的 Chunk/Attachment/Data/Summary CRC、记录边界和结束 magic，返回扫描记录数而非消息数。CRC 为零表示未提供校验和；不检查业务 Schema 语义。
+
+展开 Chunk 的顺序会话在推进时校验。`ValidateRemaining()` 将此类会话读至 EOF，返回累计扫描数。只有完整顺序扫描成功后 IsComplete 才为 true；索引查询、顶层原始扫描、提前释放及失败时为 false。查询成功不能代替完整校验。非寻址校验和恢复只扫描一遍。
+
+`RecoverMessages(accept)` 交付有效消息前缀，遇到第一条损坏记录或 Chunk 停止；必须检查 IsComplete 和 Error，收到消息不代表文件完整。回调异常直接传播，不转换成恢复结果。尚未写入底层流的缓冲内容无法恢复。
+
+初始化、注册和预热后，正常 WriteMessage 与缓冲区 ReadNext 必须严格产生 0 B 托管分配。这是热路径的硬性契约，覆盖跨 Chunk/压缩边界、中途声明、缓冲不足重试和 EOF。读取仍将原生数据复制到调用方内存，并非零拷贝；也不保证进程没有 GC 或 Rust 没有堆分配。调用方扩容、自有记录枚举、描述查询、启动和错误路径不在承诺内。用户 Stream 自身可能分配，本库只承诺桥接层的分配行为。
+
+不支持的平台抛 PlatformNotSupportedException；原生加载错误保留 .NET 类型；原生操作/ABI 失败抛 McapException（继承 IOException）。托管参数/状态检查使用标准异常，已释放对象抛 ObjectDisposedException。参见 [ABI](native.zh-CN.md) 与[分配验收和构建](development.zh-CN.md)。

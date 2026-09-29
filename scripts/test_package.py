@@ -42,10 +42,15 @@ foreach (var compression in Enum.GetValues<McapCompression>())
     try {
         using (var writer = new McapWriter(path, new() { Compression = compression })) {
             var channel = writer.RegisterChannel("smoke", "raw");
-            writer.WriteMessage(channel, 1, 1, 1, [42]); writer.Complete();
+            writer.WriteMessage(new McapMessageHeader(channel, 1, 1, 1), [42]); writer.Complete();
         }
         var reader = new McapReader(path); reader.Validate();
         if (reader.ReadMessages().Single().Data[0] != 42) throw new Exception("Payload mismatch");
+        using var session=reader.OpenMessages();var buffer=new byte[1];
+        if(session.ReadNext(buffer,out var header,out var length)!=McapReadStatus.Message || length!=1 || buffer[0]!=42 || header.Sequence!=1)throw new Exception("Buffered ABI mismatch");
+        using var stream=new MemoryStream();using(var writer=new McapWriter(stream,new(){Compression=compression},leaveOpen:true)){var channel=writer.RegisterChannel("stream","raw");writer.WriteMessage(new McapMessageHeader(channel,0,1,1),[7]);writer.Complete();}
+        stream.Position=0;using var streamed=McapReader.OpenMessages(stream,leaveOpen:true);
+        if(streamed.ReadNext(buffer,out _,out _)!=McapReadStatus.Message||buffer[0]!=7)throw new Exception("Stream ABI mismatch");
     } finally { File.Delete(path); }
 }
 Console.WriteLine("Isolated native load and all compression roundtrips passed.");

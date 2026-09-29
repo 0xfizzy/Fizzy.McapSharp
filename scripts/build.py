@@ -127,6 +127,7 @@ def build(test=False):
     if test:
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_build.py")
         run("dotnet", "test", ROOT / "tests/Fizzy.McapSharp.Tests", "-c", "Release")
+        run("dotnet", "run", "--project", ROOT / "tests/Allocations", "-c", "Release")
 
 
 def main():

@@ -2,41 +2,50 @@
 
 [English](native.md) | 简体中文
 
-.NET 通过 Cdecl P/Invoke 调用 Rust `cdylib`，直接使用官方 `mcap` crate 0.25.0，没有 C++ 层。实现位于 [lib.rs](../native/src/lib.rs)，托管声明位于 [Native.cs](../src/Native.cs)。原生资产为 Windows MSVC x64 的 `fizzy_mcap_native.dll` 和 glibc Linux x64/ARM64 的 `libfizzy_mcap_native.so`。三平台共用同一 ABI，使用不带扩展名的 `fizzy_mcap_native` 加载。
+.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../native/src/lib.rs) 实现 MCAP 操作，[io.rs](../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../src/Native.cs)。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
 
-## 版本与入口
+## ABI 契约
 
-这是私有 ABI，不是面向第三方调用者的稳定公共接口。`fm_abi_version()` 当前返回 1，托管层在创建 Reader/Writer 时检查匹配。
+`fm_abi_version()` 返回 2，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
-| 入口 | 职责 |
+| 入口 | 用途 |
 | --- | --- |
-| `fm_writer_open` / `fm_writer_call` / `fm_writer_free` | 创建、操作、释放 Writer |
-| `fm_reader_open` / `fm_reader_next` / `fm_reader_free` | 为一次枚举创建 Reader、获取记录、释放 |
-| `fm_validate` | 全文件扫描校验，响应标量返回记录计数 |
-| `fm_buffer_free` | 释放返回缓冲区 |
+| `fm_writer_open` / `fm_writer_free` | 创建/释放 Writer，可传 Stream 回调。 |
+| `fm_writer_message` | 固定消息头加借用输入指针/长度，同步消费。 |
+| `fm_writer_call` | 冷路径控制操作，以及附件/私有记录数据。 |
+| `fm_reader_open` / `fm_reader_free` | 创建/释放独立读取会话。 |
+| `fm_reader_next` | 将消息 payload 或原始记录 body 复制到调用方缓冲。 |
+| `fm_reader_describe` | 复制已知 Schema/Channel 描述，Schema 数据使用独立二进制缓冲。 |
+| `fm_reader_summary` / `fm_reader_record_at` | 获取摘要或随机原始记录，不消费待处理的顺序记录。 |
+| `fm_validate` | 完整扫描映射文件。 |
+| `fm_buffer_free` | 释放 Rust 拥有的响应缓冲。 |
 
-`fm_writer_call` 操作码：1 注册 Schema、2 注册 Channel、3 写消息、4 写元数据、5 写附件、6 Flush、7 Complete。变更时同步维护 Rust 分派和 C# 调用。
+控制操作码：1 Schema、2 Channel、4 元数据、5 附件、6 Flush、7 Complete、8 开始附件、9 附件片段、10 结束附件、11 私有记录、12 已完成 Writer 的摘要。消息通过专用入口处理。
 
-## 数据交换
+私有消息头为 24 字节：u16 channel_id、u16 reserved、u32 sequence、u64 log_time、u64 publish_time，偏移分别为 0、2、4、8、16。与上游记录逐字段转换，不依赖 Rust 记录布局。读取 EOF 时，索引扫描的 reserved 为 1，顺序扫描为 0；托管层据此判断是否能报告完整校验。
 
-请求控制头是长度限定的 UTF-8 JSON，二进制数据以独立指针和长度传入，并在调用内同步消费。控制 JSON 只是 ABI 实现细节，不会成为用户消息的 Schema。
+40 字节响应包含 JSON 指针/usize 长度、二进制指针/usize 长度和 u64 标量。支持的目标上指针及 C# nuint 均为 64 位。状态 0 成功、1 EOF、2 缓冲不足、负值错误。读取响应标量为所需/已复制长度，EOF 时为扫描计数。容量不足不修改目标缓冲，也不消费待处理记录。
 
-响应使用 `repr(C)` / `LayoutKind.Sequential`，依次包含 JSON 指针、长度、二进制指针、长度及 `u64` 标量；长度为原生 `usize` / 托管 `nuint`。成功响应的控制头为 JSON，错误响应的同一缓冲区存放 UTF-8 错误文本。
+## 数据与生命周期
 
-状态 0 表示成功，1 表示 Reader EOF，负数表示错误。`Native.Consume` 复制内容后在 finally 中调用 `fm_buffer_free` 释放两个缓冲区，错误路径也必须释放。不得用托管分配器释放 Rust 缓冲区，也不得把借用的原生内存暴露给公共模型。
+消息热路径只使用固定数据和调用方缓冲；边界上不需要 JSON、托管 payload 数组、原生结果分配或逐消息 Channel 描述序列化。Reader 内部仍可分配原生缓冲，并将原生数据复制到托管调用方内存。冷路径请求/描述使用长度限定 UTF-8 JSON，二进制数据不使用 Base64。
 
-## 句柄、并发与释放
+非空冷路径响应缓冲属于 Rust。Native.Consume 在 finally 中释放两个缓冲，包括错误路径；错误 JSON 缓冲存放普通 UTF-8 错误文本。成功热路径不返回需要释放的响应缓冲。输入 span 只在同步调用期间固定，原生代码不保留它。公共便利记录持有托管副本，不公开指针或原生借用视图。
 
-句柄是原生创建的不透明对象，只能由匹配的 free 函数释放一次。托管 SafeHandle 防止 P/Invoke 期间提前释放。Writer 在 C# 层加锁；单个 Reader 句柄只属于一个枚举器，不支持并发调用。
+每个会话独占一个原生 Reader。映射输入同时拥有文件；增量 sans_io::LinearReader 状态和待处理记录使用原生自有缓冲，无需延长借用迭代器生命周期。Stream 增量读取并支持短读。索引查询逐个解码选中的 Chunk，保持文件顺序，不宣称完整校验；摘要声明不足时回退顺序读取，解析部分摘要可能需要一次冷路径全扫描。
 
-Reader 的迭代器借用固定的映射和 summary 分配。内部延长的引用生命周期只在 Reader 内有效；字段释放顺序必须保持迭代器、summary、映射、文件。移动 Reader 不能改变被借用分配的地址。返回数据会复制，不能将映射引用带出 Reader。
+映射文件必须保持不变。Windows 拒绝普通竞争写入/删除，但之前已有的可写映射不受此保护；Linux 不强制互斥。并发截断可终止进程，超出 panic/异常边界。随机读取按源长度检查记录边界，但原生分配和解压仍需要与记录/Chunk 大小相应的内存，没有统一配额。
 
-Windows 读取仅允许共享读取，阻止普通并发写入和删除；预先存在的可写映射无法由此排除。Linux 不提供对应的互斥保护。调用方必须保持映射文件不变；并发截断可能产生进程级故障，超出 panic/异常边界。完整校验设置记录长度上限为映射文件长度，这不构成统一的内存配额，不能把不可信输入视为无资源风险。
+## Stream 回调与释放
 
-Writer 释放走上游 `into_inner` 路径，避免上游 Drop 隐式完成录制。Complete 显式 finish 后执行文件 `sync_all`；失败状态不允许继续写入。
+回调表为 48 字节：上下文指针、Read/Write/Seek/Flush 函数指针、u32 seekable 及对齐填充。回调采用 Cdecl，返回状态，通过输出指针返回字节数/位置。托管桥接每个会话只固定一次回调上下文；SafeHandle 先释放原生句柄，再解除上下文根引用并关闭拥有的 Stream。
 
-## 错误边界
+回调在发起线程同步执行。托管异常在回调内捕获并返回失败，退出原生边界后重新抛出原异常。禁止重入，也禁止同一 Stream 被两个会话同时占用。Seek 偏移相对捕获的 MCAP 起点；非寻址 Writer 只允许查询当前位置，采用上游 disable_seeking(true) 缓冲。
 
-可失败入口通过 `catch_unwind` 将 Rust panic 转为错误状态；句柄释放也捕获析构 panic。分配器 abort 无法转为 .NET 异常。调用方必须提供有效指针、长度和本库创建的句柄，任意外部原生指针不在支持范围内。
+Writer 操作串行化，原生错误为终止失败。Complete 调用上游 finish 后执行文件同步或 Stream Flush。Drop 使用上游 into_inner，避免隐式完成；free 捕获析构 panic，释放后回调指针不再可用。
 
-ABI 不兼容修改须同步版本检查；公共生命周期契约见 [api.md](api.zh-CN.md)，验证流程见 [development.md](development.zh-CN.md)。
+## 错误边界与验证
+
+可失败原生入口捕获 panic 并转换成错误响应。分配器 abort 和外部非法指针无法转换成托管异常；调用方必须传入有效缓冲及本 ABI 创建的句柄。Rust 编译期断言和托管测试验证支持平台上的布局大小及偏移。
+
+[公共 API](api.zh-CN.md) 区分完整校验、索引查询和原始记录。[构建与分配验收](development.zh-CN.md) 分别验证托管分配和格式互操作；托管零分配不等于原生零分配。

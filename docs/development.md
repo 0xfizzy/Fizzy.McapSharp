@@ -43,6 +43,12 @@ Linux builds audit ELF architecture, dynamic dependencies and required GLIBC ver
 
 Existing xUnit coverage includes all three compression modes, time and topic filtering, metadata, attachments, unindexed reading, incomplete files, CRC corruption, recovery results, terminal writer failure, overwrite prevention, enumerator disposal, and declarations without messages. Tests use temporary files and require no devices.
 
+### Allocation acceptance
+
+`Build.ps1 -Test` also runs `dotnet run --project tests/Allocations -c Release`. The gate warms the writer/reader before measuring `GC.GetAllocatedBytesForCurrentThread`, excludes setup and reporting, and requires exactly zero managed bytes in the message loop; this is a mandatory hot-path contract for the library. It covers None/Lz4/Zstd, native file I/O, actual FileStream, and seekable/non-seekable span streams, with chunk boundaries, multiple channels, late declarations, empty/large messages, insufficient-buffer retries, repeated EOF and queries. The executable reports throughput and average per-message elapsed time; these are workload measurements, not latency percentiles or universal performance guarantees. Functional tests additionally cover retry correctness and callback failures.
+
+Use Release only. Caller buffer growth, initialization, description/summary snapshots, errors and owned-record convenience APIs are outside this gate. User Stream implementations may allocate; bridge-only tests use a preallocated span-based stream whose array fallback throws. Native allocations require a separate native profiler. Keep baseline measurements in ignored artifacts, not in API documentation.
+
 ### Python interoperability
 
 Run in an environment with Python available; CI uses Python 3.12:

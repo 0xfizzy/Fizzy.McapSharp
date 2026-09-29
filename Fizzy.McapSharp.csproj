@@ -3,6 +3,7 @@
     <EnableDefaultItems>false</EnableDefaultItems>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>0.1.0</Version>
     <PackageId>Fizzy.McapSharp</PackageId>

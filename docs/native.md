@@ -2,41 +2,50 @@
 
 English | [简体中文](native.zh-CN.md)
 
-.NET calls a Rust `cdylib` through Cdecl P/Invoke, using the official `mcap` crate 0.25.0 directly, without a C++ layer. The implementation is in [lib.rs](../native/src/lib.rs), with managed declarations in [Native.cs](../src/Native.cs). Native assets are `fizzy_mcap_native.dll` for Windows MSVC x64 and `libfizzy_mcap_native.so` for glibc Linux x64/ARM64. All use the same ABI; library lookup uses the extensionless name `fizzy_mcap_native`.
+.NET uses Cdecl P/Invoke and SafeHandle to call a private Rust `cdylib` backed by official `mcap` 0.25.0. There is no C++ layer. [lib.rs](../native/src/lib.rs) implements MCAP operations; [io.rs](../native/src/io.rs) implements file/Stream I/O. Managed declarations are in [Native.cs](../src/Native.cs). Windows x64 loads `fizzy_mcap_native.dll`; glibc Linux x64/ARM64 load `libfizzy_mcap_native.so` through the extensionless name `fizzy_mcap_native`.
 
-## Version and entry points
+## ABI contract
 
-This is a private ABI, not a stable public interface for third-party callers. `fm_abi_version()` currently returns 1; the managed wrapper checks it when constructing a reader or writer.
+`fm_abi_version()` returns 2. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
-| Entry point | Responsibility |
+| Entry | Purpose |
 | --- | --- |
-| `fm_writer_open` / `fm_writer_call` / `fm_writer_free` | Create, operate on, and release a writer |
-| `fm_reader_open` / `fm_reader_next` / `fm_reader_free` | Create a reader for one enumeration, retrieve records, and release it |
-| `fm_validate` | Validate the entire file; return the record count in the response scalar |
-| `fm_buffer_free` | Release a returned buffer |
+| `fm_writer_open` / `fm_writer_free` | Create/release a writer, optionally with Stream callbacks. |
+| `fm_writer_message` | Fixed message header plus borrowed input pointer/length, consumed synchronously. |
+| `fm_writer_call` | Cold control operations and attachment/private record payloads. |
+| `fm_reader_open` / `fm_reader_free` | Create/release one read session. |
+| `fm_reader_next` | Copy the next message payload or raw record body into caller memory. |
+| `fm_reader_describe` | Copy a known schema/channel description; schema bytes are separate binary data. |
+| `fm_reader_summary` / `fm_reader_record_at` | Retrieve a summary or random raw record without consuming the pending sequential record. |
+| `fm_validate` | Fully scan a mapped file. |
+| `fm_buffer_free` | Release a Rust-owned response allocation. |
 
-`fm_writer_call` operation codes are: 1 register schema, 2 register channel, 3 write message, 4 write metadata, 5 write attachment, 6 flush, and 7 complete. Update Rust dispatch and C# calls together when changing them.
+Control operations: 1 schema, 2 channel, 4 metadata, 5 attachment, 6 flush, 7 complete, 8 start attachment, 9 attachment bytes, 10 finish attachment, 11 private record, 12 completed writer summary. Messages use their dedicated entry.
 
-## Data exchange
+The private message header is 24 bytes: `u16 channel_id`, `u16 reserved`, `u32 sequence`, `u64 log_time`, `u64 publish_time`, with offsets 0, 2, 4, 8, 16. It is converted to/from upstream records; it is not a Rust record layout. At reader EOF, reserved is 1 for indexed scans and 0 for sequential scans. Managed code uses that distinction when reporting full validation.
 
-Request control headers are length-delimited UTF-8 JSON. Binary data is passed separately as a pointer and length and consumed synchronously. Control JSON is an ABI implementation detail; it does not become a user message schema.
+The 40-byte response contains JSON pointer/`usize` length, binary pointer/`usize` length, and a `u64` value. Native pointer widths and C# `nuint` are 64 bits on supported targets. Status 0 means success, 1 reader EOF, 2 destination too small, negative error. A read response's value is required/copied byte length, or scan count at EOF. Insufficient capacity never writes a partial result or consumes the pending record.
 
-Responses use `repr(C)` / `LayoutKind.Sequential`, with a JSON pointer and length, a binary pointer and length, and a `u64` scalar, in that order. Lengths are native `usize` / managed `nuint`. Successful control headers contain JSON; error responses use the same buffer for UTF-8 error text.
+## Data and lifetime
 
-Status 0 means success, 1 means reader EOF, and negative values mean failure. `Native.Consume` copies the content and frees both buffers through `fm_buffer_free` in a finally block, including on error. Do not free Rust buffers with a managed allocator or expose borrowed native memory through public models.
+Hot messages use only fixed data and caller buffers. No JSON, managed payload arrays, native result allocation or per-message channel description serialization is required at that boundary. The reader can allocate native buffers internally and copies native bytes into managed caller memory. Cold requests/descriptions use length-delimited UTF-8 JSON; binary data is never Base64-encoded.
 
-## Handles, concurrency, and disposal
+Nonempty cold response buffers belong to Rust. `Native.Consume` copies and frees both in finally, including errors. Error JSON storage contains plain UTF-8 error text. Successful hot calls return no owned response buffers. Input spans are pinned only for the synchronous call and never retained. Public convenience records contain managed copies; no public pointer or native borrowed view exists.
 
-Handles are opaque native objects and must be freed exactly once by their matching free function. Managed SafeHandle prevents disposal during P/Invoke. The C# layer locks the writer; each reader handle belongs to one enumerator and does not support concurrent calls.
+Each read session owns one native reader. Mapped input owns its file; incremental `sans_io::LinearReader` state and pending records contain native-owned buffers, without extending a borrowed iterator's lifetime. Stream reads are incremental, including short reads. Indexed queries decode one selected chunk at a time, preserve file order and do not claim whole-file validation. Missing summary declarations fall back to sequential reading; resolving a partial summary may require a cold full scan.
 
-Reader iterators borrow fixed mapping and summary allocations. Internally extended reference lifetimes are valid only within the reader; fields must be dropped in this order: iterator, summary, mapping, file. Moving the reader must not move borrowed allocations. Returned data is copied; mapping references must not escape the reader.
+Mapped files must remain unchanged. Windows denies ordinary competing write/delete opens, while existing writable mappings are outside that protection. Linux does not enforce exclusion. Concurrent truncation can terminate the process; this is outside panic/exception handling. Record bounds are checked against source size for random reads. Native allocation and decompression still require memory proportional to records/chunks; there is no unified quota.
 
-Windows opens allow read sharing only, preventing ordinary concurrent writes and deletion. Pre-existing writable mappings remain outside this protection. Linux has no equivalent exclusion here. Callers must keep mapped files unchanged; concurrent truncation can cause a process-level fault, outside the panic/exception boundary. Full validation limits record lengths to the mapped file size; this is not a general memory quota and does not eliminate resource risks from untrusted input.
+## Stream callbacks and release
 
-Writer disposal uses the upstream `into_inner` path to avoid implicitly finishing through upstream Drop. Complete explicitly finishes the file and calls `sync_all`; a failed writer cannot continue writing.
+The callback table is 48 bytes: context pointer, Read/Write/Seek/Flush function pointers, then `u32 seekable` and alignment padding. Cdecl callbacks report status, with byte count/position through output pointers. The managed bridge roots its callback context once per session. SafeHandle releases the native handle before unrooting the context and closing an owned stream.
 
-## Error boundaries
+Callbacks run synchronously on the initiating thread. Managed callback exceptions are captured and returned as failure; after native code unwinds normally, the original exception is rethrown. Reentry is rejected. A stream cannot belong to two concurrent sessions. Seek offsets are relative to the captured MCAP origin; non-seekable writers allow only a current-position query and use upstream `disable_seeking(true)` buffering.
 
-Fallible entry points use `catch_unwind` to convert Rust panics to error status. Handle release also catches destructor panics. Allocator aborts cannot become .NET exceptions. Callers must supply valid pointers, lengths, and handles created by this library; arbitrary external native pointers are unsupported.
+Writer operations are serialized. Native errors are terminal. `Complete` calls upstream finish and then file sync or stream flush. Drop uses upstream `into_inner`, preventing implicit completion. Free operations catch destructor panics. No callback pointers remain usable after release.
 
-Incompatible ABI changes require a matching version check update. See [api.md](api.md) for public lifetime contracts and [development.md](development.md) for validation steps.
+## Error boundary and validation
+
+Fallible native exports catch panics and convert them into error responses. Allocation aborts and invalid externally supplied pointers cannot be converted into managed exceptions; callers must pass valid buffers and handles created by this ABI. Rust compile-time assertions and managed tests check supported layout sizes and offsets.
+
+The public [API contract](api.md) distinguishes complete validation, indexed queries and raw records. [Build and allocation acceptance](development.md) runs managed allocation gates separately from format interoperability; zero managed allocation does not imply zero native allocation.
