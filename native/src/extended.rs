@@ -395,9 +395,9 @@ pub unsafe extern "C" fn fm_writer_prepared(
 }
 
 pub struct Snapshot {
-    data: Vec<u8>,
-    summary: Option<mcap::Summary>,
-    messages: VecDeque<(MessageHeader, Vec<u8>)>,
+    data: Arc<Vec<u8>>,
+    summary: Option<Arc<mcap::Summary>>,
+    cursor: Option<buffer_reader::BufferReader>,
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_summary(p: *const Snapshot, out: *mut Response) -> i32 {
@@ -424,9 +424,9 @@ pub unsafe extern "C" fn fm_snapshot_bytes(
         let data = bytes(data, n)?.to_vec();
         let summary = mcap::Summary::read(&data)?;
         *handle = Box::into_raw(Box::new(Snapshot {
-            data,
-            summary,
-            messages: VecDeque::new(),
+            data: Arc::new(data),
+            summary: summary.map(Arc::new),
+            cursor: None,
         }));
         Ok(0)
     })
@@ -480,13 +480,13 @@ pub unsafe extern "C" fn fm_summary_records(
         }
         *handle = ptr::null_mut();
         let summary = match kind {
-            0 => &(*(p as *const Snapshot)).summary,
-            1 => &(*(p as *const EngineHandle)).summary,
-            2 => &(*(p as *const Writer)).native_summary,
+            0 => (*(p as *const Snapshot)).summary.as_deref(),
+            1 => (*(p as *const EngineHandle)).summary.as_ref(),
+            2 => (*(p as *const Writer)).native_summary.as_ref(),
             _ => return Err("Unknown summary source".into()),
         };
         *handle = Box::into_raw(Box::new(buffer_reader::summary_records(
-            summary.as_ref().ok_or("No summary available")?,
+            summary.ok_or("No summary available")?,
         )?));
         Ok(0)
     })
@@ -534,9 +534,9 @@ pub unsafe extern "C" fn fm_snapshot_open(
         let data = result?;
         let summary = mcap::Summary::read(&data)?;
         *handle = Box::into_raw(Box::new(Snapshot {
-            data,
-            summary,
-            messages: VecDeque::new(),
+            data: Arc::new(data),
+            summary: summary.map(Arc::new),
+            cursor: None,
         }));
         Ok(0)
     })
@@ -605,17 +605,12 @@ pub unsafe extern "C" fn fm_snapshot_call(
             *header = MessageHeader::default();
         }
         if op == 7 {
-            let Some((msg, data)) = h.messages.front() else {
-                return Ok(1);
+            return match h.cursor.as_mut() {
+                Some(cursor) => Ok(buffer_reader::fm_buffer_reader_message(
+                    cursor, dest, capacity, header, out,
+                )),
+                None => Ok(1),
             };
-            if !header.is_null() {
-                *header = *msg;
-            }
-            let status = copy_body(data, dest, capacity, out)?;
-            if status == 0 {
-                h.messages.pop_front();
-            }
-            return Ok(status);
         }
         if op == 6 {
             let f = mcap::read::footer(&h.data)?;
@@ -641,11 +636,8 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
                 }
                 if op == 1 {
-                    let mut messages = VecDeque::new();
-                    for m in s.stream_chunk(&h.data, &index)? {
-                        messages.push_back(own_message(m?));
-                    }
-                    h.messages = messages;
+                    let cursor = buffer_reader::chunk_reader(h.data.clone(), s.clone(), &index)?;
+                    h.cursor = Some(cursor);
                     return Ok(0);
                 }
                 if op == 2 {
@@ -872,3 +864,29 @@ pub unsafe extern "C" fn fm_writer_private(
 
 const _: () = assert!(std::mem::size_of::<Event>() == 56);
 const _: () = assert!(std::mem::offset_of!(Event, header) == 32);
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_chunk_reader(
+    p: *const Snapshot,
+    index_data: *const u8,
+    index_length: usize,
+    handle: *mut *mut buffer_reader::BufferReader,
+    out: *mut Response,
+) -> i32 {
+    guard(out, |_| {
+        if handle.is_null() {
+            return Err("Null output".into());
+        }
+        *handle = ptr::null_mut();
+        let h = p.as_ref().ok_or("Null snapshot")?;
+        let records::Record::ChunkIndex(index) =
+            mcap::parse_record(records::op::CHUNK_INDEX, bytes(index_data, index_length)?)?
+        else {
+            unreachable!()
+        };
+        let summary = h.summary.as_ref().ok_or("File has no summary")?;
+        let cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index)?;
+        *handle = Box::into_raw(Box::new(cursor));
+        Ok(0)
+    })
+}

@@ -199,6 +199,19 @@ fn raw_channel_lookup_matches_upstream_after_error() {
             ),
             0
         );
+        let mut op = 0;
+        assert_eq!(
+            buffer_reader::fm_buffer_reader_next(
+                reader,
+                ptr::null_mut(),
+                0,
+                &mut op,
+                &mut response
+            ),
+            -1
+        );
+        fm_buffer_free(response.json, response.json_len);
+        fm_buffer_free(response.data, response.data_len);
         assert_eq!(
             buffer_reader::fm_buffer_reader_channel(reader, u16::MAX, &mut response),
             0

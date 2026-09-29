@@ -6,7 +6,7 @@ namespace Fizzy.McapSharp;
 
 public enum McapBufferReadMode { Linear, SansMagic, FlattenChunks, Chunk, RawMessages, Messages }
 
-/// <summary>Direct adapters for official slice readers. Construction snapshots parsed results in native memory.</summary>
+/// <summary>Lazy adapters for official slice-reader semantics. Construction copies input; advancement parses records.</summary>
 public sealed class McapBufferReader : IDisposable
 {
     readonly BufferReaderHandle handle;

@@ -30,7 +30,7 @@ public sealed partial class McapReadSession : IDisposable
         topLevel = mode == McapRecordMode.TopLevel || options.EmitChunks;
         if (messages && topLevel) throw new ArgumentException("Messages require expanded chunks.", nameof(options));
         seekable = stream?.CanSeek ?? true;
-        var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), indexedOnly, options, recordLengthLimit = options.RecordLengthLimit });
+        var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), allowBufferedSort = query?.AllowBufferedSort ?? true, indexedOnly, options, recordLengthLimit = options.RecordLengthLimit });
         StreamBridge? bridge = stream is null ? null : new(stream, false, leaveOpen);
         try
         {
@@ -38,6 +38,7 @@ public sealed partial class McapReadSession : IDisposable
             int status = Native.fm_reader_open(request, (nuint)request.Length, bridge is null ? null : &cb, out var p, out var r);
             try
             {
+                if (status == 3) throw new NotSupportedException("Time ordering requires buffered sorting, which this query disables.");
                 Native.Consume(status, r).Json?.Dispose();
             }
             finally

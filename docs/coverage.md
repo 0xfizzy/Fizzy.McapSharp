@@ -9,7 +9,7 @@ For API users choosing a direct Rust-equivalent operation, this map targets the 
 | `Writer::write` | `WriteMessage(McapMessage)` and prepared-channel overload, both directly invoking upstream write | Automatic declarations, immutable snapshots, allocation gate |
 | Other `Writer` methods | Registration, known-channel messages, attachments, metadata, private records, Flush, Finish and IntoInner | Round-trip, ownership, interoperability and allocation tests |
 | `WriteOptions` | `McapWriterOptions`; aggregate switch before explicit individual overrides | Native differential default/configuration tests |
-| `read::LinearReader`, `ChunkReader`, `ChunkFlattener`, `RawMessageStream`, `MessageStream` | `McapBufferReader` modes; direct upstream iterators | Slice-reader, record-model and allocation tests |
+| `read::LinearReader`, `ChunkReader`, `ChunkFlattener`, `RawMessageStream`, `MessageStream` | `McapBufferReader` modes; official Sans-I/O with matching slice-reader configuration | Slice-reader, record-model and allocation tests |
 | `Summary::read`, `stream_chunk`, `seek_message`, `read_message_indexes` | `McapIndexSnapshot` and its summary/chunk/message/index operations | Random-access and retry tests |
 | `read::attachment`, `metadata`, `footer`, `parse_record` | Snapshot indexed reads; `McapRecords` and `McapRecordView` | Record models, footer, CRC and allocation tests |
 | `records::*`, opcodes, format constants | Owned record models, caller-memory field views, `McapOpcode`, `McapFormat` | All standard record models; unknown record preservation |
@@ -18,7 +18,7 @@ For API users choosing a direct Rust-equivalent operation, this map targets the 
 | Optional Tokio linear reader | `McapAsyncReader`, driven by .NET asynchronous I/O and official Sans-I/O | Cancellation, ownership, forced-suspension allocation gate |
 | `McapError` / `McapResult` | `McapException.Kind/Details`; return values and exceptions | Exhaustive native variant match and field tests |
 
-Rust lifetimes, `Cow`, `Arc`, iterator traits and builder methods map to owned results, caller-memory views, disposable sessions and .NET option properties. No public Rust layouts or handles cross the boundary. Buffer adapters snapshot parsed results; index snapshots copy their source, and sorted fallback collects selected messages. These ownership choices require native memory proportional to the input/results; streaming sessions remain available.
+Rust lifetimes, `Cow`, `Arc`, iterator traits and builder methods map to owned results, caller-memory views, disposable sessions and .NET option properties. No public Rust layouts or handles cross the boundary. Buffer adapters copy input and parse lazily; index snapshots copy their source and share it with independent lazy Chunk cursors. Sorted fallback collects selected messages unless AllowBufferedSort is false. These ownership choices require native memory proportional to the input/results; streaming sessions remain available.
 
 Defaults follow the corresponding upstream API: Zstd, 1 MiB writer chunks, upstream Library, file order for sequential messages, LogTime for indexed queries, and disabled optional Sans-I/O CRC checks. Direct slice readers retain their own upstream defaults. Path creation protection, terminal failure, explicit completion and disposal without implicit completion remain deliberate safety differences.
 

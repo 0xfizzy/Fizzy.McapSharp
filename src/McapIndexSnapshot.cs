@@ -40,14 +40,30 @@ public sealed class McapIndexSnapshot : IDisposable
     }
     public IEnumerable<McapMessage> ReadChunkMessages(McapChunkIndex chunk)
     {
-        OpenChunkMessages(chunk);
-        byte[] buffer = [];
-        while (true)
+        using var reader = OpenChunkReader(chunk);
+        foreach (var message in reader.ReadMessages()) yield return message;
+    }
+    /// <summary>Opens an independent lazy cursor that remains valid after this snapshot is disposed.</summary>
+    public unsafe McapBufferReader OpenChunkReader(McapChunkIndex index)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        lock (gate)
         {
-            var status = ReadNext(buffer, out var h, out var n);
-            if (status == McapReadStatus.EndOfStream) yield break;
-            if (status == McapReadStatus.BufferTooSmall) { buffer = new byte[checked((int)n)]; continue; }
-            yield return new(GetChannel(h.ChannelId), h.LogTime, h.PublishTime, h.Sequence, buffer.AsSpan(0, checked((int)n)).ToArray());
+            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            int size = IndexEncoding.Size(index);
+            byte* allocated = size > 1024 ? (byte*)NativeMemory.Alloc((nuint)size) : null;
+            Span<byte> encoded = size <= 1024 ? stackalloc byte[size] : new Span<byte>(allocated, size);
+            try
+            {
+                new IndexEncoding(encoded).Write(index);
+                fixed (byte* body = encoded)
+                {
+                    int status = Native.fm_snapshot_chunk_reader(handle, body, (nuint)size, out var p, out var r);
+                    Native.Consume(status, r).Json?.Dispose();
+                    return new(p);
+                }
+            }
+            finally { NativeMemory.Free(allocated); }
         }
     }
     public void OpenChunkMessages(McapChunkIndex index) => Call(1, index, default, [], out _, out _);
@@ -133,6 +149,8 @@ internal sealed class SnapshotHandle : SafeHandleZeroOrMinusOneIsInvalid
 }
 internal static partial class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern unsafe int fm_snapshot_chunk_reader(SnapshotHandle h, byte* index, nuint length, out IntPtr p, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_snapshot_bytes(byte* data, nuint n, out IntPtr p, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

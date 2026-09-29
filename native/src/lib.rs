@@ -689,6 +689,9 @@ pub unsafe extern "C" fn fm_reader_open(
             return Err("Indexed reading requires a complete indexed summary".into());
         }
         if reader.messages && reader.order != 2 && reader.indexed.is_none() {
+            if v["allowBufferedSort"].as_bool() == Some(false) {
+                return Ok(3);
+            }
             let mut messages = Vec::new();
             while reader.advance()? {
                 messages.push(reader.pending.take().unwrap());
@@ -1013,18 +1016,31 @@ impl Reader {
             if &magic != mcap::MAGIC {
                 return Err("Bad start magic".into());
             }
-            let mut chunks = 0;
+            let mut chunks = std::collections::BTreeMap::new();
             loop {
+                let record_offset = self.input.stream_position()?;
                 let mut h = [0; 9];
                 self.input.read_exact(&mut h)?;
                 if h[0] == records::op::MESSAGE {
                     return Ok(false);
                 }
                 if h[0] == records::op::CHUNK {
-                    chunks += 1;
+                    let length = u64::from_le_bytes(h[1..].try_into()?);
+                    chunks.insert(
+                        record_offset,
+                        length.checked_add(9).ok_or(mcap::McapError::BadIndex)?,
+                    );
                 }
                 if h[0] == records::op::FOOTER {
-                    return Ok(chunks == summary.chunk_indexes.len());
+                    if chunks.len() != summary.chunk_indexes.len() {
+                        return Ok(false);
+                    }
+                    for index in &summary.chunk_indexes {
+                        if chunks.remove(&index.chunk_start_offset) != Some(index.chunk_length) {
+                            return Err(mcap::McapError::BadIndex.into());
+                        }
+                    }
+                    return Ok(chunks.is_empty());
                 }
                 let n = u64::from_le_bytes(h[1..].try_into()?);
                 self.input.seek(SeekFrom::Current(i64::try_from(n)?))?;

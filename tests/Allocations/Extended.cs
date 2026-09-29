@@ -58,6 +58,13 @@ static class Extended
                 for (int i = 0; i < 50; i++) { Random(snapshot, chunk, entry, summary, buffer); snapshot.ReadMessageIndexes(alternate, buffer, out _); }
                 long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
                 Check("random/index/attachment/metadata " + compression, allocated);
+                using var cursor = snapshot.OpenChunkReader(chunk);
+                cursor.ReadNext([], out _, out _);
+                before = GC.GetAllocatedBytesForCurrentThread();
+                while (cursor.ReadNext(buffer, out _, out _) != McapReadStatus.EndOfStream) { }
+                cursor.ReadNext(buffer, out _, out _);
+                allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                Check("independent lazy chunk " + compression, allocated);
             }
             Async(bytes, compression);
             AsyncAwait(bytes, compression);

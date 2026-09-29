@@ -9,7 +9,7 @@
 | `Writer::write` | 完整消息和预准备通道的 `WriteMessage` 重载，均直接调用上游 write | 自动声明、不可变快照、分配门禁 |
 | 其他 Writer 方法 | 注册、已知通道消息、附件、Metadata、私有记录、Flush、Finish、IntoInner | 往返、所有权、互操作、分配测试 |
 | `WriteOptions` | `McapWriterOptions`，先总开关后显式单项覆盖 | 原生默认值/配置差分测试 |
-| 官方切片读取器 | `McapBufferReader` 各模式，直接调用官方迭代器 | 切片、记录模型、分配测试 |
+| 官方切片读取器 | `McapBufferReader` 各模式，使用配置匹配切片入口的官方 Sans-I/O | 切片、记录模型、分配测试 |
 | Summary 读取、Chunk 消息、消息定位与索引 | `McapIndexSnapshot` 对应操作 | 随机读取及重试测试 |
 | 附件、Metadata、Footer、记录解析 | 索引快照、`McapRecords`、`McapRecordView` | 记录模型、Footer、CRC、分配测试 |
 | 所有标准记录、操作码、常量 | 自有记录模型、调用方内存字段视图、`McapOpcode`、`McapFormat` | 标准记录模型及未知记录保留 |
@@ -18,7 +18,7 @@
 | 可选 Tokio 线性读取 | .NET 异步 I/O 驱动官方 Sans-I/O 的 `McapAsyncReader` | 取消、所有权、强制挂起分配门禁 |
 | 全部错误变体与结果类型 | `McapException.Kind/Details`、返回值和异常 | 原生穷尽匹配及字段测试 |
 
-Rust 生命周期、`Cow`、`Arc`、迭代器及 builder 映射为自有结果、调用方内存视图、可释放会话和 .NET 选项属性，不公开 Rust 布局或句柄。缓冲区适配器收集解析结果，索引快照复制数据源，排序回退收集选中消息；这些所有权选择需要与输入/结果成比例的原生内存，需要流式读取时应选用增量会话。
+Rust 生命周期、`Cow`、`Arc`、迭代器及 builder 映射为自有结果、调用方内存视图、可释放会话和 .NET 选项属性，不公开 Rust 布局或句柄。缓冲区适配器复制输入并惰性解析，索引快照复制数据源并与独立惰性 Chunk 游标共享；排序回退收集选中消息，可用 AllowBufferedSort=false 禁止；这些所有权选择需要与输入/结果成比例的原生内存，需要流式读取时应选用增量会话。
 
 默认值遵循对应上游 API：Writer 使用 Zstd、1 MiB Chunk 和上游 Library；顺序消息采用文件顺序，索引查询采用 LogTime；Sans-I/O 可选 CRC 默认关闭。直接切片读取器保留各自上游默认值。路径创建保护、终止性失败、显式完成及释放不自动完成保留为安全差异。
 
