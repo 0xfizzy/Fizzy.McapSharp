@@ -2,6 +2,11 @@
 use super::*;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
+use std::sync::atomic::{AtomicU64,Ordering};
+static LIVE: AtomicU64=AtomicU64::new(0);
+static PEAK: AtomicU64=AtomicU64::new(0);
+fn allocated(n:usize) { let live=LIVE.fetch_add(n as u64,Ordering::Relaxed)+n as u64; PEAK.fetch_max(live,Ordering::Relaxed); }
+
 thread_local! { static COUNTS: Cell<Option<(u64,u64)>> = const { Cell::new(None) }; }
 struct Counting;
 #[global_allocator]
@@ -16,17 +21,20 @@ fn count(n: usize) {
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, l: Layout) -> *mut u8 {
         count(l.size());
-        System.alloc(l)
+        let p=System.alloc(l); if !p.is_null() {allocated(l.size());} p
     }
     unsafe fn alloc_zeroed(&self, l: Layout) -> *mut u8 {
         count(l.size());
-        System.alloc_zeroed(l)
+        let p=System.alloc_zeroed(l); if !p.is_null() {allocated(l.size());} p
     }
     unsafe fn realloc(&self, p: *mut u8, l: Layout, n: usize) -> *mut u8 {
         count(n);
-        System.realloc(p, l, n)
+        let result=System.realloc(p,l,n);
+        if !result.is_null() { LIVE.fetch_sub(l.size() as u64,Ordering::Relaxed); allocated(n); }
+        result
     }
     unsafe fn dealloc(&self, p: *mut u8, l: Layout) {
+        LIVE.fetch_sub(l.size() as u64,Ordering::Relaxed);
         System.dealloc(p, l)
     }
 }
@@ -88,6 +96,7 @@ fn memory_read_baseline() {
             }
             let elapsed = start.elapsed();
             let counts = COUNTS.with(|c| c.replace(None).unwrap());
+            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
             eprintln!(
                 "memory-read {compression:?}: calls={}, requested_bytes={}, elapsed_us={}",
                 counts.0,
@@ -147,6 +156,7 @@ fn memory_writer_baseline() {
                     }
                     w.finish().unwrap();
                     let counts = COUNTS.with(|c| c.replace(None).unwrap());
+            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
                     eprintln!("memory-write {compression:?} buffered={buffered} indexes={indexes} chunk={chunk_size:?}: calls={} requested_bytes={}", counts.0, counts.1);
                 }
             }
@@ -212,7 +222,8 @@ fn memory_query_baseline() {
             .unwrap()
             .1;
         for cached in [false, true] {
-            let mut cache = random_access::ChunkCache::default();
+            let mut cache = chunk_cache::ChunkCache::default();
+            let shared=std::sync::Arc::new(memory::Backing::copy(&data,memory::Options::default()).unwrap());
             let mut output = [0; 1024];
             let mut h = MessageHeader::default();
             let mut r = Response::default();
@@ -223,7 +234,7 @@ fn memory_query_baseline() {
                         assert_eq!(
                             cache
                                 .read(
-                                    &data,
+                                    &shared,
                                     &summary,
                                     index,
                                     &key,
@@ -243,6 +254,7 @@ fn memory_query_baseline() {
                 }
             }
             let counts = COUNTS.with(|c| c.replace(None).unwrap());
+            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
             eprintln!(
                 "memory-random {compression:?} cached={cached}: calls={} requested_bytes={}",
                 counts.0, counts.1
@@ -301,6 +313,7 @@ fn prepared_index_cached_calls_allocate_nothing() {
                 assert_eq!(extended::fm_snapshot_prepared_call(snapshot, 2, prepared, entry.log_time, entry.offset, output.as_mut_ptr(), output.len(), &mut header, &mut r), 0);
             }
             let counts = COUNTS.with(|c| c.replace(None).unwrap());
+            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
             assert_eq!(counts, (0, 0), "prepared cached seeks {compression:?}");
             extended::fm_chunk_index_free(prepared); extended::fm_snapshot_free(snapshot);
         }

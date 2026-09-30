@@ -11,10 +11,11 @@ public sealed partial class McapReadSession : IDisposable
     readonly bool messages;
     readonly bool topLevel;
     readonly bool strict;
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { handle.Bridge?.CheckReentry(); ObjectDisposedException.ThrowIf(disposed, this); return Native.MemoryStatistics(0, handle); } }
-    public bool IsScanComplete => ended && !failed;
-    public bool IsComplete => ended && !failed && fullyValidated;
-    public ulong ScannedRecordCount { get; private set; }
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { borrowed.CheckReentry(); handle.Bridge?.CheckReentry(); ObjectDisposedException.ThrowIf(disposed, this); return Native.MemoryStatistics(0, handle); } }
+    public bool IsScanComplete { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed; } } }
+    public bool IsComplete { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed && fullyValidated; } } }
+    ulong scannedRecordCount;
+    public ulong ScannedRecordCount { get { lock (gate) { borrowed.CheckReentry(); return scannedRecordCount; } } private set => scannedRecordCount = value; }
 
     internal unsafe McapReadSession(string? path, Stream? stream, McapQuery? query, bool messages, McapRecordMode mode, bool leaveOpen, McapReaderOptions? options = null, bool indexedOnly = false)
     {
@@ -48,6 +49,7 @@ public sealed partial class McapReadSession : IDisposable
                 bridge?.ThrowIfError();
             }
 
+            GC.KeepAlive(options);
             handle = new(p, bridge);
         }
         catch
@@ -59,7 +61,7 @@ public sealed partial class McapReadSession : IDisposable
 
     void Check()
     {
-        handle.Bridge?.CheckReentry();
+        borrowed.CheckReentry(); handle.Bridge?.CheckReentry();
         ObjectDisposedException.ThrowIf(disposed, this);
         if (failed)
             throw new InvalidOperationException("Reader failed; open a new session.");
@@ -330,7 +332,7 @@ public sealed partial class McapReadSession : IDisposable
     {
         lock (gate)
         {
-            handle.Bridge?.CheckReentry();
+            borrowed.CheckReentry(); handle.Bridge?.CheckReentry();
             ObjectDisposedException.ThrowIf(disposed, this);
             var stream = handle.Bridge?.Detach() ?? throw new NotSupportedException("Only Stream-backed sessions can transfer ownership.");
             Dispose();
@@ -342,7 +344,7 @@ public sealed partial class McapReadSession : IDisposable
     {
         lock (gate)
         {
-            handle.Bridge?.CheckReentry();
+            borrowed.CheckReentry(); handle.Bridge?.CheckReentry();
             if (disposed)
                 return;
             disposed = true;

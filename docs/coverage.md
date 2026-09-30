@@ -2,7 +2,7 @@
 
 English | [简体中文](coverage.zh-CN.md)
 
-For API users choosing a direct Rust-equivalent operation, this map targets the exact `mcap` dependency in `native/Cargo.toml`. The [declaration inventory](api-coverage.json) records 344 public declarations, including methods, fields, error variants and constants, with managed/native mappings and verification references. `python scripts/check_api_coverage.py` compares it against the locked Cargo source; inventory completeness is separate from behavioral testing.
+For API users choosing a direct Rust-equivalent operation, this map targets the exact `mcap` dependency in `native/Cargo.toml`. The [declaration inventory](api-coverage.json) records 363 public declarations, including methods, fields, error variants and constants, with managed/native mappings and verification references. `python scripts/check_api_coverage.py` compares it against the locked Cargo source; inventory completeness is separate from behavioral testing.
 
 | Official surface | Managed entry | Verification |
 | --- | --- | --- |
@@ -29,8 +29,10 @@ Behavioral CI additionally uses pinned official conformance data: 416 streamed c
 
 Memory adaptations preserve upstream parsing while retaining the validated raw body, including accepted trailing extension bytes. Direct delivery avoids record ownership conversion/re-encoding; retries own a bounded buffer. Summary cursors encode lazily. Explicit mapped snapshots avoid a full input copy without changing copied-snapshot semantics. Memory limits and statistics are wrapper extensions, not upstream total-memory guarantees; see [API memory policy](api.md#native-memory-policy).
 
-Mapped buffer modes, convenience-result mutation isolation, bounded random caching/retries and scratch boundaries are covered by `MemoryOptimizationTests`. Native cache differential tests compare the locked official helper and assert no parser advancement on hits; memory probes distinguish Rust allocator traffic from process-memory diagnostics. These wrapper extensions do not change the upstream API inventory.
+Mapped buffer modes, convenience-result mutation isolation, bounded random caching/retries and scratch boundaries are covered by `MemoryOptimizationTests`. Native cache differential tests compare the locked official helper and assert no parser advancement on hits; memory probes distinguish Rust allocator traffic from process-memory diagnostics. The inventory includes the reviewed vendored parser/writer extensions.
 
 `McapPreparedChunkIndex` adds immutable reusable descriptors for existing Chunk operations without changing upstream parsing rules. `DeliveryOptimizationTests` and the managed/native allocation gates cover prepared reuse, large indexes, pending delivery, filtering without unrelated payload copies, callback failures and child lifetimes. Owned convenience delivery copies into final managed storage; upstream parser/decompressor allocations remain outside the managed gate.
 
 File persistence through `FlushToDisk` and time-sorted scan fallback are binding extensions, not additional upstream declarations. `Complete` finishes the format and flushes buffers; persistence is a separate explicit request. See [completion and query contracts](api.md).
+
+`BatchTests`, `LeaseTests`, `BatchSeekTests` and `BatchGate` cover borrowing, batches and leases. The API inventory reads the actual vendored build source; the storage module is private adaptation infrastructure rather than an upstream format API. The Rust allocator probe excludes codec C workspaces.

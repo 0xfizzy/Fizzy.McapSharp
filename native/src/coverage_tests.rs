@@ -264,6 +264,7 @@ fn recovered_registration_matches_official_output() {
         let config = json!({"compression":"none","chunkSize":64,"useChunks":true,"profile":""});
         let mut upstream = options(&config, true).unwrap().create(std::io::Cursor::new(Vec::new())).unwrap();
         let mut wrapper = Writer {
+            domain:Default::default(),
             inner: Some(options(&config, true).unwrap().create(Output::File(File::create(&path).unwrap())).unwrap()),
             completed_output: None, failed: false, recoverable_errors: 31, attachment: None, summary: None, native_summary: None,
         };
@@ -333,6 +334,7 @@ fn completion_does_not_sync_and_sync_failure_is_terminal() {
     let path = std::env::temp_dir().join(format!("mcap-sync-{}.mcap", std::process::id()));
     let config = json!({"compression":"none","chunkSize":64,"useChunks":true,"profile":""});
     let mut writer = Writer {
+        domain:Default::default(),
         inner: Some(options(&config, true).unwrap().create(Output::File(File::create(&path).unwrap())).unwrap()),
         completed_output: None, failed: false, recoverable_errors: 31,
         attachment: None, summary: None, native_summary: None,

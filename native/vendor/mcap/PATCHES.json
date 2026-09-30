@@ -1,0 +1,13 @@
+{
+  "purpose": "Stable shared input/decompression storage and finite storage/metadata reservations; preserve official state machines.",
+  "sha256": {
+    "src/chunk_sink.rs": "0fdf565d3ee987520344bf2a237290ef7b64a6174021f2ad1a6c635cfbf87442",
+    "src/lib.rs": "e576906ecc5fdbd9586271ad5a62248e6664ad270b6cde4ad02754a71bf66ce2",
+    "src/read.rs": "e8cf3467439433581db0c4ddb65fb35bcd86336bfdc0f2f40a8544bc9dcc4cb8",
+    "src/storage.rs": "041813edfe2a4bd760f80bcd1adb619dd7e33720681b32431d2496c4406ced61",
+    "src/write.rs": "4ddc009f913ce4ff2087a3bc80637743b6aa0d61cc6af02159716411956e48f9",
+    "src/sans_io/indexed_reader.rs": "b5b05865d66a68db6ce7b19efa7e9dde51b03d49a6c30a48feb4b5ce700156bb",
+    "src/sans_io/linear_reader.rs": "aa26bf35bc60e28a93e3d7c395575b2f00c4d9b320cd79165da5cae8f11fd53e",
+    "src/sans_io/summary_reader.rs": "ad14387e94af67d29f7cd3410a5d86d25372269f348aa14eb062058a242297c3"
+  }
+}

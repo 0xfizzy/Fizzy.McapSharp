@@ -7,12 +7,14 @@ namespace Fizzy.McapSharp;
 public readonly record struct McapRecordReadResult(McapReadStatus Status, byte Opcode, ulong Length);
 
 /// <summary>Incremental asynchronous record reader backed by the official Sans-I/O parser.</summary>
-public sealed class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskSource<McapRecordReadResult>
+public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskSource<McapRecordReadResult>, IValueTaskSource<McapMessageBatchLease?>
 {
     readonly Stream stream;
     readonly StreamBridge bridge;
     readonly McapSansIoReader parser;
-    readonly byte[] input;
+    readonly NativeInputMemory input;
+    readonly int inputBufferSize;
+    readonly bool emitChunks;
     readonly AsyncResources resources;
     readonly Action resume;
     readonly object gate = new();
@@ -27,8 +29,10 @@ public sealed class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskS
         ArgumentNullException.ThrowIfNull(stream);
         if (inputBufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(inputBufferSize));
         this.stream = stream;
+        emitChunks = options?.EmitChunks ?? false;
+        this.inputBufferSize = inputBufferSize;
         bridge = new(stream, false, leaveOpen);
-        try { parser = McapSansIoReader.CreateLinear(options); input = new byte[inputBufferSize]; }
+        try { parser = McapSansIoReader.CreateLinear(options); input = new(parser); }
         catch { bridge.Release(); throw; }
         resources = new(parser, bridge);
         resume = Resume;
@@ -44,6 +48,8 @@ public sealed class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskS
             ObjectDisposedException.ThrowIf(disposed, this);
             if (failed) throw new InvalidOperationException("Reader failed; open a new reader.");
             if (active) throw new InvalidOperationException("Consume the outstanding operation before starting another.");
+            if (consumptionMode == 2) throw new InvalidOperationException("Record and message-lease consumption cannot be mixed on an async reader.");
+            consumptionMode = 1;
             active = true;
             this.destination = destination;
             cancellation = cancellationToken;
@@ -63,7 +69,7 @@ public sealed class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskS
             {
                 int count = awaiter.GetResult();
                 cancellation.ThrowIfCancellationRequested();
-                parser.SupplyInput(input.AsSpan(0, count));
+                input.Complete(count);
             }
             while (true)
             {
@@ -76,9 +82,9 @@ public sealed class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskS
                     return;
                 }
                 if (e.Kind != McapReadEventKind.Read) throw new InvalidOperationException("Unexpected parser event.");
-                awaiter = stream.ReadAsync(input.AsMemory(0, (int)Math.Min((ulong)input.Length, e.Length)), cancellation).ConfigureAwait(false).GetAwaiter();
+                awaiter = stream.ReadAsync(input.Prepare((int)Math.Min((ulong)inputBufferSize, e.Length)), cancellation).ConfigureAwait(false).GetAwaiter();
                 if (!awaiter.IsCompleted) { awaiter.UnsafeOnCompleted(resume); return; }
-                parser.SupplyInput(input.AsSpan(0, awaiter.GetResult()));
+                input.Complete(awaiter.GetResult());
             }
         }
         catch (Exception ex) { failed = true; destination = default; completion.SetException(ex); }

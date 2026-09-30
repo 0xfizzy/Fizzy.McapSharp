@@ -69,6 +69,9 @@ pub unsafe extern "C" fn fm_engine_index_control(
     status
 }
 pub struct EngineHandle {
+    lease_batch: Option<lease::Batch>,
+    schemas: BTreeMap<u16, Arc<mcap::Schema<'static>>>,
+    channels: BTreeMap<u16, Arc<mcap::Channel<'static>>>,
     engine: Engine,
     event: Event,
     pub delivery: memory::Delivery,
@@ -104,7 +107,10 @@ pub unsafe extern "C" fn fm_engine_open(
         }
         *handle = ptr::null_mut();
         let v = request(p, n)?;
-        let engine = match kind {
+        let options=if kind == 2 && v["Memory"].is_null() {
+            summary.as_ref().ok_or("Missing summary")?.delivery.options.clone()
+        } else {memory::Options::parse(&v["Memory"])?};
+        let mut engine = match kind {
             0 => Engine::Linear(sans_io::LinearReader::new_with_options(linear_options(&v)?)),
             1 => {
                 let mut opts = sans_io::SummaryReaderOptions::default();
@@ -146,19 +152,22 @@ pub unsafe extern "C" fn fm_engine_open(
                     .as_u64()
                     .map(usize::try_from)
                     .transpose()?;
-                Engine::Indexed(sans_io::IndexedReader::new_with_options(s, opts)?)
+                Engine::Indexed(sans_io::IndexedReader::new_with_options_and_budget(s, opts, options.domain.clone())?)
             }
             _ => return Err("Unknown engine".into()),
         };
+        match &mut engine {
+            Engine::Linear(r)=>r.set_memory_budget(options.domain.clone()),
+            Engine::Indexed(r)=>r.set_memory_budget(options.domain.clone())?,
+            Engine::Summary(Some(r))=>r.set_memory_budget(options.domain.clone()),
+            _=>{},
+        }
         *handle = Box::into_raw(Box::new(EngineHandle {
+            lease_batch:None, schemas:Default::default(), channels:Default::default(),
             engine,
             event: Event::default(),
             delivery: memory::Delivery {
-                options: if kind == 2 && v["Memory"].is_null() {
-                    summary.as_ref().ok_or("Missing summary")?.delivery.options
-                } else {
-                    memory::Options::parse(&v["Memory"])?
-                },
+                options,
                 ..Default::default()
             },
             waiting: false,
@@ -185,6 +194,11 @@ pub unsafe extern "C" fn fm_engine_next(
         }
         if h.failed {
             return Err("Engine failed".into());
+        }
+        match &mut h.engine {
+            Engine::Linear(r) => r.set_memory_budget(h.delivery.options.domain.clone()),
+            Engine::Indexed(r) => r.set_memory_budget(h.delivery.options.domain.clone())?,
+            _ => {}
         }
         if !h.waiting && !h.ended {
             h.event = Event::default();
@@ -302,14 +316,14 @@ pub unsafe extern "C" fn fm_engine_feed(
                 if n as u64 > h.event.length {
                     return Err("Excess input".into());
                 }
-                r.insert(n).copy_from_slice(data);
+                r.try_insert(n)?.copy_from_slice(data);
                 r.notify_read(n);
             }
             (Engine::Summary(Some(r)), 1) => {
                 if n as u64 > h.event.length {
                     return Err("Excess input".into());
                 }
-                r.insert(n).copy_from_slice(data);
+                r.try_insert(n)?.copy_from_slice(data);
                 r.notify_read(n);
             }
             (Engine::Summary(Some(r)), 2) => r.notify_seeked(position),
@@ -416,8 +430,7 @@ pub unsafe extern "C" fn fm_writer_prepared(
 
 pub struct Snapshot {
     pub memory_peak: u64,
-    pub retry: random_access::Retry,
-    pub cache: random_access::ChunkCache,
+    pub cache: chunk_cache::ChunkCache,
     pub stats: memory::Statistics,
     pub data: Arc<memory::Backing>,
     pub options: memory::Options,
@@ -461,12 +474,11 @@ pub unsafe extern "C" fn fm_snapshot_bytes_options(
         } else {
             memory::Options::parse(&request(config, config_len)?)?
         };
-        let data = memory::Backing::copy(bytes(data, n)?, options)?;
-        let summary = mcap::Summary::read(&data)?;
+        let data = memory::Backing::copy(bytes(data, n)?, options.clone())?;
+        let summary = mcap::Summary::read_with_memory_budget(&data, options.domain.clone())?;
         *handle = Box::into_raw(Box::new(Snapshot {
             memory_peak: 0,
-            retry: Default::default(),
-            cache: Default::default(),
+            cache: chunk_cache::ChunkCache::new(options.domain.clone()),
             stats: memory::Statistics::default(),
             data: Arc::new(data),
             options,
@@ -532,9 +544,9 @@ pub unsafe extern "C" fn fm_summary_records(
         let mut cursor =
             buffer_reader::summary_records(summary.ok_or("No summary available")?.clone())?;
         cursor.delivery.options = match kind {
-            0 => (*(p as *const Snapshot)).options,
-            1 => (*(p as *const EngineHandle)).delivery.options,
-            _ => memory::Options::default(),
+            0 => (*(p as *const Snapshot)).options.clone(),
+            1 => (*(p as *const EngineHandle)).delivery.options.clone(),
+            _ => memory::Options {domain:(*(p as *const Writer)).domain.clone(),..Default::default()},
         };
         *handle = Box::into_raw(Box::new(cursor));
         Ok(0)
@@ -583,32 +595,34 @@ pub unsafe extern "C" fn fm_snapshot_open_options(
             return Err("Snapshot requires a seekable source".into());
         }
         let options = if config_len == 0 {
-            r.delivery.options
+            r.delivery.options.clone()
         } else {
             memory::Options::parse(&request(config, config_len)?)?
         };
         let pos = r.input.stream_position()?;
-        let result = (|| -> Outcome<Vec<u8>> {
+        let result = (|| -> Outcome<memory::Backing> {
             r.input.seek(SeekFrom::Start(0))?;
             let length = usize::try_from(r.input.seek(SeekFrom::End(0))?)?;
             memory::check("OwnedInput", options.owned, length)?;
+            memory::check("StorageBlock",Some(options.domain.limits().block as u64),length)?;
+            let mut charge=options.domain.reserve(length)?;
             r.input.seek(SeekFrom::Start(0))?;
             let mut data = Vec::new();
             data.try_reserve_exact(length)?;
             memory::check("OwnedInput", options.owned, data.capacity())?;
+            charge.resize(data.capacity())?;
             data.resize(length, 0);
             r.input.read_exact(&mut data)?;
-            Ok(data)
+            Ok(memory::Backing::Owned {data,_charge:charge})
         })();
         r.input.seek(SeekFrom::Start(pos))?;
         let data = result?;
-        let summary = mcap::Summary::read(&data)?;
+        let summary = mcap::Summary::read_with_memory_budget(&data, options.domain.clone())?;
         *handle = Box::into_raw(Box::new(Snapshot {
             memory_peak: 0,
-            retry: Default::default(),
-            cache: Default::default(),
+            cache: chunk_cache::ChunkCache::new(options.domain.clone()),
             stats: memory::Statistics::default(),
-            data: Arc::new(memory::Backing::Owned(data)),
+            data: Arc::new(data),
             options,
             summary: summary.map(Arc::new),
         }));
@@ -633,7 +647,7 @@ pub(super) unsafe fn copy_body(
     }
     Ok(0)
 }
-fn record_body(data: &[u8], offset: u64, expected: u8) -> Outcome<&[u8]> {
+pub(super) fn record_body(data: &[u8], offset: u64, expected: u8) -> Outcome<&[u8]> {
     let offset = usize::try_from(offset)?;
     let h = data
         .get(offset..)
@@ -654,21 +668,21 @@ pub unsafe extern "C" fn fm_snapshot_call(
     op: u32,
     index_data: *const u8,
     index_length: usize,
-    message_time: u64,
+    _message_time: u64,
     message_offset: u64,
     dest: *mut u8,
     capacity: usize,
     header: *mut MessageHeader,
     out: *mut Response,
 ) -> i32 {
-    snapshot_call(p, op, index_data, index_length, message_time, message_offset, dest, capacity, header, out, None)
+    snapshot_call(p, op, index_data, index_length, _message_time, message_offset, dest, capacity, header, out, None)
 }
 unsafe fn snapshot_call(
     p: *mut Snapshot,
     op: u32,
     index_data: *const u8,
     index_length: usize,
-    message_time: u64,
+    _message_time: u64,
     message_offset: u64,
     dest: *mut u8,
     capacity: usize,
@@ -686,8 +700,6 @@ unsafe fn snapshot_call(
         let current = h.stats.current + h.cache.stats.current;
         h.memory_peak = h.memory_peak.max(current);
         let key = bytes(index_data, index_length)?;
-        if let Some(status) = h.retry.read(op, key, message_time, message_offset,
-            dest, capacity, header, out, &mut h.stats)? { return Ok(status); }
         h.stats.peak = h.stats.current;
         if op == 6 {
             let f = mcap::read::footer(&h.data)?;
@@ -724,72 +736,13 @@ unsafe fn snapshot_call(
                         Ok(None) => {},
                         Err(e) => { h.cache.clear(); return Err(e); }
                     }
-                    let m = s.seek_message(
-                        &h.data,
-                        &index,
-                        &records::MessageIndexEntry {
-                            log_time: message_time,
-                            offset: message_offset,
-                        },
-                    )?;
-                    let msg = MessageHeader {
-                        channel_id: m.channel.id,
-                        sequence: m.sequence,
-                        log_time: m.log_time,
-                        publish_time: m.publish_time,
-                        reserved: 0,
-                    };
-                    if !header.is_null() {
-                        *header = msg;
-                    }
-                    let status = copy_body(&m.data, dest, capacity, out)?;
-                    if status == 2 {
-                        h.retry.save(op, key, message_time, message_offset, msg,
-                            m.data.into_owned(), h.options, &mut h.stats);
-                    }
-                    return Ok(status);
+                    return Err("Chunk cache did not produce a result".into());
                 }
                 for offset in index.message_index_offsets.values() {
                     check_index_range(&h.data, *offset, 15, 15)?;
                 }
-                let indexes = s.read_message_indexes(&h.data, &index)?;
-                let mut rows: Vec<_> = indexes.into_iter().collect();
-                rows.sort_by_key(|(c, _)| c.id);
-                let length = rows
-                    .iter()
-                    .try_fold(0usize, |total, (_, entries)| {
-                        entries
-                            .len()
-                            .checked_mul(18)
-                            .and_then(|n| total.checked_add(n))
-                    })
-                    .ok_or("Message index length overflow")?;
-                out.value = length as u64;
-                if capacity < length {
-                    h.retry.save_packed(key, message_time, message_offset, length, h.options, &mut h.stats, |packed| {
-                        for (c, entries) in rows {
-                            for e in entries {
-                                packed.extend_from_slice(&c.id.to_le_bytes());
-                                packed.extend_from_slice(&e.log_time.to_le_bytes());
-                                packed.extend_from_slice(&e.offset.to_le_bytes());
-                            }
-                        }
-                    });
-                    return Ok(2);
-                }
-                if length != 0 && dest.is_null() {
-                    return Err("Null destination".into());
-                }
-                let mut offset = 0;
-                for (c, entries) in rows {
-                    for e in entries {
-                        memory::copy(&c.id.to_le_bytes(), dest.add(offset))?;
-                        memory::copy(&e.log_time.to_le_bytes(), dest.add(offset + 2))?;
-                        memory::copy(&e.offset.to_le_bytes(), dest.add(offset + 10))?;
-                        offset += 18;
-                    }
-                }
-                Ok(0)
+                let packed=h.cache.message_indexes(&h.data,s,index,key,h.options.random)?;
+                copy_body(&packed.data,dest,capacity,out)
             }
             3 => {
                 let records::Record::MetadataIndex(index) = mcap::parse_record(
@@ -1052,8 +1005,8 @@ pub unsafe extern "C" fn fm_snapshot_chunk_reader(
             unreachable!()
         };
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
-        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index)?;
-        cursor.delivery.options = h.options;
+        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index, h.options.clone())?;
+        cursor.delivery.options = h.options.clone();
         *handle = Box::into_raw(Box::new(cursor));
         Ok(0)
     })
@@ -1074,11 +1027,10 @@ pub unsafe extern "C" fn fm_snapshot_mapped(
         let v = request(config, n)?;
         let options = memory::Options::parse(&v["options"])?;
         let data = memory::Backing::open(string(&v, "path")?)?;
-        let summary = mcap::Summary::read(&data)?.map(Arc::new);
+        let summary = mcap::Summary::read_with_memory_budget(&data, options.domain.clone())?.map(Arc::new);
         *handle = Box::into_raw(Box::new(Snapshot {
             memory_peak: 0,
-            retry: Default::default(),
-            cache: Default::default(),
+            cache: chunk_cache::ChunkCache::new(options.domain.clone()),
             stats: memory::Statistics::default(),
             data: Arc::new(data),
             options,
@@ -1090,6 +1042,7 @@ pub unsafe extern "C" fn fm_snapshot_mapped(
 
 // Immutable owned index: no managed dictionaries or borrowed record memory survive preparation.
 pub struct PreparedChunkIndex {
+    _charge:mcap::storage::Reservation,
     index: records::ChunkIndex,
     key: Vec<u8>,
 }
@@ -1099,12 +1052,18 @@ fn parse_chunk_index(data: &[u8]) -> Outcome<records::ChunkIndex> {
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_chunk_index_prepare(data: *const u8, n: usize, handle: *mut *mut PreparedChunkIndex, out: *mut Response) -> i32 {
+    fm_chunk_index_prepare_budget(data,n,0,handle,out)
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_chunk_index_prepare_budget(data:*const u8,n:usize,budget_id:u64,handle:*mut *mut PreparedChunkIndex,out:*mut Response)->i32 {
     guard(out, |_| {
         if handle.is_null() { return Err("Null output".into()); }
         *handle = ptr::null_mut();
+        let domain=if budget_id==0 {Default::default()} else {budget::parse(&json!({"id":budget_id}))?};
+        let charge=domain.reserve(n.checked_mul(16).and_then(|n|n.checked_add(1024)).ok_or("Index capacity overflow")?)?;
         let bytes = bytes(data, n)?;
         let index = parse_chunk_index(bytes)?;
-        *handle = Box::into_raw(Box::new(PreparedChunkIndex { index, key: bytes.to_vec() }));
+        *handle = Box::into_raw(Box::new(PreparedChunkIndex { _charge:charge,index, key: bytes.to_vec() }));
         Ok(0)
     })
 }
@@ -1130,8 +1089,8 @@ pub unsafe extern "C" fn fm_snapshot_prepared_chunk_reader(
         let h = p.as_ref().ok_or("Null snapshot")?;
         let index = index.as_ref().ok_or("Null prepared index")?;
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
-        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index.index)?;
-        cursor.delivery.options = h.options;
+        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index.index, h.options.clone())?;
+        cursor.delivery.options = h.options.clone();
         *handle = Box::into_raw(Box::new(cursor));
         Ok(0)
     })
@@ -1139,14 +1098,13 @@ pub unsafe extern "C" fn fm_snapshot_prepared_chunk_reader(
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_message_owned(
     p: *mut Snapshot, data: *const u8, n: usize, prepared: *const PreparedChunkIndex,
-    time: u64, offset: u64, sink: memory::Sink, out: *mut Response,
+    _time: u64, offset: u64, sink: memory::Sink, out: *mut Response,
 ) -> i32 {
     guard(out, |_| {
         let h = p.as_mut().ok_or("Null snapshot")?;
         let parsed;
         let (index, key) = if let Some(prepared) = prepared.as_ref() { (&prepared.index, prepared.key.as_slice()) }
         else { let key = bytes(data, n)?; parsed = parse_chunk_index(key)?; (&parsed, key) };
-        if h.retry.read_owned(2, key, time, offset, sink, &mut h.stats)? { return Ok(0); }
         check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
         let result = h.cache.read_with(&h.data, summary, index, key, offset, h.options.random,
@@ -1157,9 +1115,138 @@ pub unsafe extern "C" fn fm_snapshot_message_owned(
             Err(e) => { h.cache.clear(); return Err(e); }
             Ok(None) => {}
         }
-        let m = summary.seek_message(&h.data, index, &records::MessageIndexEntry { log_time: time, offset })?;
-        let header = MessageHeader { channel_id: m.channel.id, sequence: m.sequence, log_time: m.log_time, publish_time: m.publish_time, reserved: 0 };
-        h.stats.copied += sink.send(records::op::MESSAGE, &header, &m.data)?;
+        Err("Chunk cache did not produce a result".into())
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_engine_input_buffer(p:*mut EngineHandle,n:usize,data:*mut *mut u8,out:*mut Response)->i32 {
+    guard(out, |_| {
+        let h=p.as_mut().ok_or("Null engine")?;
+        if h.failed || !h.waiting || h.event.kind!=1 || n as u64>h.event.length {return Err("No matching input request".into());}
+        let Engine::Linear(r)=&mut h.engine else {return Err("Linear engine required".into());};
+        let target=data.as_mut().ok_or("Null output")?; *target=ptr::null_mut();
+        // Reserve the parser's complete request before a short asynchronous read.
+        // Reserving only the managed read quantum would repeatedly relocate large records.
+        match r.try_insert(usize::try_from(h.event.length)?) { Ok(b)=>*target=b.as_mut_ptr(),Err(e)=>{let e:Error=Box::new(e);if budget::unavailable(&e) && h.delivery.options.domain.has_leases(){return Ok(4);}return Err(e);} }
         Ok(0)
     })
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_engine_input_complete(p:*mut EngineHandle,n:usize,out:*mut Response)->i32 {
+    guard(out, |_| {
+        let h=p.as_mut().ok_or("Null engine")?;
+        if h.failed || !h.waiting || h.event.kind!=1 || n as u64>h.event.length {return Err("No matching input request".into());}
+        let Engine::Linear(r)=&mut h.engine else {return Err("Linear engine required".into());};
+        r.notify_read(n); h.waiting=false; Ok(0)
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,target:usize,
+    output:*mut *mut lease::Batch,event:*mut Event,out:*mut Response)->i32 {
+    if !output.is_null() { *output=ptr::null_mut(); }
+    let status=guard(out, |out| {
+        let h=p.as_mut().ok_or("Null engine")?;
+        if h.failed || output.is_null() || event.is_null() || count==0 || count>65536 || target==0 { return Err("Invalid lease step".into()); }
+        *event=Event::default();
+        if h.ended { return Ok(1); }
+        if h.waiting {
+            if h.event.kind!=1 { return Err("Consume the pending record before switching to leases".into()); }
+            *event=h.event; return Ok(0);
+        }
+        let Engine::Linear(r)=&mut h.engine else {return Err("Linear engine required".into());};
+        r.set_memory_budget(h.delivery.options.domain.clone());
+        if h.lease_batch.is_none() {
+            match lease::Batch::new(h.delivery.options.domain.clone(),count) {
+                Ok(b)=>h.lease_batch=Some(b),
+                Err(ref e) if budget::unavailable(e) && h.delivery.options.domain.has_leases()=>return Ok(4),
+                Err(e)=>return Err(e),
+            }
+        }
+        let mut used=0usize;
+        loop {
+            let next=match r.next_shared_event().transpose() {
+                Ok(e)=>e,
+                Err(e)=>{
+                    let e:Error=Box::new(e);
+                    if budget::unavailable(&e) {
+                        if h.lease_batch.as_ref().unwrap().messages.is_empty() {
+                            h.lease_batch=None;
+                            if !h.delivery.options.domain.has_leases() {return Err("Native budget cannot advance this reader without increasing its finite budget".into());}
+                            return Ok(4);
+                        }
+                        break;
+                    }
+                    return Err(e);
+                }
+            };
+            match next {
+                None=>{h.ended=true;break;}
+                Some(sans_io::linear_reader::SharedReadEvent::ReadRequest(n))=>{
+                    h.event=Event {kind:1,length:n as u64,..Default::default()}; h.waiting=true;
+                    if h.lease_batch.as_ref().unwrap().messages.is_empty() { *event=h.event; return Ok(0); }
+                    break;
+                }
+                Some(sans_io::linear_reader::SharedReadEvent::Record {opcode,data})=>{
+                    match mcap::parse_record(opcode,data.as_ref())? {
+                        records::Record::Message {header,..}=>{
+                            if !h.channels.contains_key(&header.channel_id) {return Err(mcap::McapError::UnknownChannel(header.sequence,header.channel_id).into());}
+                            let header=buffer_reader::native_header(&header);
+                            let payload=data.slice(22..data.as_ref().len()); used+=payload.as_ref().len();
+                            let batch=h.lease_batch.as_mut().unwrap();
+                            batch.messages.push(lease::Message {header,data:payload});
+                            if batch.messages.len()>=count || used>=target {break;}
+                        }
+                        record=>buffer_reader::BufferReader::observe(&mut h.schemas,&mut h.channels,record,&mut h.delivery)?,
+                    }
+                }
+            }
+        }
+        let batch=h.lease_batch.take().unwrap();
+        out.value=batch.messages.len() as u64;
+        if !batch.messages.is_empty() { *output=lease::publish(batch); return Ok(0); }
+        Ok(if h.ended {1} else {4})
+    });
+    if status<0 { if let Some(h)=p.as_mut() { h.failed=true; h.lease_batch=None; h.engine=Engine::Inactive; } }
+    status
+}
+
+#[repr(C)]
+pub struct SeekRequest { index:*const PreparedChunkIndex, time:u64, offset:u64 }
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_seek_batch(p:*mut Snapshot,requests:*const SeekRequest,count:usize,
+    output:*mut *mut lease::Batch,out:*mut Response)->i32 {
+    guard(out, |_| {
+        let result=output.as_mut().ok_or("Null output")?; *result=ptr::null_mut();
+        let h=p.as_mut().ok_or("Null snapshot")?;
+        if count==0 || count>65536 || requests.is_null() {return Err("Invalid seek batch".into());}
+        let requests=slice::from_raw_parts(requests,count);
+        let summary=h.summary.as_ref().ok_or("File has no summary")?;
+        // Validate all descriptor handles before loading anything.
+        for req in requests { if req.index.is_null() {return Err("Null prepared index".into());} }
+        let _group_charge=h.options.domain.reserve(count*std::mem::size_of::<usize>())?;
+        let mut order:Vec<usize>=(0..count).collect();
+        order.sort_unstable_by(|a,b|(*requests[*a].index).key.cmp(&(*requests[*b].index).key));
+        let mut batch=lease::Batch::new(h.options.domain.clone(),count)?;
+        let mut previous:Option<&[u8]>=None;
+        let mut chunk=None;
+        // Output slots are filled in request order after sorting compact descriptors.
+        let _slots_charge=h.options.domain.reserve(count*std::mem::size_of::<Option<lease::Message>>())?;
+        let mut slots:Vec<Option<lease::Message>>=std::iter::repeat_with(||None).take(count).collect();
+        for i in order {
+            let req=&requests[i];let index=&*req.index;
+            if previous!=Some(index.key.as_slice()) {
+                chunk=Some(h.cache.load(&h.data,&index.index,&index.key,h.options.random)?);
+                previous=Some(&index.key);
+            }
+            slots[i]=Some(chunk.as_ref().unwrap().message(summary,req.offset)?);
+        }
+        batch.messages.extend(slots.into_iter().map(Option::unwrap));
+        *result=lease::publish(batch);Ok(0)
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_cache_statistics(p:*const Snapshot,hits:*mut u64,loads:*mut u64,out:*mut Response)->i32 {
+    guard(out, |_| {let h=p.as_ref().ok_or("Null snapshot")?;*hits.as_mut().ok_or("Null hits")?=h.cache.hits;*loads.as_mut().ok_or("Null loads")?=h.cache.loads;Ok(0)})
 }

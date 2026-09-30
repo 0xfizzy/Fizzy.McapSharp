@@ -8,7 +8,7 @@ public enum McapReadEventKind { End, Read, Seek, Record, Message, ReadChunk }
 public readonly record struct McapReadEvent(McapReadEventKind Kind, byte Opcode, ulong Length, ulong Offset, SeekOrigin Origin, McapMessageHeader Header);
 
 /// <summary>Caller-driven official Rust parser. No I/O or borrowed native memory is exposed.</summary>
-public sealed class McapSansIoReader : IDisposable
+public sealed partial class McapSansIoReader : IDisposable
 {
     readonly EngineHandle handle;
     readonly object gate = new();
@@ -23,6 +23,7 @@ public sealed class McapSansIoReader : IDisposable
             summary?.handle.DangerousAddRef(ref added);
             int status = Native.fm_engine_open(kind, req, (nuint)req.Length, summary?.handle.DangerousGetHandle() ?? IntPtr.Zero, out var p, out var r);
             Native.Consume(status, r).Json?.Dispose();
+            GC.KeepAlive(options);
             handle = new(p);
         }
         finally { if (added) summary!.handle.DangerousRelease(); }
@@ -93,7 +94,7 @@ public sealed class McapSansIoReader : IDisposable
 internal sealed class EngineHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal EngineHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_engine_free(handle); return true; }
+    protected override bool ReleaseHandle() { Native.fm_engine_free(handle); NativeStorageSignal.Pulse(); return true; }
 }
 internal static partial class Native
 {

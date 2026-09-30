@@ -32,7 +32,7 @@ fn main() {
     let data = fs::read(&args[1]).unwrap();
     let repeats = args.get(2).map(|s| s.parse::<usize>().unwrap()).unwrap_or(1);
     unsafe {
-        assert_eq!(fm_abi_version(), 8);
+        assert_eq!(fm_abi_version(), 9);
         for _ in 0..repeats {
             let mut indexes = Vec::new();
             for mode in [0, 2, 4, 5] {

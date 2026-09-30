@@ -1,12 +1,17 @@
 //! Private C ABI. No borrowed native memory crosses the public managed API.
 mod buffer_reader;
+mod batch;
+mod lease;
+mod budget;
 #[cfg(test)]
 mod coverage_tests;
 mod errors;
 mod extended;
 mod io;
 mod memory;
+#[cfg(test)]
 mod random_access;
+mod chunk_cache;
 mod sort_arena;
 use io::{Callbacks, Input, Output};
 use mcap::{records, sans_io};
@@ -101,7 +106,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    8
+    9
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
@@ -111,6 +116,7 @@ pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
 }
 
 pub struct Writer {
+    domain:std::sync::Arc<budget::MemoryBudget>,
     inner: Option<mcap::Writer<Output>>,
     completed_output: Option<Output>,
     failed: bool,
@@ -134,6 +140,7 @@ fn options(v: &Value, seekable: bool) -> Outcome<mcap::WriteOptions> {
         _ => return Err("Unknown compression".into()),
     };
     let mut o = mcap::WriteOptions::new()
+        .memory_budget(budget::parse(&v["memory"]["budget"])?)
         .compression(compression)
         .chunk_size(v["chunkSize"].as_u64())
         .use_chunks(v["useChunks"].as_bool().unwrap_or(true))
@@ -204,8 +211,10 @@ pub unsafe extern "C" fn fm_writer_open(
             )
         };
         let seekable = callbacks.as_ref().map(|c| c.seekable != 0).unwrap_or(true);
+        let domain=budget::parse(&v["options"]["memory"]["budget"])?;
         *handle = Box::into_raw(Box::new(Writer {
-            inner: Some(options(&v["options"], seekable)?.create(output)?),
+            inner: Some(options(&v["options"], seekable)?.memory_budget(domain.clone()).create(output)?),
+            domain,
             completed_output: None,
             failed: false,
             recoverable_errors,
@@ -492,8 +501,7 @@ fn open_input(path: &str) -> Outcome<Input> {
     let f = o.open(path)?;
     let mapping = unsafe { Mmap::map(&f)? };
     Ok(Input::Map {
-        mapping,
-        _file: f,
+        mapping: std::sync::Arc::new(io::MappedInput { mapping, _file: f }),
         position: 0,
     })
 }
@@ -527,6 +535,7 @@ pub struct Reader {
     limit: Option<usize>,
     arena: sort_arena::Arena,
     indexed_summary: Option<Value>,
+    indexed_summary_owner: Option<std::sync::Arc<mcap::Summary>>,
     parser: Option<sans_io::LinearReader>,
     input: Input,
 
@@ -558,6 +567,14 @@ fn parser(top: bool, limit: Option<usize>) -> sans_io::LinearReader {
 impl Reader {
     fn observe(&mut self, op: u8, data: &[u8]) -> Outcome<()> {
         self.count += 1;
+        let id=data.get(..2).map(|b|u16::from_le_bytes([b[0],b[1]]));
+        let retain=match op {
+            records::op::SCHEMA=>id.is_some_and(|id|!self.schemas.contains_key(&id)),
+            records::op::CHANNEL=>id.is_some_and(|id|!self.channels.contains_key(&id)),
+            records::op::STATISTICS | records::op::CHUNK_INDEX | records::op::ATTACHMENT_INDEX | records::op::METADATA_INDEX=>self.in_summary,
+            _=>false,
+        };
+        if retain { self.delivery.reserve_metadata(data.len().checked_mul(16).and_then(|n|n.checked_add(1024)).ok_or("Declaration capacity overflow")?)?; }
         match mcap::parse_record(op, data)? {
             records::Record::Schema { header, data } => {
                 if header.id == 0 {
@@ -635,21 +652,22 @@ impl Reader {
             return Ok(1);
         }
         if let Some(mut indexed) = self.indexed.take() {
+            indexed.set_memory_budget(self.delivery.options.domain.clone())?;
             let result = (|| loop {
-                match indexed.next_event().transpose()? {
+                match indexed.next_shared_event().transpose()? {
                     None => {
                         self.ended = true;
                         return Ok(1);
                     }
-                    Some(sans_io::IndexedReadEvent::ReadChunkRequest { offset, length }) => {
+                    Some(sans_io::indexed_reader::SharedIndexedReadEvent::ReadChunkRequest { offset, length }) => {
                         if let Input::Map {
                             mapping, position, ..
                         } = &mut self.input
                         {
                             let start = usize::try_from(offset)?;
                             let end = start.checked_add(length).ok_or(mcap::McapError::BadIndex)?;
-                            let data = mapping.get(start..end).ok_or(mcap::McapError::BadIndex)?;
-                            indexed.insert_chunk_record_data(offset, data)?;
+                            mapping.get(start..end).ok_or(mcap::McapError::BadIndex)?;
+                            indexed.insert_shared_chunk_record_data(offset, mcap::storage::SharedBytes::external(mapping.clone(), start..end))?;
                             *position = end;
                         } else {
                             self.input.seek(SeekFrom::Start(offset))?;
@@ -663,7 +681,7 @@ impl Reader {
                             self.scratch.release();
                         }
                     }
-                    Some(sans_io::IndexedReadEvent::Message { header, data }) => {
+                    Some(sans_io::indexed_reader::SharedIndexedReadEvent::Message { header, data }) => {
                         self.count += 1;
                         if !self.select(&header)? {
                             continue;
@@ -675,7 +693,8 @@ impl Reader {
                             publish_time: header.publish_time,
                             reserved: 0,
                         };
-                        return sink(self, records::op::MESSAGE, data, h);
+                        self.delivery.shared=Some(data.clone());
+                        return sink(self, records::op::MESSAGE, data.as_ref(), h);
                     }
                 }
             })();
@@ -683,18 +702,25 @@ impl Reader {
             return result;
         }
         let mut parser = self.parser.take().ok_or("Missing parser")?;
+        parser.set_memory_budget(self.delivery.options.domain.clone());
         let result = (|| loop {
-            match parser.next_event().transpose()? {
+            match parser.next_shared_event().transpose()? {
                 None => {
                     self.ended = true;
                     return Ok(1);
                 }
-                Some(sans_io::LinearReadEvent::ReadRequest(n)) => {
-                    let n = self.input.read(parser.insert(n.min(65536)))?;
-                    self.delivery.stats.copied += n as u64;
-                    parser.notify_read(n);
+                Some(sans_io::linear_reader::SharedReadEvent::ReadRequest(n)) => {
+                    if let Input::Map { mapping, position } = &mut self.input {
+                        if *position == mapping.len() { parser.notify_read(0); }
+                        else { parser.supply_shared(mcap::storage::SharedBytes::external(mapping.clone(), *position..mapping.len())); *position=mapping.len(); }
+                    } else {
+                        let n = self.input.read(parser.try_insert(n.min(65536))?)?;
+                        self.delivery.stats.copied += n as u64;
+                        parser.notify_read(n);
+                    }
                 }
-                Some(sans_io::LinearReadEvent::Record { opcode, data }) => {
+                Some(sans_io::linear_reader::SharedReadEvent::Record { opcode, data: shared }) => {
+                    let data=shared.as_ref();
                     self.observe(opcode, data)?;
                     if self.messages {
                         if opcode != records::op::MESSAGE {
@@ -715,8 +741,10 @@ impl Reader {
                             publish_time: header.publish_time,
                             reserved: 0,
                         };
+                        self.delivery.shared=Some(shared.slice(22..shared.as_ref().len()));
                         return sink(self, opcode, &data, h);
                     }
+                    self.delivery.shared=Some(shared.clone());
                     return sink(self, opcode, data, MessageHeader::default());
                 }
             }
@@ -730,6 +758,11 @@ impl Reader {
         );
     }
     unsafe fn read(&mut self, dest: *mut u8, capacity: usize, out: &mut Response) -> Outcome<i32> {
+        if self.sorted && self.delivery.capture {
+            self.delivery.shared=self.arena.read_shared(&mut self.delivery.header,out);
+            if self.delivery.shared.is_none() { self.ended=true; return Ok(1); }
+            return Ok(0);
+        }
         if self.sorted {
             let status = if let Some(sink) = self.delivery.sink {
                 self.arena.read_owned(sink, &mut self.delivery.header, out)?
@@ -784,20 +817,14 @@ pub unsafe extern "C" fn fm_reader_open(
             .as_u64()
             .map(usize::try_from)
             .transpose()?;
+        let memory_options=memory::Options::parse(&v["options"]["Memory"])?;
         let mut reader = Reader {
             delivery: memory::Delivery {
-                options: memory::Options::parse(&v["options"]["Memory"])?,
+                options: memory_options.clone(),
                 ..Default::default()
             },
             memory_peak: 0,
-            scratch: memory::Delivery {
-                options: memory::Options {
-                    retained: memory::Options::parse(&v["options"]["Memory"])?.retained,
-                    scratch: memory::Options::parse(&v["options"]["Memory"])?.scratch,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
+            scratch: memory::Delivery { options: memory_options.clone(), ..Default::default() },
             indexed: None,
             sorted: false,
             order: v["order"].as_u64().unwrap_or(2),
@@ -809,6 +836,7 @@ pub unsafe extern "C" fn fm_reader_open(
             limit,
             arena: sort_arena::Arena::default(),
             indexed_summary: None,
+            indexed_summary_owner:None,
             parser: Some(sans_io::LinearReader::new_with_options(
                 extended::linear_options(&v["options"])?
                     .with_emit_chunks(v["topLevel"].as_bool().unwrap_or(false)),
@@ -852,7 +880,9 @@ pub unsafe extern "C" fn fm_reader_open(
                 return Ok(3);
             }
             while reader.next_with(|r, _op, data, h| {
-                r.arena.push(h, data, r.delivery.options.sort)?;
+                let _=data;
+                let shared=r.delivery.shared.take().ok_or("Missing sort storage")?;
+                r.arena.push_shared(h, shared, &r.delivery.options)?;
                 r.update_memory_peak();
                 Ok(0)
             })? != 1
@@ -887,7 +917,7 @@ pub unsafe extern "C" fn fm_reader_next(
         }
         let result = r.read(dest, capacity, out);
         r.update_memory_peak();
-        let status = result?;
+        let status = match result { Err(ref e) if r.delivery.capture && budget::unavailable(e) => return Ok(4), other=>other? };
         if status == 1 {
             r.delivery.discard();
             r.scratch.discard();
@@ -986,6 +1016,7 @@ impl Reader {
                 opts = opts.with_record_length_limit(n);
             }
             let mut s = sans_io::SummaryReader::new_with_options(opts);
+            s.set_memory_budget(self.delivery.options.domain.clone());
             while let Some(e) = s.next_event() {
                 match e? {
                     sans_io::SummaryReadEvent::ReadRequest(n) => {
@@ -1234,7 +1265,8 @@ impl Reader {
                 .map(|t| [t.clone()].into_iter().collect())
         });
         opts.record_length_limit = self.limit;
-        self.indexed = Some(sans_io::IndexedReader::new_with_options(&summary, opts)?);
+        self.indexed = Some(sans_io::IndexedReader::new_with_options_and_budget(&summary, opts, self.delivery.options.domain.clone())?);
+        self.indexed_summary_owner=Some(std::sync::Arc::new(summary));
         Ok(())
     }
 }

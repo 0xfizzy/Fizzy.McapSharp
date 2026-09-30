@@ -7,7 +7,7 @@ namespace Fizzy.McapSharp;
 public enum McapBufferReadMode { Linear, SansMagic, FlattenChunks, Chunk, RawMessages, Messages }
 
 /// <summary>Lazy adapters for official slice-reader semantics. Construction copies input; advancement parses records.</summary>
-public sealed class McapBufferReader : IDisposable
+public sealed partial class McapBufferReader : IDisposable
 {
     readonly BufferReaderHandle handle;
     readonly object gate = new();
@@ -22,7 +22,7 @@ public sealed class McapBufferReader : IDisposable
         fixed (byte* p = data)
         {
             var status = Native.fm_buffer_reader_open_options((uint)mode, ignoreEndMagic, p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r);
-            Native.Consume(status, r).Json?.Dispose(); handle = new(h);
+            Native.Consume(status, r).Json?.Dispose(); GC.KeepAlive(options); handle = new(h);
         }
     }
     /// <summary>Maps immutable file contents until this reader is disposed.</summary>
@@ -35,13 +35,14 @@ public sealed class McapBufferReader : IDisposable
         var config = Native.Request(new { path = Path.GetFullPath(path), mode = (uint)mode, ignoreEndMagic, options });
         int status = Native.fm_buffer_reader_mapped(config, (nuint)config.Length, out var p, out var r);
         Native.Consume(status, r).Json?.Dispose();
+        GC.KeepAlive(options);
         return new(p);
     }
     public unsafe McapReadStatus ReadNextRecord(Span<byte> destination, out byte opcode, out ulong length)
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            Check();
             fixed (byte* p = destination)
             {
                 var status = Native.fm_buffer_reader_next(handle, p, (nuint)destination.Length, out opcode, out var r);
@@ -55,7 +56,7 @@ public sealed class McapBufferReader : IDisposable
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            Check();
             fixed (byte* p = destination)
             {
                 int status = Native.fm_buffer_reader_message(handle, p, (nuint)destination.Length, out var h, out var r);
@@ -69,7 +70,7 @@ public sealed class McapBufferReader : IDisposable
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            Check();
             var status = Native.fm_buffer_reader_channel(handle, id, out var r);
             return DecodeChannel(Native.Consume(status, r));
         }
@@ -85,7 +86,7 @@ public sealed class McapBufferReader : IDisposable
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            Check();
             sink.Reset();
             using var lease = sink.Acquire();
             int status = Native.fm_buffer_reader_owned(handle, false, sink.Sink, out var r);
@@ -111,13 +112,13 @@ public sealed class McapBufferReader : IDisposable
             yield return new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, data);
         }
     }
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.MemoryStatistics(1, handle); } }
-    public void Dispose() { lock (gate) handle.Dispose(); }
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { Check(); return Native.MemoryStatistics(1, handle); } }
+    public void Dispose() { lock (gate) { borrowed.CheckReentry(); handle.Dispose(); } }
 }
 internal sealed class BufferReaderHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal BufferReaderHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_buffer_reader_free(handle); return true; }
+    protected override bool ReleaseHandle() { Native.fm_buffer_reader_free(handle); NativeStorageSignal.Pulse(); return true; }
 }
 internal static partial class Native
 {

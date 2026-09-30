@@ -4996,6 +4996,215 @@
         "src/SansIo.cs",
         "tests/Allocations/Extended.cs"
       ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::memory_budget",
+      "kind": "method",
+      "managed": "WriteBatch / McapWriterOptions.Memory",
+      "native": "Private vendored storage extension: write.rs::WriteOptions::memory_budget",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/write.rs",
+        "tests/Fizzy.McapSharp.Tests/BatchTests.cs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::contains_channel",
+      "kind": "method",
+      "managed": "WriteBatch / McapWriterOptions.Memory",
+      "native": "Private vendored storage extension: write.rs::Writer::contains_channel",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/write.rs",
+        "tests/Fizzy.McapSharp.Tests/BatchTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::try_insert",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/linear_reader.rs::LinearReader::try_insert",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/linear_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::set_memory_budget",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/linear_reader.rs::LinearReader::set_memory_budget",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/linear_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::supply_shared",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/linear_reader.rs::LinearReader::supply_shared",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/linear_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::next_shared_event",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/linear_reader.rs::LinearReader::next_shared_event",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/linear_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::SharedReadEvent",
+      "kind": "type",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/linear_reader.rs::SharedReadEvent",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/linear_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::set_memory_budget",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/indexed_reader.rs::IndexedReader::set_memory_budget",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::next_shared_event",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/indexed_reader.rs::IndexedReader::next_shared_event",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::insert_shared_chunk_record_data",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/indexed_reader.rs::IndexedReader::insert_shared_chunk_record_data",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::SharedIndexedReadEvent",
+      "kind": "type",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/indexed_reader.rs::SharedIndexedReadEvent",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "read.rs::Summary::read_with_memory_budget",
+      "kind": "method",
+      "managed": "McapMemoryBudget / summary reader",
+      "native": "Private vendored budget extension: read.rs::Summary::read_with_memory_budget",
+      "test": "MemoryTests / CoverageTests",
+      "files": [
+        "native/vendor/mcap/src/read.rs",
+        "tests/Fizzy.McapSharp.Tests/MemoryTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::set_memory_budget",
+      "kind": "method",
+      "managed": "McapMemoryBudget / summary reader",
+      "native": "Private vendored budget extension: sans_io/summary_reader.rs::SummaryReader::set_memory_budget",
+      "test": "MemoryTests / CoverageTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/summary_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/MemoryTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::try_insert",
+      "kind": "method",
+      "managed": "McapMemoryBudget / summary reader",
+      "native": "Private vendored budget extension: sans_io/summary_reader.rs::SummaryReader::try_insert",
+      "test": "MemoryTests / CoverageTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/summary_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/MemoryTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::SharedReadEvent::ReadRequest",
+      "kind": "variant",
+      "managed": "McapMemoryBudget / shared message storage",
+      "native": "Private vendored extension: sans_io/linear_reader.rs::SharedReadEvent::ReadRequest",
+      "test": "LeaseTests / BatchSeekTests / MemoryTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/linear_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::SharedReadEvent::Record",
+      "kind": "variant",
+      "managed": "McapMemoryBudget / shared message storage",
+      "native": "Private vendored extension: sans_io/linear_reader.rs::SharedReadEvent::Record",
+      "test": "LeaseTests / BatchSeekTests / MemoryTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/linear_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::new_with_options_and_budget",
+      "kind": "method",
+      "managed": "McapMemoryBudget / shared message storage",
+      "native": "Private vendored extension: sans_io/indexed_reader.rs::IndexedReader::new_with_options_and_budget",
+      "test": "LeaseTests / BatchSeekTests / MemoryTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::SharedIndexedReadEvent::ReadChunkRequest",
+      "kind": "variant",
+      "managed": "McapMemoryBudget / shared message storage",
+      "native": "Private vendored extension: sans_io/indexed_reader.rs::SharedIndexedReadEvent::ReadChunkRequest",
+      "test": "LeaseTests / BatchSeekTests / MemoryTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::SharedIndexedReadEvent::Message",
+      "kind": "variant",
+      "managed": "McapMemoryBudget / shared message storage",
+      "native": "Private vendored extension: sans_io/indexed_reader.rs::SharedIndexedReadEvent::Message",
+      "test": "LeaseTests / BatchSeekTests / MemoryTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
     }
   ]
 }

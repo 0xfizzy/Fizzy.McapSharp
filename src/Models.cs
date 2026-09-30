@@ -7,6 +7,7 @@ public enum McapCompression
     Zstd
 }
 
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public readonly record struct McapMessageHeader(ushort ChannelId, uint Sequence, ulong LogTime, ulong PublishTime);
 public enum McapReadStatus
 {
@@ -28,6 +29,7 @@ public enum McapRecoverableWriterErrors
 
 public sealed record McapWriterOptions
 {
+    public McapMemoryOptions? Memory { get; init; }
     public McapRecoverableWriterErrors RecoverableErrors { get; init; } =
         McapRecoverableWriterErrors.InvalidSchemaIdOnRegistration |
         McapRecoverableWriterErrors.ConflictingSchemaOnRegistration |

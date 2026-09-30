@@ -102,6 +102,7 @@ def verify_assets():
 
 
 def build(test=False):
+    run(sys.executable, "scripts/check_vendor.py")
     rid = host_rid()
     target, filename = TARGETS[rid]
     local_cargo = ROOT / ".tools/cargo/bin/cargo.exe"

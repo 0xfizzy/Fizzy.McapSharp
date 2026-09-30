@@ -1,8 +1,9 @@
 use super::*;
 use std::ops::Deref;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Options {
+    pub domain: std::sync::Arc<budget::MemoryBudget>,
     pub owned: Option<u64>,
     pub pending: Option<u64>,
     pub sort: Option<u64>,
@@ -13,6 +14,7 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
+            domain: Default::default(),
             random: 0,
             scratch: None,
             owned: None,
@@ -32,6 +34,7 @@ impl Options {
             }
         }
         Ok(Self {
+            domain: budget::parse(&v["Budget"] )?,
             random: field(v, "MaxRandomAccessCacheBytes")?.unwrap_or(0),
             scratch: field(v, "MaxScratchBufferBytes")?,
             owned: field(v, "MaxOwnedInputBytes")?,
@@ -100,22 +103,24 @@ impl Statistics {
     }
 }
 pub enum Backing {
-    Owned(Vec<u8>),
-    Mapped { mapping: Mmap, _file: File },
+    Owned { data: Vec<u8>, _charge: mcap::storage::Reservation },
+    Mapped { mapping: std::sync::Arc<io::MappedInput> },
 }
 impl Deref for Backing {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
         match self {
-            Self::Owned(v) => v,
+            Self::Owned {data,..} => data,
             Self::Mapped { mapping, .. } => mapping,
         }
     }
 }
+impl AsRef<[u8]> for Backing { fn as_ref(&self) -> &[u8] { self } }
 impl Backing {
+    pub fn empty() -> Self { Self::copy(&[],Options::default()).unwrap() }
     pub fn capacity(&self) -> usize {
         match self {
-            Self::Owned(v) => v.capacity(),
+            Self::Owned {data,..} => data.capacity(),
             _ => 0,
         }
     }
@@ -127,15 +132,19 @@ impl Backing {
     }
     pub fn copy(data: &[u8], options: Options) -> Outcome<Self> {
         check("OwnedInput", options.owned, data.len())?;
+        check("StorageBlock", Some(options.domain.limits().block as u64), data.len())?;
+        let mut charge=options.domain.reserve(data.len())?;
         let mut v = Vec::new();
         v.try_reserve_exact(data.len())?;
+        charge.resize(v.capacity())?;
         check("OwnedInput", options.owned, v.capacity())?;
         v.extend_from_slice(data);
-        Ok(Self::Owned(v))
+        options.domain.copied(data.len());
+        Ok(Self::Owned { data:v, _charge:charge })
     }
     pub fn open(path: &str) -> Outcome<Self> {
         match open_input(path)? {
-            Input::Map { mapping, _file, .. } => Ok(Self::Mapped { mapping, _file }),
+            Input::Map { mapping, .. } => Ok(Self::Mapped { mapping }),
             _ => unreachable!(),
         }
     }
@@ -159,6 +168,10 @@ impl Sink {
     }
 }
 pub struct Delivery {
+    pub metadata: Option<mcap::storage::Reservation>,
+    pub charge: Option<mcap::storage::Reservation>,
+    pub shared: Option<mcap::storage::SharedBytes>,
+    pub capture: bool,
     pub sink: Option<Sink>,
     pub wanted: u8,
     pub data: Vec<u8>,
@@ -171,6 +184,7 @@ pub struct Delivery {
 impl Default for Delivery {
     fn default() -> Self {
         Self {
+            metadata: None, charge: None, shared: None, capture: false,
             sink: None,
             wanted: 0,
             data: Vec::new(),
@@ -183,6 +197,23 @@ impl Default for Delivery {
     }
 }
 impl Delivery {
+    pub fn reserve_metadata(&mut self, bytes: usize) -> Outcome<()> {
+        // Declarations have already advanced the parser. Failure here is terminal, not retryable.
+        if self.metadata.is_none() { self.metadata=Some(self.options.domain.reserve(0)?); }
+        let r=self.metadata.as_mut().unwrap();
+        let size=r.bytes().checked_add(bytes).ok_or("Declaration capacity overflow")?;
+        r.resize(size).map_err(|e|std::io::Error::other(e))?;
+        Ok(())
+    }
+
+    pub fn take_shared(&mut self, start:usize) -> Outcome<mcap::storage::SharedBytes> {
+        let n=self.data.len();
+        let charge=match self.charge.take() { Some(c)=>c,None=>self.options.domain.reserve(self.data.capacity())? };
+        self.stats.capacity(self.data.capacity(),0);
+        let data=std::sync::Arc::new(Backing::Owned {data:std::mem::take(&mut self.data),_charge:charge});
+        self.active=false;
+        Ok(mcap::storage::SharedBytes::external(data,start..n))
+    }
     pub fn reserve(&mut self, n: usize) -> Outcome<()> {
         self.reserve_resource(n, "PendingBuffer", self.options.pending)
     }
@@ -192,14 +223,19 @@ impl Delivery {
     fn reserve_resource(&mut self, n: usize, resource: &'static str, limit: Option<u64>) -> Outcome<()> {
         if n > self.data.capacity() {
             check(resource, limit, n)?;
+            check("StorageBlock",Some(self.options.domain.limits().block as u64),n)?;
+            if self.charge.is_none() { self.charge=Some(self.options.domain.reserve(self.data.capacity())?); }
+            self.charge.as_mut().unwrap().resize(n)?;
             let old = self.data.capacity();
-            self.data.try_reserve_exact(n - self.data.len())?;
+            if let Err(e)=self.data.try_reserve_exact(n - self.data.len()) { self.charge.as_mut().unwrap().resize(old)?; return Err(e.into()); }
+            self.charge.as_mut().unwrap().resize(self.data.capacity())?;
             self.stats.capacity(old, self.data.capacity());
             check(resource, limit, self.data.capacity())?;
         }
         Ok(())
     }
     pub fn release(&mut self) {
+        self.shared = None;
         self.active = false;
         self.data.clear();
         if self.data.capacity() as u64 > self.options.retained {
@@ -209,6 +245,7 @@ impl Delivery {
     pub fn discard(&mut self) {
         self.stats.capacity(self.data.capacity(), 0);
         self.data = Vec::new();
+        self.charge=None;
         self.active = false;
     }
     pub unsafe fn send(&mut self, data: &[u8], dest: *mut u8) -> Outcome<()> {
@@ -221,6 +258,7 @@ impl Delivery {
         Ok(())
     }
     pub unsafe fn deliver(&mut self, data: &[u8], dest: *mut u8, capacity: usize) -> Outcome<i32> {
+        if self.capture { return Ok(0); }
         if self.sink.is_some() {
             self.send(data, dest)?;
             self.release();
@@ -240,6 +278,9 @@ impl Delivery {
         Ok(0)
     }
     pub unsafe fn retry(&mut self, dest: *mut u8, capacity: usize) -> Outcome<i32> {
+        if self.capture {
+            self.shared=Some(self.take_shared(0)?); return Ok(0);
+        }
         if let Some(sink) = self.sink {
             self.stats.copied += sink.send(self.opcode, &self.header, &self.data)?;
         } else {

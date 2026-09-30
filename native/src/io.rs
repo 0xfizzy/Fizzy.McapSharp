@@ -81,10 +81,12 @@ impl Output {
         }
     }
 }
+pub struct MappedInput { pub mapping: Mmap, pub _file: File }
+impl std::ops::Deref for MappedInput { type Target = [u8]; fn deref(&self) -> &[u8] { &self.mapping } }
+impl AsRef<[u8]> for MappedInput { fn as_ref(&self) -> &[u8] { &self.mapping } }
 pub enum Input {
     Map {
-        mapping: Mmap,
-        _file: File,
+        mapping: std::sync::Arc<MappedInput>,
         position: usize,
     },
     Stream(Callbacks),

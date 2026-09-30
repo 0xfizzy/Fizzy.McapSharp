@@ -219,7 +219,7 @@ impl ChunkCache {
             else {
                 unreachable!()
             };
-            self.parser = Some(buffer_reader::chunk_parser(header, &data, body.len())?);
+            self.parser = Some(buffer_reader::chunk_parser(header, &data, body.len(), Default::default())?);
             self.input_position = start;
             self.input_end = end;
         }

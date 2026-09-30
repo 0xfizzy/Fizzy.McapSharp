@@ -2,7 +2,7 @@
 
 [English](coverage.md) | 简体中文
 
-本文供选择官方 Rust 等价入口的 API 使用者参考，基线是 `native/Cargo.toml` 锁定的 `mcap` 版本。[声明清单](api-coverage.json) 记录 344 项公共声明，包括方法、字段、错误变体和常量，以及托管/原生映射与验证引用。`python scripts/check_api_coverage.py` 对照锁定的 Cargo 源码检查清单；清单完整性不等同于行为测试。
+本文供选择官方 Rust 等价入口的 API 使用者参考，基线是 `native/Cargo.toml` 锁定的 `mcap` 版本。[声明清单](api-coverage.json) 记录 363 项公共声明，包括方法、字段、错误变体和常量，以及托管/原生映射与验证引用。`python scripts/check_api_coverage.py` 对照锁定的 Cargo 源码检查清单；清单完整性不等同于行为测试。
 
 | 官方能力 | 托管入口 | 验证 |
 | --- | --- | --- |
@@ -29,8 +29,10 @@ Rust 生命周期、`Cow`、`Arc`、迭代器及 builder 映射为自有结果�
 
 内存适配保留官方解析，并交付校验后的原始 body，包括允许的尾部扩展字节。直接交付避免记录拥有化及重新编码；重试持有受预算约束的缓冲。摘要游标惰性编码。显式映射快照避免完整输入复制，不改变复制快照的语义。内存限制及统计是封装扩展，不是上游总内存保证；见 [API 内存策略](api.zh-CN.md#原生内存策略)。
 
-`MemoryOptimizationTests` 覆盖映射缓冲模式、便利结果可变数据隔离、有界随机缓存／重试和 scratch 边界。原生缓存差分比较固定官方辅助接口，断言命中时不推进解析器；内存探针将 Rust 分配器流量与进程内存诊断分开。这些封装扩展不改变上游 API 清单。
+`MemoryOptimizationTests` 覆盖映射缓冲模式、便利结果可变数据隔离、有界随机缓存／重试和 scratch 边界。原生缓存差分比较固定官方辅助接口，断言命中时不推进解析器；内存探针将 Rust 分配器流量与进程内存诊断分开。清单包含已核验的 vendor parser／writer 扩展。
 
 `McapPreparedChunkIndex` 为既有 Chunk 操作增加不可变、可复用描述符，不改变上游解析规则。`DeliveryOptimizationTests` 和托管／原生分配门禁覆盖 prepared 复用、大索引、pending 交付、无关 payload 不复制的筛选、回调失败及子游标生命周期。便利交付直接复制到最终托管存储，上游解析器／解压器分配仍不在托管门禁范围内。
 
 `FlushToDisk` 文件持久化及扫描后时间排序属于封装扩展，不增加上游声明数量。`Complete` 完成格式并刷新缓冲，持久化需单独显式请求。参见[完成与查询契约](api.zh-CN.md)。
+
+`BatchTests`、`LeaseTests`、`BatchSeekTests` 和 `BatchGate` 覆盖新借用／批次／lease 路径。API 清单读取 vendor 实际构建源，storage 模块属于私有适配层，不按上游公共格式 API 映射。Rust 分配探针不覆盖 codec C 工作区。

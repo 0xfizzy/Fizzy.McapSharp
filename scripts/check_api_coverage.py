@@ -10,11 +10,11 @@ FILES = ["lib.rs", "write.rs", "read.rs", "records.rs", "sans_io/linear_reader.r
 
 
 def crate_source():
-    homes = [Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")), ROOT / ".tools/cargo", Path.home() / ".cargo"]
-    for home in homes:
-        for p in (home / "registry/src").glob("*/mcap-0.25.0/src"):
-            return p
-    raise RuntimeError("Build the locked native dependency before checking API coverage")
+    source = ROOT / "native/vendor/mcap/src"
+    if not source.is_dir():
+        raise RuntimeError("Missing vendored mcap source")
+    return source
+
 
 
 def inventory(source):
@@ -24,8 +24,8 @@ def inventory(source):
         enum_owner = None
         public_owner = False
         for line_number, line in enumerate((source / file).read_text(encoding="utf-8").splitlines(), 1):
-            if file == "sans_io/linear_reader.rs" and line_number < 180:
-                continue  # private RwBuf implementation, not exported from the crate
+            if file == "sans_io/linear_reader.rs" and not line.startswith("pub ") and not public_owner:
+                continue
             declaration = re.match(r"pub (?:struct|enum|trait|type) (\w+)", line)
             if declaration:
                 owner = declaration[1]

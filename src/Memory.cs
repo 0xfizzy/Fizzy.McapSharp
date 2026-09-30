@@ -2,9 +2,10 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-/// <summary>Limits wrapper-owned capacities, not upstream parser/compressor allocations or process memory.</summary>
+/// <summary>Configures finite native storage accounting and additional resource limits. Codec workspaces and process memory are outside the charged capacity.</summary>
 public sealed record McapMemoryOptions
 {
+    public McapMemoryBudget? Budget { get; init; }
     public ulong? MaxOwnedInputBytes { get; init; }
     public ulong? MaxPendingBufferBytes { get; init; }
     public ulong MaxRandomAccessCacheBytes { get; init; }

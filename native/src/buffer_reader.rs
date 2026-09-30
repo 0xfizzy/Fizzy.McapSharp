@@ -70,7 +70,7 @@ impl BufferReader {
             summary_keys: Vec::new(),
             summary_only: false,
             parser: None,
-            input: Arc::new(memory::Backing::Owned(Vec::new())),
+            input: Arc::new(memory::Backing::empty()),
             position: 0,
             end: 0,
             mode: 0,
@@ -80,10 +80,11 @@ impl BufferReader {
             failed: false,
         }
     }
-    fn observe(
+    pub(super) fn observe(
         schemas: &mut BTreeMap<u16, Arc<mcap::Schema<'static>>>,
         channels: &mut BTreeMap<u16, Arc<mcap::Channel<'static>>>,
         record: records::Record<'_>,
+        delivery: &mut memory::Delivery,
     ) -> Outcome<()> {
         match record {
             records::Record::Schema { header, data } => {
@@ -98,6 +99,7 @@ impl BufferReader {
                         return Err(mcap::McapError::ConflictingSchemas(header.name.clone()).into());
                     }
                 } else {
+                    delivery.reserve_metadata(data.len().checked_add(header.name.len()).and_then(|n|n.checked_add(header.encoding.len())).and_then(|n|n.checked_add(1024)).ok_or("Schema capacity overflow")?)?;
                     schemas.insert(
                         header.id,
                         Arc::new(mcap::Schema {
@@ -131,6 +133,9 @@ impl BufferReader {
                         return Err(mcap::McapError::ConflictingChannels(c.topic.clone()).into());
                     }
                 } else {
+                    let mut size=c.topic.len().checked_add(c.message_encoding.len()).and_then(|n|n.checked_add(1024)).ok_or("Channel capacity overflow")?;
+                    for (k,v) in &c.metadata {size=size.checked_add(k.len()).and_then(|n|n.checked_add(v.len())).and_then(|n|n.checked_add(256)).ok_or("Channel capacity overflow")?;}
+                    delivery.reserve_metadata(size)?;
                     channels.insert(
                         c.id,
                         Arc::new(mcap::Channel {
@@ -156,6 +161,12 @@ impl BufferReader {
     ) -> Outcome<i32> {
         if self.failed {
             return Err("Reader failed".into());
+        }
+        if self.delivery.active && self.delivery.capture {
+            let n=self.delivery.data.len(); let start=if message { 22 } else { 0 };
+            if message && self.delivery.opcode != records::op::MESSAGE { return Err("Message reader required".into()); }
+            self.delivery.shared=Some(self.delivery.take_shared(start)?);
+            self.delivery.active=false; out.value=(n-start) as u64; return Ok(0);
         }
         if self.delivery.active {
             let body = &self.delivery.data;
@@ -222,26 +233,24 @@ impl BufferReader {
             let Some(parser) = self.parser.as_mut() else {
                 return Ok(1);
             };
-            match parser.next_event().transpose()? {
+            parser.set_memory_budget(self.delivery.options.domain.clone());
+            match parser.next_shared_event().transpose()? {
                 None => {
                     self.parser = None;
                     return Ok(1);
                 }
-                Some(sans_io::LinearReadEvent::ReadRequest(n)) => {
-                    let n = n.min(self.end - self.position);
-                    parser
-                        .insert(n)
-                        .copy_from_slice(&self.input[self.position..self.position + n]);
-                    self.delivery.stats.copied += n as u64;
-                    parser.notify_read(n);
-                    self.position += n;
+                Some(sans_io::linear_reader::SharedReadEvent::ReadRequest(n)) => {
+                    let _ = n;
+                    if self.position == self.end { parser.notify_read(0); }
+                    else { parser.supply_shared(mcap::storage::SharedBytes::external(self.input.clone(), self.position..self.end)); self.position = self.end; }
                 }
-                Some(sans_io::LinearReadEvent::Record { opcode, data }) => {
+                Some(sans_io::linear_reader::SharedReadEvent::Record { opcode, data: shared }) => {
+                    let data = shared.as_ref();
                     let record = mcap::parse_record(opcode, data)?;
                     if self.mode >= 4 {
                         if !matches!(record, records::Record::Message { .. }) {
                             if self.summary.is_none() {
-                                Self::observe(&mut self.schemas, &mut self.channels, record)?;
+                                Self::observe(&mut self.schemas, &mut self.channels, record, &mut self.delivery)?;
                             }
                             continue;
                         }
@@ -276,6 +285,8 @@ impl BufferReader {
                         data
                     };
                     out.value = payload.len() as u64;
+                    self.delivery.shared=Some(shared.slice(if message { 22..data.len() } else { 0..data.len() }));
+                    if self.delivery.capture { return Ok(0); }
                     if let Some(sink) = self.delivery.sink {
                         self.delivery.stats.copied += sink.send(opcode, &self.delivery.header, payload)?;
                         self.delivery.release();
@@ -344,7 +355,7 @@ impl BufferReader {
             .map(|v| records::Record::MetadataIndex(v.clone()))
     }
 }
-fn native_header(h: &records::MessageHeader) -> MessageHeader {
+pub(super) fn native_header(h: &records::MessageHeader) -> MessageHeader {
     MessageHeader {
         channel_id: h.channel_id,
         sequence: h.sequence,
@@ -359,19 +370,24 @@ pub(super) fn chunk_parser(
     header: records::ChunkHeader,
     data: &[u8],
     length: usize,
+    domain: std::sync::Arc<budget::MemoryBudget>,
 ) -> Outcome<sans_io::LinearReader> {
     // Match ChunkReader construction errors (notably unsupported compression).
-    let _ = mcap::read::ChunkReader::new(header, data)?;
+    if !matches!(header.compression.as_str(), "" | "lz4" | "zstd") {
+        return Err(mcap::McapError::UnsupportedCompression(header.compression).into());
+    }
+    let _ = data;
     let mut parser = sans_io::LinearReader::new_with_options(
         sans_io::LinearReaderOptions::default()
             .with_skip_start_magic(true)
             .with_skip_end_magic(true)
             .with_validate_chunk_crcs(true),
     );
+    parser.set_memory_budget(domain);
     let mut prefix = [0u8; 9];
     prefix[0] = records::op::CHUNK;
     prefix[1..].copy_from_slice(&(length as u64).to_le_bytes());
-    parser.insert(9).copy_from_slice(&prefix);
+    parser.try_insert(9)?.copy_from_slice(&prefix);
     parser.notify_read(9);
     Ok(parser)
 }
@@ -379,6 +395,7 @@ pub(super) fn chunk_reader(
     input: Arc<memory::Backing>,
     summary: Arc<mcap::Summary>,
     index: &records::ChunkIndex,
+    options: memory::Options,
 ) -> Outcome<BufferReader> {
     let start = usize::try_from(
         index
@@ -397,7 +414,7 @@ pub(super) fn chunk_reader(
     else {
         unreachable!()
     };
-    let parser = chunk_parser(header, &data, body.len())?;
+    let parser = chunk_parser(header, &data, body.len(), options.domain.clone())?;
     let position = start;
     Ok(BufferReader {
         input,
@@ -449,7 +466,7 @@ pub unsafe extern "C" fn fm_buffer_reader_open_options(
         } else {
             memory::Options::parse(&request(config, config_len)?)?
         };
-        let input = memory::Backing::copy(bytes(p, n)?, memory_options)?;
+        let input = memory::Backing::copy(bytes(p, n)?, memory_options.clone())?;
         *handle = Box::into_raw(Box::new(open_backing(input, mode, ignore_end, memory_options)?));
         Ok(0)
     })
@@ -480,7 +497,7 @@ fn open_backing(data: memory::Backing, mode: u32, ignore_end: bool,
         else {
             unreachable!()
         };
-        (chunk_parser(header, &body, data.len())?, 0)
+        (chunk_parser(header, &body, data.len(), memory_options.domain.clone())?, 0)
     } else {
         (sans_io::LinearReader::new_with_options(options), 0)
     };
@@ -605,7 +622,7 @@ pub unsafe extern "C" fn fm_buffer_reader_message(
         if h.failed {
             return Err("Reader failed".into());
         }
-        let status = h.read(dest, capacity, true, out)?;
+        let status = match h.read(dest, capacity, true, out) { Err(ref e) if h.delivery.capture && budget::unavailable(e)=>return Ok(4), other=>other? };
         *header = if status == 1 {
             MessageHeader::default()
         } else {

@@ -41,6 +41,7 @@ public sealed partial class McapWriter : IDisposable
                 bridge?.ThrowIfError();
             }
 
+            GC.KeepAlive(options);
             handle = new(p, bridge);
         }
         catch

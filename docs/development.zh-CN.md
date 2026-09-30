@@ -159,3 +159,9 @@ Release 原生测试包含仅用于测试的线程局部 Rust 分配计数器，
 进程内存诊断使用 `dotnet run --project tests/Allocations -c Release -- memory-profile 65536 > artifacts/memory-profile.jsonl`，条数至少 8192。各写入配置每 8192 条及完成／释放后采样，分别记录 Private Bytes、工作集、托管堆和耗时。输出写入计数 sink，排除录制文件存储成本。采样不等于精确原生活跃字节或峰值，分配器缓存及之前场景会影响后续结果。增加条数可延长运行，测量结果保留在忽略的 artifacts 中。
 
 `DeliveryOptimizationTests` 覆盖预编译 Chunk 索引和同步自有结果交付。Release 便利读取门禁检查最终 payload 数组与结果对象开销，并要求 prepared 大索引调用为 0 B 托管分配。`prepared_index_cached_calls_allocate_nothing` 单独要求所有压缩模式下预热后的 prepared 缓存命中为零 Rust 分配，不包含描述符构造或外部库分配。重试测试检查保留容量与准确的输出复制增量。
+
+## Vendor 存储补丁维护
+
+native/vendor/mcap 保存固定 mcap 0.25.0 源码及官方 MIT 许可证。Cargo patch 选择该源码，保留 Cargo.lock 并使用 --locked。UPSTREAM.json 记录原始文件 SHA-256 与许可证来源，PATCHES.json 记录核验后的本地修改／新增文件指纹。修改后审查差异再更新补丁指纹；不要重新生成原始清单掩盖变更。`python scripts/check_vendor.py` 在 native 构建前检查文件集合、指纹和许可证。跨平台构建源码指纹包含 vendor。
+
+`Build.ps1 -Test` 包含 BatchGate 的 borrowed／ReadBatch／WriteBatch 零托管分配门禁和 10,000 批次保留测试；完整内存验收仍需大载荷／边界矩阵、codec C 分配与进程 private bytes、三平台原生 runner 证据。域统计不能替代全分配器测量。Python 双向互操作、消费者 Source 验证和同源三 RID 打包仍按上文独立执行。

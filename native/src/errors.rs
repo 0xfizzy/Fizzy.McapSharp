@@ -3,6 +3,10 @@ pub(super) fn encode(e: &(dyn std::error::Error + 'static)) -> Vec<u8> {
     if let Some(e) = e.downcast_ref::<memory::Limit>() {
         return serde_json::to_vec(&json!({"kind":"Binding","message":e.to_string(),"details":{"resource":e.resource,"limit":e.limit,"requested":e.requested}})).unwrap();
     }
+    let io = e.downcast_ref::<std::io::Error>().or_else(|| match e.downcast_ref::<mcap::McapError>() { Some(mcap::McapError::Io(io)) => Some(io), _ => None });
+    if let Some(limit) = io.and_then(|io|io.get_ref()).and_then(|e|e.downcast_ref::<mcap::storage::StorageLimit>()) {
+        return serde_json::to_vec(&json!({"kind":"Binding","message":limit.to_string(),"details":{"resource":limit.resource,"limit":limit.limit,"requested":limit.requested}})).unwrap();
+    }
     use mcap::McapError::*;
     let (kind, details) = if let Some(e) = e.downcast_ref::<mcap::McapError>() {
         match e {

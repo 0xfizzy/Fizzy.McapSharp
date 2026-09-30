@@ -38,6 +38,8 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
 
 必须显式调用 `Complete()` 完成格式，再按需调用 `FlushToDisk()` 请求文件持久化；`Dispose()` 只释放资源。`ReadMessages()` 不替代完整文件校验。
 
+大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；生命周期与有限预算见 [API 指南](docs/api.zh-CN.md)。
+
 ## 文档入口
 
 - [API、生命周期与数据所有权](docs/api.zh-CN.md)

@@ -73,7 +73,7 @@ internal static partial class Native
     {
         if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
             throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
-        if (fm_abi_version() != 8)
+        if (fm_abi_version() != 9)
             throw new McapException("Incompatible native ABI.");
     }
 
@@ -130,6 +130,7 @@ internal sealed class WriterHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         Native.fm_writer_free(handle);
         Bridge?.Release();
+        NativeStorageSignal.Pulse();
         return true;
     }
 }
@@ -147,6 +148,7 @@ internal sealed class ReaderHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         Native.fm_reader_free(handle);
         Bridge?.Release();
+        NativeStorageSignal.Pulse();
         return true;
     }
 }

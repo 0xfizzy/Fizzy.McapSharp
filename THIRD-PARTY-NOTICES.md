@@ -4397,6 +4397,8 @@ SOFTWARE.
 
 
 ## mcap 0.25.0
+
+Vendored with local storage/budget extensions in native/vendor/mcap. Original source hashes and license provenance: UPSTREAM.json; reviewed patch fingerprints: PATCHES.json. The original MIT license is retained as native/vendor/mcap/LICENSE.
 License: MIT
 Repository: https://github.com/foxglove/mcap
 

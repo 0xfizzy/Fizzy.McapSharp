@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 8，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 9，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -32,11 +32,11 @@ Writer 创建选项包含不可变位掩码 `recoverableErrors`：1 表示显式
 
 消息热路径只使用固定数据和调用方缓冲；边界上不需要 JSON、托管 payload 数组、原生结果分配或逐消息 Channel 描述序列化。Reader 内部仍可分配原生缓冲，并将原生数据复制到托管调用方内存。冷路径请求/描述使用长度限定 UTF-8 JSON，二进制数据不使用 Base64。
 
-非空冷路径响应缓冲属于 Rust。Native.Consume 在 finally 中释放两个缓冲，包括错误路径；错误使用含 kind、message、details 的 UTF-8 JSON；panic 回退文本按 Binding 错误处理。成功热路径不返回需要释放的响应缓冲。输入 span 只在同步调用期间固定，原生代码不保留它。公共便利记录持有托管副本，不公开指针或原生借用视图。
+非空冷路径响应缓冲属于 Rust。Native.Consume 在 finally 中释放两个缓冲，包括错误路径；错误使用含 kind、message、details 的 UTF-8 JSON；panic 回退文本按 Binding 错误处理。成功热路径不返回需要释放的响应缓冲。输入 span 只在同步调用期间固定，原生代码不保留它。公共便利记录持有托管副本，原生指针保持私有，借用回调和存储 lease 遵循 API 生命周期契约。
 
 每个会话独占一个原生 Reader。映射输入同时拥有文件；增量 sans_io::LinearReader 状态和待处理记录使用原生自有缓冲，无需延长借用迭代器生命周期。Stream 增量读取并支持短读。索引查询直接使用官方 IndexedReader，时间排序可同时保留重叠 Chunk，不宣称完整校验；排序扫描回退会在原生内存收集匹配消息；摘要声明不足时回退顺序读取，解析部分摘要可能需要一次冷路径全扫描。
 
-映射文件必须保持不变。Windows 拒绝普通竞争写入/删除，但之前已有的可写映射不受此保护；Linux 不强制互斥。并发截断可终止进程，超出 panic/异常边界。随机读取按源长度检查记录边界，但原生分配和解压仍需要与记录/Chunk 大小相应的内存，没有统一配额。
+映射文件必须保持不变。Windows 拒绝普通竞争写入/删除，但之前已有的可写映射不受此保护；Linux 不强制互斥。并发截断可终止进程，超出 panic/异常边界。随机读取按源长度检查记录边界，但原生分配和解压仍需要与记录/Chunk 大小相应的内存，共享存储使用有限资源域；codec 工作区等排除项见 API 指南。
 
 ## Stream 回调与释放
 
@@ -59,23 +59,21 @@ Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验�
 
 `fm_engine_open/next/feed/free` 封装官方线性、摘要和索引 Sans-I/O 状态。事件为 56 字节：u32 kind、u32 opcode、u64 length、u64 offset、u32 seek origin、u32 reserved、24 字节消息头。kind 0–5 对应 End、Read、Seek、Record、Message、ReadChunk；Current/End 定位偏移保留有符号补码。输入请求等待供给，记录/消息在缓冲不足时保持待取。`fm_engine_index_control` 支持索引插入及长度限制更新；`fm_engine_summary` 和 `fm_summary_records` 输出自有摘要或原生记录游标。
 
-`fm_buffer_reader_*` 拥有输入副本和配置匹配官方切片入口的 Sans-I/O 解析器，推进时只保留一条待交付记录及已遇到声明，不跨调用保留借用迭代器。由于上游 for_chunk 私有，Chunk 适配器通过公开解析器输入合成记录前缀。`fm_snapshot_*` 保存源文件副本和官方摘要，随机操作直接调用上游而不跨 FFI 借用。`fm_snapshot_call` 同步接收标准 MCAP 索引记录体的指针/长度，以及消息索引的 LogTime 和 offset 两个标量；解析传入索引，不在摘要中查找替代索引。托管桥接使用有界栈缓冲或临时非托管内存编码索引，包括 UTF-8 字符串和通道偏移映射。`fm_reader_record_into`、`fm_parse_record`、`fm_footer`、`fm_chunk_offset` 提供缓冲区或标量操作。`fm_snapshot_chunk_reader` 新增独立惰性 Chunk 游标，共享不可变原生输入与摘要，快照释放不影响已创建游标。Reader open 状态 3 表示禁止所需缓存排序，映射为 `NotSupportedException`。句柄均由私有 SafeHandle 管理，游标成功读取不分配响应缓冲。
+`fm_buffer_reader_*` 拥有输入副本和配置匹配官方切片入口的 Sans-I/O 解析器，推进时只保留一条待交付记录及已遇到声明，不跨调用保留借用迭代器。由于上游 for_chunk 私有，Chunk 适配器通过公开解析器输入合成记录前缀。`fm_snapshot_*` 保存输入副本或映射及官方摘要，随机消息读取通过私有句柄保留共享完整 chunk 存储。`fm_snapshot_call` 同步接收标准 MCAP 索引记录体的指针/长度，以及消息索引的 LogTime 和 offset 两个标量；解析传入索引，不在摘要中查找替代索引。托管桥接使用有界栈缓冲或临时非托管内存编码索引，包括 UTF-8 字符串和通道偏移映射。`fm_reader_record_into`、`fm_parse_record`、`fm_footer`、`fm_chunk_offset` 提供缓冲区或标量操作。`fm_snapshot_chunk_reader` 新增独立惰性 Chunk 游标，共享不可变原生输入与摘要，快照释放不影响已创建游标。Reader open 状态 3 表示禁止所需缓存排序，映射为 `NotSupportedException`。句柄均由私有 SafeHandle 管理，游标成功读取不分配响应缓冲。
 
 异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。
 
 
-## 内存控制与诊断
+## ABI 9 存储与批次
 
-ABI 8 提供 `fm_buffer_reader_open_options`、`fm_snapshot_bytes_options`、`fm_snapshot_open_options`、`fm_snapshot_mapped` 和 `fm_memory_statistics`，内部保留原有无配置导出。构造配置使用 JSON。统计为五个连续 u64 字段（40 字节）：当前受控容量、峰值容量、申请／扩容次数、复制字节数、映射长度。来源类型为 0 会话、1 buffer 游标、2 快照、3 Sans-I/O 引擎。成功的统计调用不创建 owned 响应。
+ABI 9 使用私有 SafeHandle 和 opaque 存储 owner，禁止暴露 Rust 布局。`fm_budget_open/statistics/free` 管理共享域，JSON 中传递弱注册表 ID，不传原生地址。预算统计为五个 u64：current、peak、retained、allocations、copied；逐句柄 `fm_memory_statistics` 的旧布局不变，不能与域统计混算。
 
-`memory::Backing` 拥有字节或文件映射，子游标通过 Arc 共享。在解析器事件生命周期内直接交付；目标不足时使用单个复用 owned 缓冲。不跨调用保存原生借用指针。摘要游标共享官方 Summary 并惰性编码。回退排序使用 arena 和描述，扩容前检查分类容量预算。Binding 预算错误包含 resource、limit 和 requested。解析状态先于共享输入释放；映射文件必须保持不变。统计范围及排除项见 API 指南。
+`fm_writer_batch` 接收 24 字节消息头数组、8 字节 offset/length 数组、共享 payload 和独立完成前缀计数。`fm_read_batch` 和 `fm_visit_messages` 使用 40 字节 Progress：四个 u64 和两个 u32。所有消息头、输入缓冲仅在同步调用内固定。Writer 预检在修改前完成，推进失败不承诺回滚。
 
-`fm_buffer_reader_mapped` 是 ABI 8 的导出，使用构造 JSON（`path`、`mode`、`ignoreEndMagic`、`options`）。快照操作码 1、7 不受支持，其余操作码保持原值。快照重试在解析前比较完整编码请求。可选单 Chunk 缓存拥有原始前缀记录体和描述符，增量驱动官方解析器，不保留事件切片。scratch 扩容前检查预算。随机输出复制和缓存存储纳入受控统计，解析器／解压器状态仍排除。
+`fm_reader_owned`、`fm_buffer_reader_owned`、`fm_snapshot_message_owned` 的 Sink 为 context 和 Cdecl callback 两个指针。同步回调返回 1 表示正常停止，负数表示失败；fm_visit_messages 负责将停止转换为普通结果。托管异常不得穿过 FFI。GCHandle 仅在原生调用期间保活，每条退出路径清除 sink。借用公开 Span 仅在回调期间有效，原有 owned 回调仍创建独立副本。
 
-## 同步自有结果交付与预编译索引
+`fm_read_lease`、`fm_engine_lease_step`、`fm_lease_get/retain/free` 管理稳定 SharedBytes 和批次描述符。状态 4 表示可重试预算不足；0 成功，1 EOF，2 调用方缓冲不足，3 visitor 正常停止。所有权含映射和文件，reader 释放后 lease 仍有效。消息访问与并发释放不可重叠。`fm_engine_input_buffer/complete` 仅供私有 MemoryManager 将 Stream.ReadAsync 直接写入解析器原生输入块；等待期间不能推进或释放引擎。
 
-ABI 8 新增 `fm_reader_owned`、`fm_buffer_reader_owned` 和 `fm_snapshot_message_owned`。Sink 包含两个指针（上下文、Cdecl 回调）。回调接收上下文、u8 opcode、MessageHeader 指针、数据指针、native-size 长度和 native-size 输出复制字节数指针，返回 i32 状态。回调同步消费事件，报告最终二进制复制字节数，不公开临时 span。托管异常先捕获，返回失败后重抛；推进失败使 reader 终止。回调只在原生调用期间被 GCHandle 保活，遗弃枚举器不会遗留 callback root。每次返回均清除 sink，包括原生 panic／错误路径。EOF、pending 和排序结果沿用缓冲读取的推进语义。
+`fm_snapshot_seek_batch` 按完整索引键分组，并恢复请求顺序。快照多 chunk LRU 保存完整校验后的共享块和范围；消息索引也可缓存。未压缩映射块不复制 payload；压缩块直接解压到最终共享存储。不足缓冲重试保留切片，不回退逐消息 owned helper。随机完整 chunk 校验不等于全文件校验。
 
-`fm_chunk_index_prepare/free` 拥有不可变的已解析 ChunkIndex 与稳定编码键。`fm_snapshot_prepared_call` 和 `fm_snapshot_prepared_chunk_reader` 直接使用描述符；`fm_snapshot_message_owned` 接受普通编码或可选 prepared 描述符。现有布局与操作码不变。prepared 句柄通过私有 SafeHandle 管理，可选原生句柄实参在整个调用期间由 DangerousAddRef/Release 保护。其存储独立于 snapshot 的预算和统计。
-
-随机重试在解析前比较完整请求。成功交付或请求切换清除 pending 状态，在预算内保留容量。打包索引复用存储，上游已拥有的消息 payload 移入重试槽。保留容量计入当前／峰值受控字节，输出复制每次仅计数一次。
+`fm_chunk_index_prepare_budget` 允许 prepared 索引使用共享域，原入口使用独立默认域。其 SafeHandle 实参在调用期间保活。原生存储和元数据预留范围、保守计费及 codec/临时对象排除项见 [API 指南](api.zh-CN.md)。不能用 wrapper 计数替代完整原生分配证据。

@@ -8,7 +8,8 @@ public sealed class McapPreparedChunkIndex : IDisposable
 {
     internal readonly PreparedChunkIndexHandle Handle;
     internal readonly object Gate = new();
-    public unsafe McapPreparedChunkIndex(McapChunkIndex index)
+    public McapPreparedChunkIndex(McapChunkIndex index) : this(index,null) { }
+    public unsafe McapPreparedChunkIndex(McapChunkIndex index, McapMemoryBudget? budget)
     {
         ArgumentNullException.ThrowIfNull(index);
         Native.EnsureAvailable();
@@ -18,9 +19,10 @@ public sealed class McapPreparedChunkIndex : IDisposable
         new IndexEncoding(encoded).Write(owned);
         fixed (byte* p = encoded)
         {
-            int status = Native.fm_chunk_index_prepare(p, (nuint)encoded.Length, out var h, out var r);
+            int status = Native.fm_chunk_index_prepare_budget(p, (nuint)encoded.Length, budget?.Id ?? 0, out var h, out var r);
             Native.Consume(status, r).Json?.Dispose();
             Handle = new(h);
+            GC.KeepAlive(budget);
         }
     }
     internal void Check() => ObjectDisposedException.ThrowIf(Handle.IsClosed, this);
@@ -29,10 +31,12 @@ public sealed class McapPreparedChunkIndex : IDisposable
 internal sealed class PreparedChunkIndexHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal PreparedChunkIndexHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_chunk_index_free(handle); return true; }
+    protected override bool ReleaseHandle() { Native.fm_chunk_index_free(handle); NativeStorageSignal.Pulse(); return true; }
 }
 internal static partial class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern unsafe int fm_chunk_index_prepare_budget(byte* data, nuint n, ulong budgetId, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_chunk_index_prepare(byte* data, nuint n, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
@@ -52,7 +56,7 @@ public sealed partial class McapIndexSnapshot
         ArgumentNullException.ThrowIfNull(index);
         lock (gate) lock (index.Gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this); index.Check();
+            Check(); index.Check();
             int status = Native.fm_snapshot_prepared_chunk_reader(handle, index.Handle, out var h, out var r);
             Native.Consume(status, r).Json?.Dispose();
             return new(h);
@@ -80,7 +84,7 @@ public sealed partial class McapIndexSnapshot
         ArgumentNullException.ThrowIfNull(index);
         lock (gate) lock (index.Gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this); index.Check();
+            Check(); index.Check();
             fixed (byte* p = destination)
             {
                 int status = Native.fm_snapshot_prepared_call(handle, op, index.Handle, entry.LogTime, entry.Offset, p, (nuint)destination.Length, out var h, out var r);
@@ -95,7 +99,7 @@ public sealed partial class McapIndexSnapshot
         if (prepared is null) ArgumentNullException.ThrowIfNull(index);
         lock (gate) lock (prepared?.Gate ?? gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this); prepared?.Check();
+            Check(); prepared?.Check();
             using var sink = new OwnedReadSink(OwnedReadSink.Kind.Message);
             int size = prepared is null ? IndexEncoding.Size(index) : 0;
             byte* allocated = size > 1024 ? (byte*)NativeMemory.Alloc((nuint)size) : null;

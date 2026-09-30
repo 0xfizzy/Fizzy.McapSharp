@@ -15,7 +15,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
     {
         Native.EnsureAvailable();
         var config = Native.Request(options ?? new());
-        fixed (byte* p = data) { var status = Native.fm_snapshot_bytes_options(p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r); Native.Consume(status, r).Json?.Dispose(); handle = new(h); }
+        fixed (byte* p = data) { var status = Native.fm_snapshot_bytes_options(p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r); Native.Consume(status, r).Json?.Dispose(); GC.KeepAlive(options); handle = new(h); }
     }
     /// <summary>Maps a file without an owned input copy. Keep the file unchanged until this snapshot and all child cursors are disposed.</summary>
     public static McapIndexSnapshot OpenMapped(string path, McapMemoryOptions? options = null)
@@ -25,12 +25,13 @@ public sealed partial class McapIndexSnapshot : IDisposable
         var config = Native.Request(new { path, options });
         int status = Native.fm_snapshot_mapped(config, (nuint)config.Length, out var h, out var r);
         Native.Consume(status, r).Json?.Dispose();
+        GC.KeepAlive(options);
         return new(h);
     }
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.MemoryStatistics(2, handle); } }
+    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { Check(); return Native.MemoryStatistics(2, handle); } }
     public McapSummary? GetSummary()
     {
-        lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); var status = Native.fm_snapshot_summary(handle, out var r); var response = Native.Consume(status, r); using var j = response.Json; return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options); }
+        lock (gate) { Check(); var status = Native.fm_snapshot_summary(handle, out var r); var response = Native.Consume(status, r); using var j = response.Json; return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options); }
     }
     public IReadOnlyList<McapMessageIndex> ReadMessageIndexes(McapChunkIndex chunk)
     {
@@ -46,10 +47,10 @@ public sealed partial class McapIndexSnapshot : IDisposable
         while (!fields.IsEmpty) { var id = fields.ReadUInt16(); if (!groups.TryGetValue(id, out var list)) groups.Add(id, list = []); list.Add(new(fields.ReadUInt64(), fields.ReadUInt64())); }
         return groups.Select(g => new McapMessageIndex(g.Key, g.Value)).ToArray();
     }
-    public McapBufferReader OpenSummaryRecords() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.SummaryRecords(0, handle); } }
+    public McapBufferReader OpenSummaryRecords() { lock (gate) { Check(); return Native.SummaryRecords(0, handle); } }
     public McapChannel GetChannel(ushort id)
     {
-        lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); var status = Native.fm_snapshot_channel(handle, id, out var r); return McapBufferReader.DecodeChannel(Native.Consume(status, r)); }
+        lock (gate) { Check(); var status = Native.fm_snapshot_channel(handle, id, out var r); return McapBufferReader.DecodeChannel(Native.Consume(status, r)); }
     }
     public McapMessage SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry entry) => SeekOwned(chunk, null, entry);
     public IEnumerable<McapMessage> ReadChunkMessages(McapChunkIndex chunk)
@@ -63,7 +64,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
         ArgumentNullException.ThrowIfNull(index);
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            Check();
             int size = IndexEncoding.Size(index);
             byte* allocated = size > 1024 ? (byte*)NativeMemory.Alloc((nuint)size) : null;
             Span<byte> encoded = size <= 1024 ? stackalloc byte[size] : new Span<byte>(allocated, size);
@@ -103,7 +104,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            Check();
             if (op is 2 or 3 or 4 or 5 or 8) ArgumentNullException.ThrowIfNull(index);
             int size = IndexEncoding.Size(index);
             byte* allocated = size > 1024 ? (byte*)NativeMemory.Alloc((nuint)size) : null;
@@ -122,7 +123,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
             finally { NativeMemory.Free(allocated); }
         }
     }
-    public void Dispose() { lock (gate) handle.Dispose(); }
+    public void Dispose() { lock (gate) { borrowed.CheckReentry(); handle.Dispose(); } }
 }
 
 public sealed partial class McapReadSession
@@ -137,7 +138,7 @@ public sealed partial class McapReadSession
             var config = options is null ? Array.Empty<byte>() : Native.Request(options);
             int status = Native.fm_snapshot_open_options(handle, config, (nuint)config.Length, out var p, out var r);
             try { Native.Consume(status, r).Json?.Dispose(); return new(p); }
-            finally { handle.Bridge?.ThrowIfError(); }
+            finally { GC.KeepAlive(options); handle.Bridge?.ThrowIfError(); }
         }
     }
     public unsafe McapReadStatus ReadRecordAt(ulong offset, Span<byte> destination, out byte opcode, out ulong length)
@@ -167,7 +168,7 @@ public sealed partial class McapReadSession
 internal sealed class SnapshotHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal SnapshotHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_snapshot_free(handle); return true; }
+    protected override bool ReleaseHandle() { Native.fm_snapshot_free(handle); NativeStorageSignal.Pulse(); return true; }
 }
 internal static partial class Native
 {
