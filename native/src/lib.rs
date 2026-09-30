@@ -6,6 +6,7 @@ mod errors;
 mod extended;
 mod io;
 mod memory;
+mod random_access;
 mod sort_arena;
 use io::{Callbacks, Input, Output};
 use mcap::{records, sans_io};
@@ -647,7 +648,7 @@ impl Reader {
                         } else {
                             self.input.seek(SeekFrom::Start(offset))?;
                             self.scratch.data.clear();
-                            self.scratch.reserve(length)?;
+                            self.scratch.reserve_scratch(length)?;
                             self.scratch.data.resize(length, 0);
                             self.update_memory_peak();
                             self.input.read_exact(&mut self.scratch.data)?;
@@ -777,6 +778,7 @@ pub unsafe extern "C" fn fm_reader_open(
             scratch: memory::Delivery {
                 options: memory::Options {
                     retained: memory::Options::parse(&v["options"]["Memory"])?.retained,
+                    scratch: memory::Options::parse(&v["options"]["Memory"])?.scratch,
                     ..Default::default()
                 },
                 ..Default::default()

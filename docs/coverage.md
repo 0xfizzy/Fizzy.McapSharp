@@ -18,7 +18,7 @@ For API users choosing a direct Rust-equivalent operation, this map targets the 
 | Optional Tokio linear reader | `McapAsyncReader`, driven by .NET asynchronous I/O and official Sans-I/O | Cancellation, ownership, forced-suspension allocation gate |
 | `McapError` / `McapResult` | `McapException.Kind/Details`; return values and exceptions | Exhaustive native variant match and field tests |
 
-Rust lifetimes, `Cow`, `Arc`, iterator traits and builder methods map to owned results, caller-memory views, disposable sessions and .NET option properties. No public Rust layouts or handles cross the boundary. Buffer adapters copy input and parse lazily; index snapshots copy their source and share it with independent lazy Chunk cursors. Sorted fallback collects selected messages unless AllowBufferedSort is false. These ownership choices require native memory proportional to the input/results; streaming sessions remain available.
+Rust lifetimes, `Cow`, `Arc`, iterator traits and builder methods map to owned results, caller-memory views, disposable sessions and .NET option properties. No public Rust layouts or handles cross the boundary. Buffer adapters copy or explicitly map input and parse lazily; index snapshots copy or explicitly map their source and share it with independent lazy Chunk cursors. Sorted fallback collects selected messages unless AllowBufferedSort is false. These ownership choices require native memory proportional to the input/results; streaming sessions remain available.
 
 Defaults follow the corresponding upstream API: Zstd, 1 MiB writer chunks, upstream Library, file order for sequential messages, LogTime for indexed queries, and disabled optional Sans-I/O CRC checks. Direct slice readers retain their own upstream defaults. Path creation protection, terminal failure outside the configurable safe-rejection whitelist, explicit completion and disposal without implicit completion remain deliberate safety differences.
 
@@ -28,3 +28,5 @@ Behavioral CI additionally uses pinned official conformance data: 416 streamed c
 
 
 Memory adaptations preserve upstream parsing while retaining the validated raw body, including accepted trailing extension bytes. Direct delivery avoids record ownership conversion/re-encoding; retries own a bounded buffer. Summary cursors encode lazily. Explicit mapped snapshots avoid a full input copy without changing copied-snapshot semantics. Memory limits and statistics are wrapper extensions, not upstream total-memory guarantees; see [API memory policy](api.md#native-memory-policy).
+
+Mapped buffer modes, convenience-result mutation isolation, bounded random caching/retries and scratch boundaries are covered by `MemoryOptimizationTests`. Native cache differential tests compare the locked official helper and assert no parser advancement on hits; memory probes distinguish Rust allocator traffic from process-memory diagnostics. These wrapper extensions do not change the upstream API inventory.

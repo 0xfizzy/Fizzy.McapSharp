@@ -25,6 +25,18 @@ public sealed class McapBufferReader : IDisposable
             Native.Consume(status, r).Json?.Dispose(); handle = new(h);
         }
     }
+    /// <summary>Maps immutable file contents until this reader is disposed.</summary>
+    public static McapBufferReader OpenMapped(string path, McapBufferReadMode mode = McapBufferReadMode.Messages,
+        bool ignoreEndMagic = false, McapMemoryOptions? options = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        Native.EnsureAvailable();
+        var config = Native.Request(new { path = Path.GetFullPath(path), mode = (uint)mode, ignoreEndMagic, options });
+        int status = Native.fm_buffer_reader_mapped(config, (nuint)config.Length, out var p, out var r);
+        Native.Consume(status, r).Json?.Dispose();
+        return new(p);
+    }
     public unsafe McapReadStatus ReadNextRecord(Span<byte> destination, out byte opcode, out ulong length)
     {
         lock (gate)
@@ -82,13 +94,33 @@ public sealed class McapBufferReader : IDisposable
     }
     public IEnumerable<McapMessage> ReadMessages()
     {
-        foreach (var record in ReadRecords())
+        var channels = new Dictionary<ushort, McapChannel>();
+        byte[] buffer = [];
+        while (true)
         {
-            if (record.Opcode != 5) continue;
-            var message = (McapMessageRecord)McapRecords.Parse(record.Opcode, record.Data);
-            var h = message.Header;
-            yield return new(GetChannel(h.ChannelId), h.LogTime, h.PublishTime, h.Sequence, message.Data);
+            var status = ReadNextRecord(buffer, out var opcode, out var length);
+            if (status == McapReadStatus.EndOfStream) yield break;
+            if (status == McapReadStatus.BufferTooSmall) { buffer = new byte[checked((int)length)]; continue; }
+            if (opcode != 5) continue;
+            var h = DecodeMessageHeader(buffer);
+            if (!channels.TryGetValue(h.ChannelId, out var channel))
+                channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
+            // Keep the cached description private: public arrays and dictionaries are mutable.
+            var schema = channel.Schema;
+            var ownedChannel = channel with
+            {
+                Schema = schema is null ? null : schema with { Data = schema.Data.AsSpan().ToArray() },
+                Metadata = new Dictionary<string, string>(channel.Metadata)
+            };
+            yield return new(ownedChannel, h.LogTime, h.PublishTime, h.Sequence,
+                buffer.AsSpan(22, checked((int)length) - 22).ToArray());
         }
+    }
+    static McapMessageHeader DecodeMessageHeader(byte[] body)
+    {
+        // ReadNextRecord already validated the body with the official parser.
+        var fields = new McapRecordFields(body);
+        return new(fields.ReadUInt16(), fields.ReadUInt32(), fields.ReadUInt64(), fields.ReadUInt64());
     }
     public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.MemoryStatistics(1, handle); } }
     public void Dispose() { lock (gate) handle.Dispose(); }
@@ -100,6 +132,8 @@ internal sealed class BufferReaderHandle : SafeHandleZeroOrMinusOneIsInvalid
 }
 internal static partial class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int fm_buffer_reader_mapped(byte[] config, nuint n, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_buffer_reader_open(uint mode, [MarshalAs(UnmanagedType.I1)] bool ignoreEnd, byte* p, nuint n, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

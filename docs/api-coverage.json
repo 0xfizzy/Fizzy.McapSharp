@@ -2071,14 +2071,16 @@
       "kind": "method",
       "managed": "McapIndexSnapshot.ReadMessageIndexes",
       "native": "read::Summary::read_message_indexes",
-      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/extended.rs"
+        "native/src/extended.rs",
+        "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
+        "native/src/random_access.rs"
       ]
     },
     {
@@ -2086,14 +2088,16 @@
       "kind": "method",
       "managed": "McapIndexSnapshot.SeekMessage",
       "native": "read::Summary::seek_message",
-      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/extended.rs"
+        "native/src/extended.rs",
+        "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
+        "native/src/random_access.rs"
       ]
     },
     {

@@ -7,6 +7,8 @@ public sealed record McapMemoryOptions
 {
     public ulong? MaxOwnedInputBytes { get; init; }
     public ulong? MaxPendingBufferBytes { get; init; }
+    public ulong MaxRandomAccessCacheBytes { get; init; }
+    public ulong? MaxScratchBufferBytes { get; init; }
     public ulong? MaxBufferedSortBytes { get; init; }
     public ulong MaxRetainedBufferBytes { get; init; } = 8 * 1024 * 1024;
 }

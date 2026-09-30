@@ -163,6 +163,8 @@ Configure `McapReaderOptions.Memory` for sessions and asynchronous/linear Sans-I
 | --- | --- | --- |
 | `MaxOwnedInputBytes` | null / unlimited | Full owned input capacity; not mapped length |
 | `MaxPendingBufferBytes` | null / unlimited | Retry or summary-encoding capacity |
+| `MaxScratchBufferBytes` | null / unlimited | Indexed Stream and random-record scratch capacity |
+| `MaxRandomAccessCacheBytes` | 0 / disabled | Snapshot single-Chunk prefix cache, excluding parser state |
 | `MaxBufferedSortBytes` | null / unlimited | Fallback payload blocks, descriptors and block-container capacities |
 | `MaxRetainedBufferBytes` | 8 MiB | Per-buffer retained capacity after successful delivery, including indexed Stream I/O scratch |
 
@@ -172,4 +174,18 @@ These are resource-specific budgets, not a native/process total limit. Upstream 
 
 Budget errors use `McapException.Kind=Binding` and `Details.resource`, `limit`, `requested` (bytes). Advancement failure terminates the reader. Snapshot construction failures restore source position without consuming pending messages; underlying Stream failures may prevent restoration. There is no automatic retry or disk spill.
 
-`GetMemoryStatistics()` on sessions, buffer readers, snapshots, Sans-I/O and async readers returns an allocation-free value type. It reports current/peak controlled capacity, allocation/expansion count, instrumented data-path copy bytes and mapped length. Capacities cover owned input, delivery buffers, indexed Stream scratch and fallback storage. Copy counters cover input copying, parser feeding, pending/arena storage and caller-buffer delivery, excluding cold description serialization and upstream internal copies. They are not allocator-wide or working-set measurements. Snapshot statistics include its default cursor, not independent child cursors. Shared input is included once per view: do not sum related views. Async statistics require consumption of the outstanding operation. No GC memory-pressure estimate is registered.
+`GetMemoryStatistics()` on sessions, buffer readers, snapshots, Sans-I/O and async readers returns an allocation-free value type. It reports current/peak controlled capacity, allocation/expansion count, instrumented data-path copy bytes and mapped length. Capacities cover owned input, delivery buffers, Stream scratch, random retry/cache storage and fallback storage. Copy counters cover input copying, parser feeding, pending/arena storage and caller-buffer delivery, excluding cold description serialization and upstream internal copies. They are not allocator-wide or working-set measurements. Snapshot statistics include its default cursor, not independent child cursors. Shared input is included once per view: do not sum related views. Async statistics require consumption of the outstanding operation. No GC memory-pressure estimate is registered.
+
+### Mapped input and optional random caching
+
+`McapBufferReader.OpenMapped(path, mode, ignoreEndMagic, options)` supports all six buffer modes without an owned input copy. The file must remain unchanged until disposal. Existing constructors and `OpenIndexSnapshot()` retain their copy-isolation semantics.
+
+`MaxScratchBufferBytes` (`ulong?`, default null/unlimited) limits indexed Stream input and random-record scratch capacity independently of the pending budget. Caller-buffer `ReadRecordAt` copies directly from mapped data or reuses Stream scratch, validates before touching the destination, preserves insufficient destinations and restores Stream position. Scratch budget rejection terminates the session.
+
+Random `SeekMessage` and message-index length probes can retain one owned result for an identical retry. The complete encoded index and message parameters identify the request. Key plus result capacity must fit both `MaxPendingBufferBytes` and `MaxRetainedBufferBytes`; otherwise retry recomputes. A different random/default-cursor request replaces the slot, and successful delivery releases it. Optional cache capacity never turns a successful read into a budget error.
+
+`MaxRandomAccessCacheBytes` (`ulong`, default 0/disabled) enables a snapshot cache of its most recently accessed Chunk's parsed prefix. Forward seeks advance the official parser only to the requested record; earlier cached positions need no decompression. Capacity covers the complete encoded caller index, raw record bodies and descriptors, excluding parser/decompressor state. Capacity exhaustion discards the cache and falls back to the official random helper. It is independent of sequential cursors. Enable a bounded capacity for repeated random access, or use `OpenChunkReader` for a sequential batch. Cached reads do not validate the unvisited tail.
+
+Statistics include random delivery copies, retry/cache capacity and random-record scratch. Sorting gives messages larger than 1 MiB dedicated blocks while small messages continue sharing their current block. Normal EOF releases sequential parser/indexed state while preserving descriptions, summary and validation provenance.
+
+BufferReader convenience message enumeration reuses a record buffer and creates only the final payload copy. Private Channel descriptions are cached; mutable schema bytes and metadata are defensively copied for each output. Results remain independent after advancement/disposal. Owned convenience results still allocate; use caller buffers for the zero-managed-allocation path.

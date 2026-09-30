@@ -150,7 +150,15 @@ public sealed partial class McapReadSession
             fixed (byte* p = destination)
             {
                 int status = Native.fm_reader_record_into(handle, offset, p, (nuint)destination.Length, out opcode, out var r);
-                if (status < 0) { var error = Native.ConsumeError(r); handle.Bridge?.ThrowIfError(); throw error; }
+                if (status < 0)
+                {
+                    var error = Native.ConsumeError(r);
+                    if (error.Kind == McapErrorKind.Binding && error.Details.ValueKind == JsonValueKind.Object &&
+                        error.Details.TryGetProperty("resource", out var resource) && resource.GetString() == "ScratchBuffer")
+                        failed = true;
+                    handle.Bridge?.ThrowIfError();
+                    throw error;
+                }
                 length = r.Value;
                 return status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Message;
             }

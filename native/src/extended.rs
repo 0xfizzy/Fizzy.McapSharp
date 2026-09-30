@@ -415,6 +415,9 @@ pub unsafe extern "C" fn fm_writer_prepared(
 }
 
 pub struct Snapshot {
+    pub memory_peak: u64,
+    pub retry: random_access::Retry,
+    pub cache: random_access::ChunkCache,
     pub stats: memory::Statistics,
     pub data: Arc<memory::Backing>,
     pub options: memory::Options,
@@ -462,6 +465,9 @@ pub unsafe extern "C" fn fm_snapshot_bytes_options(
         let data = memory::Backing::copy(bytes(data, n)?, options)?;
         let summary = mcap::Summary::read(&data)?;
         *handle = Box::into_raw(Box::new(Snapshot {
+            memory_peak: 0,
+            retry: Default::default(),
+            cache: Default::default(),
             stats: memory::Statistics::default(),
             data: Arc::new(data),
             options,
@@ -600,6 +606,9 @@ pub unsafe extern "C" fn fm_snapshot_open_options(
         let data = result?;
         let summary = mcap::Summary::read(&data)?;
         *handle = Box::into_raw(Box::new(Snapshot {
+            memory_peak: 0,
+            retry: Default::default(),
+            cache: Default::default(),
             stats: memory::Statistics::default(),
             data: Arc::new(memory::Backing::Owned(data)),
             options,
@@ -660,6 +669,15 @@ pub unsafe extern "C" fn fm_snapshot_call(
         if !header.is_null() {
             *header = MessageHeader::default();
         }
+        h.stats.peak = h.stats.current;
+        h.cache.stats.peak = h.cache.stats.current;
+        if let Some(cursor) = h.cursor.as_mut() { cursor.delivery.stats.peak = cursor.delivery.stats.current; }
+        let current = h.stats.current + h.cache.stats.current + h.cursor.as_ref().map_or(0, |c| c.delivery.stats.current);
+        h.memory_peak = h.memory_peak.max(current);
+        let key = bytes(index_data, index_length)?;
+        if let Some(status) = h.retry.read(op, key, message_time, message_offset,
+            dest, capacity, header, out, &mut h.stats)? { return Ok(status); }
+        h.stats.peak = h.stats.current;
         if op == 7 {
             return match h.cursor.as_mut() {
                 Some(cursor) => Ok(buffer_reader::fm_buffer_reader_message(
@@ -696,7 +714,6 @@ pub unsafe extern "C" fn fm_snapshot_call(
                         buffer_reader::chunk_reader(h.data.clone(), s.clone(), &index)?;
                     cursor.delivery.options = h.options;
                     if let Some(old) = h.cursor.take() {
-                        h.stats.peak = h.stats.peak.max(old.delivery.stats.peak);
                         h.stats.allocations += old.delivery.stats.allocations;
                         h.stats.copied += old.delivery.stats.copied;
                     }
@@ -704,6 +721,17 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     return Ok(0);
                 }
                 if op == 2 {
+                    let cached = h.cache.read(&h.data, s, &index, key, message_offset,
+                        h.options.random, dest, capacity, header, out);
+                    match cached {
+                        Ok(Some(status)) => {
+                            // Common epilogue counts caller delivery once.
+                            if status == 0 { h.cache.stats.copied -= out.value; }
+                            return Ok(status);
+                        }
+                        Ok(None) => {},
+                        Err(e) => { h.cache.clear(); return Err(e); }
+                    }
                     let m = s.seek_message(
                         &h.data,
                         &index,
@@ -722,7 +750,12 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     if !header.is_null() {
                         *header = msg;
                     }
-                    return copy_body(&m.data, dest, capacity, out);
+                    let status = copy_body(&m.data, dest, capacity, out)?;
+                    if status == 2 {
+                        h.retry.save(op, key, message_time, message_offset, msg,
+                            m.data.into_owned(), h.options, &mut h.stats);
+                    }
+                    return Ok(status);
                 }
                 for offset in index.message_index_offsets.values() {
                     check_index_range(&h.data, *offset, 15, 15)?;
@@ -741,6 +774,22 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     .ok_or("Message index length overflow")?;
                 out.value = length as u64;
                 if capacity < length {
+                    let limit = h.options.pending.unwrap_or(u64::MAX).min(h.options.retained);
+                    if length.checked_add(key.len()).is_some_and(|n| n as u64 <= limit) {
+                        let mut packed = Vec::new();
+                        if packed.try_reserve_exact(length).is_ok() {
+                            for (c, entries) in rows {
+                                for e in entries {
+                                    packed.extend_from_slice(&c.id.to_le_bytes());
+                                    packed.extend_from_slice(&e.log_time.to_le_bytes());
+                                    packed.extend_from_slice(&e.offset.to_le_bytes());
+                                }
+                            }
+                            h.stats.copied += length as u64;
+                            h.retry.save(op, key, message_time, message_offset,
+                                MessageHeader::default(), packed, h.options, &mut h.stats);
+                        }
+                    }
                     return Ok(2);
                 }
                 if length != 0 && dest.is_null() {
@@ -794,8 +843,15 @@ pub unsafe extern "C" fn fm_snapshot_call(
             _ => Err("Unknown snapshot operation".into()),
         }
     });
-    if status == 0 && matches!(op, 2 | 3 | 4 | 5 | 6) && !p.is_null() && !out.is_null() {
-        (*p).stats.copied += (*out).value;
+    if let Some(h) = p.as_mut() {
+        if status == 0 && matches!(op, 2 | 3 | 4 | 5 | 6) && !out.is_null() {
+            h.stats.copied += (*out).value;
+        }
+        let cursor = h.cursor.as_ref().map(|c| c.delivery.stats).unwrap_or_default();
+        h.memory_peak = h.memory_peak
+            .max(h.stats.peak + h.cache.stats.current + cursor.current)
+            .max(h.cache.stats.peak + cursor.current)
+            .max(cursor.peak + h.stats.current + h.cache.stats.current);
     }
     status
 }
@@ -841,11 +897,49 @@ pub unsafe extern "C" fn fm_reader_record_into(
 ) -> i32 {
     guard(out, |out| {
         let r = p.as_mut().ok_or("Null reader")?;
-        let (op, data) = r.record_at(offset)?;
-        if !opcode.is_null() {
-            *opcode = op;
+        if r.failed { return Err("Reader failed".into()); }
+        let pos = r.input.stream_position()?;
+        let result = (|| {
+            r.input.seek(SeekFrom::Start(offset))?;
+            let mut h = [0u8; 9];
+            r.input.read_exact(&mut h)?;
+            let n = usize::try_from(u64::from_le_bytes(h[1..].try_into()?))?;
+            if r.limit.is_some_and(|limit| n > limit) {
+                return Err(mcap::McapError::RecordTooLarge { opcode: h[0], len: n as u64 }.into());
+            }
+            let start = r.input.stream_position()?;
+            let end = r.input.seek(SeekFrom::End(0))?;
+            if n as u64 > end.saturating_sub(start) { return Err("Record exceeds source length".into()); }
+            let status = if let Input::Map { mapping, .. } = &r.input {
+                let start = usize::try_from(start)?;
+                let data = &mapping[start..start + n];
+                mcap::parse_record(h[0], data)?;
+                copy_body(data, dest, capacity, out)?
+            } else {
+                r.input.seek(SeekFrom::Start(start))?;
+                r.scratch.data.clear();
+                r.scratch.reserve_scratch(n)?;
+                r.update_memory_peak();
+                r.scratch.data.resize(n, 0);
+                r.input.read_exact(&mut r.scratch.data)?;
+                r.scratch.stats.copied += n as u64;
+                mcap::parse_record(h[0], &r.scratch.data)?;
+                copy_body(&r.scratch.data, dest, capacity, out)?
+            };
+            if status == 0 { r.scratch.stats.copied += n as u64; }
+            if !opcode.is_null() { *opcode = h[0]; }
+            Ok(status)
+        })();
+        let restored = r.input.seek(SeekFrom::Start(pos));
+        r.update_memory_peak();
+        r.scratch.release();
+        // Budget rejection is terminal; other random-access errors retain existing semantics.
+        if result.as_ref().err().is_some_and(|e: &Error| e.downcast_ref::<memory::Limit>().is_some()) {
+            r.failed = true; r.parser = None; r.indexed = None;
+            r.delivery.discard(); r.scratch.discard(); r.arena.clear();
         }
-        copy_body(&data, dest, capacity, out)
+        restored?;
+        result
     })
 }
 
@@ -999,6 +1093,9 @@ pub unsafe extern "C" fn fm_snapshot_mapped(
         let data = memory::Backing::open(string(&v, "path")?)?;
         let summary = mcap::Summary::read(&data)?.map(Arc::new);
         *handle = Box::into_raw(Box::new(Snapshot {
+            memory_peak: 0,
+            retry: Default::default(),
+            cache: Default::default(),
             stats: memory::Statistics::default(),
             data: Arc::new(data),
             options,

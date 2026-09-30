@@ -4,6 +4,7 @@ using System.Diagnostics;
 #if DEBUG
 throw new InvalidOperationException("Run allocation acceptance in Release.");
 #endif
+if (args.Length > 0 && args[0] == "memory-profile") { MemoryProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 65536); return; }
 if (args.Contains("extended")) { Extended.Run(); MemoryGate.Run(); return; }
 const int count = 10000;
 foreach (var compression in Enum.GetValues<McapCompression>())

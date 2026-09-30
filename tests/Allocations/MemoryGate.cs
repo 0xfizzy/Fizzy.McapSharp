@@ -26,6 +26,29 @@ static class MemoryGate
                 long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
                 if (bytes != 0) throw new Exception($"Mapped cursor/statistics allocated {bytes} B");
                 Console.WriteLine($"mapped cursor/statistics {compression}: {bytes} B");
+                using var mapped = McapBufferReader.OpenMapped(path);
+                for (int i = 0; i < 100; i++) mapped.ReadNext(payload, out _, out _);
+                before = GC.GetAllocatedBytesForCurrentThread();
+                while (mapped.ReadNext(payload, out _, out _) != McapReadStatus.EndOfStream) _ = mapped.GetMemoryStatistics();
+                bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                if (bytes != 0) throw new Exception($"Mapped reader allocated {bytes} B");
+                using var cached = McapIndexSnapshot.OpenMapped(path, new() { MaxRandomAccessCacheBytes = 1024 * 1024 });
+                var chunk = cached.GetSummary()!.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0);
+                var entry = cached.ReadMessageIndexes(chunk)[0].Records.Last();
+                using var input = File.OpenRead(path);
+                using var session = McapReader.OpenMessages(input);
+                var scratch = new byte[1024];
+                for (int i = 0; i < 100; i++) { cached.SeekMessage(chunk, entry, payload, out _, out _); session.ReadRecordAt(8, scratch, out _, out _); }
+                before = GC.GetAllocatedBytesForCurrentThread();
+                for (int i = 0; i < 1000; i++)
+                {
+                    cached.SeekMessage(chunk, entry, payload, out _, out _);
+                    session.ReadRecordAt(8, scratch, out _, out _);
+                    _ = cached.GetMemoryStatistics(); _ = session.GetMemoryStatistics();
+                }
+                bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                if (bytes != 0) throw new Exception($"Cached seeks/scratch allocated {bytes} B");
+                Console.WriteLine($"mapped reader/cached seek/scratch {compression}: 0 B");
             }
             finally { File.Delete(path); }
         }

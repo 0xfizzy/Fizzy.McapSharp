@@ -7,10 +7,14 @@ pub struct Options {
     pub pending: Option<u64>,
     pub sort: Option<u64>,
     pub retained: u64,
+    pub random: u64,
+    pub scratch: Option<u64>,
 }
 impl Default for Options {
     fn default() -> Self {
         Self {
+            random: 0,
+            scratch: None,
             owned: None,
             pending: None,
             sort: None,
@@ -28,6 +32,8 @@ impl Options {
             }
         }
         Ok(Self {
+            random: field(v, "MaxRandomAccessCacheBytes")?.unwrap_or(0),
+            scratch: field(v, "MaxScratchBufferBytes")?,
             owned: field(v, "MaxOwnedInputBytes")?,
             pending: field(v, "MaxPendingBufferBytes")?,
             sort: field(v, "MaxBufferedSortBytes")?,
@@ -156,12 +162,18 @@ impl Default for Delivery {
 }
 impl Delivery {
     pub fn reserve(&mut self, n: usize) -> Outcome<()> {
+        self.reserve_resource(n, "PendingBuffer", self.options.pending)
+    }
+    pub fn reserve_scratch(&mut self, n: usize) -> Outcome<()> {
+        self.reserve_resource(n, "ScratchBuffer", self.options.scratch)
+    }
+    fn reserve_resource(&mut self, n: usize, resource: &'static str, limit: Option<u64>) -> Outcome<()> {
         if n > self.data.capacity() {
-            check("PendingBuffer", self.options.pending, n)?;
+            check(resource, limit, n)?;
             let old = self.data.capacity();
             self.data.try_reserve_exact(n - self.data.len())?;
             self.stats.capacity(old, self.data.capacity());
-            check("PendingBuffer", self.options.pending, self.data.capacity())?;
+            check(resource, limit, self.data.capacity())?;
         }
         Ok(())
     }
@@ -281,7 +293,10 @@ pub unsafe extern "C" fn fm_memory_statistics(
                         .as_ref()
                         .map(|c| c.delivery.stats)
                         .unwrap_or_default();
-                    s.peak = s.peak.max(r.stats.peak);
+                    s.current += r.stats.current + r.cache.stats.current;
+                    s.allocations += r.cache.stats.allocations;
+                    s.copied += r.cache.stats.copied;
+                    s.peak = r.memory_peak.max(s.current);
                     s.allocations += r.stats.allocations;
                     s.copied += r.stats.copied;
                     s.with_input(&r.data)

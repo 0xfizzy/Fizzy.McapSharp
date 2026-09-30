@@ -148,3 +148,7 @@ python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stres
 Release 原生测试包含仅用于测试的线程局部 Rust 分配计数器，以 None/Lz4/Zstd 运行固定的 4096 条、每条 1 KiB 消息用例（`memory_read_baseline`）。统计推进阶段申请／扩容次数及累计请求字节数，不含初始化和完整输入副本构造；包含上游 Rust 申请，不包含外部压缩库内部申请。使用 `--nocapture` 运行并将前后结果保存至忽略的 artifacts。门禁拒绝恢复为逐消息分配，并独立要求目标充足时封装交付缓冲不分配。受控容量峰值／复制计数用于补充，不替代操作系统工作集分析。
 
 内存测试覆盖容量边界、重试复用、保留缓冲释放、映射子游标生命周期、原始尾部字节保留、快照位置恢复、排序描述／大 payload 和异步直接交付。托管 Release 门禁还要求映射游标读取及统计查询精确为 0 B。跨平台发布仍需 Linux 深度／Valgrind 检查及三个 RID 资产。
+
+原生探针还覆盖 8192 条消息写入，组合可寻址／缓冲输出、开启／关闭索引及有限／无限 Chunk，以及重复随机读取、回退排序 arena 和时间重叠的索引 Chunk。缓存命中测试要求不再推进解析器。托管门禁包含映射 BufferReader、缓存随机读取及可复用随机记录 scratch。
+
+进程内存诊断使用 `dotnet run --project tests/Allocations -c Release -- memory-profile 65536 > artifacts/memory-profile.jsonl`，条数至少 8192。各写入配置每 8192 条及完成／释放后采样，分别记录 Private Bytes、工作集、托管堆和耗时。输出写入计数 sink，排除录制文件存储成本。采样不等于精确原生活跃字节或峰值，分配器缓存及之前场景会影响后续结果。增加条数可延长运行，测量结果保留在忽略的 artifacts 中。

@@ -15,6 +15,7 @@ pub struct Arena {
     blocks: Vec<Block>,
     entries: Vec<Entry>,
     position: usize,
+    small_block: Option<usize>,
     pub stats: memory::Statistics,
 }
 impl Arena {
@@ -49,10 +50,9 @@ impl Arena {
         let mut block = usize::MAX;
         let mut offset = 0;
         if !data.is_empty() {
-            if self
-                .blocks
-                .last()
-                .is_none_or(|b| b.data.capacity() - b.data.len() < data.len())
+            let large = data.len() > 1024 * 1024;
+            if large || self.small_block
+                .is_none_or(|i| self.blocks[i].data.capacity() - self.blocks[i].data.len() < data.len())
             {
                 Self::reserve(&mut self.blocks, limit, &mut self.stats)?;
                 let available = limit
@@ -67,12 +67,10 @@ impl Arena {
                 v.try_reserve_exact(capacity)?;
                 self.stats.capacity(0, v.capacity());
                 memory::check("BufferedSort", limit, self.stats.current as usize)?;
-                self.blocks.push(Block {
-                    data: v,
-                    remaining: 0,
-                });
+                self.blocks.push(Block { data: v, remaining: 0 });
+                if !large { self.small_block = Some(self.blocks.len() - 1); }
             }
-            block = self.blocks.len() - 1;
+            block = if large { self.blocks.len() - 1 } else { self.small_block.unwrap() };
             let b = &mut self.blocks[block];
             offset = b.data.len();
             b.data.extend_from_slice(data);
@@ -130,6 +128,29 @@ impl Arena {
         self.blocks = Vec::new();
         self.entries = Vec::new();
         self.position = 0;
+        self.small_block = None;
         self.stats.current = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn large_messages_do_not_take_over_the_small_block() {
+        let mut arena = Arena::default();
+        let h = |time| MessageHeader { log_time: time, ..Default::default() };
+        arena.push(h(2), &[1; 128], None).unwrap();
+        let small = arena.small_block.unwrap();
+        arena.push(h(0), &vec![2; 2 * 1024 * 1024], None).unwrap();
+        arena.push(h(3), &[3; 128], None).unwrap();
+        assert_eq!(arena.small_block, Some(small));
+        assert_eq!(arena.blocks.len(), 2);
+        arena.sort(false);
+        let before = arena.stats.current;
+        let mut output = vec![0; 2 * 1024 * 1024];
+        unsafe { arena.read(output.as_mut_ptr(), output.len(), &mut MessageHeader::default(), &mut Response::default()).unwrap(); }
+        assert_eq!(before - arena.stats.current, 2 * 1024 * 1024);
+        arena.clear(); assert_eq!(arena.stats.current, 0);
     }
 }

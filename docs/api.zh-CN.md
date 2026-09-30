@@ -163,6 +163,8 @@ var options = new McapWriterOptions { RecoverableErrors = McapRecoverableWriterE
 | --- | --- | --- |
 | `MaxOwnedInputBytes` | null／不限制 | 完整输入副本容量，不限制映射长度 |
 | `MaxPendingBufferBytes` | null／不限制 | 重试或摘要编码缓冲容量 |
+| `MaxScratchBufferBytes` | null／不限制 | 索引 Stream 和随机记录临时缓冲容量 |
+| `MaxRandomAccessCacheBytes` | 0／关闭 | 快照单 Chunk 前缀缓存，不含解析器状态 |
 | `MaxBufferedSortBytes` | null／不限制 | 回退排序 payload 块、描述数组和块容器容量总和 |
 | `MaxRetainedBufferBytes` | 8 MiB | 成功交付后每个缓冲保留的容量，也适用于索引 Stream I/O 临时缓冲 |
 
@@ -172,4 +174,18 @@ var options = new McapWriterOptions { RecoverableErrors = McapRecoverableWriterE
 
 预算错误使用 `McapException.Kind=Binding`，`Details.resource`、`limit`、`requested` 给出类别和字节数。推进失败会终止读取器。快照构造失败恢复源位置，不消费 pending 消息；底层 Stream 故障可能阻止位置恢复。不自动重试或转存磁盘。
 
-会话、BufferReader、Snapshot、Sans-I/O 和异步读取器的 `GetMemoryStatistics()` 返回无托管分配的值类型，包含当前／峰值受控容量、申请／扩容次数、受测数据路径复制字节数和映射长度。容量覆盖输入副本、交付缓冲、索引 Stream 临时缓冲和排序存储。复制计数覆盖输入复制、解析器供给、pending／arena 存储和调用者缓冲交付，不含冷路径描述序列化及上游内部复制。它不是分配器全局或工作集统计。Snapshot 包含默认游标，不包含独立子游标。每个视图只计一次共享输入，不要累加相关视图。异步统计必须在消费当前操作后查询。不注册 GC 内存压力估算。
+会话、BufferReader、Snapshot、Sans-I/O 和异步读取器的 `GetMemoryStatistics()` 返回无托管分配的值类型，包含当前／峰值受控容量、申请／扩容次数、受测数据路径复制字节数和映射长度。容量覆盖输入副本、交付缓冲、Stream 临时缓冲、随机重试／缓存及排序存储。复制计数覆盖输入复制、解析器供给、pending／arena 存储和调用者缓冲交付，不含冷路径描述序列化及上游内部复制。它不是分配器全局或工作集统计。Snapshot 包含默认游标，不包含独立子游标。每个视图只计一次共享输入，不要累加相关视图。异步统计必须在消费当前操作后查询。不注册 GC 内存压力估算。
+
+### 映射输入和可选随机缓存
+
+`McapBufferReader.OpenMapped(path, mode, ignoreEndMagic, options)` 支持全部六种缓冲读取模式，不创建完整输入副本，释放前必须保持文件不变。现有构造方法和 `OpenIndexSnapshot()` 保留复制隔离语义。
+
+`MaxScratchBufferBytes`（`ulong?`，默认 null／不限制）限制索引 Stream 输入和随机记录临时缓冲容量，与 pending 预算独立。调用方缓冲区版 `ReadRecordAt` 直接从映射数据复制，或复用 Stream scratch；验证成功前不修改目标，目标不足时保持内容不变，并恢复 Stream 位置。scratch 预算拒绝会终止会话。
+
+随机 `SeekMessage` 和消息索引长度探测可以保留一个 owned 结果供相同请求重试。请求身份包含完整编码索引和消息参数。键与结果容量总和必须同时满足 `MaxPendingBufferBytes` 和 `MaxRetainedBufferBytes`，否则重试时重新计算。不同随机／默认游标请求替换重试槽，成功交付后释放。可选缓存容量不会把原本成功的读取变成预算错误。
+
+`MaxRandomAccessCacheBytes`（`ulong`，默认 0／关闭）启用快照最近访问 Chunk 已解析前缀的缓存。向后定位只将官方解析器推进至请求记录，已缓存位置不再解压。容量包含完整编码的调用方索引、原始记录体及描述符，不含解析器／解压器状态。容量不足时清除缓存并回退到官方随机辅助接口。缓存独立于顺序游标；重复随机访问可设置有界容量，连续批量读取优先使用 `OpenChunkReader`。缓存读取不代表已验证未访问的尾部。
+
+统计包含随机交付复制、重试／缓存容量及随机记录 scratch。排序为超过 1 MiB 的消息分配独立块，小消息继续复用当前小块。正常 EOF 释放顺序解析器／索引状态，保留声明、摘要和验证路径信息。
+
+BufferReader 便利消息枚举复用记录缓冲区，只创建最终 payload 副本。它缓存私有 Channel 描述，对每个输出防御性复制可变 schema 字节及 metadata。返回结果在推进和释放后仍独立有效。owned 便利接口仍有分配，零托管分配请使用调用方缓冲区。

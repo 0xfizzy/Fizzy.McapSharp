@@ -347,7 +347,7 @@ fn native_header(h: &records::MessageHeader) -> MessageHeader {
 }
 // for_chunk is private upstream. Feed a synthetic record prefix into the public
 // parser, then stream the original body without copying or retaining an iterator.
-fn chunk_parser(
+pub(super) fn chunk_parser(
     header: records::ChunkHeader,
     data: &[u8],
     length: usize,
@@ -441,51 +441,72 @@ pub unsafe extern "C" fn fm_buffer_reader_open_options(
         } else {
             memory::Options::parse(&request(config, config_len)?)?
         };
-        let data = bytes(p, n)?;
-        if mode > 5 {
-            return Err("Unknown buffer reader mode".into());
-        }
-        let mut options = sans_io::LinearReaderOptions::default();
-        if mode == 1 {
-            options = options
-                .with_record_length_limit(data.len())
-                .with_skip_start_magic(true)
-                .with_skip_end_magic(true);
-        } else {
-            options = options
-                .with_skip_end_magic(ignore_end)
-                .with_validate_chunk_crcs(true)
-                .with_emit_chunks(mode == 0);
-            if mode == 0 {
-                options = options.with_record_length_limit(data.len());
-            }
-        }
-        let (parser, position) = if mode == 3 {
-            let records::Record::Chunk { header, data: body } =
-                mcap::parse_record(records::op::CHUNK, data)?
-            else {
-                unreachable!()
-            };
-            (chunk_parser(header, &body, data.len())?, 0)
-        } else {
-            (sans_io::LinearReader::new_with_options(options), 0)
-        };
-        let h = BufferReader {
-            delivery: memory::Delivery {
-                options: memory_options,
-                ..Default::default()
-            },
-            input: Arc::new(memory::Backing::copy(data, memory_options)?),
-            position,
-            end: data.len(),
-            parser: Some(parser),
-            mode,
-            ..BufferReader::empty()
-        };
-        *handle = Box::into_raw(Box::new(h));
+        let input = memory::Backing::copy(bytes(p, n)?, memory_options)?;
+        *handle = Box::into_raw(Box::new(open_backing(input, mode, ignore_end, memory_options)?));
         Ok(0)
     })
 }
+fn open_backing(data: memory::Backing, mode: u32, ignore_end: bool,
+    memory_options: memory::Options) -> Outcome<BufferReader> {
+    if mode > 5 {
+        return Err("Unknown buffer reader mode".into());
+    }
+    let mut options = sans_io::LinearReaderOptions::default();
+    if mode == 1 {
+        options = options
+            .with_record_length_limit(data.len())
+            .with_skip_start_magic(true)
+            .with_skip_end_magic(true);
+    } else {
+        options = options
+            .with_skip_end_magic(ignore_end)
+            .with_validate_chunk_crcs(true)
+            .with_emit_chunks(mode == 0);
+        if mode == 0 {
+            options = options.with_record_length_limit(data.len());
+        }
+    }
+    let (parser, position) = if mode == 3 {
+        let records::Record::Chunk { header, data: body } =
+            mcap::parse_record(records::op::CHUNK, &data)?
+        else {
+            unreachable!()
+        };
+        (chunk_parser(header, &body, data.len())?, 0)
+    } else {
+        (sans_io::LinearReader::new_with_options(options), 0)
+    };
+    let end = data.len();
+    let h = BufferReader {
+        delivery: memory::Delivery {
+            options: memory_options,
+            ..Default::default()
+        },
+        input: Arc::new(data),
+        position,
+        end,
+        parser: Some(parser),
+        mode,
+        ..BufferReader::empty()
+    };
+    Ok(h)
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_buffer_reader_mapped(config: *const u8, n: usize,
+    handle: *mut *mut BufferReader, out: *mut Response) -> i32 {
+    guard(out, |_| {
+        if handle.is_null() { return Err("Null output".into()); }
+        *handle = ptr::null_mut();
+        let v = request(config, n)?;
+        let mode = u32::try_from(v["mode"].as_u64().ok_or("Invalid mode")?)?;
+        let options = memory::Options::parse(&v["options"])?;
+        let input = memory::Backing::open(string(&v, "path")?)?;
+        *handle = Box::into_raw(Box::new(open_backing(input, mode,
+            v["ignoreEndMagic"].as_bool().unwrap_or(false), options)?));
+        Ok(0)
+    })
+}
+
 pub(super) fn describe_channel(c: &mcap::Channel<'_>, out: &mut Response) -> Outcome<i32> {
     let schema = c
         .schema
