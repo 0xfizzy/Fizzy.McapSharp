@@ -31,11 +31,39 @@ writer.Complete();
 | `StartAttachment(..., length)`, `WriteAttachmentBytes(data)`, `FinishAttachment()` | Writes an attachment in parts with an exact declared length. Other writer operations are rejected until completion. Length mismatch is terminal. |
 | `WritePrivateRecord(opcode, data, includeInChunks)` | Accepts opcodes 0x80–0xFF; optionally writes inside chunks. |
 | `Flush()` | Flushes the upstream writer, without completing the MCAP footer or guaranteeing durable storage. |
-| `Complete()` | Finishes MCAP once. Files also receive `sync_all`; streams receive `Flush`, without a durability guarantee. Repeated successful calls are no-ops. |
+| `Complete()` | Finishes MCAP and flushes output buffers without requesting file persistence. Repeated successful calls are no-ops; the output remains owned until disposal or Stream transfer. |
+| `FlushToDisk()` | After successful Complete, requests file persistence for path outputs or directly supplied FileStream; other Streams throw NotSupportedException. |
 | `GetSummary()` | Copies the upstream finish result after successful Complete; may allocate. |
 | `Dispose()` | Releases resources without implicit Complete. |
 
 Writer calls are serialized. Applications determine cross-thread business ordering. Native failures outside the configured safe-rejection whitelist and all Stream callback failures make the writer terminal: dispose it and begin a new recording. Argument/state checks before native operations do not by themselves fail a writer. Input buffers can be reused immediately after return.
+
+### Completion and file persistence
+
+Complete the format, then optionally request operating-system file synchronization:
+
+```csharp
+using var writer = new McapWriter(path);
+// Register channels and write messages.
+writer.Complete();
+writer.FlushToDisk(); // Optional; omit when only format completion is required.
+```
+
+A caller-owned file uses the same two actions:
+
+```csharp
+using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+using var writer = new McapWriter(stream, leaveOpen: true);
+// Register channels and write messages.
+writer.Complete();
+writer.FlushToDisk();
+```
+
+`Complete()` finishes Chunk, Summary, Footer and end magic, then performs ordinary output flushing. `Flush()` during writing does not complete the format. Neither requests file persistence. `FlushToDisk()` calls Rust `File::sync_all()` for path outputs or `FileStream.Flush(true)` for a directly supplied FileStream. Wrapped FileStreams and other Streams are not unwrapped.
+
+Call `FlushToDisk()` only after successful completion and before disposal. Every valid invocation performs synchronization again. Calling before completion throws InvalidOperationException; after disposal it throws ObjectDisposedException. Unsupported Streams throw NotSupportedException without failing the writer. Actual synchronization failures terminate the writer: completion, synchronization and summary access then fail; disposal and Stream ownership transfer remain available. Stream exceptions retain their original type and instance. Previously opened independent summary cursors remain usable.
+
+The path file handle stays open after completion until disposal. `leaveOpen` and `IntoInner()` control Stream ownership as usual. Neither disposal nor ownership transfer implicitly completes or synchronizes the recording. Successful synchronization means the operating-system request succeeded; it is not an unconditional guarantee about hardware, filesystem or directory-entry persistence.
 
 ### Writer options
 
@@ -75,7 +103,19 @@ while (true)
 
 Queries accept either one exact `Topic` or a `Topics` collection and apply `[StartTime, EndTime)` to LogTime. Null boundaries are unbounded; reversed boundaries throw, equal boundaries select nothing. Queries default to `LogTime` order, with `ReverseLogTime` and `File` available. Equal-time messages follow file order, reversed for reverse order. Opening messages without a query uses sequential file order, matching the official message stream.
 
-Seekable queries use the official `IndexedReader` when summary declarations and chunk coverage suffice and there are no top-level messages; otherwise they scan. Sorted fallback collects selected messages in native memory before returning the session, including on non-seekable sources. Set `McapQuery.AllowBufferedSort = false` to reject this fallback with NotSupportedException before collecting messages; the default is true. File-order scans and suitable indexed queries remain available. This option does not bound indexed Chunk buffering or suppress index probing. Direct Sans-I/O indexed readers never use this fallback. File-order scans remain incremental. `OpenIndexedMessages` rejects incomplete indexes. Non-default linear parser flags force high-level queries to scan; explicit indexed reading rejects these unsupported flags.
+Seekable time-ordered queries use the official `IndexedReader` when summary declarations and chunk coverage suffice and there are no top-level messages. Non-default linear parser flags force high-level queries to scan; explicit indexed reading rejects these unsupported flags. Direct Sans-I/O indexed readers never use scan-and-sort fallback.
+
+### Choosing a query path
+
+| Requested behavior | Execution | Cost |
+| --- | --- | --- |
+| No query, or File order | Incremental sequential scan | No collection of all matching messages for sorting |
+| Time order with sufficient indexes and supported options | Official IndexedReader | May buffer overlapping Chunks |
+| Time order without sufficient indexes | Wrapper scan-and-sort fallback | Collects matching messages in native memory before returning the session |
+
+The fallback is a high-level binding capability, not sorting provided by official MessageStream. File order need not follow LogTime: after reading time 30, a later record can still have time 10. Without sufficient indexes or an ordering guarantee, the scan must finish before it can establish global time order. This increases time to the first result and memory use in proportion to selected payloads and sorting data; there is no automatic disk spill.
+
+`AllowBufferedSort` defaults to true, including for non-seekable sources. Set it to false to reject fallback with NotSupportedException before collection while retaining index probing, supported indexed queries and file-order scans. Use `OpenIndexedMessages()` to require usable indexes. `McapQuery.Memory.MaxBufferedSortBytes` limits the fallback's controlled allocations; it does not cap all native memory or the official indexed reader's overlapping-Chunk buffers. A successful indexed query is not full-file validation.
 
 `GetChannel(id)` and `GetSchema(id)` copy descriptions already encountered or loaded from a summary. New declarations can appear during reading without creating managed objects in the message loop. IDs alone are returned on the hot path. Description lookup and summary operations allocate.
 

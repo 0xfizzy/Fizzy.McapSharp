@@ -52,6 +52,8 @@ Use Release only. Caller buffer growth, initialization, description/summary snap
 
 Classification enumeration acceptance compares 32 and 4096 unrelated fixed-size messages with a fixed set of target records under all three compression modes. It measures the complete enumeration and permits at most 4096 additional managed bytes, rejecting per-record allocation growth without requiring owned results to allocate zero bytes.
 
+Completion tests distinguish ordinary flushing from explicit file synchronization, cover retained handle ownership and terminal synchronization failures, and use test-only native fault injection and FileStream overrides. These tests verify dispatch and failure contracts, not power-loss durability. ABI changes require rebuilding all three native assets from the same source before complete-package validation.
+
 ### Python interoperability
 
 Run in an environment with Python available; CI uses Python 3.12:

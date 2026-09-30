@@ -16,7 +16,7 @@ use std::{
     borrow::Cow,
     collections::BTreeMap,
     fs::File,
-    io::{Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
     panic::{catch_unwind, AssertUnwindSafe},
     ptr, slice,
 };
@@ -101,7 +101,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    7
+    8
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
@@ -112,6 +112,7 @@ pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
 
 pub struct Writer {
     inner: Option<mcap::Writer<Output>>,
+    completed_output: Option<Output>,
     failed: bool,
     recoverable_errors: u32,
     attachment: Option<u64>,
@@ -205,6 +206,7 @@ pub unsafe extern "C" fn fm_writer_open(
         let seekable = callbacks.as_ref().map(|c| c.seekable != 0).unwrap_or(true);
         *handle = Box::into_raw(Box::new(Writer {
             inner: Some(options(&v["options"], seekable)?.create(output)?),
+            completed_output: None,
             failed: false,
             recoverable_errors,
             attachment: None,
@@ -328,6 +330,10 @@ unsafe fn writer_control(
     if holder.failed {
         return Err("Writer failed".into());
     }
+    if op == 13 {
+        holder.completed_output.as_mut().ok_or("Complete must succeed first")?.sync_all()?;
+        return Ok(0);
+    }
     if op == 12 {
         if let Some(s) = &holder.summary {
             respond(out, serde_json::to_vec(s)?, vec![], 0);
@@ -420,8 +426,8 @@ unsafe fn writer_control(
             let s = w.finish()?;
             holder.summary = Some(summary_json(&s));
             holder.native_summary = Some(std::sync::Arc::new(s));
-            let mut output = holder.inner.take().unwrap().into_inner();
-            output.complete()?;
+            holder.completed_output = Some(holder.inner.take().unwrap().into_inner());
+            holder.completed_output.as_mut().unwrap().flush()?;
             0
         }
         8 => {

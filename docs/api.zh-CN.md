@@ -31,11 +31,39 @@ writer.Complete();
 | `StartAttachment(..., length)`、`WriteAttachmentBytes(data)`、`FinishAttachment()` | 按准确声明长度分段写附件；结束前拒绝其他写入操作，长度不符使 Writer 终止失败。 |
 | `WritePrivateRecord(opcode, data, includeInChunks)` | 接受 0x80–0xFF 的私有操作码，可选择写入 Chunk。 |
 | `Flush()` | 调用上游 flush，不完成 MCAP 尾部，也不保证持久化。 |
-| `Complete()` | 完成 MCAP；文件额外执行 sync_all，Stream 执行 Flush，但不承诺物理持久化。成功后重复调用无操作。 |
+| `Complete()` | 完成 MCAP 格式并排空输出缓冲，不请求文件持久化。成功后重复调用无操作；输出保持所有权直至释放或 Stream 转移。 |
+| `FlushToDisk()` | 成功 Complete 后，请求路径输出或直接传入的 FileStream 持久化；其他 Stream 抛出 NotSupportedException。 |
 | `GetSummary()` | 成功 Complete 后复制上游完成摘要，允许分配。 |
 | `Dispose()` | 释放资源，不隐式 Complete。 |
 
 Writer 操作串行化，业务顺序由应用协调。原生操作或 Stream 回调失败使 Writer 终止，需释放并开始新录制；进入原生调用前的参数/状态检查失败本身不使 Writer 终止。输入缓冲可在调用返回后立即复用。
+
+### 格式完成与文件持久化
+
+完成格式后，按需请求操作系统同步文件：
+
+```csharp
+using var writer = new McapWriter(path);
+// 注册通道并写入消息。
+writer.Complete();
+writer.FlushToDisk(); // 可选；仅需格式完整时可省略。
+```
+
+调用方提供的文件也使用相同的两个动作：
+
+```csharp
+using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+using var writer = new McapWriter(stream, leaveOpen: true);
+// 注册通道并写入消息。
+writer.Complete();
+writer.FlushToDisk();
+```
+
+`Complete()` 完成 Chunk、Summary、Footer 和结束标记，随后普通刷新输出缓冲。写入期间的 `Flush()` 不完成格式；两者均不请求文件持久化。`FlushToDisk()` 对路径输出调用 Rust `File::sync_all()`，对直接传入的 FileStream 调用 `FileStream.Flush(true)`；不解包包装流或其他 Stream。
+
+仅在完成成功后、释放前调用 `FlushToDisk()`，每次有效调用均重新执行同步。完成前调用抛出 InvalidOperationException；释放后抛出 ObjectDisposedException。不支持的 Stream 抛出 NotSupportedException，但不会使 Writer 失败。实际同步失败使 Writer 终止：不能再次完成、同步或获取摘要，但仍可释放及转移 Stream 所有权。Stream 异常保留原始类型和实例；此前已打开的独立摘要游标仍可使用。
+
+路径文件句柄在完成后保留到释放；Stream 仍按 `leaveOpen` 和 `IntoInner()` 管理所有权。释放和所有权转移均不隐式完成或同步。同步成功表示操作系统同步请求成功，不是对硬件、文件系统或目录项持久化的无条件保证。
 
 ### 写入选项
 
@@ -75,7 +103,19 @@ while (true)
 
 查询指定完整 `Topic` 或 `Topics` 集合，对 LogTime 使用 `[StartTime, EndTime)`；null 为无边界，起点大于终点抛异常，相等为空区间。查询默认 `LogTime` 顺序，可选 `ReverseLogTime` 或 `File`；同时间消息按文件顺序排列，逆序时也反转。不传查询对象时按官方消息流的文件顺序读取。
 
-可定位查询在摘要声明和 Chunk 覆盖充分、无 Chunk 外消息时直接使用官方 `IndexedReader`，否则扫描回退。排序回退在返回会话前将选中消息收集到原生内存，非定位源同样适用；文件顺序扫描仍为增量读取。`McapQuery.AllowBufferedSort` 默认 true；设为 false 后，需要全量缓存排序时在收集消息前抛出 `NotSupportedException`，但仍允许索引探测、索引读取及文件顺序扫描。该选项不限制索引读取的重叠 Chunk 缓冲；直接 Sans-I/O 索引读取没有扫描回退。`OpenIndexedMessages` 拒绝缺失/不完整索引。非默认线性解析选项使高层查询回退扫描；显式索引入口拒绝这些不受支持的选项。
+可定位时间排序查询在摘要声明和 Chunk 覆盖充分、无 Chunk 外消息时使用官方 `IndexedReader`。非默认线性解析选项使高层查询转为扫描；显式索引读取拒绝这些不支持的选项。直接 Sans-I/O 索引读取不使用扫描排序回退。
+
+### 选择查询路径
+
+| 请求行为 | 执行方式 | 成本 |
+| --- | --- | --- |
+| 不带查询或选择 File 顺序 | 增量顺序扫描 | 不为排序收集全部匹配消息 |
+| 时间排序且索引充分、选项受支持 | 官方 IndexedReader | 可能缓存时间范围重叠的 Chunk |
+| 时间排序但索引不足 | 封装层扫描排序回退 | 返回会话前将匹配消息收集到原生内存 |
+
+回退是高层封装增加的能力，不是官方 MessageStream 提供的排序。文件顺序不一定按 LogTime 递增：读到时间 30 后，后续仍可能出现时间 10。缺少充分索引或顺序保证时，必须完成扫描才能确定全局时间顺序，因此增加首条结果延迟，并消耗与选中 payload 和排序数据成比例的内存；不会自动溢写磁盘。
+
+`AllowBufferedSort` 默认 true，非定位源同样允许回退。设为 false 后在收集前抛出 NotSupportedException 拒绝回退，但仍允许索引探测、受支持的索引查询及文件顺序扫描；用 `OpenIndexedMessages()` 明确要求索引可用。`McapQuery.Memory.MaxBufferedSortBytes` 限制回退受控分配，不限制全部原生内存，也不限制官方索引读取的重叠 Chunk 缓冲。索引查询成功仍不代表全文件已验证。
 
 `GetChannel(id)` 和 `GetSchema(id)` 复制已遇到或从 Summary 加载的描述。文件中途新增声明不会在消息循环创建托管对象，热路径只返回 ID。描述查询与 Summary 操作允许分配。
 

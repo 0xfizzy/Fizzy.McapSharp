@@ -265,7 +265,7 @@ fn recovered_registration_matches_official_output() {
         let mut upstream = options(&config, true).unwrap().create(std::io::Cursor::new(Vec::new())).unwrap();
         let mut wrapper = Writer {
             inner: Some(options(&config, true).unwrap().create(Output::File(File::create(&path).unwrap())).unwrap()),
-            failed: false, recoverable_errors: 31, attachment: None, summary: None, native_summary: None,
+            completed_output: None, failed: false, recoverable_errors: 31, attachment: None, summary: None, native_summary: None,
         };
         let mut out = Response::default();
         upstream.add_schema_with_id(1, "s", "raw", &[]).unwrap();
@@ -326,4 +326,42 @@ fn native_recovery_configuration_rejects_unknown_bits_before_creation() {
         fm_buffer_free(out.json, out.json_len);
     }
     assert!(!path.exists());
+}
+
+#[test]
+fn completion_does_not_sync_and_sync_failure_is_terminal() {
+    let path = std::env::temp_dir().join(format!("mcap-sync-{}.mcap", std::process::id()));
+    let config = json!({"compression":"none","chunkSize":64,"useChunks":true,"profile":""});
+    let mut writer = Writer {
+        inner: Some(options(&config, true).unwrap().create(Output::File(File::create(&path).unwrap())).unwrap()),
+        completed_output: None, failed: false, recoverable_errors: 31,
+        attachment: None, summary: None, native_summary: None,
+    };
+    io::SYNC_TEST.with(|s| s.set((0, false)));
+    unsafe {
+        let mut out = Response::default();
+        assert_eq!(fm_writer_call(&mut writer, 7, ptr::null(), 0, ptr::null(), 0, &mut out), 0);
+        assert!(writer.inner.is_none());
+        assert!(writer.completed_output.is_some());
+        io::SYNC_TEST.with(|s| assert_eq!(s.get().0, 0));
+        let before = std::fs::read(&path).unwrap();
+        assert!(mcap::Summary::read(&before).unwrap().is_some());
+        for _ in 0..2 {
+            assert_eq!(fm_writer_call(&mut writer, 13, ptr::null(), 0, ptr::null(), 0, &mut out), 0);
+        }
+        io::SYNC_TEST.with(|s| { assert_eq!(s.get().0, 2); s.set((2, true)); });
+        assert_eq!(fm_writer_call(&mut writer, 13, ptr::null(), 0, ptr::null(), 0, &mut out), -1);
+        assert!(writer.failed);
+        assert!(String::from_utf8_lossy(bytes(out.json, out.json_len).unwrap()).contains("Injected sync failure"));
+        fm_buffer_free(out.json, out.json_len);
+        for op in [7, 12, 13] {
+            let mut out = Response::default();
+            assert_eq!(fm_writer_call(&mut writer, op, ptr::null(), 0, ptr::null(), 0, &mut out), -1);
+            fm_buffer_free(out.json, out.json_len);
+        }
+        io::SYNC_TEST.with(|s| { assert_eq!(s.get().0, 3); s.set((0, false)); });
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+    drop(writer);
+    std::fs::remove_file(path).unwrap();
 }

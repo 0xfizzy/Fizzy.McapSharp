@@ -32,3 +32,5 @@ Rust 生命周期、`Cow`、`Arc`、迭代器及 builder 映射为自有结果�
 `MemoryOptimizationTests` 覆盖映射缓冲模式、便利结果可变数据隔离、有界随机缓存／重试和 scratch 边界。原生缓存差分比较固定官方辅助接口，断言命中时不推进解析器；内存探针将 Rust 分配器流量与进程内存诊断分开。这些封装扩展不改变上游 API 清单。
 
 `McapPreparedChunkIndex` 为既有 Chunk 操作增加不可变、可复用描述符，不改变上游解析规则。`DeliveryOptimizationTests` 和托管／原生分配门禁覆盖 prepared 复用、大索引、pending 交付、无关 payload 不复制的筛选、回调失败及子游标生命周期。便利交付直接复制到最终托管存储，上游解析器／解压器分配仍不在托管门禁范围内。
+
+`FlushToDisk` 文件持久化及扫描后时间排序属于封装扩展，不增加上游声明数量。`Complete` 完成格式并刷新缓冲，持久化需单独显式请求。参见[完成与查询契约](api.zh-CN.md)。

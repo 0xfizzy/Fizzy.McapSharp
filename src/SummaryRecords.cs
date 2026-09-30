@@ -26,9 +26,7 @@ public sealed partial class McapWriter
     {
         lock (gate)
         {
-            handle.Bridge?.CheckReentry();
-            ObjectDisposedException.ThrowIf(disposed, this);
-            if (!completed) throw new InvalidOperationException("Complete must succeed first.");
+            CheckCompleted();
             return Native.SummaryRecords(2, handle);
         }
     }

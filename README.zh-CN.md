@@ -36,7 +36,7 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
     Console.WriteLine($"{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}");
 ```
 
-必须显式调用 `Complete()` 完成录制；`Dispose()` 只释放资源。`ReadMessages()` 不替代完整文件校验。
+必须显式调用 `Complete()` 完成格式，再按需调用 `FlushToDisk()` 请求文件持久化；`Dispose()` 只释放资源。`ReadMessages()` 不替代完整文件校验。
 
 ## 文档入口
 

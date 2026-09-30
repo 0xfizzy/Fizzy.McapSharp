@@ -6,7 +6,7 @@ English | [简体中文](native.zh-CN.md)
 
 ## ABI contract
 
-`fm_abi_version()` returns 7. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 8. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -20,7 +20,7 @@ English | [简体中文](native.zh-CN.md)
 | `fm_validate` | Fully scan a mapped file. |
 | `fm_buffer_free` | Release a Rust-owned response allocation. |
 
-Control operations: 1 schema, 2 channel, 4 metadata, 5 attachment, 6 flush, 7 complete, 8 start attachment, 9 attachment bytes, 10 finish attachment, 11 private record, 12 completed writer summary. Messages use their dedicated entry.
+Control operations: 1 schema, 2 channel, 4 metadata, 5 attachment, 6 flush, 7 complete, 8 start attachment, 9 attachment bytes, 10 finish attachment, 11 private record, 12 completed writer summary, 13 completed file synchronization. Messages use their dedicated entry.
 
 The private message header is 24 bytes: `u16 channel_id`, `u16 reserved`, `u32 sequence`, `u64 log_time`, `u64 publish_time`, with offsets 0, 2, 4, 8, 16. It is converted to/from upstream records; it is not a Rust record layout. At reader EOF, reserved is 1 for indexed scans and sorted fallback and 0 for sequential scans. Managed code uses that distinction when reporting full validation.
 
@@ -44,7 +44,7 @@ The callback table is 48 bytes: context pointer, Read/Write/Seek/Flush function 
 
 Callbacks run synchronously on the initiating thread. Managed callback exceptions are captured and returned as failure; after native code unwinds normally, the original exception is rethrown. Reentry is rejected. A stream cannot belong to two concurrent sessions. Seek offsets are relative to the captured MCAP origin; non-seekable writers allow only a current-position query and use upstream `disable_seeking(true)` buffering.
 
-Writer operations are serialized. Writer status -2 is a configured, audited pre-mutation rejection; -1 is terminal. Other native errors are terminal. `Complete` calls upstream finish and then file sync or stream flush. Drop uses upstream `into_inner`, preventing implicit completion. Free operations catch destructor panics. No callback pointers remain usable after release.
+Writer operations are serialized. Writer status -2 is a configured, audited pre-mutation rejection; -1 is terminal. Other native errors are terminal. `Complete` calls upstream finish and ordinary output flush, retaining output until release. Operation 13 requires successful completion and a native File output, then calls sync_all. FileStream persistence uses managed Flush(true) under the writer lock and reentry guard; callback layouts are unchanged. Synchronization failures are terminal. Drop uses upstream `into_inner`, preventing implicit completion. Free operations catch destructor panics. No callback pointers remain usable after release.
 
 ## Error boundary and validation
 
@@ -66,15 +66,15 @@ The asynchronous reader drives the linear engine with .NET ReadAsync, retaining 
 
 ## Memory controls and diagnostics
 
-ABI 7 exposes `fm_buffer_reader_open_options`, `fm_snapshot_bytes_options`, `fm_snapshot_open_options`, `fm_snapshot_mapped` and `fm_memory_statistics`. Existing unconfigured exports remain available internally. Options are construction-time JSON. Statistics use five sequential u64 fields (40 bytes): current controlled capacity, peak capacity, allocation/expansion count, copied bytes and mapped length. The source kind is 0 session, 1 buffer cursor, 2 snapshot, 3 Sans-I/O engine. No owned response is allocated on successful statistics calls.
+ABI 8 exposes `fm_buffer_reader_open_options`, `fm_snapshot_bytes_options`, `fm_snapshot_open_options`, `fm_snapshot_mapped` and `fm_memory_statistics`. Existing unconfigured exports remain available internally. Options are construction-time JSON. Statistics use five sequential u64 fields (40 bytes): current controlled capacity, peak capacity, allocation/expansion count, copied bytes and mapped length. The source kind is 0 session, 1 buffer cursor, 2 snapshot, 3 Sans-I/O engine. No owned response is allocated on successful statistics calls.
 
 `memory::Backing` owns either bytes or a file mapping; child cursors share it through Arc. Direct delivery copies within the parser event lifetime; insufficient destinations use one reusable owned buffer. No native borrowed pointer is saved across calls. Summary cursors share the official Summary and encode lazily. Fallback sorting uses an arena plus descriptors; per-resource capacity checks precede growth. Binding budget errors include resource, limit and requested capacity. Parser state is released before shared input; mapped files must remain unchanged. See the API guide for the measured/excluded resources.
 
-`fm_buffer_reader_mapped` is an ABI 7 export using construction JSON (`path`, `mode`, `ignoreEndMagic`, `options`). Snapshot operation codes 1 and 7 are unsupported; other operation codes retain their values. Snapshot retries compare complete encoded requests before parsing. The optional single-Chunk cache owns raw prefix bodies and descriptors and drives the official parser incrementally; no event slice is retained. Scratch limits apply before growth. Random output delivery and cache storage are included in controlled statistics; parser/decompressor state remains excluded.
+`fm_buffer_reader_mapped` is an ABI 8 export using construction JSON (`path`, `mode`, `ignoreEndMagic`, `options`). Snapshot operation codes 1 and 7 are unsupported; other operation codes retain their values. Snapshot retries compare complete encoded requests before parsing. The optional single-Chunk cache owns raw prefix bodies and descriptors and drives the official parser incrementally; no event slice is retained. Scratch limits apply before growth. Random output delivery and cache storage are included in controlled statistics; parser/decompressor state remains excluded.
 
 ## Synchronous owned delivery and prepared indexes
 
-ABI 7 additionally exports `fm_reader_owned`, `fm_buffer_reader_owned` and `fm_snapshot_message_owned`. A Sink is two pointers (context and Cdecl callback). The callback receives context, u8 opcode, a MessageHeader pointer, data pointer, native-size length and an output native-size copied-byte count; it returns i32 status. It consumes the event synchronously, reports final binary bytes copied, and never exposes its span publicly. Managed exceptions are captured and rethrown after returning failure; failed advancement terminates the reader. Callback roots exist only during the native call, so abandoning an enumerator cannot retain a callback GCHandle. The sink is cleared on every return, including native panic/error paths. EOF, pending records and sorted results use the same advancement semantics as buffer reads.
+ABI 8 additionally exports `fm_reader_owned`, `fm_buffer_reader_owned` and `fm_snapshot_message_owned`. A Sink is two pointers (context and Cdecl callback). The callback receives context, u8 opcode, a MessageHeader pointer, data pointer, native-size length and an output native-size copied-byte count; it returns i32 status. It consumes the event synchronously, reports final binary bytes copied, and never exposes its span publicly. Managed exceptions are captured and rethrown after returning failure; failed advancement terminates the reader. Callback roots exist only during the native call, so abandoning an enumerator cannot retain a callback GCHandle. The sink is cleared on every return, including native panic/error paths. EOF, pending records and sorted results use the same advancement semantics as buffer reads.
 
 `fm_chunk_index_prepare/free` own immutable parsed ChunkIndex fields and a stable encoded key. `fm_snapshot_prepared_call` and `fm_snapshot_prepared_chunk_reader` use that descriptor directly; `fm_snapshot_message_owned` accepts either ordinary encoded input or an optional prepared descriptor. Existing layouts and operation codes are unchanged. Prepared handles are private SafeHandles; the optional raw handle argument is protected with DangerousAddRef/Release for the entire call. Prepared storage is separate from snapshot statistics and budgets.
 

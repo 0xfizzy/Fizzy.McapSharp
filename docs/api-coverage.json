@@ -1559,16 +1559,18 @@
     {
       "rust": "write.rs::Writer::finish",
       "kind": "method",
-      "managed": "McapWriter.Complete / GetSummary / OpenSummaryRecords",
+      "managed": "McapWriter.Complete / GetSummary (format completion; FlushToDisk is a separate binding extension)",
       "native": "write::Writer::finish",
-      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests / WriterCompletionTests / coverage_tests.completion_does_not_sync_and_sync_failure_is_terminal",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
         "src/PreparedOperation.cs",
         "native/src/lib.rs",
-        "native/src/extended.rs"
+        "native/src/extended.rs",
+        "tests/Fizzy.McapSharp.Tests/WriterCompletionTests.cs",
+        "native/src/coverage_tests.rs"
       ]
     },
     {

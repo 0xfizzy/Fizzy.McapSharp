@@ -61,11 +61,23 @@ fn callback_seek(c: &Callbacks, pos: SeekFrom) -> io::Result<u64> {
     check(unsafe { (c.seek)(c.context, offset, origin, &mut result) })?;
     Ok(result)
 }
+#[cfg(test)]
+thread_local! {
+    pub(super) static SYNC_TEST: std::cell::Cell<(u32, bool)> = const { std::cell::Cell::new((0, false)) };
+}
 impl Output {
-    pub fn complete(&mut self) -> io::Result<()> {
+    pub fn sync_all(&mut self) -> io::Result<()> {
         match self {
-            Self::File(f) => f.sync_all(),
-            Self::Stream(_) => self.flush(),
+            Self::File(f) => {
+                #[cfg(test)]
+                SYNC_TEST.with(|state| {
+                    let (calls, fail) = state.get();
+                    state.set((calls + 1, fail));
+                    if fail { Err(io::Error::other("Injected sync failure")) } else { Ok(()) }
+                })?;
+                f.sync_all()
+            },
+            Self::Stream(_) => Err(io::Error::new(io::ErrorKind::Unsupported, "Stream persistence is managed by the caller")),
         }
     }
 }

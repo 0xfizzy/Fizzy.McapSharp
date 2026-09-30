@@ -162,6 +162,16 @@ internal sealed unsafe class StreamBridge
         }
     }
 
+    internal bool CanFlushToDisk => stream is FileStream;
+
+    internal void FlushToDisk()
+    {
+        CheckReentry();
+        InCallback = true;
+        try { ((FileStream)stream).Flush(flushToDisk: true); }
+        finally { InCallback = false; }
+    }
+
     internal void CheckReentry()
     {
         if (InCallback)

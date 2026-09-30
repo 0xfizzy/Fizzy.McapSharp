@@ -36,7 +36,7 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
     Console.WriteLine($"{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}");
 ```
 
-Call `Complete()` explicitly to finish a recording; `Dispose()` only releases resources. `ReadMessages()` does not replace full-file validation.
+Call `Complete()` explicitly to finish the format, then optionally `FlushToDisk()` to request file persistence; `Dispose()` only releases resources. `ReadMessages()` does not replace full-file validation.
 
 ## Documentation
 

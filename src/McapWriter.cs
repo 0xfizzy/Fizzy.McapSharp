@@ -59,14 +59,24 @@ public sealed partial class McapWriter : IDisposable
         throw error;
     }
 
-    void Check(bool allowAttachment = false)
+    void CheckAvailable()
     {
         handle.Bridge?.CheckReentry();
         ObjectDisposedException.ThrowIf(disposed, this);
+        if (failed) throw new InvalidOperationException("Writer failed; start a new recording.");
+    }
+
+    void CheckCompleted()
+    {
+        CheckAvailable();
+        if (!completed) throw new InvalidOperationException("Complete must succeed first.");
+    }
+
+    void Check(bool allowAttachment = false)
+    {
+        CheckAvailable();
         if (completed)
             throw new InvalidOperationException("Writer is complete.");
-        if (failed)
-            throw new InvalidOperationException("Writer failed; start a new recording.");
         if (attachment && !allowAttachment)
             throw new InvalidOperationException("Finish the attachment first.");
     }
@@ -153,8 +163,7 @@ public sealed partial class McapWriter : IDisposable
     {
         lock (gate)
         {
-            handle.Bridge?.CheckReentry();
-            ObjectDisposedException.ThrowIf(disposed, this);
+            CheckAvailable();
             if (completed)
                 return;
             Call(7, null);
@@ -162,14 +171,33 @@ public sealed partial class McapWriter : IDisposable
         }
     }
 
+    /// <summary>Requests file persistence after successful completion. Supports path outputs and FileStream only.</summary>
+    public unsafe void FlushToDisk()
+    {
+        lock (gate)
+        {
+            CheckCompleted();
+            var bridge = handle.Bridge;
+            if (bridge is not null && !bridge.CanFlushToDisk)
+                throw new NotSupportedException("File persistence requires a path output or FileStream.");
+            try
+            {
+                if (bridge is not null) bridge.FlushToDisk();
+                else
+                {
+                    var status = Native.fm_writer_call(handle, 13, [], 0, null, 0, out var result);
+                    Native.Consume(status, result).Json?.Dispose();
+                }
+            }
+            catch { failed = true; throw; }
+        }
+    }
+
     public unsafe McapSummary GetSummary()
     {
         lock (gate)
         {
-            handle.Bridge?.CheckReentry();
-            ObjectDisposedException.ThrowIf(disposed, this);
-            if (!completed)
-                throw new InvalidOperationException("Complete must succeed first.");
+            CheckCompleted();
             var status = Native.fm_writer_call(handle, 12, [], 0, null, 0, out var r);
             var response = Native.Consume(status, r);
             using var json = response.Json!;
