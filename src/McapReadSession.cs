@@ -213,51 +213,52 @@ public sealed partial class McapReadSession : IDisposable
         return result;
     }
 
+    bool ReadOwned(OwnedReadSink sink, byte wanted = 0)
+    {
+        lock (gate)
+        {
+            Check();
+            sink.Reset();
+            try
+            {
+                using var lease = sink.Acquire();
+                int status = Native.fm_reader_owned(handle, wanted, sink.Sink, out var h, out var r);
+                if (status < 0)
+                {
+                    var error = Native.ConsumeError(r);
+                    sink.ThrowIfError();
+                    handle.Bridge?.ThrowIfError();
+                    throw error;
+                }
+                if (status != 1) return true;
+                ended = true;
+                fullyValidated = strict && h.Reserved == 0 && !topLevel;
+                ScannedRecordCount = r.Value;
+                return false;
+            }
+            catch { failed = true; throw; }
+        }
+    }
+
     public IEnumerable<McapMessage> ReadMessages()
     {
-        if (!messages)
-            throw new InvalidOperationException("This is a record session.");
+        if (!messages) throw new InvalidOperationException("This is a record session.");
         var channels = new Dictionary<ushort, McapChannel>();
-        byte[] buffer = [];
-        while (true)
+        using var sink = new OwnedReadSink(OwnedReadSink.Kind.Message);
+        while (ReadOwned(sink))
         {
-            var status = ReadNext(buffer, out var h, out var required);
-            if (status == McapReadStatus.EndOfStream)
-                yield break;
-            if (status == McapReadStatus.BufferTooSmall)
-            {
-                buffer = new byte[checked((int)required)];
-                continue;
-            }
-
+            var h = sink.Header;
             if (!channels.TryGetValue(h.ChannelId, out var channel))
-            {
-                channel = GetChannel(h.ChannelId);
-                channels.Add(h.ChannelId, channel);
-            }
-
-            yield return new(channel, h.LogTime, h.PublishTime, h.Sequence, buffer.AsSpan(0, checked((int)required)).ToArray());
+                channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
+            yield return new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!);
         }
     }
 
     public IEnumerable<McapRecord> ReadRecords()
     {
-        if (messages)
-            throw new InvalidOperationException("This is a message session.");
-        byte[] buffer = [];
-        while (true)
-        {
-            var status = ReadNextRecord(buffer, out var opcode, out var length);
-            if (status == McapReadStatus.EndOfStream)
-                yield break;
-            if (status == McapReadStatus.BufferTooSmall)
-            {
-                buffer = new byte[checked((int)length)];
-                continue;
-            }
-
-            yield return new(opcode, buffer.AsSpan(0, checked((int)length)).ToArray());
-        }
+        if (messages) throw new InvalidOperationException("This is a message session.");
+        using var sink = new OwnedReadSink(OwnedReadSink.Kind.Record);
+        while (ReadOwned(sink)) yield return (McapRecord)sink.Value!;
     }
 
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
@@ -304,44 +305,26 @@ public sealed partial class McapReadSession : IDisposable
         return ScannedRecordCount;
     }
 
-    // Each enumeration owns its scratch buffer; only matching records become owned models.
-    IEnumerable<T> ReadSelected<T>(byte wanted, Func<byte[], int, T> decode)
+    IEnumerable<T> ReadSelected<T>(byte wanted, OwnedReadSink.Kind kind)
     {
-        if (messages)
-            throw new InvalidOperationException("This is a message session.");
-        byte[] buffer = [];
-        while (true)
-        {
-            var status = ReadNextRecord(buffer, out var opcode, out var length);
-            if (status == McapReadStatus.EndOfStream) yield break;
-            if (status == McapReadStatus.BufferTooSmall)
-            {
-                buffer = new byte[checked((int)length)];
-                continue;
-            }
-            if (opcode == wanted) yield return decode(buffer, checked((int)length));
-        }
+        if (messages) throw new InvalidOperationException("This is a message session.");
+        using var sink = new OwnedReadSink(kind);
+        while (ReadOwned(sink, wanted)) yield return (T)sink.Value!;
     }
-
     public IEnumerable<McapSchema> ReadSchemas()
     {
         var seen = new HashSet<ushort>();
-        foreach (var schema in ReadSelected(3, static (b, n) => RecordDecoder.Schema(b.AsSpan(0, n))))
+        foreach (var schema in ReadSelected<McapSchema>(3, OwnedReadSink.Kind.Schema))
             if (seen.Add(schema.Id)) yield return schema;
     }
-
     public IEnumerable<McapChannel> ReadChannels()
     {
         var seen = new HashSet<ushort>();
-        foreach (var id in ReadSelected(4, static (b, n) => RecordDecoder.ChannelId(b.AsSpan(0, n))))
+        foreach (var id in ReadSelected<ushort>(4, OwnedReadSink.Kind.ChannelId))
             if (seen.Add(id)) yield return GetChannel(id);
     }
-
-    public IEnumerable<McapMetadata> ReadMetadata() =>
-        ReadSelected(12, static (b, n) => RecordDecoder.Metadata(b.AsSpan(0, n)));
-
-    public IEnumerable<McapAttachment> ReadAttachments() =>
-        ReadSelected(9, static (b, n) => RecordDecoder.Attachment(b.AsSpan(0, n)));
+    public IEnumerable<McapMetadata> ReadMetadata() => ReadSelected<McapMetadata>(12, OwnedReadSink.Kind.Metadata);
+    public IEnumerable<McapAttachment> ReadAttachments() => ReadSelected<McapAttachment>(9, OwnedReadSink.Kind.Attachment);
 
     public Stream IntoInner()
     {

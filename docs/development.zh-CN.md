@@ -155,3 +155,5 @@ Release 原生测试包含仅用于测试的线程局部 Rust 分配计数器，
 原生探针还覆盖 8192 条消息写入，组合可寻址／缓冲输出、开启／关闭索引及有限／无限 Chunk，以及重复随机读取、回退排序 arena 和时间重叠的索引 Chunk。缓存命中测试要求不再推进解析器。托管门禁包含映射 BufferReader、缓存随机读取及可复用随机记录 scratch。
 
 进程内存诊断使用 `dotnet run --project tests/Allocations -c Release -- memory-profile 65536 > artifacts/memory-profile.jsonl`，条数至少 8192。各写入配置每 8192 条及完成／释放后采样，分别记录 Private Bytes、工作集、托管堆和耗时。输出写入计数 sink，排除录制文件存储成本。采样不等于精确原生活跃字节或峰值，分配器缓存及之前场景会影响后续结果。增加条数可延长运行，测量结果保留在忽略的 artifacts 中。
+
+`DeliveryOptimizationTests` 覆盖预编译 Chunk 索引和同步自有结果交付。Release 便利读取门禁检查最终 payload 数组与结果对象开销，并要求 prepared 大索引调用为 0 B 托管分配。`prepared_index_cached_calls_allocate_nothing` 单独要求所有压缩模式下预热后的 prepared 缓存命中为零 Rust 分配，不包含描述符构造或外部库分配。重试测试检查保留容量与准确的输出复制增量。

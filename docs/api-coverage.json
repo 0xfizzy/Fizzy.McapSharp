@@ -2054,24 +2054,26 @@
     {
       "rust": "read.rs::Summary::stream_chunk",
       "kind": "method",
-      "managed": "McapIndexSnapshot.OpenChunkReader / ReadChunkMessages",
+      "managed": "McapIndexSnapshot.OpenChunkReader / ReadChunkMessages / McapPreparedChunkIndex overloads",
       "native": "read::Summary::stream_chunk",
-      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / DeliveryOptimizationTests.PreparedIndexIsFrozenAndChildrenAreIndependent",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/extended.rs"
+        "native/src/extended.rs",
+        "src/McapPreparedChunkIndex.cs",
+        "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ]
     },
     {
       "rust": "read.rs::Summary::read_message_indexes",
       "kind": "method",
-      "managed": "McapIndexSnapshot.ReadMessageIndexes",
+      "managed": "McapIndexSnapshot.ReadMessageIndexes / McapPreparedChunkIndex overloads",
       "native": "read::Summary::read_message_indexes",
-      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance / DeliveryOptimizationTests.PreparedIndexIsFrozenAndChildrenAreIndependent",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
@@ -2080,15 +2082,17 @@
         "native/src/buffer_reader.rs",
         "native/src/extended.rs",
         "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
-        "native/src/random_access.rs"
+        "native/src/random_access.rs",
+        "src/McapPreparedChunkIndex.cs",
+        "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ]
     },
     {
       "rust": "read.rs::Summary::seek_message",
       "kind": "method",
-      "managed": "McapIndexSnapshot.SeekMessage",
+      "managed": "McapIndexSnapshot.SeekMessage / McapPreparedChunkIndex overloads",
       "native": "read::Summary::seek_message",
-      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance",
+      "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance / DeliveryOptimizationTests.PreparedIndexIsFrozenAndChildrenAreIndependent",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
@@ -2097,7 +2101,9 @@
         "native/src/buffer_reader.rs",
         "native/src/extended.rs",
         "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
-        "native/src/random_access.rs"
+        "native/src/random_access.rs",
+        "src/McapPreparedChunkIndex.cs",
+        "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ]
     },
     {

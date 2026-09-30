@@ -725,9 +725,11 @@ impl Reader {
     }
     unsafe fn read(&mut self, dest: *mut u8, capacity: usize, out: &mut Response) -> Outcome<i32> {
         if self.sorted {
-            let status = self
-                .arena
-                .read(dest, capacity, &mut self.delivery.header, out)?;
+            let status = if let Some(sink) = self.delivery.sink {
+                self.arena.read_owned(sink, &mut self.delivery.header, out)?
+            } else {
+                self.arena.read(dest, capacity, &mut self.delivery.header, out)?
+            };
             self.delivery.opcode = records::op::MESSAGE;
             if status == 1 {
                 self.ended = true;
@@ -736,14 +738,21 @@ impl Reader {
         }
         if self.delivery.active {
             out.value = self.delivery.data.len() as u64;
-            return self.delivery.retry(dest, capacity);
+            if self.delivery.wanted == 0 || self.delivery.wanted == self.delivery.opcode {
+                return self.delivery.retry(dest, capacity);
+            }
+            self.delivery.release();
         }
-        self.next_with(|r, op, data, h| {
-            r.delivery.opcode = op;
-            r.delivery.header = h;
-            out.value = data.len() as u64;
-            r.delivery.deliver(data, dest, capacity)
-        })
+        loop {
+            let status = self.next_with(|r, op, data, h| {
+                r.delivery.opcode = op;
+                r.delivery.header = h;
+                out.value = data.len() as u64;
+                if r.delivery.wanted != 0 && r.delivery.wanted != op { return Ok(3); }
+                r.delivery.deliver(data, dest, capacity)
+            })?;
+            if status != 3 { return Ok(status); }
+        }
     }
 }
 #[no_mangle]
@@ -905,6 +914,17 @@ pub unsafe extern "C" fn fm_reader_next(
         }
     }
     s
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_reader_owned(
+    handle: *mut Reader, wanted: u8, sink: memory::Sink,
+    header: *mut MessageHeader, out: *mut Response,
+) -> i32 {
+    // fm_reader_next catches panics and applies the same terminal-error cleanup.
+    if let Some(r) = handle.as_mut() { r.delivery.sink = Some(sink); r.delivery.wanted = wanted; }
+    let status = fm_reader_next(handle, ptr::null_mut(), 0, header, ptr::null_mut(), out);
+    if let Some(r) = handle.as_mut() { r.delivery.sink = None; r.delivery.wanted = 0; }
+    status
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_reader_describe(

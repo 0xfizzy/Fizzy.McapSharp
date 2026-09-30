@@ -71,3 +71,11 @@ ABI 7 提供 `fm_buffer_reader_open_options`、`fm_snapshot_bytes_options`、`fm
 `memory::Backing` 拥有字节或文件映射，子游标通过 Arc 共享。在解析器事件生命周期内直接交付；目标不足时使用单个复用 owned 缓冲。不跨调用保存原生借用指针。摘要游标共享官方 Summary 并惰性编码。回退排序使用 arena 和描述，扩容前检查分类容量预算。Binding 预算错误包含 resource、limit 和 requested。解析状态先于共享输入释放；映射文件必须保持不变。统计范围及排除项见 API 指南。
 
 `fm_buffer_reader_mapped` 是 ABI 7 的导出，使用构造 JSON（`path`、`mode`、`ignoreEndMagic`、`options`）。快照操作码 1、7 不受支持，其余操作码保持原值。快照重试在解析前比较完整编码请求。可选单 Chunk 缓存拥有原始前缀记录体和描述符，增量驱动官方解析器，不保留事件切片。scratch 扩容前检查预算。随机输出复制和缓存存储纳入受控统计，解析器／解压器状态仍排除。
+
+## 同步自有结果交付与预编译索引
+
+ABI 7 新增 `fm_reader_owned`、`fm_buffer_reader_owned` 和 `fm_snapshot_message_owned`。Sink 包含两个指针（上下文、Cdecl 回调）。回调接收上下文、u8 opcode、MessageHeader 指针、数据指针、native-size 长度和 native-size 输出复制字节数指针，返回 i32 状态。回调同步消费事件，报告最终二进制复制字节数，不公开临时 span。托管异常先捕获，返回失败后重抛；推进失败使 reader 终止。回调只在原生调用期间被 GCHandle 保活，遗弃枚举器不会遗留 callback root。每次返回均清除 sink，包括原生 panic／错误路径。EOF、pending 和排序结果沿用缓冲读取的推进语义。
+
+`fm_chunk_index_prepare/free` 拥有不可变的已解析 ChunkIndex 与稳定编码键。`fm_snapshot_prepared_call` 和 `fm_snapshot_prepared_chunk_reader` 直接使用描述符；`fm_snapshot_message_owned` 接受普通编码或可选 prepared 描述符。现有布局与操作码不变。prepared 句柄通过私有 SafeHandle 管理，可选原生句柄实参在整个调用期间由 DangerousAddRef/Release 保护。其存储独立于 snapshot 的预算和统计。
+
+随机重试在解析前比较完整请求。成功交付或请求切换清除 pending 状态，在预算内保留容量。打包索引复用存储，上游已拥有的消息 payload 移入重试槽。保留容量计入当前／峰值受控字节，输出复制每次仅计数一次。

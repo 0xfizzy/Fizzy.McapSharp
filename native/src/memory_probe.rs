@@ -271,3 +271,38 @@ fn memory_query_baseline() {
         );
     }
 }
+
+#[test]
+fn prepared_index_cached_calls_allocate_nothing() {
+    for compression in [None, Some(mcap::Compression::Lz4), Some(mcap::Compression::Zstd)] {
+        let mut writer = mcap::WriteOptions::new().compression(compression).chunk_size(None)
+            .create(std::io::Cursor::new(Vec::new())).unwrap();
+        for i in 0..110 {
+            let channel = writer.add_channel(0, &format!("t{i}"), "raw", &BTreeMap::new()).unwrap();
+            writer.write_to_known_channel(&records::MessageHeader { channel_id: channel, sequence: i, log_time: i as u64, publish_time: 0 }, &[42; 64]).unwrap();
+        }
+        writer.finish().unwrap();
+        let data = writer.into_inner().into_inner();
+        let summary = mcap::Summary::read(&data).unwrap().unwrap();
+        let index = &summary.chunk_indexes[0];
+        let indexes = summary.read_message_indexes(&data, index).unwrap();
+        let entry = indexes.values().next().unwrap()[0].clone();
+        let key = buffer_reader::encode(records::Record::ChunkIndex(index.clone())).unwrap().1;
+        assert!(key.len() > 1024);
+        unsafe {
+            let mut snapshot = ptr::null_mut(); let mut prepared = ptr::null_mut(); let mut r = Response::default();
+            let config = br#"{"MaxRandomAccessCacheBytes":1048576}"#;
+            assert_eq!(extended::fm_snapshot_bytes_options(data.as_ptr(), data.len(), config.as_ptr(), config.len(), &mut snapshot, &mut r), 0);
+            assert_eq!(extended::fm_chunk_index_prepare(key.as_ptr(), key.len(), &mut prepared, &mut r), 0);
+            let mut output = [0; 64]; let mut header = MessageHeader::default();
+            assert_eq!(extended::fm_snapshot_prepared_call(snapshot, 2, prepared, entry.log_time, entry.offset, output.as_mut_ptr(), output.len(), &mut header, &mut r), 0);
+            COUNTS.with(|c| c.set(Some((0, 0))));
+            for _ in 0..100 {
+                assert_eq!(extended::fm_snapshot_prepared_call(snapshot, 2, prepared, entry.log_time, entry.offset, output.as_mut_ptr(), output.len(), &mut header, &mut r), 0);
+            }
+            let counts = COUNTS.with(|c| c.replace(None).unwrap());
+            assert_eq!(counts, (0, 0), "prepared cached seeks {compression:?}");
+            extended::fm_chunk_index_free(prepared); extended::fm_snapshot_free(snapshot);
+        }
+    }
+}

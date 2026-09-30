@@ -169,11 +169,13 @@ impl BufferReader {
                 Cow::Borrowed(body.as_slice())
             };
             out.value = payload.len() as u64;
-            if capacity < payload.len() {
-                return Ok(2);
+            if let Some(sink) = self.delivery.sink {
+                self.delivery.stats.copied += sink.send(self.delivery.opcode, &self.delivery.header, &payload)?;
+            } else {
+                if capacity < payload.len() { return Ok(2); }
+                memory::copy(&payload, dest)?;
+                self.delivery.stats.copied += payload.len() as u64;
             }
-            memory::copy(&payload, dest)?;
-            self.delivery.stats.copied += payload.len() as u64;
             self.delivery.release();
             return Ok(0);
         }
@@ -213,6 +215,7 @@ impl BufferReader {
             self.delivery.stats.copied += n as u64;
             self.summary_position += 1;
             self.delivery.active = true;
+            if self.delivery.sink.is_some() { return self.delivery.retry(dest, capacity); }
             return Ok(2);
         }
         loop {
@@ -273,6 +276,11 @@ impl BufferReader {
                         data
                     };
                     out.value = payload.len() as u64;
+                    if let Some(sink) = self.delivery.sink {
+                        self.delivery.stats.copied += sink.send(opcode, &self.delivery.header, payload)?;
+                        self.delivery.release();
+                        return Ok(0);
+                    }
                     if capacity < payload.len() {
                         // Keep the original body so record/message retries may be interchanged.
                         self.delivery.deliver(data, ptr::null_mut(), 0)?;
@@ -614,6 +622,21 @@ pub unsafe extern "C" fn fm_buffer_reader_message(
     }
     status
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_buffer_reader_owned(
+    p: *mut BufferReader, message: bool, sink: memory::Sink, out: *mut Response,
+) -> i32 {
+    if let Some(h) = p.as_mut() { h.delivery.sink = Some(sink); }
+    let status = if message {
+        fm_buffer_reader_message(p, ptr::null_mut(), 0, &mut MessageHeader::default(), out)
+    } else {
+        fm_buffer_reader_next(p, ptr::null_mut(), 0, ptr::null_mut(), out)
+    };
+    if let Some(h) = p.as_mut() { h.delivery.sink = None; }
+    status
+}
+
 
 #[cfg(test)]
 mod lazy_tests {

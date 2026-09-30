@@ -124,6 +124,21 @@ impl Arena {
         }
         Ok(0)
     }
+    pub unsafe fn read_owned(&mut self, sink: memory::Sink, header: &mut MessageHeader, out: &mut Response) -> Outcome<i32> {
+        let Some(e) = self.entries.get(self.position) else { return Ok(1); };
+        *header = e.header;
+        out.value = e.length as u64;
+        let data = if e.block == usize::MAX { &[][..] } else { &self.blocks[e.block].data[e.offset..e.offset + e.length] };
+        self.stats.copied += sink.send(records::op::MESSAGE, header, data)?;
+        if e.block != usize::MAX {
+            let b = &mut self.blocks[e.block];
+            b.remaining -= 1;
+            if b.remaining == 0 { self.stats.capacity(b.data.capacity(), 0); b.data = Vec::new(); }
+        }
+        self.position += 1;
+        if self.position == self.entries.len() { self.clear(); }
+        Ok(0)
+    }
     pub fn clear(&mut self) {
         self.blocks = Vec::new();
         self.entries = Vec::new();

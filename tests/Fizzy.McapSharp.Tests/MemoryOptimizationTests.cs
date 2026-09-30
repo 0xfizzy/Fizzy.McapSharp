@@ -106,7 +106,7 @@ public class MemoryOptimizationTests
         var after = snapshot.GetMemoryStatistics();
         Assert.Equal(before.AllocationCount, after.AllocationCount);
         Assert.Equal(before.CopiedBytes + length, after.CopiedBytes);
-        Assert.True(after.CurrentControlledBytes < before.CurrentControlledBytes);
+        Assert.Equal(before.CurrentControlledBytes, after.CurrentControlledBytes); // Bounded retry capacity is retained.
     }
 
     [Theory]

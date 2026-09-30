@@ -140,7 +140,27 @@ impl Backing {
         }
     }
 }
+// A synchronous, private delivery callback. Never retained after an export returns.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Sink {
+    pub context: *mut std::ffi::c_void,
+    pub accept: unsafe extern "C" fn(*mut std::ffi::c_void, u8, *const MessageHeader, *const u8, usize, *mut usize) -> i32,
+}
+const _: () = assert!(std::mem::size_of::<Sink>() == 16);
+impl Sink {
+    pub unsafe fn send(self, opcode: u8, header: &MessageHeader, data: &[u8]) -> Outcome<u64> {
+        let mut copied = 0;
+        if (self.accept)(self.context, opcode, header, data.as_ptr(), data.len(), &mut copied) != 0 {
+            return Err("Managed delivery callback failed".into());
+        }
+        if copied > data.len() { return Err("Invalid delivery copy count".into()); }
+        Ok(copied as u64)
+    }
+}
 pub struct Delivery {
+    pub sink: Option<Sink>,
+    pub wanted: u8,
     pub data: Vec<u8>,
     pub active: bool,
     pub opcode: u8,
@@ -151,6 +171,8 @@ pub struct Delivery {
 impl Default for Delivery {
     fn default() -> Self {
         Self {
+            sink: None,
+            wanted: 0,
             data: Vec::new(),
             active: false,
             opcode: 0,
@@ -189,7 +211,21 @@ impl Delivery {
         self.data = Vec::new();
         self.active = false;
     }
+    pub unsafe fn send(&mut self, data: &[u8], dest: *mut u8) -> Outcome<()> {
+        if let Some(sink) = self.sink {
+            self.stats.copied += sink.send(self.opcode, &self.header, data)?;
+        } else {
+            copy(data, dest)?;
+            self.stats.copied += data.len() as u64;
+        }
+        Ok(())
+    }
     pub unsafe fn deliver(&mut self, data: &[u8], dest: *mut u8, capacity: usize) -> Outcome<i32> {
+        if self.sink.is_some() {
+            self.send(data, dest)?;
+            self.release();
+            return Ok(0);
+        }
         if capacity < data.len() {
             self.data.clear();
             self.reserve(data.len())?;
@@ -204,11 +240,13 @@ impl Delivery {
         Ok(0)
     }
     pub unsafe fn retry(&mut self, dest: *mut u8, capacity: usize) -> Outcome<i32> {
-        if capacity < self.data.len() {
-            return Ok(2);
+        if let Some(sink) = self.sink {
+            self.stats.copied += sink.send(self.opcode, &self.header, &self.data)?;
+        } else {
+            if capacity < self.data.len() { return Ok(2); }
+            copy(&self.data, dest)?;
+            self.stats.copied += self.data.len() as u64;
         }
-        copy(&self.data, dest)?;
-        self.stats.copied += self.data.len() as u64;
         self.release();
         Ok(0)
     }

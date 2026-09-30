@@ -81,7 +81,7 @@ while (true)
 
 ## 自有记录、摘要和原始记录
 
-`ReadMessages`、`ReadSchemas`、`ReadChannels`、`ReadMetadata`、`ReadAttachments` 提供自有数据便利接口。文件工厂方法各自打开独立会话；会话上的便利方法消费当前游标，Schema/Channel/元数据/附件枚举要求记录会话。消息、Schema、附件的数据是托管数组，释放会话后仍有效；数组可变。消息枚举在自身范围内缓存 Channel 描述，因此同一枚举的消息可能共享 Channel/Schema 对象。
+`ReadMessages`、`ReadSchemas`、`ReadChannels`、`ReadMetadata`、`ReadAttachments` 提供自有数据便利接口。文件工厂方法各自打开独立会话；会话上的便利方法消费当前游标，Schema/Channel/元数据/附件枚举要求记录会话。消息、Schema、附件的数据是托管数组，释放会话后仍有效；数组可变。消息枚举私下缓存 Channel 描述，对每条结果复制可变 schema 字节和 metadata；修改一条结果不会影响后续消息。
 
 `GetSummary()` 返回统计、Chunk/附件/元数据索引及 Schema/Channel ID 的托管快照，无 Summary 返回 null；完整声明通过会话查询获取。Writer 的完成摘要描述内存中的录制结果，即使输出中关闭了摘要记录也可获取。
 
@@ -89,7 +89,7 @@ while (true)
 
 可寻址源上的 `ReadRecordAt(offset)`、`ReadChunk(index)`、`ReadMessageIndexes(index)` 不消费顺序游标或待处理记录。偏移相对 MCAP 起点。ReadChunk 返回原始 Chunk 记录；OpenRecords(ExpandChunks) 用于顺序解压。消息索引包含 Chunk 内相对偏移。原始随机读取不校验全文件。
 
-分类枚举复用扫描缓冲区，仅为目标记录构造自有结果，但仍需扫描、解压和缓冲区复制。分别调用文件级分类方法会独立扫描；这些便利方法不提供零分配保证。
+分类扫描仍解析、校验并观察所有记录，但只交付目标记录。自有消息／原始记录直接复制到最终托管数组；Schema／Attachment 分类仅复制最终二进制字段，不使用托管 payload 中转缓冲。解析器输入与解压成本仍存在。分别调用文件级分类方法会独立扫描；这些便利方法不提供零分配保证。
 
 ## Stream 会话与所有权
 
@@ -129,6 +129,12 @@ while (true)
 `McapRecords.Parse` 为所有标准记录返回强类型自有模型，未知记录返回 `McapRecord`。`McapRecordView.Parse` 使用官方 `parse_record` 校验，在调用方托管内存上提供视图；标量属性和 `Fields` 游标可零分配读取 UTF-8、映射、数组和二进制字段。`ToOwned` 显式复制；`ReadFooter` 和 `GetCompressedDataOffset` 直接调用上游辅助函数。
 
 `OpenIndexSnapshot()` 复制可定位源并读取官方摘要，不移动顺序游标；也可用 `new McapIndexSnapshot(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。`OpenChunkReader(index)` 返回独立、惰性、可释放的 McapBufferReader，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。`ReadChunkMessages` 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
+
+### 预编译 Chunk 索引
+
+重复随机访问时，构造一次 `McapPreparedChunkIndex(index)`，使用结束后释放。构造复制索引字段和通道偏移映射，仅编码一次并由官方 Rust 实现解析一次。构造期间不要修改映射；后续修改不会影响 prepared 索引。`SeekMessage`、`OpenChunkReader`、`ReadChunkMessages`、`ReadMessageIndexes` 和 `GetCompressedDataOffset` 的 prepared 重载消除重复索引编码、临时原生 scratch 和索引解析。原有重载仍观察调用方当前字段。
+
+prepared 索引可跨 snapshot 复用。每次操作仍执行原有文件范围及摘要要求；构造不验证某一具体文件。该描述符的调用与释放串行执行。子游标在 prepared 索引和 snapshot 释放后仍可用。prepared 存储独立拥有，不计入 snapshot 的内存预算或统计。消息索引上游 helper、缓存未命中和解压仍可能分配，不能据此保证总原生分配为零。
 
 `McapSansIoReader.CreateLinear/CreateSummary` 及已完成摘要会话的 `CreateIndexed` 提供值类型事件。用 `SupplyInput` 送入字节、`NotifySeeked` 确认定位、`InsertChunkData` 插入索引 Chunk 压缩数据。索引会话支持 `SetRecordLengthLimit`。输出复制到调用方 Span，不返回原生指针。`GetSummary` 返回自有快照，`OpenSummaryRecords` 返回缓冲区游标。上游没有自定义解压器注册入口，因此封装不公开自定义解压接口。内置 Lz4/Zstd 解压由官方 Rust 库处理。
 
@@ -184,10 +190,10 @@ var options = new McapWriterOptions { RecoverableErrors = McapRecoverableWriterE
 
 `MaxScratchBufferBytes`（`ulong?`，默认 null／不限制）限制索引 Stream 输入和随机记录临时缓冲容量，与 pending 预算独立。调用方缓冲区版 `ReadRecordAt` 直接从映射数据复制，或复用 Stream scratch；验证成功前不修改目标，目标不足时保持内容不变，并恢复 Stream 位置。scratch 预算拒绝会终止会话。
 
-随机 `SeekMessage` 和消息索引长度探测可以保留一个 owned 结果供相同请求重试。请求身份包含完整编码索引和消息参数。键与结果容量总和必须同时满足 `MaxPendingBufferBytes` 和 `MaxRetainedBufferBytes`，否则重试时重新计算。不同随机请求替换重试槽，成功交付后释放。可选缓存容量不会把原本成功的读取变成预算错误。
+随机 `SeekMessage` 和消息索引长度探测可保留一个自有结果供相同请求重试。完整索引编码和消息参数共同标识请求。key 与结果总容量必须同时满足 `MaxPendingBufferBytes` 和 `MaxRetainedBufferBytes`，否则重算。不同请求取消旧 pending；成功交付清空长度但在预算内保留容量，统计仍包含该容量。打包消息索引复用此存储；上游已拥有的消息 payload 直接接管，不增加一次复制。可选缓存容量不足不会将原本成功的读取变成预算错误。
 
 `MaxRandomAccessCacheBytes`（`ulong`，默认 0／关闭）启用快照最近访问 Chunk 已解析前缀的缓存。向后定位只将官方解析器推进至请求记录，已缓存位置不再解压。容量包含完整编码的调用方索引、原始记录体及描述符，不含解析器／解压器状态。容量不足时清除缓存并回退到官方随机辅助接口。缓存独立于顺序游标；重复随机访问可设置有界容量，连续批量读取优先使用 `OpenChunkReader`。缓存读取不代表已验证未访问的尾部。
 
-统计包含随机交付复制、重试／缓存容量及随机记录 scratch。排序为超过 1 MiB 的消息分配独立块，小消息继续复用当前小块。正常 EOF 释放顺序解析器／索引状态，保留声明、摘要和验证路径信息。
+统计包含随机交付复制、owned 结果的最终二进制交付、重试／缓存容量及随机记录 scratch，不统计字符串解码或上游内部复制。排序为超过 1 MiB 的消息分配独立块，小消息继续复用当前小块。正常 EOF 释放顺序解析器／索引状态，保留声明、摘要和验证路径信息。
 
-BufferReader 便利消息枚举复用记录缓冲区，只创建最终 payload 副本。它缓存私有 Channel 描述，对每个输出防御性复制可变 schema 字节及 metadata。返回结果在推进和释放后仍独立有效。owned 便利接口仍有分配，零托管分配请使用调用方缓冲区。
+BufferReader 便利消息枚举将解析器事件直接复制到最终 payload 数组。它缓存私有 Channel 描述，对每个输出防御性复制可变 schema 字节及 metadata。返回结果在推进和释放后仍独立有效。owned 便利接口仍有分配，零托管分配请使用调用方缓冲区。

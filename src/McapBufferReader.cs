@@ -81,46 +81,35 @@ public sealed class McapBufferReader : IDisposable
         McapSchema? schema = s.ValueKind == JsonValueKind.Null ? null : new(s.GetProperty("id").GetUInt16(), s.GetProperty("name").GetString()!, s.GetProperty("encoding").GetString()!, response.Data);
         return new(c.GetProperty("id").GetUInt16(), c.GetProperty("topic").GetString()!, c.GetProperty("messageEncoding").GetString()!, schema, c.GetProperty("metadata").Deserialize<Dictionary<string, string>>()!);
     }
+    bool ReadOwned(OwnedReadSink sink)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+            sink.Reset();
+            using var lease = sink.Acquire();
+            int status = Native.fm_buffer_reader_owned(handle, false, sink.Sink, out var r);
+            if (status < 0) { var error = Native.ConsumeError(r); sink.ThrowIfError(); throw error; }
+            return status != 1;
+        }
+    }
     public IEnumerable<McapRecord> ReadRecords()
     {
-        byte[] b = [];
-        while (true)
-        {
-            var status = ReadNextRecord(b, out var opcode, out var n);
-            if (status == McapReadStatus.EndOfStream) yield break;
-            if (status == McapReadStatus.BufferTooSmall) { b = new byte[checked((int)n)]; continue; }
-            yield return new(opcode, b.AsSpan(0, checked((int)n)).ToArray());
-        }
+        using var sink = new OwnedReadSink(OwnedReadSink.Kind.Record);
+        while (ReadOwned(sink)) yield return (McapRecord)sink.Value!;
     }
     public IEnumerable<McapMessage> ReadMessages()
     {
         var channels = new Dictionary<ushort, McapChannel>();
-        byte[] buffer = [];
-        while (true)
+        using var sink = new OwnedReadSink(OwnedReadSink.Kind.MessageBody);
+        while (ReadOwned(sink))
         {
-            var status = ReadNextRecord(buffer, out var opcode, out var length);
-            if (status == McapReadStatus.EndOfStream) yield break;
-            if (status == McapReadStatus.BufferTooSmall) { buffer = new byte[checked((int)length)]; continue; }
-            if (opcode != 5) continue;
-            var h = DecodeMessageHeader(buffer);
+            if (sink.Value is not byte[] data) continue;
+            var h = sink.Header;
             if (!channels.TryGetValue(h.ChannelId, out var channel))
                 channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
-            // Keep the cached description private: public arrays and dictionaries are mutable.
-            var schema = channel.Schema;
-            var ownedChannel = channel with
-            {
-                Schema = schema is null ? null : schema with { Data = schema.Data.AsSpan().ToArray() },
-                Metadata = new Dictionary<string, string>(channel.Metadata)
-            };
-            yield return new(ownedChannel, h.LogTime, h.PublishTime, h.Sequence,
-                buffer.AsSpan(22, checked((int)length) - 22).ToArray());
+            yield return new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, data);
         }
-    }
-    static McapMessageHeader DecodeMessageHeader(byte[] body)
-    {
-        // ReadNextRecord already validated the body with the official parser.
-        var fields = new McapRecordFields(body);
-        return new(fields.ReadUInt16(), fields.ReadUInt32(), fields.ReadUInt64(), fields.ReadUInt64());
     }
     public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.MemoryStatistics(1, handle); } }
     public void Dispose() { lock (gate) handle.Dispose(); }

@@ -661,6 +661,21 @@ pub unsafe extern "C" fn fm_snapshot_call(
     header: *mut MessageHeader,
     out: *mut Response,
 ) -> i32 {
+    snapshot_call(p, op, index_data, index_length, message_time, message_offset, dest, capacity, header, out, None)
+}
+unsafe fn snapshot_call(
+    p: *mut Snapshot,
+    op: u32,
+    index_data: *const u8,
+    index_length: usize,
+    message_time: u64,
+    message_offset: u64,
+    dest: *mut u8,
+    capacity: usize,
+    header: *mut MessageHeader,
+    out: *mut Response,
+    prepared: Option<&PreparedChunkIndex>,
+) -> i32 {
     let status = guard(out, |out| {
         let h = p.as_mut().ok_or("Null snapshot")?;
         if !header.is_null() {
@@ -684,10 +699,10 @@ pub unsafe extern "C" fn fm_snapshot_call(
         }
         match op {
             2 | 5 | 8 => {
-                let records::Record::ChunkIndex(index) =
-                    mcap::parse_record(records::op::CHUNK_INDEX, bytes(index_data, index_length)?)?
-                else {
-                    unreachable!()
+                let parsed;
+                let index = if let Some(prepared) = prepared { &prepared.index } else {
+                    parsed = parse_chunk_index(bytes(index_data, index_length)?)?;
+                    &parsed
                 };
                 if op == 8 {
                     out.value = index.compressed_data_offset()?;
@@ -751,22 +766,15 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     .ok_or("Message index length overflow")?;
                 out.value = length as u64;
                 if capacity < length {
-                    let limit = h.options.pending.unwrap_or(u64::MAX).min(h.options.retained);
-                    if length.checked_add(key.len()).is_some_and(|n| n as u64 <= limit) {
-                        let mut packed = Vec::new();
-                        if packed.try_reserve_exact(length).is_ok() {
-                            for (c, entries) in rows {
-                                for e in entries {
-                                    packed.extend_from_slice(&c.id.to_le_bytes());
-                                    packed.extend_from_slice(&e.log_time.to_le_bytes());
-                                    packed.extend_from_slice(&e.offset.to_le_bytes());
-                                }
+                    h.retry.save_packed(key, message_time, message_offset, length, h.options, &mut h.stats, |packed| {
+                        for (c, entries) in rows {
+                            for e in entries {
+                                packed.extend_from_slice(&c.id.to_le_bytes());
+                                packed.extend_from_slice(&e.log_time.to_le_bytes());
+                                packed.extend_from_slice(&e.offset.to_le_bytes());
                             }
-                            h.stats.copied += length as u64;
-                            h.retry.save(op, key, message_time, message_offset,
-                                MessageHeader::default(), packed, h.options, &mut h.stats);
                         }
-                    }
+                    });
                     return Ok(2);
                 }
                 if length != 0 && dest.is_null() {
@@ -1076,6 +1084,82 @@ pub unsafe extern "C" fn fm_snapshot_mapped(
             options,
             summary,
         }));
+        Ok(0)
+    })
+}
+
+// Immutable owned index: no managed dictionaries or borrowed record memory survive preparation.
+pub struct PreparedChunkIndex {
+    index: records::ChunkIndex,
+    key: Vec<u8>,
+}
+fn parse_chunk_index(data: &[u8]) -> Outcome<records::ChunkIndex> {
+    let records::Record::ChunkIndex(index) = mcap::parse_record(records::op::CHUNK_INDEX, data)? else { unreachable!() };
+    Ok(index)
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_chunk_index_prepare(data: *const u8, n: usize, handle: *mut *mut PreparedChunkIndex, out: *mut Response) -> i32 {
+    guard(out, |_| {
+        if handle.is_null() { return Err("Null output".into()); }
+        *handle = ptr::null_mut();
+        let bytes = bytes(data, n)?;
+        let index = parse_chunk_index(bytes)?;
+        *handle = Box::into_raw(Box::new(PreparedChunkIndex { index, key: bytes.to_vec() }));
+        Ok(0)
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_chunk_index_free(p: *mut PreparedChunkIndex) {
+    if !p.is_null() { let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p)))); }
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_prepared_call(
+    p: *mut Snapshot, op: u32, index: *const PreparedChunkIndex, time: u64, offset: u64,
+    dest: *mut u8, capacity: usize, header: *mut MessageHeader, out: *mut Response,
+) -> i32 {
+    let Some(index) = index.as_ref() else { return guard(out, |_| Err("Null prepared index".into())); };
+    snapshot_call(p, op, index.key.as_ptr(), index.key.len(), time, offset, dest, capacity, header, out, Some(index))
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_prepared_chunk_reader(
+    p: *const Snapshot, index: *const PreparedChunkIndex, handle: *mut *mut buffer_reader::BufferReader, out: *mut Response,
+) -> i32 {
+    guard(out, |_| {
+        if handle.is_null() { return Err("Null output".into()); }
+        *handle = ptr::null_mut();
+        let h = p.as_ref().ok_or("Null snapshot")?;
+        let index = index.as_ref().ok_or("Null prepared index")?;
+        let summary = h.summary.as_ref().ok_or("File has no summary")?;
+        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index.index)?;
+        cursor.delivery.options = h.options;
+        *handle = Box::into_raw(Box::new(cursor));
+        Ok(0)
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_message_owned(
+    p: *mut Snapshot, data: *const u8, n: usize, prepared: *const PreparedChunkIndex,
+    time: u64, offset: u64, sink: memory::Sink, out: *mut Response,
+) -> i32 {
+    guard(out, |_| {
+        let h = p.as_mut().ok_or("Null snapshot")?;
+        let parsed;
+        let (index, key) = if let Some(prepared) = prepared.as_ref() { (&prepared.index, prepared.key.as_slice()) }
+        else { let key = bytes(data, n)?; parsed = parse_chunk_index(key)?; (&parsed, key) };
+        if h.retry.read_owned(2, key, time, offset, sink, &mut h.stats)? { return Ok(0); }
+        check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
+        let summary = h.summary.as_ref().ok_or("File has no summary")?;
+        let result = h.cache.read_with(&h.data, summary, index, key, offset, h.options.random,
+            ptr::null_mut(), 0, ptr::null_mut(), &mut Response::default(), Some(sink));
+        h.memory_peak = h.memory_peak.max(h.stats.current + h.cache.stats.peak);
+        match result {
+            Ok(Some(_)) => return Ok(0),
+            Err(e) => { h.cache.clear(); return Err(e); }
+            Ok(None) => {}
+        }
+        let m = summary.seek_message(&h.data, index, &records::MessageIndexEntry { log_time: time, offset })?;
+        let header = MessageHeader { channel_id: m.channel.id, sequence: m.sequence, log_time: m.log_time, publish_time: m.publish_time, reserved: 0 };
+        h.stats.copied += sink.send(records::op::MESSAGE, &header, &m.data)?;
         Ok(0)
     })
 }

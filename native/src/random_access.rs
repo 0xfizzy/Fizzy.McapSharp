@@ -16,6 +16,16 @@ impl Retry {
         stats.capacity(self.key.capacity() + self.data.capacity(), 0);
         *self = Self::default();
     }
+    fn reset(&mut self) { self.active = false; self.key.clear(); self.data.clear(); }
+    pub unsafe fn read_owned(&mut self, op: u32, key: &[u8], time: u64, offset: u64, sink: memory::Sink, stats: &mut memory::Statistics) -> Outcome<bool> {
+        if !self.active { return Ok(false); }
+        if self.op != op || self.key != key || self.time != time || self.offset != offset {
+            self.reset(); return Ok(false);
+        }
+        stats.copied += sink.send(records::op::MESSAGE, &self.header, &self.data)?;
+        self.reset();
+        Ok(true)
+    }
     pub unsafe fn read(
         &mut self,
         op: u32,
@@ -26,13 +36,13 @@ impl Retry {
         capacity: usize,
         header: *mut MessageHeader,
         out: &mut Response,
-        stats: &mut memory::Statistics,
+        _stats: &mut memory::Statistics,
     ) -> Outcome<Option<i32>> {
         if !self.active {
             return Ok(None);
         }
         if self.op != op || self.key != key || self.time != time || self.offset != offset {
-            self.clear(stats);
+            self.reset();
             return Ok(None);
         }
         out.value = self.data.len() as u64;
@@ -43,8 +53,29 @@ impl Retry {
             return Ok(Some(2));
         }
         memory::copy(&self.data, dest)?;
-        self.clear(stats);
+        // The snapshot epilogue counts successful caller-buffer delivery.
+        self.reset();
         Ok(Some(0))
+    }
+    pub fn save_packed(&mut self, key: &[u8], time: u64, offset: u64, length: usize,
+        options: memory::Options, stats: &mut memory::Statistics, encode: impl FnOnce(&mut Vec<u8>)) {
+        self.reset();
+        let limit = options.pending.unwrap_or(u64::MAX).min(options.retained);
+        let target = self.key.capacity().max(key.len()).saturating_add(self.data.capacity().max(length));
+        if target as u64 > limit { self.clear(stats); return; }
+        let old_key = self.key.capacity();
+        let old_data = self.data.capacity();
+        let key_result = self.key.try_reserve_exact(key.len());
+        stats.capacity(old_key, self.key.capacity());
+        let data_result = self.data.try_reserve_exact(length);
+        stats.capacity(old_data, self.data.capacity());
+        if key_result.is_err() || data_result.is_err() || self.key.capacity().saturating_add(self.data.capacity()) as u64 > limit {
+            self.clear(stats); return;
+        }
+        self.key.extend_from_slice(key);
+        encode(&mut self.data);
+        stats.copied += (key.len() + length) as u64;
+        self.op = 5; self.time = time; self.offset = offset; self.header = MessageHeader::default(); self.active = true;
     }
     pub fn save(
         &mut self,
@@ -57,34 +88,26 @@ impl Retry {
         options: memory::Options,
         stats: &mut memory::Statistics,
     ) {
-        self.clear(stats);
+        self.reset();
         let limit = options.pending.unwrap_or(u64::MAX).min(options.retained);
-        let Some(total) = data.capacity().checked_add(key.len()) else {
-            return;
+        let Some(total) = data.capacity().checked_add(self.key.capacity().max(key.len())) else {
+            self.clear(stats); return;
         };
-        if total as u64 > limit {
-            return;
+        if total as u64 > limit { self.clear(stats); return; }
+        if key.len() > self.key.capacity() {
+            let old = self.key.capacity();
+            if self.key.try_reserve_exact(key.len()).is_err() { self.clear(stats); return; }
+            stats.capacity(old, self.key.capacity());
         }
-        let mut owned_key = Vec::new();
-        if owned_key.try_reserve_exact(key.len()).is_err() {
-            return;
+        if self.key.capacity().saturating_add(data.capacity()) as u64 > limit {
+            self.clear(stats); return;
         }
-        if owned_key.capacity().saturating_add(data.capacity()) as u64 > limit {
-            return;
-        }
-        owned_key.extend_from_slice(key);
-        stats.capacity(0, owned_key.capacity());
-        stats.capacity(0, data.capacity());
+        self.key.extend_from_slice(key);
         stats.copied += key.len() as u64;
-        *self = Self {
-            key: owned_key,
-            data,
-            op,
-            time,
-            offset,
-            header,
-            active: true,
-        };
+        stats.capacity(self.data.capacity(), data.capacity());
+        self.data = data;
+        self.op = op; self.time = time; self.offset = offset; self.header = header;
+        self.active = true;
     }
 }
 
@@ -151,6 +174,22 @@ impl ChunkCache {
         header: *mut MessageHeader,
         out: &mut Response,
     ) -> Outcome<Option<i32>> {
+        self.read_with(input, summary, index, key, offset, limit, dest, capacity, header, out, None)
+    }
+    pub unsafe fn read_with(
+        &mut self,
+        input: &[u8],
+        summary: &mcap::Summary,
+        index: &records::ChunkIndex,
+        key: &[u8],
+        offset: u64,
+        limit: u64,
+        dest: *mut u8,
+        capacity: usize,
+        header: *mut MessageHeader,
+        out: &mut Response,
+        sink: Option<memory::Sink>,
+    ) -> Outcome<Option<i32>> {
         if limit == 0 {
             return Ok(None);
         }
@@ -209,11 +248,16 @@ impl ChunkCache {
                     };
                 }
                 out.value = data.len() as u64;
-                if capacity < data.len() {
+                if sink.is_none() && capacity < data.len() {
                     return Ok(Some(2));
                 }
-                memory::copy(&data, dest)?;
-                self.stats.copied += data.len() as u64;
+                if let Some(sink) = sink {
+                    let h = MessageHeader { channel_id: h.channel_id, sequence: h.sequence, log_time: h.log_time, publish_time: h.publish_time, reserved: 0 };
+                    self.stats.copied += sink.send(records::op::MESSAGE, &h, &data)?;
+                } else {
+                    memory::copy(&data, dest)?;
+                    self.stats.copied += data.len() as u64;
+                }
                 return Ok(Some(0));
             }
             let parser = self.parser.as_mut().ok_or("Missing cached parser")?;
@@ -495,6 +539,8 @@ mod tests {
                     assert_eq!(output, [9; 4]);
                 }
             }
+            assert_eq!(stats.current, if limit == 7 { 7 } else { 0 });
+            retry.clear(&mut stats);
             assert_eq!(stats.current, 0);
         }
     }

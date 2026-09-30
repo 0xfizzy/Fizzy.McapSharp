@@ -5,7 +5,7 @@ using Microsoft.Win32.SafeHandles;
 namespace Fizzy.McapSharp;
 
 /// <summary>Owns copied or explicitly mapped input and its official summary, independently of the originating session.</summary>
-public sealed class McapIndexSnapshot : IDisposable
+public sealed partial class McapIndexSnapshot : IDisposable
 {
     readonly SnapshotHandle handle;
     readonly object gate = new();
@@ -37,20 +37,21 @@ public sealed class McapIndexSnapshot : IDisposable
         lock (gate)
         {
             ReadMessageIndexes(chunk, [], out var n); var b = new byte[checked((int)n)]; ReadMessageIndexes(chunk, b, out _);
-            var fields = new McapRecordFields(b); var groups = new Dictionary<ushort, List<McapMessageIndexEntry>>();
-            while (!fields.IsEmpty) { var id = fields.ReadUInt16(); if (!groups.TryGetValue(id, out var list)) groups.Add(id, list = []); list.Add(new(fields.ReadUInt64(), fields.ReadUInt64())); }
-            return groups.Select(g => new McapMessageIndex(g.Key, g.Value)).ToArray();
+            return DecodeMessageIndexes(b);
         }
+    }
+    static IReadOnlyList<McapMessageIndex> DecodeMessageIndexes(ReadOnlySpan<byte> b)
+    {
+        var fields = new McapRecordFields(b); var groups = new Dictionary<ushort, List<McapMessageIndexEntry>>();
+        while (!fields.IsEmpty) { var id = fields.ReadUInt16(); if (!groups.TryGetValue(id, out var list)) groups.Add(id, list = []); list.Add(new(fields.ReadUInt64(), fields.ReadUInt64())); }
+        return groups.Select(g => new McapMessageIndex(g.Key, g.Value)).ToArray();
     }
     public McapBufferReader OpenSummaryRecords() { lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); return Native.SummaryRecords(0, handle); } }
     public McapChannel GetChannel(ushort id)
     {
         lock (gate) { ObjectDisposedException.ThrowIf(handle.IsClosed, this); var status = Native.fm_snapshot_channel(handle, id, out var r); return McapBufferReader.DecodeChannel(Native.Consume(status, r)); }
     }
-    public McapMessage SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry entry)
-    {
-        lock (gate) { SeekMessage(chunk, entry, [], out _, out var n); var data = new byte[checked((int)n)]; SeekMessage(chunk, entry, data, out var h, out _); return new(GetChannel(h.ChannelId), h.LogTime, h.PublishTime, h.Sequence, data); }
-    }
+    public McapMessage SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry entry) => SeekOwned(chunk, null, entry);
     public IEnumerable<McapMessage> ReadChunkMessages(McapChunkIndex chunk)
     {
         using var reader = OpenChunkReader(chunk);
