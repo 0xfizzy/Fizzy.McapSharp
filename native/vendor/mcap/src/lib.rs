@@ -69,6 +69,9 @@
 pub mod read;
 pub mod records;
 pub mod storage;
+pub mod segmented;
+mod codec_memory;
+mod codec_writer;
 #[cfg(feature = "tokio")]
 pub mod tokio;
 pub mod write;

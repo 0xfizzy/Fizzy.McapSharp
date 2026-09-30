@@ -12,8 +12,6 @@ use bimap::BiHashMap;
 use binrw::prelude::*;
 use byteorder::{WriteBytesExt, LE};
 use enumset::{EnumSet, EnumSetType};
-#[cfg(feature = "zstd")]
-use zstd::stream::{raw as zraw, zio};
 
 use crate::{
     chunk_sink::{ChunkMode, ChunkSink},
@@ -430,11 +428,11 @@ pub struct Writer<W: Write + Seek> {
     all_schema_ids: BTreeMap<u16, u16>,
     next_schema_id: u16,
     next_channel_id: u16,
-    chunk_indexes: Vec<records::ChunkIndex>,
+    chunk_indexes: crate::segmented::SharedSegmentedVec<records::ChunkIndex>,
     attachment_count: u32,
-    attachment_indexes: Vec<records::AttachmentIndex>,
+    attachment_indexes: crate::segmented::SharedSegmentedVec<records::AttachmentIndex>,
     metadata_count: u32,
-    metadata_indexes: Vec<records::MetadataIndex>,
+    metadata_indexes: crate::segmented::SharedSegmentedVec<records::MetadataIndex>,
     /// Message start and end time, or None if there are no messages yet.
     message_bounds: Option<(u64, u64)>,
     channel_message_counts: BTreeMap<u16, u64>,
@@ -471,12 +469,15 @@ impl<W: Write + Seek> Writer<W> {
             if size > opts.memory_budget.limits().block {
                 return Err(McapError::ChunkBufferTooLarge(buffer_size));
             }
-            let mut charge = opts.memory_budget.reserve(size)?;
+            let mut charge = opts
+                .memory_budget
+                .reserve_class(size, crate::storage::ResourceCategory::Writer)?;
             let mut buffer = Vec::new();
             buffer
                 .try_reserve_exact(size)
                 .map_err(std::io::Error::other)?;
             charge.resize(buffer.capacity())?;
+            charge.commit(buffer.capacity());
             ChunkMode::Buffered { buffer, charge }
         } else {
             ChunkMode::Direct
@@ -486,7 +487,7 @@ impl<W: Write + Seek> Writer<W> {
             bookkeeping: crate::storage::Bookkeeping::new(&opts.memory_budget)?,
             writer: Some(WriteMode::Raw(writer)),
             finished_summary: None,
-            options: opts,
+            options: opts.clone(),
             chunk_mode,
             canonical_schemas: Default::default(),
             canonical_channels: Default::default(),
@@ -494,11 +495,13 @@ impl<W: Write + Seek> Writer<W> {
             all_schema_ids: Default::default(),
             next_channel_id: 1,
             next_schema_id: 1,
-            chunk_indexes: Default::default(),
+            chunk_indexes: crate::segmented::SharedSegmentedVec::new(opts.memory_budget.clone()),
             attachment_count: 0,
-            attachment_indexes: Default::default(),
+            attachment_indexes: crate::segmented::SharedSegmentedVec::new(
+                opts.memory_budget.clone(),
+            ),
             metadata_count: 0,
-            metadata_indexes: Default::default(),
+            metadata_indexes: crate::segmented::SharedSegmentedVec::new(opts.memory_budget.clone()),
             message_bounds: None,
             channel_message_counts: BTreeMap::new(),
         })
@@ -1047,8 +1050,10 @@ impl<W: Write + Seek> Writer<W> {
         if self.options.emit_attachment_indexes {
             self.bookkeeping
                 .grow((attachment_index.name.len() + attachment_index.media_type.len()) * 3)?;
-            self.bookkeeping.reserve_vec(&mut self.attachment_indexes)?;
-            self.attachment_indexes.push(attachment_index);
+            if let Err(error) = self.attachment_indexes.push(attachment_index) {
+                self.writer = Some(WriteMode::Failed(writer.finalize().0));
+                return Err(error.into());
+            }
         }
 
         self.writer = Some(WriteMode::Raw(writer));
@@ -1087,12 +1092,11 @@ impl<W: Write + Seek> Writer<W> {
         self.metadata_count += 1;
         if self.options.emit_metadata_indexes {
             self.bookkeeping.grow(metadata.name.len() * 3)?;
-            self.bookkeeping.reserve_vec(&mut self.metadata_indexes)?;
             self.metadata_indexes.push(records::MetadataIndex {
                 offset,
                 length,
                 name: metadata.name.clone(),
-            });
+            })?;
         }
 
         Ok(())
@@ -1187,13 +1191,15 @@ impl<W: Write + Seek> Writer<W> {
         // Reserve persistent chunk-index maps before finishing consumes the chunk.
         if let Some(WriteMode::Chunk(c)) = &self.writer {
             self.bookkeeping.grow(c.indexes.len() * 512 * 3 + 256)?;
-            self.bookkeeping.reserve_vec(&mut self.chunk_indexes)?;
         }
         // See start_chunk() for why we use take() here.
         match self.writer.take().expect(Self::WRITER_IS_NONE) {
             WriteMode::Chunk(c) => match c.finish() {
                 Ok((w, mode, index)) => {
-                    self.chunk_indexes.push(index);
+                    if let Err(error) = self.chunk_indexes.push(index) {
+                        self.writer = Some(WriteMode::Failed(w.finalize().0));
+                        return Err(error.into());
+                    }
                     self.chunk_mode = mode;
                     self.writer = Some(WriteMode::Raw(w))
                 }
@@ -1514,9 +1520,9 @@ enum Compressor<W: Write> {
     // zstd's Encoder wrapper doesn't let us get the inner writer without calling finish(), so use
     // zio::Writer directly instead.
     #[cfg(feature = "zstd")]
-    Zstd(zio::Writer<W, zraw::Encoder<'static>>),
+    Zstd(crate::codec_writer::zstd_encoder::Encoder<W>),
     #[cfg(feature = "lz4")]
-    Lz4(lz4::Encoder<W>),
+    Lz4(crate::codec_writer::lz4_encoder::Encoder<W>),
 }
 
 impl<W: Write> Compressor<W> {
@@ -1524,10 +1530,7 @@ impl<W: Write> Compressor<W> {
         match self {
             Compressor::Null(w) => (w, Ok(())),
             #[cfg(feature = "zstd")]
-            Compressor::Zstd(mut w) => {
-                let result = w.finish();
-                (w.into_inner().0, result)
-            }
+            Compressor::Zstd(w) => w.finish(),
             #[cfg(feature = "lz4")]
             Compressor::Lz4(w) => w.finish(),
         }
@@ -1537,9 +1540,9 @@ impl<W: Write> Compressor<W> {
         match self {
             Compressor::Null(w) => w,
             #[cfg(feature = "zstd")]
-            Compressor::Zstd(w) => w.into_inner().0,
+            Compressor::Zstd(w) => w.into_inner(),
             #[cfg(feature = "lz4")]
-            Compressor::Lz4(w) => w.finish().0,
+            Compressor::Lz4(w) => w.into_inner(),
         }
     }
 }
@@ -1575,7 +1578,7 @@ struct ChunkWriter<W: Write> {
     message_bounds: Option<(u64, u64)>,
     compression_name: &'static str,
     compressor: CountingCrcWriter<Compressor<CountingCrcWriter<ChunkSink<W>>>>,
-    indexes: BTreeMap<u16, Vec<records::MessageIndexEntry>>,
+    indexes: BTreeMap<u16, crate::segmented::BudgetedSegmentedVec<records::MessageIndexEntry>>,
     index_charge: crate::storage::Reservation,
 
     // Hasher from data before the chunk.
@@ -1633,27 +1636,21 @@ impl<W: Write + Seek> ChunkWriter<W> {
         let compressor = match compression {
             #[cfg(feature = "zstd")]
             Some(Compression::Zstd) => {
-                #[allow(unused_mut)]
-                let mut enc = zraw::Encoder::with_dictionary(compression_level as i32, &[])?;
-                // Enable multithreaded encoding on non-WASM targets.
-                #[cfg(not(target_arch = "wasm32"))]
-                enc.set_parameter(zraw::CParameter::NbWorkers(compression_threads))?;
-
-                Compressor::Zstd(zio::Writer::new(sink, enc))
+                Compressor::Zstd(crate::codec_writer::zstd_encoder::Encoder::new(
+                    sink,
+                    compression_level as i32,
+                    compression_threads,
+                    budget.clone(),
+                )?)
             }
             #[cfg(feature = "lz4")]
-            Some(Compression::Lz4) => Compressor::Lz4(
-                // Note: lz4-1.10.0 supports multithreaded compression
-                // (github.com/lz4/lz4/pull/1336), but this is not yet
-                // available through the lz4 / lz4-sys crates.
-                lz4::EncoderBuilder::new()
-                    .level(compression_level)
-                    // Disable the block checksum for wider compatibility with MCAP tooling that
-                    // includes a fault block checksum calculation. Since the MCAP spec includes a
-                    // CRC for the compressed chunk this would be a superfluous check anyway.
-                    .block_checksum(lz4::liblz4::BlockChecksum::NoBlockChecksum)
-                    .build(sink)?,
-            ),
+            Some(Compression::Lz4) => {
+                Compressor::Lz4(crate::codec_writer::lz4_encoder::Encoder::new(
+                    sink,
+                    compression_level,
+                    budget.clone(),
+                )?)
+            }
             #[cfg(not(any(feature = "zstd", feature = "lz4")))]
             Some(_) => unreachable!("`Compression` is an empty enum that cannot be instantiated"),
             None => Compressor::Null(sink),
@@ -1667,7 +1664,7 @@ impl<W: Write + Seek> ChunkWriter<W> {
             compression_name,
             message_bounds: None,
             indexes: BTreeMap::new(),
-            index_charge: budget.reserve(0)?,
+            index_charge: budget.reserve_class(0, crate::storage::ResourceCategory::Index)?,
             pre_chunk_crc,
             emit_message_indexes,
         })
@@ -1696,33 +1693,17 @@ impl<W: Write + Seek> ChunkWriter<W> {
                         .ok_or_else(|| std::io::Error::other("Index capacity overflow"))?,
                 )?;
             }
-            let entries = self.indexes.entry(header.channel_id).or_default();
-            if entries.len() == entries.capacity() {
-                let capacity = entries
-                    .capacity()
-                    .max(16)
-                    .checked_mul(2)
-                    .ok_or_else(|| std::io::Error::other("Index capacity overflow"))?;
-                let old = entries.capacity();
-                let bytes = self.index_charge.bytes();
-                self.index_charge.resize(
-                    bytes
-                        + (capacity - old) * std::mem::size_of::<records::MessageIndexEntry>() * 2,
-                )?;
-                entries
-                    .try_reserve_exact(capacity - entries.len())
-                    .map_err(std::io::Error::other)?;
-                self.index_charge.resize(
-                    bytes
-                        + (entries.capacity() - old)
-                            * std::mem::size_of::<records::MessageIndexEntry>()
-                            * 2,
-                )?;
-            }
+            let domain = self.index_charge.domain();
+            let entries = self.indexes.entry(header.channel_id).or_insert_with(|| {
+                crate::segmented::BudgetedSegmentedVec::new(
+                    domain,
+                    crate::storage::ResourceCategory::Index,
+                )
+            });
             entries.push(records::MessageIndexEntry {
                 log_time: header.log_time,
                 offset: self.compressor.position(),
-            });
+            })?;
         }
 
         self.write_record(&Record::Message {
@@ -1818,7 +1799,6 @@ impl<W: Write + Seek> ChunkWriter<W> {
             }
         };
         let mut message_index_offsets: BTreeMap<u16, u64> = BTreeMap::new();
-        let mut index_buf = Vec::new();
         for (channel_id, records) in self.indexes {
             let position = match writer.stream_position() {
                 Ok(v) => v,
@@ -1827,18 +1807,22 @@ impl<W: Write + Seek> ChunkWriter<W> {
             let existing_offset = message_index_offsets.insert(channel_id, position);
             assert!(existing_offset.is_none());
 
-            index_buf.clear();
-            let index = records::MessageIndex {
-                channel_id,
-                records,
-            };
-            if let Err(err) = Cursor::new(&mut index_buf).write_le(&index) {
-                return Err((writer.finalize().0, err.into()));
-            }
-            if let Err(err) = op_and_len(&mut writer, op::MESSAGE_INDEX, index_buf.len() as _) {
-                return Err((writer.finalize().0, err.into()));
-            }
-            if let Err(err) = writer.write_all(&index_buf) {
+            let result = (|| -> std::io::Result<()> {
+                let bytes = records
+                    .len()
+                    .checked_mul(16)
+                    .and_then(|n| u32::try_from(n).ok())
+                    .ok_or_else(|| std::io::Error::other("Message index length overflow"))?;
+                op_and_len(&mut writer, op::MESSAGE_INDEX, 6 + bytes as u64)?;
+                writer.write_all(&channel_id.to_le_bytes())?;
+                writer.write_all(&bytes.to_le_bytes())?;
+                for record in records.iter() {
+                    writer.write_all(&record.log_time.to_le_bytes())?;
+                    writer.write_all(&record.offset.to_le_bytes())?;
+                }
+                Ok(())
+            })();
+            if let Err(err) = result {
                 return Err((writer.finalize().0, err.into()));
             }
         }

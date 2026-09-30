@@ -560,9 +560,9 @@ pub struct Summary {
     pub channels: HashMap<u16, Arc<Channel<'static>>>,
     /// Maps schema IDs to their schema
     pub schemas: HashMap<u16, Arc<Schema<'static>>>,
-    pub chunk_indexes: Vec<records::ChunkIndex>,
-    pub attachment_indexes: Vec<records::AttachmentIndex>,
-    pub metadata_indexes: Vec<records::MetadataIndex>,
+    pub chunk_indexes: crate::segmented::SharedSegmentedVec<records::ChunkIndex>,
+    pub attachment_indexes: crate::segmented::SharedSegmentedVec<records::AttachmentIndex>,
+    pub metadata_indexes: crate::segmented::SharedSegmentedVec<records::MetadataIndex>,
 }
 
 impl fmt::Debug for Summary {

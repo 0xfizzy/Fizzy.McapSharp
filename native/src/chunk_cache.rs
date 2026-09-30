@@ -1,6 +1,71 @@
 //! Complete, immutable chunks with a byte-limited LRU. Storage owners survive eviction.
 use super::*;
-use std::sync::Arc;
+use std::io::Cursor;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
+trait CacheContent: Send + Sync {
+    fn cache_reference(&self, acquire: bool);
+}
+struct CacheItem<T: CacheContent> {
+    value: Mutex<Option<Arc<T>>>,
+    cost: u64,
+    touched: AtomicU64,
+    domain: Arc<budget::MemoryBudget>,
+    _charge: mcap::storage::Reservation,
+}
+impl<T: CacheContent + 'static> CacheItem<T> {
+    fn new(value: Arc<T>, cost: u64, domain: &Arc<budget::MemoryBudget>) -> Outcome<Arc<Self>> {
+        let mut charge = domain.reserve_class(
+            std::mem::size_of::<Self>() + 2 * std::mem::size_of::<usize>(),
+            mcap::storage::ResourceCategory::Scratch,
+        )?;
+        charge.commit(charge.bytes());
+        value.cache_reference(true);
+        let item = Arc::new(Self {
+            value: Mutex::new(Some(value)),
+            cost,
+            touched: AtomicU64::new(domain.touch()),
+            domain: domain.clone(),
+            _charge: charge,
+        });
+        let erased: Arc<dyn mcap::storage::Reclaimable> = item.clone();
+        domain.register_reclaimer(Arc::downgrade(&erased))?;
+        Ok(item)
+    }
+    fn get(&self) -> Option<Arc<T>> {
+        self.value.lock().unwrap().clone()
+    }
+}
+impl<T: CacheContent> Drop for CacheItem<T> {
+    fn drop(&mut self) {
+        if let Some(value) = self.value.get_mut().unwrap().take() {
+            value.cache_reference(false);
+        }
+        self.domain.prune_reclaimers();
+    }
+}
+impl<T: CacheContent> mcap::storage::Reclaimable for CacheItem<T> {
+    fn last_access(&self) -> u64 {
+        self.touched.load(Ordering::Relaxed)
+    }
+    fn reclaim(&self) -> bool {
+        let old = match self.value.try_lock() {
+            Ok(mut value) => value.take(),
+            Err(_) => return false,
+        };
+        let removed = old.is_some();
+        if let Some(value) = &old {
+            value.cache_reference(false);
+        }
+        drop(old);
+        if removed {
+            self.domain.cache_event(2);
+        }
+        removed
+    }
+}
 struct Entry {
     offset: u64,
     header: MessageHeader,
@@ -8,8 +73,7 @@ struct Entry {
 }
 pub(super) struct Chunk {
     key: Vec<u8>,
-    entries: Vec<Entry>,
-    cost: u64,
+    entries: mcap::segmented::BudgetedSegmentedVec<Entry>,
     _charge: mcap::storage::Reservation,
 }
 impl Chunk {
@@ -32,8 +96,43 @@ impl Chunk {
 }
 pub struct PackedIndex {
     key: Vec<u8>,
-    pub data: Vec<u8>,
+    pub data: mcap::segmented::BudgetedSegmentedVec<[u8; 18]>,
     _charge: mcap::storage::Reservation,
+}
+impl CacheContent for Chunk {
+    fn cache_reference(&self, acquire: bool) {
+        for entry in self.entries.iter() {
+            entry.data.cache_reference(acquire);
+        }
+    }
+}
+impl CacheContent for PackedIndex {
+    fn cache_reference(&self, _acquire: bool) {}
+}
+impl PackedIndex {
+    pub unsafe fn copy_to(
+        &self,
+        dest: *mut u8,
+        capacity: usize,
+        out: &mut Response,
+    ) -> Outcome<i32> {
+        let length = self
+            .data
+            .len()
+            .checked_mul(18)
+            .ok_or("Index capacity overflow")?;
+        out.value = length as u64;
+        if capacity < length {
+            return Ok(2);
+        }
+        if dest.is_null() && length != 0 {
+            return Err("Null destination".into());
+        }
+        for (i, row) in self.data.iter().enumerate() {
+            memory::copy(row, dest.add(i * 18))?;
+        }
+        Ok(0)
+    }
 }
 struct Pending {
     key: Vec<u8>,
@@ -43,8 +142,8 @@ struct Pending {
 }
 pub struct ChunkCache {
     pending: Option<Pending>,
-    indexes: Vec<Arc<PackedIndex>>,
-    chunks: Vec<Arc<Chunk>>,
+    indexes: Vec<Arc<CacheItem<PackedIndex>>>,
+    chunks: Vec<Arc<CacheItem<Chunk>>>,
     domain: Arc<budget::MemoryBudget>,
     pub stats: memory::Statistics,
     pub hits: u64,
@@ -73,14 +172,33 @@ impl ChunkCache {
         self.chunks.clear();
         self.stats.current = 0;
     }
+    pub fn resident_bytes(&self) -> u64 {
+        self.chunks
+            .iter()
+            .filter(|c| c.value.lock().unwrap().is_some())
+            .map(|c| c.cost)
+            .sum::<u64>()
+            + self
+                .indexes
+                .iter()
+                .filter(|c| c.value.lock().unwrap().is_some())
+                .map(|c| c.cost)
+                .sum::<u64>()
+    }
+    fn refresh(&mut self) {
+        self.chunks.retain(|c| c.value.lock().unwrap().is_some());
+        self.indexes.retain(|c| c.value.lock().unwrap().is_some());
+        self.stats.current = self.chunks.iter().map(|c| c.cost).sum::<u64>()
+            + self.indexes.iter().map(|c| c.cost).sum::<u64>();
+    }
     fn evict_one(&mut self) -> bool {
         if !self.chunks.is_empty() {
             let old = self.chunks.remove(0);
-            self.stats.current -= old.cost;
+            self.stats.current = self.stats.current.saturating_sub(old.cost);
             true
         } else if !self.indexes.is_empty() {
             let old = self.indexes.remove(0);
-            self.stats.current -= (old.key.capacity() + old.data.capacity()) as u64;
+            self.stats.current = self.stats.current.saturating_sub(old.cost);
             true
         } else {
             false
@@ -95,15 +213,6 @@ impl ChunkCache {
             }
         }
     }
-    fn resize(&mut self, r: &mut mcap::storage::Reservation, n: usize) -> Outcome<()> {
-        loop {
-            match r.resize(n) {
-                Ok(()) => return Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock && self.evict_one() => {}
-                Err(e) => return Err(e.into()),
-            }
-        }
-    }
     pub fn message_indexes(
         &mut self,
         input: &[u8],
@@ -112,55 +221,51 @@ impl ChunkCache {
         key: &[u8],
         limit: u64,
     ) -> Outcome<Arc<PackedIndex>> {
-        if let Some(i) = self.indexes.iter().position(|i| i.key == key) {
-            let cached = self.indexes.remove(i);
-            self.indexes.push(cached.clone());
-            return Ok(cached);
+        self.refresh();
+        for slot in &self.indexes {
+            if let Some(cached) = slot.get() {
+                if cached.key == key {
+                    slot.touched.store(self.domain.touch(), Ordering::Relaxed);
+                    return Ok(cached);
+                }
+            }
         }
         if index.message_index_offsets.is_empty() {
             return Err(mcap::McapError::BadIndex.into());
         }
-        let mut estimated = key.len();
-        for offset in index.message_index_offsets.values() {
-            let body = extended::record_body(input, *offset, records::op::MESSAGE_INDEX)?;
-            estimated = estimated
-                .checked_add(body.len().checked_mul(8).ok_or("Index capacity overflow")?)
-                .and_then(|n| n.checked_add(1024))
-                .ok_or("Index capacity overflow")?;
-        }
-        let mut charge = self.reserve(estimated)?;
-        let mut packed = Vec::new();
+        let mut charge = self.reserve(key.len())?;
+        let mut packed = mcap::segmented::BudgetedSegmentedVec::new(
+            self.domain.clone(),
+            mcap::storage::ResourceCategory::Index,
+        );
         for (channel_id, offset) in &index.message_index_offsets {
             let body = extended::record_body(input, *offset, records::op::MESSAGE_INDEX)?;
-            let records::Record::MessageIndex(record) =
-                mcap::parse_record(records::op::MESSAGE_INDEX, body)?
-            else {
-                unreachable!()
-            };
-            if record.channel_id != *channel_id {
+            let mut cursor = Cursor::new(body);
+            let actual: u16 = binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
+            if actual != *channel_id {
                 return Err(mcap::McapError::BadIndex.into());
             }
             if !summary.channels.contains_key(channel_id) {
                 return Err(mcap::McapError::UnknownChannel(0, *channel_id).into());
             }
-            packed.try_reserve_exact(
-                record
-                    .records
-                    .len()
-                    .checked_mul(18)
-                    .ok_or("Index capacity overflow")?,
-            )?;
-            for e in record.records {
-                packed.extend_from_slice(&channel_id.to_le_bytes());
-                packed.extend_from_slice(&e.log_time.to_le_bytes());
-                packed.extend_from_slice(&e.offset.to_le_bytes());
+            // Same byte-length termination as the official records::parse_vec; read each
+            // official entry directly into its final descriptor page.
+            let byte_len: u32 = binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
+            let start = cursor.position();
+            while cursor.position() - start < byte_len as u64 {
+                let entry: records::MessageIndexEntry = binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
+                let mut row = [0u8; 18];
+                row[..2].copy_from_slice(&channel_id.to_le_bytes());
+                row[2..10].copy_from_slice(&entry.log_time.to_le_bytes());
+                row[10..].copy_from_slice(&entry.offset.to_le_bytes());
+                packed.push(row)?;
             }
         }
         let cost = key
             .len()
-            .checked_add(packed.capacity())
+            .checked_add(packed.allocated_bytes())
             .ok_or("Index capacity overflow")?;
-        charge.resize(cost)?;
+        charge.commit(key.len());
         let cached = Arc::new(PackedIndex {
             key: key.to_vec(),
             data: packed,
@@ -170,10 +275,10 @@ impl ChunkCache {
             while self.stats.current.saturating_add(cost as u64) > limit {
                 if !self.indexes.is_empty() {
                     let old = self.indexes.remove(0);
-                    self.stats.current -= (old.key.capacity() + old.data.capacity()) as u64;
+                    self.stats.current = self.stats.current.saturating_sub(old.cost);
                 } else if !self.chunks.is_empty() {
                     let old = self.chunks.remove(0);
-                    self.stats.current -= old.cost;
+                    self.stats.current = self.stats.current.saturating_sub(old.cost);
                 } else {
                     break;
                 }
@@ -182,7 +287,8 @@ impl ChunkCache {
                 self.stats.current as usize,
                 self.stats.current as usize + cost,
             );
-            self.indexes.push(cached.clone());
+            self.indexes
+                .push(CacheItem::new(cached.clone(), cost as u64, &self.domain)?);
         }
         Ok(cached)
     }
@@ -193,12 +299,18 @@ impl ChunkCache {
         key: &[u8],
         limit: u64,
     ) -> Outcome<Arc<Chunk>> {
-        if let Some(i) = self.chunks.iter().position(|c| c.key == key) {
-            self.hits += 1;
-            let chunk = self.chunks.remove(i);
-            self.chunks.push(chunk.clone());
-            return Ok(chunk);
+        self.refresh();
+        for slot in &self.chunks {
+            if let Some(chunk) = slot.get() {
+                if chunk.key == key {
+                    self.hits += 1;
+                    self.domain.cache_event(1);
+                    slot.touched.store(self.domain.touch(), Ordering::Relaxed);
+                    return Ok(chunk);
+                }
+            }
         }
+        self.domain.cache_event(0);
         let start = usize::try_from(
             index
                 .chunk_start_offset
@@ -227,7 +339,7 @@ impl ChunkCache {
                 > limit
         {
             let c = self.chunks.remove(0);
-            self.stats.current -= c.cost;
+            self.stats.current = self.stats.current.saturating_sub(c.cost);
         }
         while !self.chunks.is_empty()
             && self
@@ -238,15 +350,18 @@ impl ChunkCache {
                 > self.domain.limits().total as u64
         {
             let c = self.chunks.remove(0);
-            self.stats.current -= c.cost;
+            self.stats.current = self.stats.current.saturating_sub(c.cost);
         }
         drop(self.reserve(self.domain.limits().block.min(4096))?);
         let mut parser =
             buffer_reader::chunk_parser(header, &data, body.len(), self.domain.clone())?;
         parser.set_memory_budget(self.domain.clone());
         let mut fed = false;
-        let mut entries = Vec::<Entry>::new();
-        let mut charge = self.reserve(key.len())?;
+        let mut entries = mcap::segmented::BudgetedSegmentedVec::<Entry>::new(
+            self.domain.clone(),
+            mcap::storage::ResourceCategory::Index,
+        );
+        let charge = self.reserve(key.len())?;
         let mut position = 0u64;
         loop {
             let event = match parser.next_shared_event().transpose() {
@@ -273,26 +388,11 @@ impl ChunkCache {
                 Some(sans_io::linear_reader::SharedReadEvent::Record { opcode, data }) => {
                     let record = mcap::parse_record(opcode, data.as_ref())?;
                     if let records::Record::Message { header, .. } = record {
-                        if entries.len() == entries.capacity() {
-                            let capacity = entries
-                                .capacity()
-                                .max(16)
-                                .checked_mul(2)
-                                .ok_or("Index capacity overflow")?;
-                            self.resize(
-                                &mut charge,
-                                key.len() + capacity * std::mem::size_of::<Entry>(),
-                            )?;
-                            entries.try_reserve_exact(capacity - entries.len())?;
-                            charge.resize(
-                                key.len() + entries.capacity() * std::mem::size_of::<Entry>(),
-                            )?;
-                        }
                         entries.push(Entry {
                             offset: position,
                             header: buffer_reader::native_header(&header),
                             data: data.slice(22..data.as_ref().len()),
-                        });
+                        })?;
                     }
                     position = position
                         .checked_add(9 + data.as_ref().len() as u64)
@@ -307,29 +407,28 @@ impl ChunkCache {
             .max()
             .map(|n| n as u64)
             .unwrap_or(uncompressed);
-        let cost = storage_capacity
-            .saturating_add((key.len() + entries.capacity() * std::mem::size_of::<Entry>()) as u64);
+        let cost = storage_capacity.saturating_add((key.len() + entries.allocated_bytes()) as u64);
         let chunk = Arc::new(Chunk {
             key: key.to_vec(),
             entries,
-            cost,
             _charge: charge,
         });
         if limit != 0 && cost <= limit {
             while self.stats.current.saturating_add(cost) > limit {
                 if !self.chunks.is_empty() {
                     let c = self.chunks.remove(0);
-                    self.stats.current -= c.cost;
+                    self.stats.current = self.stats.current.saturating_sub(c.cost);
                 } else {
                     let c = self.indexes.remove(0);
-                    self.stats.current -= (c.key.capacity() + c.data.capacity()) as u64;
+                    self.stats.current = self.stats.current.saturating_sub(c.cost);
                 }
             }
             self.stats.capacity(
                 self.stats.current as usize,
                 (self.stats.current + cost) as usize,
             );
-            self.chunks.push(chunk.clone());
+            self.chunks
+                .push(CacheItem::new(chunk.clone(), cost, &self.domain)?);
         }
         Ok(chunk)
     }
@@ -392,7 +491,10 @@ impl ChunkCache {
         let data = message.data.as_ref();
         out.value = data.len() as u64;
         if let Some(sink) = sink {
-            self.stats.copied += sink.send(records::op::MESSAGE, &message.header, data)?;
+            let copied = sink.send(records::op::MESSAGE, &message.header, data)?;
+            self.stats.copied += copied;
+            self.domain
+                .copy_bytes(mcap::storage::CopyKind::Delivery, copied as usize);
         } else {
             if capacity < data.len() {
                 let charge = self.domain.reserve(key.len())?;
@@ -406,6 +508,8 @@ impl ChunkCache {
             }
             memory::copy(data, dest)?;
             self.stats.copied += data.len() as u64;
+            self.domain
+                .copy_bytes(mcap::storage::CopyKind::Delivery, data.len());
         }
         Ok(Some(0))
     }

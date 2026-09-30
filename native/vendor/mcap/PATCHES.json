@@ -1,13 +1,18 @@
 {
   "purpose": "Stable shared input/decompression storage and finite storage/metadata reservations; preserve official state machines.",
   "sha256": {
-    "src/chunk_sink.rs": "0fdf565d3ee987520344bf2a237290ef7b64a6174021f2ad1a6c635cfbf87442",
-    "src/lib.rs": "e576906ecc5fdbd9586271ad5a62248e6664ad270b6cde4ad02754a71bf66ce2",
-    "src/read.rs": "e8cf3467439433581db0c4ddb65fb35bcd86336bfdc0f2f40a8544bc9dcc4cb8",
-    "src/storage.rs": "041813edfe2a4bd760f80bcd1adb619dd7e33720681b32431d2496c4406ced61",
-    "src/write.rs": "4ddc009f913ce4ff2087a3bc80637743b6aa0d61cc6af02159716411956e48f9",
-    "src/sans_io/indexed_reader.rs": "b5b05865d66a68db6ce7b19efa7e9dde51b03d49a6c30a48feb4b5ce700156bb",
-    "src/sans_io/linear_reader.rs": "aa26bf35bc60e28a93e3d7c395575b2f00c4d9b320cd79165da5cae8f11fd53e",
-    "src/sans_io/summary_reader.rs": "ad14387e94af67d29f7cd3410a5d86d25372269f348aa14eb062058a242297c3"
+    "src/chunk_sink.rs": "ffafb29af1af1c460b17086762c1eccfe9b10f1fbdbcbe165cb794cb122be135",
+    "src/lib.rs": "6cde72ceb8cf89d8182caa9464600858e5828a4682ca941e06478b8408c7726c",
+    "src/read.rs": "62967d2b3e4aae3a8040d023c4808767122d36138b81e392611bfec652f42f99",
+    "src/storage.rs": "567cef070dda266dadccc59d0052f9badc3ccc34609cc406215b44f9d400f753",
+    "src/write.rs": "0a56e6f58b05cc3950fb3040b5fda8cd4ea0d7dd42c3f5b1a0114a4b98831a9d",
+    "src/sans_io/indexed_reader.rs": "9a49e462fb4fb6c4572bc2c84495db056dd322097d2d8eb103d46ee68f033b11",
+    "src/sans_io/linear_reader.rs": "1b203cd3de1a5c8d9498fcf67271e05c0c92dc0486ddd9d8a371c2c33fd72089",
+    "src/sans_io/summary_reader.rs": "6c80fb81464f50bd7de0661a9ef95ecbfe9889bda4ee623ba75b3377a586770b",
+    "src/codec_memory.rs": "b97da4cc97fd63ab0358ebc557eaebaa8201719db65e680c3b6778e3c4048f39",
+    "src/codec_writer.rs": "a7a2c8ee596d036722689a7bfed9c58750943ab6786866f1b3fe3bb33b9e6897",
+    "src/segmented.rs": "36c519a4ae6fc935b0257a632c0bb87237b12034ed96d6cad3fbc702a9c3d3e5",
+    "src/sans_io/zstd.rs": "320768d58811bf5cff6437ea9d0f1f27e62ecf649deee2131a5fd7e7fbb0bdb4",
+    "src/sans_io/lz4.rs": "402a5b0e39bfe7e08efaa8910af3e95e01af95a208899405c5be7cbc7c1c1212"
   }
 }

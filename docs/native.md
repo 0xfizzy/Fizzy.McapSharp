@@ -6,7 +6,7 @@ English | [简体中文](native.zh-CN.md)
 
 ## ABI contract
 
-`fm_abi_version()` returns 9. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 10. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -64,9 +64,9 @@ The public [API contract](api.md) distinguishes complete validation, indexed que
 The asynchronous reader drives the linear engine with .NET ReadAsync, retaining only managed Memory between waits. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.
 
 
-## ABI 9 storage and batching
+## ABI 10 storage and batching
 
-ABI 9 uses private SafeHandles and opaque storage owners; Rust layouts remain private. `fm_budget_open/statistics/free` manage shared domains. JSON contains a weak-registry ID, never a native address. Budget statistics are five u64 fields: current, peak, retained, allocations, copied. The existing per-handle fm_memory_statistics layout is unchanged and is not a domain total.
+ABI 10 uses private SafeHandles and opaque storage owners; Rust layouts remain private. `fm_budget_open/statistics/free` manage shared domains. JSON contains a weak-registry ID, never a native address. Budget statistics are five u64 fields: current, peak, retained, allocations, copied. The existing per-handle fm_memory_statistics layout is unchanged and is not a domain total.
 
 `fm_writer_batch` receives 24-byte headers, 8-byte offset/length ranges, shared payload and a separate completed-prefix output. `fm_read_batch` and `fm_visit_messages` use a 40-byte Progress (four u64, two u32). Inputs are pinned only during synchronous calls. Writer preflight precedes mutation; advancement failure does not imply rollback.
 
@@ -76,4 +76,6 @@ ABI 9 uses private SafeHandles and opaque storage owners; Rust layouts remain pr
 
 `fm_snapshot_seek_batch` groups full index keys and restores request order. A multi-chunk LRU retains fully verified shared storage and message ranges, with optional cached message indexes. Uncompressed mapped payloads remain mapped slices; compressed chunks decompress into final shared blocks. Insufficient-buffer retries retain slices without a per-message owned helper fallback. Complete chunk verification is not full-file validation.
 
-`fm_chunk_index_prepare_budget` accepts a shared domain; the original export uses a separate default domain. SafeHandle arguments stay alive throughout calls. See the [API guide](api.md) for conservative reservations and codec/temporary allocation exclusions. Wrapper statistics are not complete allocator evidence.
+`fm_chunk_index_prepare_budget` accepts a shared domain; the original export uses a separate default domain. SafeHandle arguments stay alive throughout calls. See the [API guide](api.md) for conservative reservations and temporary/control allocation exclusions. Wrapper statistics are not complete allocator evidence.
+
+`fm_budget_detailed_statistics` returns 456 bytes: nine resource rows of four u64 values, three allocation counters, thirteen flow counters, two unique heap-payload ownership counters and three domain-capacity counters. Managed layout tests pin these sizes. `fm_budget_notify` installs a private domain notification; `fm_budget_dispatch` runs pending capacity notifications after native operations and handle release, never inside codec allocation callbacks. Managed continuations are scheduled asynchronously. Notifications are scoped to registered domains rather than broadcast to unrelated readers.

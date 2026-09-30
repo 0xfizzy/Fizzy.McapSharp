@@ -35,4 +35,4 @@ Rust 生命周期、`Cow`、`Arc`、迭代器及 builder 映射为自有结果�
 
 `FlushToDisk` 文件持久化及扫描后时间排序属于封装扩展，不增加上游声明数量。`Complete` 完成格式并刷新缓冲，持久化需单独显式请求。参见[完成与查询契约](api.zh-CN.md)。
 
-`BatchTests`、`LeaseTests`、`BatchSeekTests` 和 `BatchGate` 覆盖新借用／批次／lease 路径。API 清单读取 vendor 实际构建源，storage 模块属于私有适配层，不按上游公共格式 API 映射。Rust 分配探针不覆盖 codec C 工作区。
+`BatchTests`、`LeaseTests`、`BatchSeekTests` 和 `BatchGate` 覆盖新借用／批次／lease 路径。API 清单读取 vendor 实际构建源，storage 模块属于私有适配层，不按上游公共格式 API 映射。BudgetAccountingTests 覆盖 codec 计费、跨 reader 回收、共享 lease 计费和索引页终止失败。经预算回调的 codec 分配进入 Rust 分配探针，直接外部分配仍排除。codec 与分页存储模块属于私有适配设施。

@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 9，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 10，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -64,9 +64,9 @@ Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验�
 异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。
 
 
-## ABI 9 存储与批次
+## ABI 10 存储与批次
 
-ABI 9 使用私有 SafeHandle 和 opaque 存储 owner，禁止暴露 Rust 布局。`fm_budget_open/statistics/free` 管理共享域，JSON 中传递弱注册表 ID，不传原生地址。预算统计为五个 u64：current、peak、retained、allocations、copied；逐句柄 `fm_memory_statistics` 的旧布局不变，不能与域统计混算。
+ABI 10 使用私有 SafeHandle 和 opaque 存储 owner，禁止暴露 Rust 布局。`fm_budget_open/statistics/free` 管理共享域，JSON 中传递弱注册表 ID，不传原生地址。预算统计为五个 u64：current、peak、retained、allocations、copied；逐句柄 `fm_memory_statistics` 的旧布局不变，不能与域统计混算。
 
 `fm_writer_batch` 接收 24 字节消息头数组、8 字节 offset/length 数组、共享 payload 和独立完成前缀计数。`fm_read_batch` 和 `fm_visit_messages` 使用 40 字节 Progress：四个 u64 和两个 u32。所有消息头、输入缓冲仅在同步调用内固定。Writer 预检在修改前完成，推进失败不承诺回滚。
 
@@ -76,4 +76,6 @@ ABI 9 使用私有 SafeHandle 和 opaque 存储 owner，禁止暴露 Rust 布局
 
 `fm_snapshot_seek_batch` 按完整索引键分组，并恢复请求顺序。快照多 chunk LRU 保存完整校验后的共享块和范围；消息索引也可缓存。未压缩映射块不复制 payload；压缩块直接解压到最终共享存储。不足缓冲重试保留切片，不回退逐消息 owned helper。随机完整 chunk 校验不等于全文件校验。
 
-`fm_chunk_index_prepare_budget` 允许 prepared 索引使用共享域，原入口使用独立默认域。其 SafeHandle 实参在调用期间保活。原生存储和元数据预留范围、保守计费及 codec/临时对象排除项见 [API 指南](api.zh-CN.md)。不能用 wrapper 计数替代完整原生分配证据。
+`fm_chunk_index_prepare_budget` 允许 prepared 索引使用共享域，原入口使用独立默认域。其 SafeHandle 实参在调用期间保活。原生存储和元数据预留范围、保守计费及 临时对象／控制存储排除项见 [API 指南](api.zh-CN.md)。不能用 wrapper 计数替代完整原生分配证据。
+
+fm_budget_detailed_statistics 返回 456 字节：九行资源数据（每行四个 u64）、三个分配计数、十三个流量计数、两个唯一堆载荷拥有权计数和三个域容量计数；托管布局测试锁定尺寸。fm_budget_notify 注册私有域通知，fm_budget_dispatch 在原生操作退出及句柄释放后派发容量通知，不在 codec 分配回调内执行。托管 continuation 异步调度，通知仅面向注册域，不向无关 reader 广播。

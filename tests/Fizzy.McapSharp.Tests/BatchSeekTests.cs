@@ -13,7 +13,16 @@ public class BatchSeekTests
                 for(uint i=0;i<2;i++) writer.WriteMessage(new(c,i,i,0),new byte[70000]);
                 writer.Complete();
             }
-            var budget=new McapMemoryBudget(180000,100000,0);
+            ulong capacity;
+            var probeBudget=new McapMemoryBudget(maxBlockBytes:100000,maxRetainedBytes:0);
+            using(var probe=McapIndexSnapshot.OpenMapped(path,new(){Budget=probeBudget,MaxRandomAccessCacheBytes=1024*1024})) {
+                var index=probe.GetSummary()!.ChunkIndexes[0];
+                using var prepared=new McapPreparedChunkIndex(index);
+                var entry=probe.ReadMessageIndexes(prepared)[0].Records[0];
+                probe.SeekMessage(prepared,entry,static(in McapMessageHeader h,ReadOnlySpan<byte> p)=>true);
+                capacity=probeBudget.GetStatistics().PeakBytes+8192;
+            }
+            var budget=new McapMemoryBudget(capacity,100000,0);
             using var snapshot=McapIndexSnapshot.OpenMapped(path,new(){Budget=budget,MaxRandomAccessCacheBytes=1024*1024});
             var indexes=snapshot.GetSummary()!.ChunkIndexes;
             using var a=new McapPreparedChunkIndex(indexes[0]);using var b=new McapPreparedChunkIndex(indexes[1]);

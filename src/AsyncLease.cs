@@ -3,17 +3,28 @@ using System.Threading.Tasks.Sources;
 
 namespace Fizzy.McapSharp;
 
-internal static class NativeStorageSignal
+internal sealed class NativeStorageSignal
 {
-    static readonly object Gate = new();
-    static TaskCompletionSource? signal;
-    internal static Task Observe() { lock (Gate) return (signal ??= new(TaskCreationOptions.RunContinuationsAsynchronously)).Task; }
-    internal static void Pulse()
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<ulong,WeakReference<NativeStorageSignal>> Signals = new();
+    static readonly Native.BudgetNotification Callback = Notify;
+    readonly object gate = new();
+    TaskCompletionSource? signal;
+    internal void Register(MemoryBudgetHandle handle, ulong id)
     {
+        Signals[id] = new(this);
+        int status=Native.fm_budget_notify(handle, Callback, out var result);
+        if(status<0) {Signals.TryRemove(id,out _);throw Native.ConsumeError(result);}
+    }
+    internal static void Remove(ulong id)=>Signals.TryRemove(id,out _);
+    internal Task Observe() { lock(gate) return (signal ??= new(TaskCreationOptions.RunContinuationsAsynchronously)).Task; }
+    static void Notify(ulong id)
+    {
+        if (!Signals.TryGetValue(id,out var weak) || !weak.TryGetTarget(out var target)) return;
         TaskCompletionSource? old;
-        lock (Gate) { old = signal; signal = null; }
+        lock(target.gate) {old=target.signal;target.signal=null;}
         old?.TrySetResult();
     }
+    internal static void Pulse()=>Native.fm_budget_dispatch();
 }
 
 public sealed partial class McapAsyncReader
@@ -33,6 +44,7 @@ public sealed partial class McapAsyncReader
             if (failed) throw new InvalidOperationException("Reader failed; open a new reader.");
             if (active) throw new InvalidOperationException("Consume the outstanding operation first.");
             if (consumptionMode == 1) throw new InvalidOperationException("Record and message-lease consumption cannot be mixed on an async reader.");
+            memoryBudget.EnableNotifications();
             consumptionMode = 2; active = true; leaseCompletion.Reset();
         }
         CompleteLease(maxMessages, targetPayloadBytes, cancellationToken);
@@ -60,7 +72,7 @@ public sealed partial class McapAsyncReader
             while (true)
             {
                 token.ThrowIfCancellationRequested();
-                var changed = NativeStorageSignal.Observe();
+                var changed = memoryBudget.Signal.Observe();
                 var (status, batch, needed) = parser.LeaseStep(count, target);
                 if (batch is not null) return batch;
                 if (status == 1) return null;

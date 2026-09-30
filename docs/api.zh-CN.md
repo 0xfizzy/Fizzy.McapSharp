@@ -223,13 +223,19 @@ McapMemoryOptions.Budget 可共享 McapMemoryBudget，否则独立 reader/writer
 
 输入／解压块、pending／scratch、lease／排序描述符、prepared Chunk 索引及保留的摘要／writer 元数据在扩容前计费。元数据采用保守预留。同一 payload 同时被多个 lease 和缓存引用只计一次，空闲池仍计费。排序引用共享载荷，超限报错，不改变顺序或溢写。长期 writer 保留索引，可提高有限预算、显式关闭不需要的索引，或由消费者分段录制。
 
-**计费边界：**这不是进程工作集或完整分配器硬上限。Codec C 工作区和工作线程、分配器／控制块开销、冷路径 JSON／记录解析临时对象及部分旧 prepared-control 存储尚未计费。调用方缓冲、托管 owned 结果、外部 Stream 内存和映射驻留页也排除。宣称完整原生内存验收通过前，仍须核验压缩工作区计费及完整资源分类／复制遥测。
+Zstd/Lz4 编码及解码上下文使用固定 codec 版本的自定义分配接口。codec 堆请求、分配头及输出缓冲在分配前预留容量；拒绝通过正常错误返回，不跨 C 展开。codec 工作区受总预算限制，不套用载荷块上限。CompressionThreads 保持原有行为。推进后的 codec 失败是终止失败，不作为可重试预算压力。
 
-McapMemoryBudget.GetStatistics 返回域级当前／峰值已计费容量、空闲保留容量、预留／分配次数及受测存储复制字节。现有 GetMemoryStatistics 仍是逐句柄 wrapper 视图，包含最终交付复制和映射长度，不含部分 parser／codec 工作；不要累加相关视图。二者都不是全分配器测量。原生探针另测 Rust 存活／峰值容量，不拦截 codec C 分配。不注册 GC 内存压力估算。
+GetDetailedStatistics() 返回无托管分配的固定值类型快照：九类资源（输入、解压、writer、codec 编码／解码、索引、描述符、声明、scratch）的当前／峰值计费、实际存活及未使用预留，以及分配活动、受测复制／codec 流量、解压开始／完成和缓存事件。CurrentBytes、PeakBytes、IdleBytes 来自同一快照。各分类 CurrentBytes 之和等于域 CurrentBytes；不可累加分类峰值。ActiveLeasePayloadBytes 与 CachedPayloadBytes 在各自拥有权维度中对共享堆载荷块去重，与资源分类及彼此重叠，不含映射载荷页和描述符页。
+
+GetStatistics 保留五字段接口。AllocationCount 包含预留增长次数；StorageCopyBytes 不含最终交付复制。详细统计 AllocationCount 计受测已提交分配。Flow 在已接入的操作处累计，不等于完整分配器轨迹。GetMemoryStatistics 仍为逐句柄视图，不累加关联句柄；不注册 GC 内存压力估算。
+
+消息和 chunk 索引、长期 writer 索引列表、不可变摘要索引列表、批次描述符、缓存消息范围和排序描述符采用有界页面及分页目录。共享摘要保留页面，不克隆完整索引数组。writer 消息索引直接从页面序列化。
+
+**计费边界：**这不是进程工作集或完整分配器硬上限。操作系统工作线程栈／运行时资源、分配器碎片、剩余未接入控制块、冷路径 JSON／记录解析临时对象及旧 prepared-control 存储在计费之外。嵌套声明／索引 map 仍使用保守预留。详细统计尚不提供精确立即可回收字节和按域去重的映射长度。原生 Rust 分配探针包含经过新 codec 回调的分配，进程级计数包含工作线程；线程局部计数不含其他线程。未经过这些回调的直接外部分配仍不在探针范围内。
 
 ### 完整 chunk 随机访问
 
-可选多 chunk LRU 按字节限制，作用域为快照源，键包含完整调用方索引语义。条目保存不可变存储、消息 offset 和完整 chunk 校验。未压缩映射 payload 引用映射范围，压缩 payload 共享最终解压块，命中不解压。超过缓存额度的条目在域预算充足时可临时加载，不无界回退。淘汰仅移除缓存引用，活跃 lease 继续计费。
+可选多 chunk LRU 按字节限制，作用域为快照源，键包含完整调用方索引语义。条目保存不可变存储、消息 offset 和完整 chunk 校验。未压缩映射 payload 引用映射范围，压缩 payload 共享最终解压块，命中不解压。超过缓存额度的条目在域预算充足时可临时加载，不无界回退。淘汰仅移除缓存引用，活跃 lease 继续计费。域预算压力先回收空闲存储，再按访问顺序遍历不同 reader 的注册缓存；忙碌条目跳过，回收及析构不持有预算锁。逐缓存限额继续生效。
 
 SeekMessages(ReadOnlySpan<McapSeekRequest>) 对 prepared 索引分组，每个不同 chunk 加载一次，按原顺序返回一个批次 lease，保留重复请求；失败不返回半批。SeekMessage(preparedIndex, entry, visitor) 同步借用交付。旧 buffer／owned 接口最终交付时复制。缓冲不足的消息重试保留共享切片；重复消息索引可在同一额度内缓存。GetCacheStatistics 报告命中和 chunk 加载，包含未压缩加载。
 

@@ -6,25 +6,21 @@ pub struct Message {
 }
 pub struct Batch {
     published: bool,
-    pub messages: Vec<Message>,
+    pub messages: mcap::segmented::BudgetedSegmentedVec<Message>,
     domain: std::sync::Arc<budget::MemoryBudget>,
-    _charge: mcap::storage::Reservation,
 }
 impl Batch {
     pub fn new(domain: std::sync::Arc<budget::MemoryBudget>, count: usize) -> Outcome<Self> {
-        let mut charge = domain.reserve(
-            count
-                .checked_mul(std::mem::size_of::<Message>())
-                .ok_or("Descriptor overflow")?,
-        )?;
-        let mut messages = Vec::new();
-        messages.try_reserve_exact(count)?;
-        charge.resize(messages.capacity() * std::mem::size_of::<Message>())?;
+        let mut messages = mcap::segmented::BudgetedSegmentedVec::with_page_capacity(
+            domain.clone(),
+            mcap::storage::ResourceCategory::Descriptor,
+            count,
+        );
+        messages.reserve(count)?;
         Ok(Self {
             published: false,
             messages,
             domain,
-            _charge: charge,
         })
     }
 }
@@ -32,11 +28,17 @@ impl Batch {
 impl Drop for Batch {
     fn drop(&mut self) {
         if self.published {
+            for message in self.messages.iter() {
+                message.data.lease_reference(false);
+            }
             self.domain.release_lease();
         }
     }
 }
 pub fn publish(mut batch: Batch) -> *mut Batch {
+    for message in batch.messages.iter() {
+        message.data.lease_reference(true);
+    }
     batch.domain.acquire_lease();
     batch.published = true;
     Box::into_raw(Box::new(batch))
@@ -123,7 +125,7 @@ pub unsafe extern "C" fn fm_read_lease(
                 .ok_or("Missing stable message storage")?;
             (*progress).count += 1;
             (*progress).bytes += data.as_ref().len() as u64;
-            batch.messages.push(Message { header, data });
+            batch.messages.push(Message { header, data })?;
             if (*progress).bytes >= target as u64 {
                 break;
             }
@@ -184,7 +186,7 @@ pub unsafe extern "C" fn fm_lease_retain(
         batch.messages.push(Message {
             header: m.header,
             data: m.data.clone(),
-        });
+        })?;
         *output = publish(batch);
         Ok(0)
     })

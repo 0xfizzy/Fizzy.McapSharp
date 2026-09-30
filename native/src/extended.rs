@@ -742,7 +742,7 @@ unsafe fn snapshot_call(
                     check_index_range(&h.data, *offset, 15, 15)?;
                 }
                 let packed=h.cache.message_indexes(&h.data,s,index,key,h.options.random)?;
-                copy_body(&packed.data,dest,capacity,out)
+                packed.copy_to(dest,capacity,out)
             }
             3 => {
                 let records::Record::MetadataIndex(index) = mcap::parse_record(
@@ -1195,7 +1195,7 @@ pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,ta
                             let header=buffer_reader::native_header(&header);
                             let payload=data.slice(22..data.as_ref().len()); used+=payload.as_ref().len();
                             let batch=h.lease_batch.as_mut().unwrap();
-                            batch.messages.push(lease::Message {header,data:payload});
+                            batch.messages.push(lease::Message {header,data:payload})?;
                             if batch.messages.len()>=count || used>=target {break;}
                         }
                         record=>buffer_reader::BufferReader::observe(&mut h.schemas,&mut h.channels,record,&mut h.delivery)?,
@@ -1242,7 +1242,7 @@ pub unsafe extern "C" fn fm_snapshot_seek_batch(p:*mut Snapshot,requests:*const 
             }
             slots[i]=Some(chunk.as_ref().unwrap().message(summary,req.offset)?);
         }
-        batch.messages.extend(slots.into_iter().map(Option::unwrap));
+        for message in slots.into_iter().map(Option::unwrap) {batch.messages.push(message)?;}
         *result=lease::publish(batch);Ok(0)
     })
 }

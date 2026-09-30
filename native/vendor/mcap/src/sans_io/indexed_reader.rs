@@ -87,19 +87,19 @@ struct ChunkSlot {
 pub struct IndexedReader {
     // This MCAP's chunk indexes, pre-filtered by time range and topic and sorted in the order
     // they should be visited.
-    chunk_indexes: Vec<ChunkIndex>,
+    chunk_indexes: crate::segmented::BudgetedSegmentedVec<ChunkIndex>,
     // The index in `chunk_indexes` of the current chunk to be loaded. cur_chunk_index >=
     // chunk_indexes.len() means that all chunks have been loaded.
     cur_chunk_index: usize,
     // A set of decompressed chunks. Slots are re-used when their message count reaches zero.  There
     // may be more than one chunk slot in use at a time if we are reading in log-time or
     // reverse-log-time order, and there are chunks that overlap in time range.
-    chunk_slots: Vec<ChunkSlot>,
+    chunk_slots: crate::segmented::BudgetedSegmentedVec<ChunkSlot>,
     budget: std::sync::Arc<crate::storage::MemoryBudget>,
     bookkeeping: crate::storage::Bookkeeping,
     // An index into the messages stored in chunk slots. Index entries are sorted in the order
     // they should be yielded.
-    message_indexes: Vec<MessageIndex>,
+    message_indexes: crate::segmented::BudgetedSegmentedVec<MessageIndex>,
     // The index in `message_indexes` of the next message to yield. cur_message_index >=
     // message_indexes.len() means that no more indexed messages are available, and more messages
     // should be loaded from the next chunk.
@@ -192,8 +192,7 @@ impl IndexedReader {
             .ok_or_else(|| std::io::Error::other("Index overflow"))?;
         for c in &summary.chunk_indexes {
             charge = charge
-                .checked_add(std::mem::size_of::<ChunkIndex>() * 2)
-                .and_then(|n| n.checked_add(c.compression.len()))
+                .checked_add(c.compression.len())
                 .and_then(|n| {
                     c.message_index_offsets
                         .len()
@@ -216,37 +215,38 @@ impl IndexedReader {
         };
 
         // filter out chunks that we won't use
-        let mut chunk_indexes: Vec<crate::records::ChunkIndex> = summary
-            .chunk_indexes
-            .iter()
-            .filter(|chunk_index| {
-                if let Some(start) = options.start {
-                    if chunk_index.message_end_time < start {
-                        return false;
-                    }
+        let mut chunk_indexes = crate::segmented::BudgetedSegmentedVec::new(
+            budget.clone(),
+            crate::storage::ResourceCategory::Index,
+        );
+        for index in summary.chunk_indexes.iter().filter(|chunk_index| {
+            if let Some(start) = options.start {
+                if chunk_index.message_end_time < start {
+                    return false;
                 }
-                if let Some(end) = options.end {
-                    if chunk_index.message_start_time >= end {
-                        return false;
-                    }
+            }
+            if let Some(end) = options.end {
+                if chunk_index.message_start_time >= end {
+                    return false;
                 }
-                if channel_ids.is_empty() {
+            }
+            if channel_ids.is_empty() {
+                return true;
+            }
+            // NOTE: if there are no message indexes, we can't reject this chunk because
+            // the file may not have message indexes included.
+            if chunk_index.message_index_offsets.is_empty() {
+                return true;
+            }
+            for key in chunk_index.message_index_offsets.keys() {
+                if channel_ids.contains(key) {
                     return true;
                 }
-                // NOTE: if there are no message indexes, we can't reject this chunk because
-                // the file may not have message indexes included.
-                if chunk_index.message_index_offsets.is_empty() {
-                    return true;
-                }
-                for key in chunk_index.message_index_offsets.keys() {
-                    if channel_ids.contains(key) {
-                        return true;
-                    }
-                }
-                false
-            })
-            .cloned()
-            .collect();
+            }
+            false
+        }) {
+            chunk_indexes.push(index.clone())?;
+        }
 
         for chunk_index in chunk_indexes.iter() {
             // check that compressed data offset can be computed for every chunk index we intend to
@@ -289,10 +289,16 @@ impl IndexedReader {
         // need to deep-clone channels and schemas here.
         Ok(Self {
             chunk_indexes,
-            chunk_slots: Vec::new(),
-            budget,
+            chunk_slots: crate::segmented::BudgetedSegmentedVec::new(
+                budget.clone(),
+                crate::storage::ResourceCategory::Index,
+            ),
+            budget: budget.clone(),
             bookkeeping,
-            message_indexes: Vec::new(),
+            message_indexes: crate::segmented::BudgetedSegmentedVec::new(
+                budget.clone(),
+                crate::storage::ResourceCategory::Index,
+            ),
             cur_message_index: 0,
             cur_chunk_index: 0,
             order: options.order,
@@ -396,10 +402,10 @@ impl IndexedReader {
         compressed_data: &[u8],
         shared: Option<&crate::storage::SharedBytes>,
     ) -> McapResult<()> {
-        let chunk_indexes = &self.chunk_indexes[self.cur_chunk_index..];
+        let chunk_indexes = self.chunk_indexes.iter().skip(self.cur_chunk_index);
         // linear search through our chunk indexes to figure out which one it is. In the common case,
         // the first chunk index will be right.
-        let Some((i, chunk_index)) = chunk_indexes.iter().enumerate().find(|(_, chunk_index)| {
+        let Some((i, chunk_index)) = chunk_indexes.enumerate().find(|(_, chunk_index)| {
             let chunk_start_offset = chunk_index
                 .compressed_data_offset()
                 .expect("chunk data start offset checked in new()");
@@ -411,8 +417,7 @@ impl IndexedReader {
             return Err(McapError::UnexpectedChunkDataInserted);
         }
         let uncompressed_size = chunk_index.uncompressed_size as usize;
-        self.bookkeeping.reserve_vec(&mut self.chunk_slots)?;
-        let slot_idx = find_or_make_chunk_slot(&mut self.chunk_slots, offset);
+        let slot_idx = find_or_make_chunk_slot(&mut self.chunk_slots, offset)?;
 
         let slot = &mut self.chunk_slots[slot_idx];
         if chunk_index.compression.is_empty() && shared.is_some() {
@@ -423,6 +428,7 @@ impl IndexedReader {
         } else {
             let mut storage = crate::storage::WriteBuffer::default();
             storage.budget = self.budget.clone();
+            storage.category = crate::storage::ResourceCategory::Decompressed;
             storage.reserve(uncompressed_size, 0..0)?;
             let output = unsafe { storage.writable(0..uncompressed_size) };
             match chunk_index.compression.as_str() {
@@ -435,18 +441,13 @@ impl IndexedReader {
                 }
                 #[cfg(feature = "zstd")]
                 "zstd" => {
-                    let n = zstd::zstd_safe::decompress(output, compressed_data).map_err(|e| {
-                        McapError::DecompressionError(zstd::zstd_safe::get_error_name(e).into())
-                    })?;
-                    if n != uncompressed_size {
-                        return Err(McapError::BadIndex);
-                    }
+                    let mut decoder = super::zstd::ZstdDecoder::with_budget(self.budget.clone())?;
+                    decode_chunk(&mut decoder, compressed_data, output)?;
                 }
                 #[cfg(feature = "lz4")]
                 "lz4" => {
-                    use std::io::Read;
-                    let mut decoder = lz4::Decoder::new(std::io::Cursor::new(compressed_data))?;
-                    decoder.read_exact(output)?;
+                    let mut decoder = super::lz4::Lz4Decoder::with_budget(self.budget.clone())?;
+                    decode_chunk(&mut decoder, compressed_data, output)?;
                 }
                 other => return Err(McapError::UnsupportedCompression(other.into())),
             }
@@ -475,7 +476,7 @@ impl IndexedReader {
         // If there is more dead space at the front of `self.message_indexes` than the
         // set of new message indexes, compact the message index array now.
         if message_count < (self.cur_message_index) {
-            self.message_indexes.drain(0..self.cur_message_index);
+            self.message_indexes.remove_prefix(self.cur_message_index);
             self.cur_message_index = 0;
         }
         // Now we need to remove the corresponding chunk index. In the common case, where
@@ -587,13 +588,13 @@ impl IndexedReaderOptions {
 /// criteria.
 fn index_messages(
     chunk_slot_idx: usize,
-    chunk_slots: &[ChunkSlot],
+    chunk_slots: &crate::segmented::BudgetedSegmentedVec<ChunkSlot>,
     order: ReadOrder,
     filter: &Filter,
-    message_indexes: &mut Vec<MessageIndex>,
+    message_indexes: &mut crate::segmented::BudgetedSegmentedVec<MessageIndex>,
     cur_message_index: usize,
     record_length_limit: Option<usize>,
-    bookkeeping: &crate::storage::Bookkeeping,
+    _bookkeeping: &crate::storage::Bookkeeping,
 ) -> McapResult<usize> {
     let mut offset = 0usize;
     // sorting_required tracks whether the set of message indexes will need to be sorted after loading them.
@@ -646,12 +647,11 @@ fn index_messages(
             sorting_required = msg.log_time < latest_timestamp;
         }
         latest_timestamp = latest_timestamp.max(msg.log_time);
-        bookkeeping.reserve_vec(message_indexes)?;
         message_indexes.push(MessageIndex {
             chunk_slot_idx,
             log_time: msg.log_time,
             offset,
-        });
+        })?;
         offset = next_offset
     }
     match order {
@@ -659,16 +659,14 @@ fn index_messages(
             // in file order, message indexes only need sorting if the caller has loaded chunks
             // out-of-order.
             if sorting_required {
-                let unread_message_indexes = &mut message_indexes[cur_message_index..];
-                unread_message_indexes.sort_by_key(|index| {
+                message_indexes.sort_range_by_key(cur_message_index, |index| {
                     (chunk_slots[index.chunk_slot_idx].data_start, index.offset)
                 });
             }
         }
         ReadOrder::LogTime => {
             if sorting_required {
-                let unread_message_indexes = &mut message_indexes[cur_message_index..];
-                unread_message_indexes.sort_by_key(|index| {
+                message_indexes.sort_range_by_key(cur_message_index, |index| {
                     (
                         index.log_time,
                         chunk_slots[index.chunk_slot_idx].data_start,
@@ -680,11 +678,9 @@ fn index_messages(
         ReadOrder::ReverseLogTime => {
             // first, reverse the order of the new message indexes. This removes the need to sort
             // in the common case, where all messages are already in log-time order.
-            let new_message_indexes = &mut message_indexes[new_message_index_start..];
-            new_message_indexes.reverse();
+            message_indexes.reverse_range(new_message_index_start);
             if sorting_required {
-                let unread_message_indexes = &mut message_indexes[cur_message_index..];
-                unread_message_indexes.sort_by_key(|index| {
+                message_indexes.sort_range_by_key(cur_message_index, |index| {
                     Reverse((
                         index.log_time,
                         chunk_slots[index.chunk_slot_idx].data_start,
@@ -698,12 +694,16 @@ fn index_messages(
 }
 
 /// Finds a free chunk slot or creates a new one if none are available, and returns its index.
-fn find_or_make_chunk_slot(chunk_slots: &mut Vec<ChunkSlot>, data_start: u64) -> usize {
-    for (i, slot) in chunk_slots.iter_mut().enumerate() {
+fn find_or_make_chunk_slot(
+    chunk_slots: &mut crate::segmented::BudgetedSegmentedVec<ChunkSlot>,
+    data_start: u64,
+) -> McapResult<usize> {
+    for i in 0..chunk_slots.len() {
+        let slot = &mut chunk_slots[i];
         if slot.message_count == 0 {
             slot.data_start = data_start;
             slot.buf = crate::storage::SharedBytes::empty();
-            return i;
+            return Ok(i);
         }
     }
     let idx = chunk_slots.len();
@@ -711,8 +711,8 @@ fn find_or_make_chunk_slot(chunk_slots: &mut Vec<ChunkSlot>, data_start: u64) ->
         message_count: 0,
         data_start,
         buf: crate::storage::SharedBytes::empty(),
-    });
-    idx
+    })?;
+    Ok(idx)
 }
 
 #[cfg(test)]
@@ -799,7 +799,7 @@ mod tests {
             .expect("there should be a summary");
         let mut indexed_reader = IndexedReader::new_with_options(&summary, options)
             .expect("reader construction should not fail");
-        let mut my_chunk_indexes = summary.chunk_indexes.clone();
+        let mut my_chunk_indexes = summary.chunk_indexes.iter().cloned().collect::<Vec<_>>();
         my_chunk_indexes.sort_by_key(|chunk_index| Reverse(chunk_index.chunk_start_offset));
 
         let mut found = Vec::new();
@@ -1013,4 +1013,45 @@ pub enum SharedIndexedReadEvent {
         header: MessageHeader,
         data: crate::storage::SharedBytes,
     },
+}
+
+fn decode_chunk(
+    decoder: &mut dyn super::decompressor::Decompressor,
+    src: &[u8],
+    dst: &mut [u8],
+) -> McapResult<()> {
+    let (mut read, mut wrote) = (0, 0);
+    loop {
+        let result = decoder.decompress(&src[read..], &mut dst[wrote..])?;
+        read += result.consumed;
+        wrote += result.wrote;
+        if decoder.next_read_size() == 0 && read == src.len() {
+            break;
+        }
+        if result.consumed == 0 && result.wrote == 0 {
+            return Err(McapError::UnexpectedEoc);
+        }
+    }
+    if wrote != dst.len() {
+        return Err(McapError::BadIndex);
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "zstd"))]
+mod budgeted_decode_tests {
+    use super::*;
+    #[test]
+    fn concatenated_frames_and_trailing_corruption() {
+        let mut input = zstd::stream::encode_all(&b"first"[..], 0).unwrap();
+        input.extend(zstd::stream::encode_all(&b"second"[..], 0).unwrap());
+        let budget = std::sync::Arc::new(crate::storage::MemoryBudget::default());
+        let mut decoder = super::super::zstd::ZstdDecoder::with_budget(budget.clone()).unwrap();
+        let mut output = [0; 11];
+        decode_chunk(&mut decoder, &input, &mut output).unwrap();
+        assert_eq!(&output, b"firstsecond");
+        input.push(0xff);
+        let mut decoder = super::super::zstd::ZstdDecoder::with_budget(budget).unwrap();
+        assert!(decode_chunk(&mut decoder, &input, &mut output).is_err());
+    }
 }

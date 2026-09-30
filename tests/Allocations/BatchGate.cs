@@ -4,6 +4,11 @@ static class BatchGate
 {
     public static void Run()
     {
+        var budget = new McapMemoryBudget();
+        for (int i=0;i<100;i++) budget.GetDetailedStatistics();
+        var statsBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (int i=0;i<1000;i++) budget.GetDetailedStatistics();
+        Check("detailed-budget-statistics", GC.GetAllocatedBytesForCurrentThread()-statsBefore);
         foreach (var compression in Enum.GetValues<McapCompression>())
         {
             using var file = new MemoryStream(32 * 1024 * 1024);

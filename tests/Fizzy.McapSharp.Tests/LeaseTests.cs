@@ -136,7 +136,14 @@ public class LeaseTests
             writer.Complete();
         }
         stream.Position=0;
-        var budget=new McapMemoryBudget(100000,80000,0);
+        ulong capacity;
+        var probeBudget=new McapMemoryBudget(maxBlockBytes:80000,maxRetainedBytes:0);
+        using(var probe=new McapAsyncReader(stream,new(){Memory=new(){Budget=probeBudget}},true)) {
+            using var sample=await probe.ReadBatchLeaseAsync(1);
+            capacity=probeBudget.GetStatistics().PeakBytes+8192;
+        }
+        stream.Position=0;
+        var budget=new McapMemoryBudget(capacity,80000,0);
         using var reader=new McapAsyncReader(stream,new(){Memory=new(){Budget=budget}},true);
         using var first=await reader.ReadBatchLeaseAsync(1);
         Assert.NotNull(first);
@@ -169,17 +176,23 @@ public class LeaseTests
                 writer.WriteMessage(new(c,2,2,0),new byte[70000]);
                 writer.Complete();
             }
-            var budget=new McapMemoryBudget(100000,80000,0);
+            var probeBudget=new McapMemoryBudget(maxBlockBytes:80000,maxRetainedBytes:0);
+            ulong capacity;
+            using(var probe=new McapReader(path).OpenMessages(new(){Order=McapReadOrder.File},new(){Memory=new(){Budget=probeBudget}})) {
+                using var sample=probe.ReadBatchLease(1);
+                capacity=probeBudget.GetStatistics().PeakBytes+8192;
+            }
+            var budget=new McapMemoryBudget(capacity,80000,0);
             using var reader=new McapReader(path).OpenMessages(new(){Order=McapReadOrder.File},new(){Memory=new(){Budget=budget}});
             using var first=reader.ReadBatchLease(1)!;
             Assert.Equal(1U,first.GetHeader(0).Sequence);
             Assert.Equal(McapLeaseReadStatus.BudgetUnavailable,reader.TryReadBatchLease(out var unavailable,1));
             Assert.Null(unavailable);
-            Assert.InRange(budget.GetStatistics().CurrentBytes,70000UL,100000UL);
+            Assert.InRange(budget.GetStatistics().CurrentBytes,70000UL,budget.MaxBytes);
             first.Dispose();
             using var second=reader.ReadBatchLease(1)!;
             Assert.Equal(2U,second.GetHeader(0).Sequence);
-            Assert.InRange(budget.GetStatistics().PeakBytes,70000UL,100000UL);
+            Assert.InRange(budget.GetStatistics().PeakBytes,70000UL,budget.MaxBytes);
         }
         finally { File.Delete(path); }
     }

@@ -88,6 +88,9 @@ pub unsafe extern "C" fn fm_budget_free(handle: *mut Handle) {
         let _ = catch_unwind(AssertUnwindSafe(|| {
             let h = Box::from_raw(handle);
             registry().lock().unwrap().remove(&h.id);
+            if let Some(listeners) = LISTENERS.get() {
+                listeners.lock().unwrap().remove(&h.id);
+            }
             drop(h);
         }));
     }
@@ -100,3 +103,107 @@ pub fn unavailable(e: &Error) -> bool {
     e.downcast_ref::<std::io::Error>()
         .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock)
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_budget_detailed_statistics(
+    handle: *const Handle,
+    stats: *mut mcap::storage::DetailedStatistics,
+    out: *mut Response,
+) -> i32 {
+    guard(out, |_| {
+        *stats.as_mut().ok_or("Null statistics")? = handle
+            .as_ref()
+            .ok_or("Null budget")?
+            .domain
+            .detailed_statistics();
+        Ok(0)
+    })
+}
+
+type Notification = unsafe extern "C" fn(u64);
+struct Listener {
+    domain: Weak<MemoryBudget>,
+    callback: Notification,
+    capacity_version: u64,
+    current: u64,
+    retained: u64,
+    leases: usize,
+}
+static LISTENERS: OnceLock<Mutex<BTreeMap<u64, Listener>>> = OnceLock::new();
+#[no_mangle]
+pub unsafe extern "C" fn fm_budget_notify(
+    handle: *const Handle,
+    callback: Notification,
+    out: *mut Response,
+) -> i32 {
+    guard(out, |_| {
+        let h = handle.as_ref().ok_or("Null budget")?;
+        LISTENERS
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap()
+            .insert(
+                h.id,
+                Listener {
+                    domain: Arc::downgrade(&h.domain),
+                    callback,
+                    capacity_version: h.domain.capacity_version(),
+                    current: h.domain.statistics().current,
+                    retained: h.domain.statistics().retained,
+                    leases: h.domain.lease_count(),
+                },
+            );
+        Ok(0)
+    })
+}
+// Called only after native operations return from codec/parser code, never from allocator callbacks.
+pub fn dispatch_notifications() {
+    let Some(listeners) = LISTENERS.get() else {
+        return;
+    };
+    let mut after = 0;
+    loop {
+        let next = {
+            let mut listeners = listeners.lock().unwrap();
+            listeners
+                .range_mut((std::ops::Bound::Excluded(after), std::ops::Bound::Unbounded))
+                .next()
+                .map(|(&id, l)| {
+                    let notify = if let Some(domain) = l.domain.upgrade() {
+                        let version = domain.capacity_version();
+                        let stats = domain.statistics();
+                        let leases = domain.lease_count();
+                        // Failed operations can release their own descriptor reservations.
+                        // A version alone must not make a blocked retry wake itself forever.
+                        let changed = version != l.capacity_version
+                            && (stats.current < l.current
+                                || stats.retained > l.retained
+                                || leases < l.leases);
+                        l.capacity_version = version;
+                        l.current = stats.current;
+                        l.retained = stats.retained;
+                        l.leases = leases;
+                        changed
+                    } else {
+                        false
+                    };
+                    (id, l.callback, notify)
+                })
+        };
+        let Some((id, callback, notify)) = next else {
+            break;
+        };
+        after = id;
+        if notify {
+            unsafe {
+                callback(id);
+            }
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn fm_budget_dispatch() {
+    let _ = catch_unwind(AssertUnwindSafe(dispatch_notifications));
+}
+
+const _: [(); 456] = [(); std::mem::size_of::<mcap::storage::DetailedStatistics>()];

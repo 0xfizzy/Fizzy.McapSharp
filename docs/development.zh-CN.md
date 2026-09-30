@@ -150,13 +150,13 @@ python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stres
 
 ### 原生内存验收
 
-Release 原生测试包含仅用于测试的线程局部 Rust 分配计数器，以 None/Lz4/Zstd 运行固定的 4096 条、每条 1 KiB 消息用例（`memory_read_baseline`）。统计推进阶段申请／扩容次数及累计请求字节数，不含初始化和完整输入副本构造；包含上游 Rust 申请，不包含外部压缩库内部申请。使用 `--nocapture` 运行并将前后结果保存至忽略的 artifacts。门禁拒绝恢复为逐消息分配，并独立要求目标充足时封装交付缓冲不分配。受控容量峰值／复制计数用于补充，不替代操作系统工作集分析。
+Release 原生测试包含仅用于测试的线程局部 Rust 分配计数器，以 None/Lz4/Zstd 运行固定的 4096 条、每条 1 KiB 消息用例（`memory_read_baseline`）。统计推进阶段申请／扩容次数及累计请求字节数，不含初始化和完整输入副本构造；包含上游 Rust 申请和经预算回调的 codec 申请，不含直接外部分配。线程局部计数排除工作线程；进程级存活／峰值计数包含工作线程。使用 `--nocapture` 运行并将前后结果保存至忽略的 artifacts。门禁拒绝恢复为逐消息分配，并独立要求目标充足时封装交付缓冲不分配。受控容量峰值／复制计数用于补充，不替代操作系统工作集分析。
 
 内存测试覆盖容量边界、重试复用、保留缓冲释放、映射子游标生命周期、原始尾部字节保留、快照位置恢复、排序描述／大 payload 和异步直接交付。托管 Release 门禁还要求映射游标读取及统计查询精确为 0 B。跨平台发布仍需 Linux 深度／Valgrind 检查及三个 RID 资产。
 
 原生探针还覆盖 8192 条消息写入，组合可寻址／缓冲输出、开启／关闭索引及有限／无限 Chunk，以及重复随机读取、回退排序 arena 和时间重叠的索引 Chunk。缓存命中测试要求不再推进解析器。托管门禁包含映射 BufferReader、缓存随机读取及可复用随机记录 scratch。
 
-进程内存诊断使用 `dotnet run --project tests/Allocations -c Release -- memory-profile 65536 > artifacts/memory-profile.jsonl`，条数至少 8192。各写入配置每 8192 条及完成／释放后采样，分别记录 Private Bytes、工作集、托管堆和耗时。输出写入计数 sink，排除录制文件存储成本。采样不等于精确原生活跃字节或峰值，分配器缓存及之前场景会影响后续结果。增加条数可延长运行，测量结果保留在忽略的 artifacts 中。
+进程内存诊断使用 `dotnet run --project tests/Allocations -c Release -- memory-profile 32768 > artifacts/memory-profile.jsonl`，条数至少 8192。各写入配置每 8192 条及完成／释放后采样，分别记录 Private Bytes、工作集、托管堆和耗时。输出写入计数 sink，排除录制文件存储成本。采样不等于精确原生活跃字节或峰值，分配器缓存及之前场景会影响后续结果。未设置 chunk 大小的场景仍受有限存储块上限约束；增加条数可能使缓冲 chunk 超过 64 MiB 并按约定失败。测量结果保留在忽略的 artifacts 中。
 
 `DeliveryOptimizationTests` 覆盖预编译 Chunk 索引和同步自有结果交付。Release 便利读取门禁检查最终 payload 数组与结果对象开销，并要求 prepared 大索引调用为 0 B 托管分配。`prepared_index_cached_calls_allocate_nothing` 单独要求所有压缩模式下预热后的 prepared 缓存命中为零 Rust 分配，不包含描述符构造或外部库分配。重试测试检查保留容量与准确的输出复制增量。
 
@@ -165,3 +165,5 @@ Release 原生测试包含仅用于测试的线程局部 Rust 分配计数器，
 native/vendor/mcap 保存固定 mcap 0.25.0 源码及官方 MIT 许可证。Cargo patch 选择该源码，保留 Cargo.lock 并使用 --locked。UPSTREAM.json 记录原始文件 SHA-256 与许可证来源，PATCHES.json 记录核验后的本地修改／新增文件指纹。修改后审查差异再更新补丁指纹；不要重新生成原始清单掩盖变更。`python scripts/check_vendor.py` 在 native 构建前检查文件集合、指纹和许可证。跨平台构建源码指纹包含 vendor。
 
 `Build.ps1 -Test` 包含 BatchGate 的 borrowed／ReadBatch／WriteBatch 零托管分配门禁和 10,000 批次保留测试；完整内存验收仍需大载荷／边界矩阵、codec C 分配与进程 private bytes、三平台原生 runner 证据。域统计不能替代全分配器测量。Python 双向互操作、消费者 Source 验证和同源三 RID 打包仍按上文独立执行。
+
+维护 codec 时须审计固定版本 C 自定义分配路径：Zstd 上下文／工作区、zstdmt 缓冲／上下文池、common/pool.c 的线程池堆分配，以及 Lz4 frame 上下文、临时输入／输出和 stream state。操作系统线程栈与运行时资源不经过这些回调。私有适配器使用公开 advanced 创建接口，不检查 codec 私有布局。保持 frame 参数，修改后验证 None/Lz4/Zstd 互操作。vendor 单元测试覆盖分配拒绝／溢出／回滚、分页目录排序、增长失败和百万描述符；托管测试验证 codec 释放和共享域淘汰。详细统计查询纳入 Release 零分配门禁。

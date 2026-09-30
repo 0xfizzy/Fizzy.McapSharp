@@ -15,6 +15,7 @@ struct Entry {
 pub struct Arena {
     blocks: Vec<Block>,
     entries: Vec<Entry>,
+    shared_entries:Option<mcap::segmented::BudgetedSegmentedVec<Entry>>,
     position: usize,
     small_block: Option<usize>,
     charge:Option<mcap::storage::Reservation>,
@@ -93,24 +94,18 @@ impl Arena {
         Ok(())
     }
     pub fn push_shared(&mut self,header:MessageHeader,data:mcap::storage::SharedBytes,options:&memory::Options)->Outcome<()> {
-        let size=std::mem::size_of::<Entry>();
         let length=data.as_ref().len();
-        let capacity=if self.entries.len()==self.entries.capacity() {self.entries.capacity().max(16).checked_mul(2).ok_or("Sort overflow")?} else {self.entries.capacity()};
-        let logical=self.shared_bytes.checked_add(length).and_then(|n|n.checked_add(capacity*size)).ok_or("Sort overflow")?;
+        let entries=self.shared_entries.get_or_insert_with(||mcap::segmented::BudgetedSegmentedVec::new(options.domain.clone(),mcap::storage::ResourceCategory::Descriptor));
+        let logical=self.shared_bytes.checked_add(length).and_then(|n|n.checked_add(entries.allocated_bytes())).ok_or("Sort overflow")?;
         memory::check("BufferedSort",options.sort,logical)?;
-        if self.charge.is_none(){self.charge=Some(options.domain.reserve(0)?);}
-        self.charge.as_mut().unwrap().resize(capacity*size)?;
-        if capacity>self.entries.capacity() {
-            let old=self.entries.capacity()*size;
-            self.entries.try_reserve_exact(capacity-self.entries.len())?;
-            self.charge.as_mut().unwrap().resize(self.entries.capacity()*size)?;
-            self.stats.capacity(old,self.entries.capacity()*size);
-        }
+        entries.push(Entry {shared:Some(data),header,block:usize::MAX,offset:0,length,ordinal:entries.len() as u64})?;
         self.shared_bytes+=length;
-        self.entries.push(Entry {shared:Some(data),header,block:usize::MAX,offset:0,length,ordinal:self.entries.len() as u64});
+        memory::check("BufferedSort",options.sort,self.shared_bytes+entries.allocated_bytes())?;
+        self.stats.capacity(self.stats.current as usize,entries.allocated_bytes());
         Ok(())
     }
     pub fn sort(&mut self, reverse: bool) {
+        if let Some(entries)=&mut self.shared_entries {entries.sort_by_key(|e|(e.header.log_time,e.ordinal));if reverse {entries.reverse_range(0);}return;}
         self.entries
             .sort_unstable_by_key(|e| (e.header.log_time, e.ordinal));
         if reverse {
@@ -118,7 +113,7 @@ impl Arena {
         }
     }
     pub fn read_shared(&mut self, header: &mut MessageHeader, out: &mut Response) -> Option<mcap::storage::SharedBytes> {
-        let e=self.entries.get_mut(self.position)?;
+        let e=(match &mut self.shared_entries {Some(e)=>e.get_mut(self.position),None=>self.entries.get_mut(self.position)})?;
         *header=e.header; out.value=e.length as u64;
         let data=if let Some(data)=e.shared.take() {data} else if e.block==usize::MAX { mcap::storage::SharedBytes::empty() } else {
             let b=&mut self.blocks[e.block];
@@ -128,7 +123,7 @@ impl Arena {
             data
         };
         self.position+=1;
-        if self.position==self.entries.len() { self.clear(); }
+        if self.position==self.shared_entries.as_ref().map_or(self.entries.len(),|e|e.len()) { self.clear(); }
         Some(data)
     }
     pub unsafe fn read(
@@ -138,7 +133,7 @@ impl Arena {
         header: &mut MessageHeader,
         out: &mut Response,
     ) -> Outcome<i32> {
-        let Some(e) = self.entries.get_mut(self.position) else {
+        let Some(e) = (match &mut self.shared_entries {Some(e)=>e.get_mut(self.position),None=>self.entries.get_mut(self.position)}) else {
             return Ok(1);
         };
         *header = e.header;
@@ -158,13 +153,13 @@ impl Arena {
         }
         self.stats.copied += e.length as u64;
         self.position += 1;
-        if self.position == self.entries.len() {
+        if self.position == self.shared_entries.as_ref().map_or(self.entries.len(),|e|e.len()) {
             self.clear();
         }
         Ok(0)
     }
     pub unsafe fn read_owned(&mut self, sink: memory::Sink, header: &mut MessageHeader, out: &mut Response) -> Outcome<i32> {
-        let Some(e) = self.entries.get_mut(self.position) else { return Ok(1); };
+        let Some(e) = (match &mut self.shared_entries {Some(e)=>e.get_mut(self.position),None=>self.entries.get_mut(self.position)}) else { return Ok(1); };
         *header = e.header;
         out.value = e.length as u64;
         let shared=e.shared.take();
@@ -176,12 +171,13 @@ impl Arena {
             if b.remaining == 0 { self.stats.capacity(b.data.capacity(), 0); b.data = std::sync::Arc::new(Vec::new()); }
         }
         self.position += 1;
-        if self.position == self.entries.len() { self.clear(); }
+        if self.position == self.shared_entries.as_ref().map_or(self.entries.len(),|e|e.len()) { self.clear(); }
         Ok(0)
     }
     pub fn clear(&mut self) {
         self.blocks = Vec::new();
         self.entries = Vec::new();
+        self.shared_entries=None;
         self.position = 0;
         self.small_block = None;
         self.charge=None;self.shared_bytes=0;

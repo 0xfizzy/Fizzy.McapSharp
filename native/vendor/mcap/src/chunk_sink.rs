@@ -108,10 +108,23 @@ impl<W: Write> Write for ChunkSink<W> {
             }
             let v = w.get_mut();
             if needed > v.capacity() {
-                charge.resize(needed)?;
-                v.try_reserve_exact(needed - v.len())
+                let capacity = needed
+                    .max(v.capacity().saturating_mul(2).max(4096))
+                    .min(charge.limits().block);
+                let domain = charge.domain();
+                // Keep the old allocation charged until its replacement is allocated and copied.
+                let mut replacement_charge =
+                    domain.reserve_class(capacity, crate::storage::ResourceCategory::Writer)?;
+                let mut replacement = Vec::new();
+                replacement
+                    .try_reserve_exact(capacity)
                     .map_err(std::io::Error::other)?;
-                charge.resize(v.capacity())?;
+                replacement_charge.resize(replacement.capacity())?;
+                replacement_charge.commit(replacement.capacity());
+                replacement.extend_from_slice(v);
+                domain.copy_bytes(crate::storage::CopyKind::Compaction, v.len());
+                *v = replacement;
+                *charge = replacement_charge;
             }
             w.write(buf)
         } else {
@@ -121,5 +134,37 @@ impl<W: Write> Write for ChunkSink<W> {
 
     fn flush(&mut self) -> std::io::Result<()> {
         self.as_mut_write().flush()
+    }
+}
+
+#[cfg(test)]
+mod growth_tests {
+    use super::*;
+    use crate::storage::{BudgetLimits, MemoryBudget, ResourceCategory};
+    use std::sync::Arc;
+    #[test]
+    fn buffered_growth_is_geometric_and_failure_preserves_old_storage() {
+        let domain = Arc::new(MemoryBudget::new(BudgetLimits {
+            total: 20000,
+            block: 20000,
+            retained: 0,
+        }));
+        let mut sink = ChunkSink::new(
+            Vec::new(),
+            ChunkMode::Buffered {
+                buffer: Vec::new(),
+                charge: domain.reserve_class(0, ResourceCategory::Writer).unwrap(),
+            },
+        );
+        for _ in 0..8 {
+            sink.write_all(&[7; 1024]).unwrap();
+        }
+        assert_eq!(domain.detailed_statistics().allocation_count, 2);
+        assert_eq!(domain.statistics().current, 8192);
+        assert!(sink.write_all(&[8; 1024]).is_err());
+        assert_eq!(sink.buffer.as_ref().unwrap().get_ref(), &vec![7; 8192]);
+        assert_eq!(domain.statistics().current, 8192);
+        drop(sink);
+        assert_eq!(domain.statistics().current, 0);
     }
 }

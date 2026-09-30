@@ -1,6 +1,6 @@
 # Third-party notices
 
-Native dependency versions are pinned in native/Cargo.lock.
+Native dependency versions are pinned in native/Cargo.lock. The vendored mcap adaptation adds budgeted codec allocation and streaming adapters, shared paged indexes, and resource-domain accounting. Existing mcap, zstd, lz4 and lz4-sys licenses below also cover their retained upstream interfaces and adapted behavior. Patch provenance is recorded in native/vendor/mcap/PATCHES.json.
 
 
 ## array-init 2.1.0

@@ -64,7 +64,7 @@ fn guard(out: *mut Response, f: impl FnOnce(&mut Response) -> Outcome<i32>) -> i
     }
     let out = unsafe { &mut *out };
     *out = Response::default();
-    match catch_unwind(AssertUnwindSafe(|| f(out))) {
+    let status = match catch_unwind(AssertUnwindSafe(|| f(out))) {
         Ok(Ok(s)) => s,
         Ok(Err(e)) => {
             respond(out, errors::encode(e.as_ref()), vec![], 0);
@@ -79,7 +79,9 @@ fn guard(out: *mut Response, f: impl FnOnce(&mut Response) -> Outcome<i32>) -> i
             );
             -1
         }
-    }
+    };
+    budget::fm_budget_dispatch();
+    status
 }
 unsafe fn bytes<'a>(p: *const u8, n: usize) -> Outcome<&'a [u8]> {
     if n == 0 {
@@ -106,7 +108,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    9
+    10
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {

@@ -143,6 +143,17 @@ fn compute_record_length_limit(
 impl SummaryReader {
     /// Sets the domain for parser input and retained summary declarations/indexes.
     pub fn set_memory_budget(&mut self, budget: std::sync::Arc<crate::storage::MemoryBudget>) {
+        if self.summary.chunk_indexes.is_empty() {
+            self.summary.chunk_indexes = crate::segmented::SharedSegmentedVec::new(budget.clone());
+        }
+        if self.summary.attachment_indexes.is_empty() {
+            self.summary.attachment_indexes =
+                crate::segmented::SharedSegmentedVec::new(budget.clone());
+        }
+        if self.summary.metadata_indexes.is_empty() {
+            self.summary.metadata_indexes =
+                crate::segmented::SharedSegmentedVec::new(budget.clone());
+        }
         self.budget = budget;
     }
 
@@ -276,10 +287,10 @@ impl SummaryReader {
                         }
                         match parse_record(opcode, data)?.into_owned() {
                             Record::AttachmentIndex(index) => {
-                                self.summary.attachment_indexes.push(index);
+                                self.summary.attachment_indexes.push(index)?;
                             }
                             Record::MetadataIndex(index) => {
-                                self.summary.metadata_indexes.push(index);
+                                self.summary.metadata_indexes.push(index)?;
                             }
                             Record::Statistics(statistics) => {
                                 self.summary.stats = Some(statistics);
@@ -288,7 +299,7 @@ impl SummaryReader {
                             Record::Schema { header, data } => {
                                 channeler.add_schema(header, data)?;
                             }
-                            Record::ChunkIndex(index) => self.summary.chunk_indexes.push(index),
+                            Record::ChunkIndex(index) => self.summary.chunk_indexes.push(index)?,
                             _ => {}
                         };
                         continue;
@@ -368,6 +379,8 @@ impl SummaryReader {
                 resource: "SummaryInput",
                 limit: self.budget.limits().block,
                 requested: n,
+                current: self.budget.statistics().current as usize,
+                phase: "summary input",
             })
             .into());
         }

@@ -96,7 +96,7 @@ fn memory_read_baseline() {
             }
             let elapsed = start.elapsed();
             let counts = COUNTS.with(|c| c.replace(None).unwrap());
-            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
+            eprintln!("Rust allocator process live={} peak={} (includes budgeted codec callbacks; direct foreign allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
             eprintln!(
                 "memory-read {compression:?}: calls={}, requested_bytes={}, elapsed_us={}",
                 counts.0,
@@ -156,7 +156,7 @@ fn memory_writer_baseline() {
                     }
                     w.finish().unwrap();
                     let counts = COUNTS.with(|c| c.replace(None).unwrap());
-            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
+            eprintln!("Rust allocator process live={} peak={} (includes budgeted codec callbacks; direct foreign allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
                     eprintln!("memory-write {compression:?} buffered={buffered} indexes={indexes} chunk={chunk_size:?}: calls={} requested_bytes={}", counts.0, counts.1);
                 }
             }
@@ -254,7 +254,7 @@ fn memory_query_baseline() {
                 }
             }
             let counts = COUNTS.with(|c| c.replace(None).unwrap());
-            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
+            eprintln!("Rust allocator process live={} peak={} (includes budgeted codec callbacks; direct foreign allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
             eprintln!(
                 "memory-random {compression:?} cached={cached}: calls={} requested_bytes={}",
                 counts.0, counts.1
@@ -313,7 +313,7 @@ fn prepared_index_cached_calls_allocate_nothing() {
                 assert_eq!(extended::fm_snapshot_prepared_call(snapshot, 2, prepared, entry.log_time, entry.offset, output.as_mut_ptr(), output.len(), &mut header, &mut r), 0);
             }
             let counts = COUNTS.with(|c| c.replace(None).unwrap());
-            eprintln!("Rust allocator process live={} peak={} (codec C allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
+            eprintln!("Rust allocator process live={} peak={} (includes budgeted codec callbacks; direct foreign allocations excluded)",LIVE.load(Ordering::Relaxed),PEAK.load(Ordering::Relaxed));
             assert_eq!(counts, (0, 0), "prepared cached seeks {compression:?}");
             extended::fm_chunk_index_free(prepared); extended::fm_snapshot_free(snapshot);
         }

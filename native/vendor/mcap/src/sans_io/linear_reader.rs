@@ -79,6 +79,12 @@ mod rw_buf {
                 ..Default::default()
             }
         }
+        pub fn category(&mut self, category: crate::storage::ResourceCategory) {
+            self.data.category = category;
+        }
+        pub fn domain(&self) -> Arc<MemoryBudget> {
+            self.data.budget.clone()
+        }
         pub fn budget(&mut self, budget: Arc<MemoryBudget>) {
             self.data.budget = budget;
         }
@@ -134,7 +140,9 @@ mod rw_buf {
                     unsafe {
                         self.data.writable(0..end).copy_within(self.start..end, 0);
                     }
-                    self.data.budget.copied(self.len());
+                    self.data
+                        .budget
+                        .copy_bytes(crate::storage::CopyKind::Compaction, self.len());
                 } else {
                     let size = self
                         .len()
@@ -361,7 +369,11 @@ impl LinearReader {
         );
         result.currently_reading = ChunkRecord;
         result.chunk_state = Some(ChunkState {
-            decompressor: get_decompressor(&mut HashMap::new(), &header.compression)?,
+            decompressor: get_decompressor(
+                &mut HashMap::new(),
+                &header.compression,
+                Default::default(),
+            )?,
             crc: header.uncompressed_crc,
             uncompressed_data_hasher: Some(crc32fast::Hasher::new()),
             uncompressed_len: header.uncompressed_size,
@@ -387,6 +399,8 @@ impl LinearReader {
     pub fn set_memory_budget(&mut self, budget: std::sync::Arc<crate::storage::MemoryBudget>) {
         self.file_data.budget(budget.clone());
         self.decompressed_content.budget(budget);
+        self.decompressed_content
+            .category(crate::storage::ResourceCategory::Decompressed);
     }
     /// Transfer immutable input without copying. Requires no unread input.
     pub fn supply_shared(&mut self, data: crate::storage::SharedBytes) {
@@ -618,7 +632,8 @@ impl LinearReader {
                     // Re-use or construct a compressor
                     let decompressor = check!(get_decompressor(
                         &mut self.decompressors,
-                        &header.compression
+                        &header.compression,
+                        self.file_data.domain()
                     ));
 
                     let chunk_data_len = check!(len
@@ -857,15 +872,16 @@ fn clamp_to_usize(len: u64) -> usize {
 fn get_decompressor(
     decompressors: &mut HashMap<String, Box<dyn Decompressor>>,
     name: &str,
+    budget: std::sync::Arc<crate::storage::MemoryBudget>,
 ) -> McapResult<Option<Box<dyn Decompressor>>> {
     if let Some(decompressor) = decompressors.remove(name) {
         return Ok(Some(decompressor));
     }
     match name {
         #[cfg(feature = "zstd")]
-        "zstd" => Ok(Some(Box::new(zstd::ZstdDecoder::new()))),
+        "zstd" => Ok(Some(Box::new(zstd::ZstdDecoder::with_budget(budget)?))),
         #[cfg(feature = "lz4")]
-        "lz4" => Ok(Some(Box::new(lz4::Lz4Decoder::new()?))),
+        "lz4" => Ok(Some(Box::new(lz4::Lz4Decoder::with_budget(budget)?))),
         "" => Ok(None),
         _ => Err(McapError::UnsupportedCompression(name.into())),
     }

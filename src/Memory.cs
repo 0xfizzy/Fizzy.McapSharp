@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-/// <summary>Configures finite native storage accounting and additional resource limits. Codec workspaces and process memory are outside the charged capacity.</summary>
+/// <summary>Configures finite native storage accounting and additional resource limits. Codec heap workspaces participate; process memory and documented accounting exclusions do not.</summary>
 public sealed record McapMemoryOptions
 {
     public McapMemoryBudget? Budget { get; init; }

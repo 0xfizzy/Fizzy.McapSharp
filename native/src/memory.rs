@@ -115,6 +115,9 @@ impl Deref for Backing {
         }
     }
 }
+impl mcap::storage::SharedSource for Backing {
+    fn reference(&self,cache:bool,acquire:bool){if let Self::Owned{_charge,..}=self{_charge.reference(cache,acquire);}}
+}
 impl AsRef<[u8]> for Backing { fn as_ref(&self) -> &[u8] { self } }
 impl Backing {
     pub fn empty() -> Self { Self::copy(&[],Options::default()).unwrap() }
@@ -133,13 +136,14 @@ impl Backing {
     pub fn copy(data: &[u8], options: Options) -> Outcome<Self> {
         check("OwnedInput", options.owned, data.len())?;
         check("StorageBlock", Some(options.domain.limits().block as u64), data.len())?;
-        let mut charge=options.domain.reserve(data.len())?;
+        let mut charge=options.domain.reserve_class(data.len(),mcap::storage::ResourceCategory::Input)?;
         let mut v = Vec::new();
         v.try_reserve_exact(data.len())?;
         charge.resize(v.capacity())?;
+        charge.commit(v.capacity());
         check("OwnedInput", options.owned, v.capacity())?;
         v.extend_from_slice(data);
-        options.domain.copied(data.len());
+        options.domain.copy_bytes(mcap::storage::CopyKind::Input,data.len());
         Ok(Self::Owned { data:v, _charge:charge })
     }
     pub fn open(path: &str) -> Outcome<Self> {
@@ -199,7 +203,7 @@ impl Default for Delivery {
 impl Delivery {
     pub fn reserve_metadata(&mut self, bytes: usize) -> Outcome<()> {
         // Declarations have already advanced the parser. Failure here is terminal, not retryable.
-        if self.metadata.is_none() { self.metadata=Some(self.options.domain.reserve(0)?); }
+        if self.metadata.is_none() { self.metadata=Some(self.options.domain.reserve_class(0,mcap::storage::ResourceCategory::Declaration)?); }
         let r=self.metadata.as_mut().unwrap();
         let size=r.bytes().checked_add(bytes).ok_or("Declaration capacity overflow")?;
         r.resize(size).map_err(|e|std::io::Error::other(e))?;
@@ -250,10 +254,11 @@ impl Delivery {
     }
     pub unsafe fn send(&mut self, data: &[u8], dest: *mut u8) -> Outcome<()> {
         if let Some(sink) = self.sink {
-            self.stats.copied += sink.send(self.opcode, &self.header, data)?;
+            let copied=sink.send(self.opcode, &self.header, data)?;
+            self.stats.copied += copied;self.options.domain.copy_bytes(mcap::storage::CopyKind::Delivery,copied as usize);
         } else {
             copy(data, dest)?;
-            self.stats.copied += data.len() as u64;
+            self.stats.copied += data.len() as u64;self.options.domain.copy_bytes(mcap::storage::CopyKind::Delivery,data.len());
         }
         Ok(())
     }
@@ -268,12 +273,12 @@ impl Delivery {
             self.data.clear();
             self.reserve(data.len())?;
             self.data.extend_from_slice(data);
-            self.stats.copied += data.len() as u64;
+            self.stats.copied += data.len() as u64;self.options.domain.copy_bytes(mcap::storage::CopyKind::Other,data.len());
             self.active = true;
             return Ok(2);
         }
         copy(data, dest)?;
-        self.stats.copied += data.len() as u64;
+        self.stats.copied += data.len() as u64;self.options.domain.copy_bytes(mcap::storage::CopyKind::Delivery,data.len());
         self.release();
         Ok(0)
     }
@@ -282,11 +287,12 @@ impl Delivery {
             self.shared=Some(self.take_shared(0)?); return Ok(0);
         }
         if let Some(sink) = self.sink {
-            self.stats.copied += sink.send(self.opcode, &self.header, &self.data)?;
+            let copied=sink.send(self.opcode, &self.header, &self.data)?;
+            self.stats.copied += copied;self.options.domain.copy_bytes(mcap::storage::CopyKind::Delivery,copied as usize);
         } else {
             if capacity < self.data.len() { return Ok(2); }
             copy(&self.data, dest)?;
-            self.stats.copied += self.data.len() as u64;
+            self.stats.copied += self.data.len() as u64;self.options.domain.copy_bytes(mcap::storage::CopyKind::Delivery,self.data.len());
         }
         self.release();
         Ok(0)
@@ -368,7 +374,7 @@ pub unsafe extern "C" fn fm_memory_statistics(
                 let r = &*(p as *const extended::Snapshot);
                 {
                     let mut s = Statistics::default();
-                    s.current += r.stats.current + r.cache.stats.current;
+                    s.current += r.stats.current + r.cache.resident_bytes();
                     s.allocations += r.cache.stats.allocations;
                     s.copied += r.cache.stats.copied;
                     s.peak = r.memory_peak.max(s.current);
