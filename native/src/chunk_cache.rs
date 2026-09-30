@@ -142,8 +142,8 @@ struct Pending {
 }
 pub struct ChunkCache {
     pending: Option<Pending>,
-    indexes: Vec<Arc<CacheItem<PackedIndex>>>,
-    chunks: Vec<Arc<CacheItem<Chunk>>>,
+    indexes: mcap::segmented::BudgetedSegmentedVec<Arc<CacheItem<PackedIndex>>>,
+    chunks: mcap::segmented::BudgetedSegmentedVec<Arc<CacheItem<Chunk>>>,
     domain: Arc<budget::MemoryBudget>,
     pub stats: memory::Statistics,
     pub hits: u64,
@@ -157,9 +157,17 @@ impl Default for ChunkCache {
 impl ChunkCache {
     pub fn new(domain: Arc<budget::MemoryBudget>) -> Self {
         Self {
-            indexes: Vec::new(),
+            indexes: mcap::segmented::BudgetedSegmentedVec::with_page_capacity(
+                domain.clone(),
+                mcap::storage::ResourceCategory::Scratch,
+                64,
+            ),
             pending: None,
-            chunks: Vec::new(),
+            chunks: mcap::segmented::BudgetedSegmentedVec::with_page_capacity(
+                domain.clone(),
+                mcap::storage::ResourceCategory::Scratch,
+                64,
+            ),
             domain,
             stats: Default::default(),
             hits: 0,
@@ -241,7 +249,8 @@ impl ChunkCache {
         for (channel_id, offset) in &index.message_index_offsets {
             let body = extended::record_body(input, *offset, records::op::MESSAGE_INDEX)?;
             let mut cursor = Cursor::new(body);
-            let actual: u16 = binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
+            let actual: u16 =
+                binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
             if actual != *channel_id {
                 return Err(mcap::McapError::BadIndex.into());
             }
@@ -250,10 +259,12 @@ impl ChunkCache {
             }
             // Same byte-length termination as the official records::parse_vec; read each
             // official entry directly into its final descriptor page.
-            let byte_len: u32 = binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
+            let byte_len: u32 =
+                binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
             let start = cursor.position();
             while cursor.position() - start < byte_len as u64 {
-                let entry: records::MessageIndexEntry = binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
+                let entry: records::MessageIndexEntry =
+                    binrw::BinReaderExt::read_le(&mut cursor).map_err(mcap::McapError::from)?;
                 let mut row = [0u8; 18];
                 row[..2].copy_from_slice(&channel_id.to_le_bytes());
                 row[2..10].copy_from_slice(&entry.log_time.to_le_bytes());
@@ -288,7 +299,7 @@ impl ChunkCache {
                 self.stats.current as usize + cost,
             );
             self.indexes
-                .push(CacheItem::new(cached.clone(), cost as u64, &self.domain)?);
+                .push(CacheItem::new(cached.clone(), cost as u64, &self.domain)?)?;
         }
         Ok(cached)
     }
@@ -428,7 +439,7 @@ impl ChunkCache {
                 (self.stats.current + cost) as usize,
             );
             self.chunks
-                .push(CacheItem::new(chunk.clone(), cost, &self.domain)?);
+                .push(CacheItem::new(chunk.clone(), cost, &self.domain)?)?;
         }
         Ok(chunk)
     }

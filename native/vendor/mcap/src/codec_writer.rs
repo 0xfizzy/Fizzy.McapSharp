@@ -15,11 +15,7 @@ struct Output {
 }
 impl Output {
     fn new(budget: &Arc<MemoryBudget>, size: usize) -> io::Result<Self> {
-        let mut charge = budget.reserve_class(size, ResourceCategory::Writer)?;
-        let mut data = Vec::new();
-        data.try_reserve_exact(size).map_err(io::Error::other)?;
-        charge.resize(data.capacity())?;
-        charge.commit(data.capacity());
+        let (mut data, charge) = crate::charged::bytes(budget, ResourceCategory::Writer, size)?;
         data.resize(size, 0);
         Ok(Self {
             data,
@@ -42,7 +38,7 @@ pub(crate) mod zstd_encoder {
     }
     struct Context {
         raw: *mut sys::ZSTD_CCtx,
-        memory: Arc<CodecMemory>,
+        memory: crate::charged::ChargedBox<CodecMemory>,
     }
     unsafe impl Send for Context {}
     impl Drop for Context {
@@ -64,7 +60,7 @@ pub(crate) mod zstd_encoder {
             threads: u32,
             budget: Arc<MemoryBudget>,
         ) -> io::Result<Self> {
-            let memory = CodecMemory::new(budget.clone(), ResourceCategory::CodecEncoder);
+            let memory = CodecMemory::new(budget.clone(), ResourceCategory::CodecEncoder)?;
             let raw = unsafe {
                 ZSTD_createCCtx_advanced(CustomMem {
                     alloc: Some(codec_memory::allocate),
@@ -119,10 +115,11 @@ pub(crate) mod zstd_encoder {
                     pos: 0,
                 };
                 let before = input.pos;
-                let left = self.check(unsafe {
+                let code = unsafe {
                     sys::ZSTD_compressStream2(self.context.raw, &mut output, &mut input, directive)
-                })?;
+                };
                 self.context.memory.progress(input.pos - before, output.pos);
+                let left = self.check(code)?;
                 self.writer.write_all(&self.output.data[..output.pos])?;
                 if input.pos == input.size
                     && (directive == sys::ZSTD_EndDirective::ZSTD_e_continue || left == 0)
@@ -170,7 +167,7 @@ pub(crate) mod lz4_encoder {
     }
     struct Context {
         raw: LZ4FCompressionContext,
-        memory: Arc<CodecMemory>,
+        memory: crate::charged::ChargedBox<CodecMemory>,
     }
     impl Drop for Context {
         fn drop(&mut self) {
@@ -187,7 +184,7 @@ pub(crate) mod lz4_encoder {
     }
     impl<W: Write> Encoder<W> {
         pub fn new(writer: W, level: u32, budget: Arc<MemoryBudget>) -> io::Result<Self> {
-            let memory = CodecMemory::new(budget.clone(), ResourceCategory::CodecEncoder);
+            let memory = CodecMemory::new(budget.clone(), ResourceCategory::CodecEncoder)?;
             let raw = unsafe {
                 LZ4F_createCompressionContext_advanced(
                     CustomMem {

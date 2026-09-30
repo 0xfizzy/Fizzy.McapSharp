@@ -136,12 +136,7 @@ impl Backing {
     pub fn copy(data: &[u8], options: Options) -> Outcome<Self> {
         check("OwnedInput", options.owned, data.len())?;
         check("StorageBlock", Some(options.domain.limits().block as u64), data.len())?;
-        let mut charge=options.domain.reserve_class(data.len(),mcap::storage::ResourceCategory::Input)?;
-        let mut v = Vec::new();
-        v.try_reserve_exact(data.len())?;
-        charge.resize(v.capacity())?;
-        charge.commit(v.capacity());
-        check("OwnedInput", options.owned, v.capacity())?;
+        let (mut v, charge)=mcap::charged::bytes(&options.domain,mcap::storage::ResourceCategory::Input,data.len())?;
         v.extend_from_slice(data);
         options.domain.copy_bytes(mcap::storage::CopyKind::Input,data.len());
         Ok(Self::Owned { data:v, _charge:charge })
@@ -228,13 +223,13 @@ impl Delivery {
         if n > self.data.capacity() {
             check(resource, limit, n)?;
             check("StorageBlock",Some(self.options.domain.limits().block as u64),n)?;
-            if self.charge.is_none() { self.charge=Some(self.options.domain.reserve(self.data.capacity())?); }
-            self.charge.as_mut().unwrap().resize(n)?;
-            let old = self.data.capacity();
-            if let Err(e)=self.data.try_reserve_exact(n - self.data.len()) { self.charge.as_mut().unwrap().resize(old)?; return Err(e.into()); }
-            self.charge.as_mut().unwrap().resize(self.data.capacity())?;
-            self.stats.capacity(old, self.data.capacity());
-            check(resource, limit, self.data.capacity())?;
+            let old=self.data.capacity();
+            let (mut replacement, charge)=mcap::charged::bytes(&self.options.domain,mcap::storage::ResourceCategory::Scratch,n)?;
+            replacement.extend_from_slice(&self.data);
+            self.options.domain.copy_bytes(mcap::storage::CopyKind::Compaction,self.data.len());
+            self.data=replacement;
+            self.charge=Some(charge);
+            self.stats.capacity(old,n);
         }
         Ok(())
     }

@@ -1,18 +1,21 @@
 {
   "purpose": "Stable shared input/decompression storage and finite storage/metadata reservations; preserve official state machines.",
   "sha256": {
-    "src/chunk_sink.rs": "ffafb29af1af1c460b17086762c1eccfe9b10f1fbdbcbe165cb794cb122be135",
-    "src/lib.rs": "6cde72ceb8cf89d8182caa9464600858e5828a4682ca941e06478b8408c7726c",
+    "src/chunk_sink.rs": "5d5d89964acd989134882c6d4779448f27645b642370804e4c8259c860f82f6f",
+    "src/lib.rs": "0167d537638d16404c161b4b552dd249d44bcb5357be4001337b873663d0daa3",
     "src/read.rs": "62967d2b3e4aae3a8040d023c4808767122d36138b81e392611bfec652f42f99",
-    "src/storage.rs": "567cef070dda266dadccc59d0052f9badc3ccc34609cc406215b44f9d400f753",
-    "src/write.rs": "0a56e6f58b05cc3950fb3040b5fda8cd4ea0d7dd42c3f5b1a0114a4b98831a9d",
-    "src/sans_io/indexed_reader.rs": "9a49e462fb4fb6c4572bc2c84495db056dd322097d2d8eb103d46ee68f033b11",
+    "src/storage.rs": "bdf13656cfd5272fe93b7175b980d05dd7d17ca1470f1e7ca0ce3b9156471520",
+    "src/write.rs": "156d82fc4c9872c755335de2e24194b47c9c0a97ce0e6a32025833a658acec02",
+    "src/sans_io/indexed_reader.rs": "556dc9a97bf185108d979bc37225c78a61a518f7242ca6ce88aef9a4ca554641",
     "src/sans_io/linear_reader.rs": "1b203cd3de1a5c8d9498fcf67271e05c0c92dc0486ddd9d8a371c2c33fd72089",
     "src/sans_io/summary_reader.rs": "6c80fb81464f50bd7de0661a9ef95ecbfe9889bda4ee623ba75b3377a586770b",
-    "src/codec_memory.rs": "b97da4cc97fd63ab0358ebc557eaebaa8201719db65e680c3b6778e3c4048f39",
-    "src/codec_writer.rs": "a7a2c8ee596d036722689a7bfed9c58750943ab6786866f1b3fe3bb33b9e6897",
-    "src/segmented.rs": "36c519a4ae6fc935b0257a632c0bb87237b12034ed96d6cad3fbc702a9c3d3e5",
-    "src/sans_io/zstd.rs": "320768d58811bf5cff6437ea9d0f1f27e62ecf649deee2131a5fd7e7fbb0bdb4",
-    "src/sans_io/lz4.rs": "402a5b0e39bfe7e08efaa8910af3e95e01af95a208899405c5be7cbc7c1c1212"
+    "src/codec_memory.rs": "e71365455f0d4a0872437f4b417298cd83fa18d77b0b230b431a2a6bd824289c",
+    "src/codec_writer.rs": "03c4b1c7ea00c4f33a1460d99daf25d8b5317804a8330a9eb9c5a76d1a74f3eb",
+    "src/segmented.rs": "19ab42e457342d903978cbf7bdc045e8749d52847415689000bb23e6a4468216",
+    "src/sans_io/zstd.rs": "b702b3160ac4fc71aa939440b688bcf816fa756e28d9fccc57dd5c759c045fae",
+    "src/sans_io/lz4.rs": "9097543ae6575176fcf33dba2518d7e109adff74508cc4861b1fd71cbc22193b",
+    "src/charged.rs": "ba8afb040e2c06194a690b4f3e84f64f753d86ffb5f54c1736774e6669f873e0",
+    "Cargo.toml": "6c6155e0fefc299124be7f5d273ac81fb523d6cd3b3ef00e4d2931f099fefe37",
+    "Cargo.lock": "bb025f7d05afd651a22be228a059dfee5df331d54a075aec722d3da257c37b3e"
   }
 }

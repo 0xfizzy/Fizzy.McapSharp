@@ -14,3 +14,4 @@ binrw = "=0.15.2"
 
 [patch.crates-io]
 mcap = { path = "vendor/mcap" }
+zstd-sys = { path = "vendor/zstd-sys" }

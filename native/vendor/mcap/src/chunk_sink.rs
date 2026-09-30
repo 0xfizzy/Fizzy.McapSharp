@@ -113,14 +113,11 @@ impl<W: Write> Write for ChunkSink<W> {
                     .min(charge.limits().block);
                 let domain = charge.domain();
                 // Keep the old allocation charged until its replacement is allocated and copied.
-                let mut replacement_charge =
-                    domain.reserve_class(capacity, crate::storage::ResourceCategory::Writer)?;
-                let mut replacement = Vec::new();
-                replacement
-                    .try_reserve_exact(capacity)
-                    .map_err(std::io::Error::other)?;
-                replacement_charge.resize(replacement.capacity())?;
-                replacement_charge.commit(replacement.capacity());
+                let (mut replacement, replacement_charge) = crate::charged::bytes(
+                    &domain,
+                    crate::storage::ResourceCategory::Writer,
+                    capacity,
+                )?;
                 replacement.extend_from_slice(v);
                 domain.copy_bytes(crate::storage::CopyKind::Compaction, v.len());
                 *v = replacement;

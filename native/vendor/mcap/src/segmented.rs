@@ -257,12 +257,37 @@ impl<T> BudgetedSegmentedVec<T> {
             self.len -= 1;
         }
     }
-    pub fn remove(&mut self, index: usize) {
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+            return None;
+        }
+        let index = self.len - 1;
+        let value = self
+            .root
+            .as_mut()
+            .unwrap()
+            .leaf_mut(index / self.per_page, self.depth)
+            .unwrap()
+            .pop();
+        self.len -= 1;
+        value
+    }
+    pub fn remove(&mut self, index: usize) -> T {
         assert!(index < self.len);
         for i in index + 1..self.len {
             self.swap(i - 1, i);
         }
-        self.truncate(self.len - 1);
+        self.pop().unwrap()
+    }
+    pub fn retain(&mut self, mut keep: impl FnMut(&T) -> bool) {
+        let mut write = 0;
+        for read in 0..self.len {
+            if keep(&self[read]) {
+                self.swap(write, read);
+                write += 1;
+            }
+        }
+        self.truncate(write);
     }
     pub fn remove_prefix(&mut self, n: usize) {
         assert!(n <= self.len);
@@ -383,22 +408,37 @@ mod tests {
 }
 
 /// Immutable after cloning; summary/index owners share the page tree.
-pub struct SharedSegmentedVec<T>(Arc<BudgetedSegmentedVec<T>>);
+pub struct SharedSegmentedVec<T> {
+    domain: Arc<MemoryBudget>,
+    root: Option<crate::charged::ChargedShared<BudgetedSegmentedVec<T>>>,
+    empty: BudgetedSegmentedVec<T>,
+}
 impl<T> SharedSegmentedVec<T> {
     pub fn new(domain: Arc<MemoryBudget>) -> Self {
-        Self(Arc::new(BudgetedSegmentedVec::new(
+        Self {
+            empty: BudgetedSegmentedVec::new(domain.clone(), ResourceCategory::Index),
             domain,
-            ResourceCategory::Index,
-        )))
+            root: None,
+        }
     }
     pub fn push(&mut self, value: T) -> io::Result<()> {
-        Arc::get_mut(&mut self.0)
+        if self.root.is_none() {
+            self.root = Some(crate::charged::ChargedShared::new(
+                BudgetedSegmentedVec::new(self.domain.clone(), ResourceCategory::Index),
+                &self.domain,
+                ResourceCategory::Index,
+            )?);
+        }
+        self.root
+            .as_mut()
+            .unwrap()
+            .get_mut()
             .ok_or_else(|| io::Error::other("Shared index is immutable"))?
             .push(value)
     }
     pub fn iter(&self) -> SegmentIter<'_, T> {
         SegmentIter {
-            data: &self.0,
+            data: self,
             position: 0,
         }
     }
@@ -410,13 +450,17 @@ impl<T> Default for SharedSegmentedVec<T> {
 }
 impl<T> Clone for SharedSegmentedVec<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self {
+            domain: self.domain.clone(),
+            root: self.root.clone(),
+            empty: BudgetedSegmentedVec::new(self.domain.clone(), ResourceCategory::Index),
+        }
     }
 }
 impl<T> std::ops::Deref for SharedSegmentedVec<T> {
     type Target = BudgetedSegmentedVec<T>;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.root.as_deref().unwrap_or(&self.empty)
     }
 }
 impl<T: PartialEq> PartialEq for SharedSegmentedVec<T> {

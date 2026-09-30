@@ -19,14 +19,14 @@ extern "C" {
 }
 pub struct ZstdDecoder {
     s: *mut sys::ZSTD_DCtx,
-    memory: Arc<CodecMemory>,
+    memory: crate::charged::ChargedBox<CodecMemory>,
     need: usize,
     started: bool,
 }
 unsafe impl Send for ZstdDecoder {}
 impl ZstdDecoder {
     pub(crate) fn with_budget(budget: Arc<MemoryBudget>) -> McapResult<Self> {
-        let memory = CodecMemory::new(budget, ResourceCategory::CodecDecoder);
+        let memory = CodecMemory::new(budget, ResourceCategory::CodecDecoder)?;
         let s = unsafe {
             ZSTD_createDCtx_advanced(CustomMem {
                 alloc: Some(codec_memory::allocate),

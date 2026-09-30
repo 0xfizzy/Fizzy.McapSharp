@@ -167,3 +167,5 @@ native/vendor/mcap 保存固定 mcap 0.25.0 源码及官方 MIT 许可证。Carg
 `Build.ps1 -Test` 包含 BatchGate 的 borrowed／ReadBatch／WriteBatch 零托管分配门禁和 10,000 批次保留测试；完整内存验收仍需大载荷／边界矩阵、codec C 分配与进程 private bytes、三平台原生 runner 证据。域统计不能替代全分配器测量。Python 双向互操作、消费者 Source 验证和同源三 RID 打包仍按上文独立执行。
 
 维护 codec 时须审计固定版本 C 自定义分配路径：Zstd 上下文／工作区、zstdmt 缓冲／上下文池、common/pool.c 的线程池堆分配，以及 Lz4 frame 上下文、临时输入／输出和 stream state。操作系统线程栈与运行时资源不经过这些回调。私有适配器使用公开 advanced 创建接口，不检查 codec 私有布局。保持 frame 参数，修改后验证 None/Lz4/Zstd 互操作。vendor 单元测试覆盖分配拒绝／溢出／回滚、分页目录排序、增长失败和百万描述符；托管测试验证 codec 释放和共享域淘汰。详细统计查询纳入 Release 零分配门禁。
+
+使用[原生分配清单](memory-accounting.zh-CN.md)审计分配覆盖范围及 codec 失败处理。

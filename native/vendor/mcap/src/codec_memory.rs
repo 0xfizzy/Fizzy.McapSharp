@@ -18,15 +18,22 @@ struct Header {
     layout: Layout,
 }
 impl CodecMemory {
-    pub fn new(budget: Arc<MemoryBudget>, category: ResourceCategory) -> Arc<Self> {
-        Arc::new(Self {
-            budget,
+    pub fn new(
+        budget: Arc<MemoryBudget>,
+        category: ResourceCategory,
+    ) -> std::io::Result<crate::charged::ChargedBox<Self>> {
+        crate::charged::ChargedBox::new(
+            Self {
+                budget: budget.clone(),
+                category,
+                failure: Mutex::new(None),
+            },
+            &budget,
             category,
-            failure: Mutex::new(None),
-        })
+        )
     }
-    pub fn opaque(this: &Arc<Self>) -> *mut c_void {
-        Arc::as_ptr(this).cast_mut().cast()
+    pub fn opaque(this: &crate::charged::ChargedBox<Self>) -> *mut c_void {
+        (&**this as *const Self).cast_mut().cast()
     }
     pub fn progress(&self, input: usize, output: usize) {
         self.budget.codec_bytes(
@@ -66,6 +73,7 @@ impl CodecMemory {
                 let message = e.to_string();
                 std::io::Error::other(e.into_inner().unwrap_or_else(|| message.into()))
             })?;
+        self.budget.allocation_attempt()?;
         let p = unsafe { alloc(layout) };
         if p.is_null() {
             return Err(std::io::Error::new(
@@ -134,7 +142,8 @@ mod tests {
             block: 1024,
             retained: 0,
         }));
-        let memory = CodecMemory::new(domain.clone(), ResourceCategory::CodecEncoder);
+        let memory = CodecMemory::new(domain.clone(), ResourceCategory::CodecEncoder).unwrap();
+        let state_bytes = domain.statistics().current;
         unsafe {
             let p = calloc(CodecMemory::opaque(&memory), 4096);
             assert!(!p.is_null()); // Codec workspace is not subject to the payload block limit.
@@ -143,7 +152,7 @@ mod tests {
                 .all(|b| *b == 0));
             assert_eq!(
                 domain.statistics().current,
-                4096 + std::mem::size_of::<Header>() as u64
+                state_bytes + 4096 + std::mem::size_of::<Header>() as u64
             );
             assert_eq!(
                 domain.detailed_statistics().resources[3].live,
@@ -154,11 +163,13 @@ mod tests {
             assert_ne!(memory.error().kind(), std::io::ErrorKind::WouldBlock);
             assert_eq!(
                 domain.statistics().current,
-                4096 + std::mem::size_of::<Header>() as u64
+                state_bytes + 4096 + std::mem::size_of::<Header>() as u64
             );
             free(CodecMemory::opaque(&memory), p);
             free(CodecMemory::opaque(&memory), ptr::null_mut());
         }
+        assert_eq!(domain.statistics().current, state_bytes);
+        drop(memory);
         assert_eq!(domain.statistics().current, 0);
     }
     #[test]
@@ -166,8 +177,59 @@ mod tests {
         let memory = CodecMemory::new(
             Arc::new(MemoryBudget::default()),
             ResourceCategory::CodecDecoder,
-        );
+        )
+        .unwrap();
         assert!(unsafe { allocate(CodecMemory::opaque(&memory), usize::MAX) }.is_null());
         assert!(memory.take_error().is_some());
+    }
+}
+
+#[cfg(all(test, feature = "zstd", feature = "lz4"))]
+mod failure_matrix {
+    use super::*;
+    use std::io::Write;
+    fn encode(domain: Arc<MemoryBudget>, kind: u32) -> std::io::Result<()> {
+        let payload = [37u8; 65536];
+        if kind == 0 {
+            let mut encoder =
+                crate::codec_writer::lz4_encoder::Encoder::new(std::io::sink(), 0, domain)?;
+            encoder.write_all(&payload)?;
+            encoder.flush()?;
+            encoder.finish().1
+        } else {
+            let mut encoder = crate::codec_writer::zstd_encoder::Encoder::new(
+                std::io::sink(),
+                0,
+                kind - 1,
+                domain,
+            )?;
+            encoder.write_all(&payload)?;
+            encoder.flush()?;
+            encoder.finish().1
+        }
+    }
+    #[test]
+    fn every_observed_encoder_allocation_failure_releases_domain() {
+        for kind in 0..4 {
+            let domain = Arc::new(MemoryBudget::default());
+            encode(domain.clone(), kind).unwrap();
+            let attempts = domain.allocation_attempt_count();
+            assert!(attempts > 2);
+            assert_eq!(domain.statistics().current, 0);
+            for index in 0..attempts {
+                eprintln!("codec failure injection kind={kind} index={index}/{attempts}");
+                domain.fail_allocation_at(index);
+                let result = encode(domain.clone(), kind);
+                if domain.allocation_attempt_count() > index {
+                    assert!(result.is_err(), "kind={kind} index={index}");
+                }
+                assert_eq!(domain.statistics().current, 0, "kind={kind} index={index}");
+                assert_eq!(
+                    domain.detailed_statistics().resources[ResourceCategory::CodecEncoder as usize]
+                        .live,
+                    0
+                );
+            }
+        }
     }
 }

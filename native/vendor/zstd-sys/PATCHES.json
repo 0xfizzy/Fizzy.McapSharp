@@ -1,0 +1,9 @@
+{
+  "purpose": "Handle null custom allocation and partial multithreaded initialization without null traversal or allocator mismatch; preserve the fixed codec version and worker configuration. Track C source changes in Cargo rebuilds.",
+  "sha256": {
+    "zstd/lib/common/allocations.h": "da3b7fd3c3469c38ec96900f6fdf53d1b4bf127879b0458bf7c299a1fa780403",
+    "build.rs": "56010b833f8f9a5f373d612d1f7ea9912bb1ee53e5dd8804e347f6e596fc0810",
+    "zstd/lib/common/pool.c": "275ee99214e497ef21f2ee053bf9fb049b4119ea39ce2caf53d0fed8e1a0248a",
+    "zstd/lib/compress/zstdmt_compress.c": "3efc84af3c1711597a97da7a81b6da32ad3ad00f2536f0a40e60c33aa66f94b8"
+  }
+}

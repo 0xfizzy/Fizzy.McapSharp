@@ -469,15 +469,11 @@ impl<W: Write + Seek> Writer<W> {
             if size > opts.memory_budget.limits().block {
                 return Err(McapError::ChunkBufferTooLarge(buffer_size));
             }
-            let mut charge = opts
-                .memory_budget
-                .reserve_class(size, crate::storage::ResourceCategory::Writer)?;
-            let mut buffer = Vec::new();
-            buffer
-                .try_reserve_exact(size)
-                .map_err(std::io::Error::other)?;
-            charge.resize(buffer.capacity())?;
-            charge.commit(buffer.capacity());
+            let (buffer, charge) = crate::charged::bytes(
+                &opts.memory_budget,
+                crate::storage::ResourceCategory::Writer,
+                size,
+            )?;
             ChunkMode::Buffered { buffer, charge }
         } else {
             ChunkMode::Direct

@@ -1055,3 +1055,60 @@ mod budgeted_decode_tests {
         assert!(decode_chunk(&mut decoder, &input, &mut output).is_err());
     }
 }
+
+#[cfg(all(test, feature = "zstd", feature = "lz4"))]
+mod decoder_failure_matrix {
+    use crate::sans_io::decompressor::Decompressor;
+    use crate::storage::MemoryBudget;
+    use std::sync::Arc;
+    fn decode(domain: Arc<MemoryBudget>, compressed: &[u8], lz4: bool) -> crate::McapResult<()> {
+        let mut decoder: Box<dyn Decompressor> = if lz4 {
+            Box::new(crate::sans_io::lz4::Lz4Decoder::with_budget(domain)?)
+        } else {
+            Box::new(crate::sans_io::zstd::ZstdDecoder::with_budget(domain)?)
+        };
+        let mut output = [0u8; 65536];
+        for _ in 0..2 {
+            let (mut input, mut written) = (0, 0);
+            loop {
+                let progress = decoder.decompress(&compressed[input..], &mut output[written..])?;
+                input += progress.consumed;
+                written += progress.wrote;
+                if decoder.next_read_size() == 0 {
+                    break;
+                }
+                assert!(progress.consumed != 0 || progress.wrote != 0);
+            }
+            assert_eq!(written, output.len());
+            decoder.reset()?;
+        }
+        Ok(())
+    }
+    #[test]
+    fn every_observed_decoder_allocation_failure_releases_domain() {
+        use std::io::Write;
+        for lz4 in [false, true] {
+            let compressed = if lz4 {
+                let mut encoder = lz4::EncoderBuilder::new().build(Vec::new()).unwrap();
+                encoder.write_all(&[37u8; 65536]).unwrap();
+                let (data, status) = encoder.finish();
+                status.unwrap();
+                data
+            } else {
+                zstd::stream::encode_all(&[37u8; 65536][..], 0).unwrap()
+            };
+            let domain = Arc::new(MemoryBudget::default());
+            decode(domain.clone(), &compressed, lz4).unwrap();
+            let attempts = domain.allocation_attempt_count();
+            assert!(attempts > 1);
+            for index in 0..attempts {
+                domain.fail_allocation_at(index);
+                let result = decode(domain.clone(), &compressed, lz4);
+                if domain.allocation_attempt_count() > index {
+                    assert!(result.is_err());
+                }
+                assert_eq!(domain.statistics().current, 0, "lz4={lz4} index={index}");
+            }
+        }
+    }
+}

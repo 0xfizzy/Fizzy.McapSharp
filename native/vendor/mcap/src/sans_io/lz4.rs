@@ -27,14 +27,14 @@ use lz4::liblz4::{
 /// A Decompressor wrapper for LZ4 streaming decompression.
 pub struct Lz4Decoder {
     c: LZ4FDecompressionContext,
-    memory: Arc<CodecMemory>,
+    memory: crate::charged::ChargedBox<CodecMemory>,
     next_read_size: usize,
     started: bool,
 }
 
 impl Lz4Decoder {
     pub(crate) fn with_budget(budget: Arc<MemoryBudget>) -> McapResult<Self> {
-        let memory = CodecMemory::new(budget, ResourceCategory::CodecDecoder);
+        let memory = CodecMemory::new(budget, ResourceCategory::CodecDecoder)?;
         let context = unsafe {
             LZ4F_createDecompressionContext_advanced(
                 CustomMem {

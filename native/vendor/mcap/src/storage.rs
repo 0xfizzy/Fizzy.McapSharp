@@ -133,10 +133,66 @@ pub trait Reclaimable: Send + Sync {
     fn last_access(&self) -> u64;
     fn reclaim(&self) -> bool;
 }
+const REGISTRY_PAGE_ENTRIES: usize = 64;
+struct RegistryPage {
+    entries: [Option<Weak<dyn Reclaimable>>; REGISTRY_PAGE_ENTRIES],
+    next: Option<Box<RegistryPage>>,
+    _charge: DetachedReservation,
+}
 #[derive(Default)]
 struct ReclaimerRegistry {
-    entries: Vec<Weak<dyn Reclaimable>>,
-    _charge: Option<DetachedReservation>,
+    head: Option<Box<RegistryPage>>,
+}
+impl ReclaimerRegistry {
+    fn insert(&mut self, item: &Weak<dyn Reclaimable>) -> bool {
+        let mut page = self.head.as_deref_mut();
+        while let Some(p) = page {
+            for slot in &mut p.entries {
+                if slot.as_ref().is_none_or(|w| w.strong_count() == 0) {
+                    *slot = Some(item.clone());
+                    return true;
+                }
+            }
+            page = p.next.as_deref_mut();
+        }
+        false
+    }
+    fn iter(&self) -> RegistryIter<'_> {
+        RegistryIter {
+            page: self.head.as_deref(),
+            index: 0,
+        }
+    }
+}
+impl Drop for ReclaimerRegistry {
+    fn drop(&mut self) {
+        let mut page = self.head.take();
+        while let Some(mut p) = page {
+            page = p.next.take();
+        }
+    }
+}
+struct RegistryIter<'a> {
+    page: Option<&'a RegistryPage>,
+    index: usize,
+}
+impl<'a> Iterator for RegistryIter<'a> {
+    type Item = &'a Weak<dyn Reclaimable>;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let p = self.page?;
+            if self.index == REGISTRY_PAGE_ENTRIES {
+                self.page = p.next.as_deref();
+                self.index = 0;
+                continue;
+            }
+            let i = self.index;
+            self.index += 1;
+            if let Some(w) = &p.entries[i] {
+                return Some(w);
+            }
+        }
+    }
 }
 struct DetachedReservation {
     budget: Weak<MemoryBudget>,
@@ -196,6 +252,10 @@ pub struct MemoryBudget {
     reclaimers: Mutex<ReclaimerRegistry>,
     clock: std::sync::atomic::AtomicU64,
     capacity_version: std::sync::atomic::AtomicU64,
+    #[cfg(test)]
+    allocation_attempts: std::sync::atomic::AtomicUsize,
+    #[cfg(test)]
+    fail_allocation: std::sync::atomic::AtomicUsize,
 }
 impl std::fmt::Debug for MemoryBudget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -218,7 +278,39 @@ impl MemoryBudget {
             reclaimers: Mutex::new(ReclaimerRegistry::default()),
             clock: std::sync::atomic::AtomicU64::new(1),
             capacity_version: std::sync::atomic::AtomicU64::new(0),
+            #[cfg(test)]
+            allocation_attempts: std::sync::atomic::AtomicUsize::new(0),
+            #[cfg(test)]
+            fail_allocation: std::sync::atomic::AtomicUsize::new(usize::MAX),
         }
+    }
+    pub(crate) fn allocation_attempt(&self) -> std::io::Result<()> {
+        #[cfg(test)]
+        {
+            let index = self
+                .allocation_attempts
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if index
+                == self
+                    .fail_allocation
+                    .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                return Err(std::io::ErrorKind::OutOfMemory.into());
+            }
+        }
+        Ok(())
+    }
+    #[cfg(test)]
+    pub(crate) fn fail_allocation_at(&self, index: usize) {
+        self.allocation_attempts
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        self.fail_allocation
+            .store(index, std::sync::atomic::Ordering::Relaxed);
+    }
+    #[cfg(test)]
+    pub(crate) fn allocation_attempt_count(&self) -> usize {
+        self.allocation_attempts
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
     pub fn capacity_version(&self) -> u64 {
         self.capacity_version
@@ -236,59 +328,64 @@ impl MemoryBudget {
         self: &Arc<Self>,
         item: Weak<dyn Reclaimable>,
     ) -> std::io::Result<()> {
-        loop {
-            let capacity = {
-                let mut registry = self.reclaimers.lock().unwrap();
-                registry.entries.retain(|e| e.strong_count() != 0);
-                if registry.entries.len() < registry.entries.capacity() {
-                    registry.entries.push(item);
-                    return Ok(());
-                }
-                registry
-                    .entries
-                    .capacity()
-                    .max(8)
-                    .checked_mul(2)
-                    .ok_or_else(|| std::io::Error::other("Cache registry overflow"))?
-            };
-            let mut charge = self.reserve_class(
-                capacity * std::mem::size_of::<Weak<dyn Reclaimable>>(),
-                ResourceCategory::Scratch,
-            )?;
-            let mut entries = Vec::new();
-            entries
-                .try_reserve_exact(capacity)
-                .map_err(std::io::Error::other)?;
-            charge.commit(entries.capacity() * std::mem::size_of::<Weak<dyn Reclaimable>>());
+        {
             let mut registry = self.reclaimers.lock().unwrap();
-            if registry.entries.len() >= capacity {
-                drop(registry);
-                continue;
+            if registry.insert(&item) {
+                return Ok(());
             }
-            entries.append(&mut registry.entries);
-            entries.push(item);
-            let old = std::mem::replace(
-                &mut *registry,
-                ReclaimerRegistry {
-                    entries,
-                    _charge: Some(charge.detach()),
-                },
-            );
+        }
+        // Allocate outside the registry lock: reserving may reclaim another cache.
+        let layout = std::alloc::Layout::new::<RegistryPage>();
+        let mut charge = self.reserve_class(layout.size(), ResourceCategory::Scratch)?;
+        self.allocation_attempt()?;
+        let raw = unsafe { std::alloc::alloc(layout) }.cast::<RegistryPage>();
+        if raw.is_null() {
+            return Err(std::io::ErrorKind::OutOfMemory.into());
+        }
+        charge.commit(layout.size());
+        let mut page = unsafe {
+            raw.write(RegistryPage {
+                entries: std::array::from_fn(|_| None),
+                next: None,
+                _charge: charge.detach(),
+            });
+            Box::from_raw(raw)
+        };
+        let mut registry = self.reclaimers.lock().unwrap();
+        if registry.insert(&item) {
             drop(registry);
-            drop(old);
+            drop(page);
             return Ok(());
         }
+        page.entries[0] = Some(item);
+        page.next = registry.head.take();
+        registry.head = Some(page);
+        Ok(())
     }
     pub fn prune_reclaimers(&self) {
         let Ok(mut registry) = self.reclaimers.try_lock() else {
             return;
         };
-        registry.entries.retain(|e| e.strong_count() != 0);
-        if registry.entries.is_empty() {
-            let old = std::mem::take(&mut *registry);
-            drop(registry);
-            drop(old);
+        let mut retired = ReclaimerRegistry::default();
+        let mut link = &mut registry.head;
+        while link.is_some() {
+            let empty = link
+                .as_ref()
+                .unwrap()
+                .entries
+                .iter()
+                .all(|w| w.as_ref().is_none_or(|w| w.strong_count() == 0));
+            if empty {
+                let mut page = link.take().unwrap();
+                *link = page.next.take();
+                page.next = retired.head.take();
+                retired.head = Some(page);
+            } else {
+                link = &mut link.as_mut().unwrap().next;
+            }
         }
+        drop(registry);
+        drop(retired);
     }
     fn reclaim_for(&self, additional: usize) {
         {
@@ -305,13 +402,12 @@ impl MemoryBudget {
                 return;
             }
         }
-        let count = self.reclaimers.lock().unwrap().entries.len();
+        let count = self.reclaimers.lock().unwrap().iter().count();
         let mut previous = 0;
         for _ in 0..count {
             let candidate = {
                 let entries = self.reclaimers.lock().unwrap();
                 entries
-                    .entries
                     .iter()
                     .filter_map(Weak::upgrade)
                     .filter(|e| e.last_access() > previous)
@@ -853,5 +949,39 @@ mod capacity_version_tests {
         let version = domain.capacity_version();
         drop(domain.reserve_class(0, ResourceCategory::Scratch).unwrap());
         assert_eq!(domain.capacity_version(), version);
+    }
+}
+
+#[cfg(test)]
+mod registry_page_tests {
+    use super::*;
+    struct Item;
+    impl Reclaimable for Item {
+        fn last_access(&self) -> u64 {
+            1
+        }
+        fn reclaim(&self) -> bool {
+            false
+        }
+    }
+    #[test]
+    fn registration_pages_release_without_domain_cycle() {
+        let domain = Arc::new(MemoryBudget::default());
+        let weak = Arc::downgrade(&domain);
+        let items: Vec<Arc<dyn Reclaimable>> = (0..130)
+            .map(|_| Arc::new(Item) as Arc<dyn Reclaimable>)
+            .collect();
+        for item in &items {
+            domain.register_reclaimer(Arc::downgrade(item)).unwrap();
+        }
+        assert_eq!(
+            domain.statistics().current,
+            3 * std::mem::size_of::<RegistryPage>() as u64
+        );
+        drop(items);
+        domain.prune_reclaimers();
+        assert_eq!(domain.statistics().current, 0);
+        drop(domain);
+        assert!(weak.upgrade().is_none());
     }
 }
