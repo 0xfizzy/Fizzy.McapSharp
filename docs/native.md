@@ -6,7 +6,7 @@ English | [简体中文](native.zh-CN.md)
 
 ## ABI contract
 
-`fm_abi_version()` returns 6. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 7. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -66,8 +66,8 @@ The asynchronous reader drives the linear engine with .NET ReadAsync, retaining 
 
 ## Memory controls and diagnostics
 
-ABI 6 adds `fm_buffer_reader_open_options`, `fm_snapshot_bytes_options`, `fm_snapshot_open_options`, `fm_snapshot_mapped` and `fm_memory_statistics`. Existing unconfigured exports remain available internally. Options are construction-time JSON. Statistics use five sequential u64 fields (40 bytes): current controlled capacity, peak capacity, allocation/expansion count, copied bytes and mapped length. The source kind is 0 session, 1 buffer cursor, 2 snapshot, 3 Sans-I/O engine. No owned response is allocated on successful statistics calls.
+ABI 7 exposes `fm_buffer_reader_open_options`, `fm_snapshot_bytes_options`, `fm_snapshot_open_options`, `fm_snapshot_mapped` and `fm_memory_statistics`. Existing unconfigured exports remain available internally. Options are construction-time JSON. Statistics use five sequential u64 fields (40 bytes): current controlled capacity, peak capacity, allocation/expansion count, copied bytes and mapped length. The source kind is 0 session, 1 buffer cursor, 2 snapshot, 3 Sans-I/O engine. No owned response is allocated on successful statistics calls.
 
 `memory::Backing` owns either bytes or a file mapping; child cursors share it through Arc. Direct delivery copies within the parser event lifetime; insufficient destinations use one reusable owned buffer. No native borrowed pointer is saved across calls. Summary cursors share the official Summary and encode lazily. Fallback sorting uses an arena plus descriptors; per-resource capacity checks precede growth. Binding budget errors include resource, limit and requested capacity. Parser state is released before shared input; mapped files must remain unchanged. See the API guide for the measured/excluded resources.
 
-`fm_buffer_reader_mapped` is an additive ABI 6 export using construction JSON (`path`, `mode`, `ignoreEndMagic`, `options`). Existing layouts and operation codes are unchanged. Snapshot retries compare complete encoded requests before parsing. The optional single-Chunk cache owns raw prefix bodies and descriptors and drives the official parser incrementally; no event slice is retained. Scratch limits apply before growth. Random output delivery and cache storage are included in controlled statistics; parser/decompressor state remains excluded.
+`fm_buffer_reader_mapped` is an ABI 7 export using construction JSON (`path`, `mode`, `ignoreEndMagic`, `options`). Snapshot operation codes 1 and 7 are unsupported; other operation codes retain their values. Snapshot retries compare complete encoded requests before parsing. The optional single-Chunk cache owns raw prefix bodies and descriptors and drives the official parser incrementally; no event slice is retained. Scratch limits apply before growth. Random output delivery and cache storage are included in controlled statistics; parser/decompressor state remains excluded.

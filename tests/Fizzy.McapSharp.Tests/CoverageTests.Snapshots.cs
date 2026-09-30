@@ -105,7 +105,7 @@ public partial class CoverageTests
         Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.ReadMessageIndexes(selected)).Kind);
         // Upstream message-index reads use the offset map, not the chunk's own offset.
         Assert.Equal(2, snapshot.ReadMessageIndexes(chunk with { ChunkStartOffset = ulong.MaxValue }).Count);
-        Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.OpenChunkMessages(chunk with { ChunkLength = ulong.MaxValue })).Kind);
+        Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.OpenChunkReader(chunk with { ChunkLength = ulong.MaxValue })).Kind);
         Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.SeekMessage(chunk with { ChunkLength = ulong.MaxValue }, entries[0].Records[0])).Kind);
         var changed = chunk with { ChunkStartOffset = 100, Compression = "测试" };
         Assert.Equal(McapRecords.GetCompressedDataOffset(100, System.Text.Encoding.UTF8.GetBytes("测试")), snapshot.GetCompressedDataOffset(changed));

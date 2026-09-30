@@ -26,6 +26,9 @@ public class LazyReaderTests
         using var first = snapshot.OpenChunkReader(chunks[0]);
         using var second = snapshot.OpenChunkReader(chunks[1]);
         Assert.Equal(McapReadStatus.BufferTooSmall, first.ReadNext([], out var pending, out var length));
+        var snapshotStats = snapshot.GetMemoryStatistics();
+        Assert.Throws<McapException>(() => snapshot.OpenChunkReader(chunks[0] with { ChunkLength = ulong.MaxValue }));
+        Assert.Equal(snapshotStats, snapshot.GetMemoryStatistics());
         snapshot.ReadFooter();
         snapshot.Dispose();
         byte[] buffer = new byte[16];
@@ -37,16 +40,16 @@ public class LazyReaderTests
         Assert.Equal(McapReadStatus.EndOfStream, first.ReadNext(buffer, out _, out _));
     }
     [Fact]
-    public void ConvenienceChunkEnumeratorsDoNotShareTheDefaultCursor()
+    public void ConvenienceChunkEnumeratorsHaveIndependentCursors()
     {
         using var snapshot = new McapIndexSnapshot(Recording(true));
         var chunks = snapshot.GetSummary()!.ChunkIndexes.Where(c => c.MessageIndexOffsets.Count > 0).ToArray();
-        snapshot.OpenChunkMessages(chunks[2]);
+        using var cursor = snapshot.OpenChunkReader(chunks[2]);
         using var a = snapshot.ReadChunkMessages(chunks[0]).GetEnumerator();
         using var b = snapshot.ReadChunkMessages(chunks[1]).GetEnumerator();
         Assert.True(a.MoveNext()); Assert.True(b.MoveNext());
         Assert.Equal(0u, a.Current.Sequence); Assert.Equal(1u, b.Current.Sequence);
-        Assert.Equal(McapReadStatus.Message, snapshot.ReadNext(new byte[16], out var h, out _));
+        Assert.Equal(McapReadStatus.Message, cursor.ReadNext(new byte[16], out var h, out _));
         Assert.Equal(2u, h.Sequence);
         Assert.False(a.MoveNext()); Assert.False(b.MoveNext());
     }

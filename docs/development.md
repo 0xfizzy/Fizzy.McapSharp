@@ -49,6 +49,9 @@ Existing xUnit coverage includes all three compression modes, time and topic fil
 
 Use Release only. Caller buffer growth, initialization, description/summary snapshots, errors and owned-record convenience APIs are outside this gate. User Stream implementations may allocate; bridge-only tests use a preallocated span-based stream whose array fallback throws. Native allocations require a separate native profiler. Keep baseline measurements in ignored artifacts, not in API documentation.
 
+
+Classification enumeration acceptance compares 32 and 4096 unrelated fixed-size messages with a fixed set of target records under all three compression modes. It measures the complete enumeration and permits at most 4096 additional managed bytes, rejecting per-record allocation growth without requiring owned results to allocate zero bytes.
+
 ### Python interoperability
 
 Run in an environment with Python available; CI uses Python 3.12:

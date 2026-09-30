@@ -422,7 +422,6 @@ pub struct Snapshot {
     pub data: Arc<memory::Backing>,
     pub options: memory::Options,
     summary: Option<Arc<mcap::Summary>>,
-    pub cursor: Option<buffer_reader::BufferReader>,
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_summary(p: *const Snapshot, out: *mut Response) -> i32 {
@@ -472,7 +471,6 @@ pub unsafe extern "C" fn fm_snapshot_bytes_options(
             data: Arc::new(data),
             options,
             summary: summary.map(Arc::new),
-            cursor: None,
         }));
         Ok(0)
     })
@@ -613,7 +611,6 @@ pub unsafe extern "C" fn fm_snapshot_open_options(
             data: Arc::new(memory::Backing::Owned(data)),
             options,
             summary: summary.map(Arc::new),
-            cursor: None,
         }));
         Ok(0)
     })
@@ -671,21 +668,12 @@ pub unsafe extern "C" fn fm_snapshot_call(
         }
         h.stats.peak = h.stats.current;
         h.cache.stats.peak = h.cache.stats.current;
-        if let Some(cursor) = h.cursor.as_mut() { cursor.delivery.stats.peak = cursor.delivery.stats.current; }
-        let current = h.stats.current + h.cache.stats.current + h.cursor.as_ref().map_or(0, |c| c.delivery.stats.current);
+        let current = h.stats.current + h.cache.stats.current;
         h.memory_peak = h.memory_peak.max(current);
         let key = bytes(index_data, index_length)?;
         if let Some(status) = h.retry.read(op, key, message_time, message_offset,
             dest, capacity, header, out, &mut h.stats)? { return Ok(status); }
         h.stats.peak = h.stats.current;
-        if op == 7 {
-            return match h.cursor.as_mut() {
-                Some(cursor) => Ok(buffer_reader::fm_buffer_reader_message(
-                    cursor, dest, capacity, header, out,
-                )),
-                None => Ok(1),
-            };
-        }
         if op == 6 {
             let f = mcap::read::footer(&h.data)?;
             let mut b = [0u8; 20];
@@ -695,7 +683,7 @@ pub unsafe extern "C" fn fm_snapshot_call(
             return copy_body(&b, dest, capacity, out);
         }
         match op {
-            1 | 2 | 5 | 8 => {
+            2 | 5 | 8 => {
                 let records::Record::ChunkIndex(index) =
                     mcap::parse_record(records::op::CHUNK_INDEX, bytes(index_data, index_length)?)?
                 else {
@@ -706,19 +694,8 @@ pub unsafe extern "C" fn fm_snapshot_call(
                     return Ok(0);
                 }
                 let s = h.summary.as_ref().ok_or("File has no summary")?;
-                if op == 1 || op == 2 {
+                if op == 2 {
                     check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
-                }
-                if op == 1 {
-                    let mut cursor =
-                        buffer_reader::chunk_reader(h.data.clone(), s.clone(), &index)?;
-                    cursor.delivery.options = h.options;
-                    if let Some(old) = h.cursor.take() {
-                        h.stats.allocations += old.delivery.stats.allocations;
-                        h.stats.copied += old.delivery.stats.copied;
-                    }
-                    h.cursor = Some(cursor);
-                    return Ok(0);
                 }
                 if op == 2 {
                     let cached = h.cache.read(&h.data, s, &index, key, message_offset,
@@ -847,11 +824,9 @@ pub unsafe extern "C" fn fm_snapshot_call(
         if status == 0 && matches!(op, 2 | 3 | 4 | 5 | 6) && !out.is_null() {
             h.stats.copied += (*out).value;
         }
-        let cursor = h.cursor.as_ref().map(|c| c.delivery.stats).unwrap_or_default();
         h.memory_peak = h.memory_peak
-            .max(h.stats.peak + h.cache.stats.current + cursor.current)
-            .max(h.cache.stats.peak + cursor.current)
-            .max(cursor.peak + h.stats.current + h.cache.stats.current);
+            .max(h.stats.peak + h.cache.stats.current)
+            .max(h.cache.stats.peak + h.stats.current);
     }
     status
 }
@@ -1100,7 +1075,6 @@ pub unsafe extern "C" fn fm_snapshot_mapped(
             data: Arc::new(data),
             options,
             summary,
-            cursor: None,
         }));
         Ok(0)
     })

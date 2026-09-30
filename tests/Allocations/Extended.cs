@@ -80,7 +80,6 @@ static class Extended
     {
         s.SeekMessage(chunk, entry, [], out _, out _); s.SeekMessage(chunk, entry, buffer, out _, out _);
         s.ReadMessageIndexes(chunk, buffer, out _); s.ReadMetadata(summary.MetadataIndexes[0], buffer, out _); s.ReadAttachment(summary.AttachmentIndexes[0], buffer, out _);
-        s.OpenChunkMessages(chunk); while (s.ReadNext(buffer, out _, out _) != McapReadStatus.EndOfStream) { }
     }
     static void Async(byte[] bytes, McapCompression compression)
     {

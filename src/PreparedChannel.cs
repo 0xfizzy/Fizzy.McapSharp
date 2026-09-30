@@ -81,5 +81,4 @@ public sealed partial class McapWriter
         }
     }
 
-    public McapSummary Finish() { lock (gate) { Complete(); return GetSummary(); } }
 }

@@ -32,7 +32,7 @@ fn main() {
     let data = fs::read(&args[1]).unwrap();
     let repeats = args.get(2).map(|s| s.parse::<usize>().unwrap()).unwrap_or(1);
     unsafe {
-        assert_eq!(fm_abi_version(), 6);
+        assert_eq!(fm_abi_version(), 7);
         for _ in 0..repeats {
             let mut indexes = Vec::new();
             for mode in [0, 2, 4, 5] {
@@ -55,10 +55,14 @@ fn main() {
             let mut h = ptr::null_mut(); let mut r = Response::default();
             let status = fm_snapshot_bytes(data.as_ptr(), data.len(), &mut h, &mut r); release(&mut r);
             if status == 0 {
+                for op in [1, 7] {
+                    assert!(fm_snapshot_call(h, op, ptr::null(), 0, 0, 0, ptr::null_mut(), 0, ptr::null_mut(), &mut r) < 0);
+                    release(&mut r);
+                }
                 fm_snapshot_summary(h, &mut r); release(&mut r);
                 let mut b = vec![0; 8 * 1024 * 1024];
                 for (opcode, index) in &indexes {
-                    let operations: &[u32] = match opcode { 8 => &[5, 8, 1, 7], 10 => &[4], _ => &[3] };
+                    let operations: &[u32] = match opcode { 8 => &[5, 8], 10 => &[4], _ => &[3] };
                     for op in operations {
                         let mut header = Header { channel: 0, reserved: 0, sequence: 0, log_time: 0, publish_time: 0 };
                         let status = fm_snapshot_call(h, *op, index.as_ptr(), index.len(), 0, 0, b.as_mut_ptr(), b.len(), &mut header, &mut r);

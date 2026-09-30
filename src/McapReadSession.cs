@@ -304,43 +304,44 @@ public sealed partial class McapReadSession : IDisposable
         return ScannedRecordCount;
     }
 
+    // Each enumeration owns its scratch buffer; only matching records become owned models.
+    IEnumerable<T> ReadSelected<T>(byte wanted, Func<byte[], int, T> decode)
+    {
+        if (messages)
+            throw new InvalidOperationException("This is a message session.");
+        byte[] buffer = [];
+        while (true)
+        {
+            var status = ReadNextRecord(buffer, out var opcode, out var length);
+            if (status == McapReadStatus.EndOfStream) yield break;
+            if (status == McapReadStatus.BufferTooSmall)
+            {
+                buffer = new byte[checked((int)length)];
+                continue;
+            }
+            if (opcode == wanted) yield return decode(buffer, checked((int)length));
+        }
+    }
+
     public IEnumerable<McapSchema> ReadSchemas()
     {
         var seen = new HashSet<ushort>();
-        foreach (var r in ReadRecords())
-            if (r.Opcode == 3)
-            {
-                var s = RecordDecoder.Schema(r.Data);
-                if (seen.Add(s.Id))
-                    yield return s;
-            }
+        foreach (var schema in ReadSelected(3, static (b, n) => RecordDecoder.Schema(b.AsSpan(0, n))))
+            if (seen.Add(schema.Id)) yield return schema;
     }
 
     public IEnumerable<McapChannel> ReadChannels()
     {
         var seen = new HashSet<ushort>();
-        foreach (var r in ReadRecords())
-            if (r.Opcode == 4)
-            {
-                var id = RecordDecoder.ChannelId(r.Data);
-                if (seen.Add(id))
-                    yield return GetChannel(id);
-            }
+        foreach (var id in ReadSelected(4, static (b, n) => RecordDecoder.ChannelId(b.AsSpan(0, n))))
+            if (seen.Add(id)) yield return GetChannel(id);
     }
 
-    public IEnumerable<McapMetadata> ReadMetadata()
-    {
-        foreach (var r in ReadRecords())
-            if (r.Opcode == 12)
-                yield return RecordDecoder.Metadata(r.Data);
-    }
+    public IEnumerable<McapMetadata> ReadMetadata() =>
+        ReadSelected(12, static (b, n) => RecordDecoder.Metadata(b.AsSpan(0, n)));
 
-    public IEnumerable<McapAttachment> ReadAttachments()
-    {
-        foreach (var r in ReadRecords())
-            if (r.Opcode == 9)
-                yield return RecordDecoder.Attachment(r.Data);
-    }
+    public IEnumerable<McapAttachment> ReadAttachments() =>
+        ReadSelected(9, static (b, n) => RecordDecoder.Attachment(b.AsSpan(0, n)));
 
     public Stream IntoInner()
     {

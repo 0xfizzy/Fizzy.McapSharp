@@ -29,19 +29,19 @@ internal ref struct RecordDecoder
         return m;
     }
 
-    internal static McapSchema Schema(byte[] data)
+    internal static McapSchema Schema(ReadOnlySpan<byte> data)
     {
         var r = new RecordDecoder(data);
         return new(r.U16(), r.Text(), r.Text(), r.Bytes(checked((int)r.U32())));
     }
 
-    internal static McapMetadata Metadata(byte[] data)
+    internal static McapMetadata Metadata(ReadOnlySpan<byte> data)
     {
         var r = new RecordDecoder(data);
         return new(r.Text(), r.Map());
     }
 
-    internal static McapAttachment Attachment(byte[] data)
+    internal static McapAttachment Attachment(ReadOnlySpan<byte> data)
     {
         var r = new RecordDecoder(data);
         var log = r.U64();
@@ -51,8 +51,8 @@ internal ref struct RecordDecoder
         return new(name, media, log, create, r.Bytes(checked((int)r.U64())));
     }
 
-    internal static ushort ChannelId(byte[] data) => BinaryPrimitives.ReadUInt16LittleEndian(data);
-    internal static McapMessageIndex MessageIndex(byte[] data)
+    internal static ushort ChannelId(ReadOnlySpan<byte> data) => BinaryPrimitives.ReadUInt16LittleEndian(data);
+    internal static McapMessageIndex MessageIndex(ReadOnlySpan<byte> data)
     {
         var r = new RecordDecoder(data);
         var id = r.U16();

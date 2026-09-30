@@ -7,7 +7,7 @@
 | 官方能力 | 托管入口 | 验证 |
 | --- | --- | --- |
 | `Writer::write` | 完整消息和预准备通道的 `WriteMessage` 重载，均直接调用上游 write | 自动声明、不可变快照、分配门禁 |
-| 其他 Writer 方法 | 注册、已知通道消息、附件、Metadata、私有记录、Flush、Finish、IntoInner | 往返、所有权、互操作、分配测试 |
+| 其他 Writer 方法 | 注册、已知通道消息、附件、Metadata、私有记录、Flush、Complete/GetSummary、IntoInner | 往返、所有权、互操作、分配测试 |
 | `WriteOptions` | `McapWriterOptions`，先总开关后显式单项覆盖 | 原生默认值/配置差分测试 |
 | 官方切片读取器 | `McapBufferReader` 各模式，使用配置匹配切片入口的官方 Sans-I/O | 切片、记录模型、分配测试 |
 | Summary 读取、Chunk 消息、消息定位与索引 | `McapIndexSnapshot` 对应操作 | 随机读取及重试测试 |

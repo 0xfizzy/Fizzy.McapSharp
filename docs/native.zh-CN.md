@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 6，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 7，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -66,8 +66,8 @@ Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验�
 
 ## 内存控制与诊断
 
-ABI 6 新增 `fm_buffer_reader_open_options`、`fm_snapshot_bytes_options`、`fm_snapshot_open_options`、`fm_snapshot_mapped` 和 `fm_memory_statistics`，内部保留原有无配置导出。构造配置使用 JSON。统计为五个连续 u64 字段（40 字节）：当前受控容量、峰值容量、申请／扩容次数、复制字节数、映射长度。来源类型为 0 会话、1 buffer 游标、2 快照、3 Sans-I/O 引擎。成功的统计调用不创建 owned 响应。
+ABI 7 提供 `fm_buffer_reader_open_options`、`fm_snapshot_bytes_options`、`fm_snapshot_open_options`、`fm_snapshot_mapped` 和 `fm_memory_statistics`，内部保留原有无配置导出。构造配置使用 JSON。统计为五个连续 u64 字段（40 字节）：当前受控容量、峰值容量、申请／扩容次数、复制字节数、映射长度。来源类型为 0 会话、1 buffer 游标、2 快照、3 Sans-I/O 引擎。成功的统计调用不创建 owned 响应。
 
 `memory::Backing` 拥有字节或文件映射，子游标通过 Arc 共享。在解析器事件生命周期内直接交付；目标不足时使用单个复用 owned 缓冲。不跨调用保存原生借用指针。摘要游标共享官方 Summary 并惰性编码。回退排序使用 arena 和描述，扩容前检查分类容量预算。Binding 预算错误包含 resource、limit 和 requested。解析状态先于共享输入释放；映射文件必须保持不变。统计范围及排除项见 API 指南。
 
-`fm_buffer_reader_mapped` 是 ABI 6 的兼容新增导出，使用构造 JSON（`path`、`mode`、`ignoreEndMagic`、`options`）。现有布局和操作码不变。快照重试在解析前比较完整编码请求。可选单 Chunk 缓存拥有原始前缀记录体和描述符，增量驱动官方解析器，不保留事件切片。scratch 扩容前检查预算。随机输出复制和缓存存储纳入受控统计，解析器／解压器状态仍排除。
+`fm_buffer_reader_mapped` 是 ABI 7 的导出，使用构造 JSON（`path`、`mode`、`ignoreEndMagic`、`options`）。快照操作码 1、7 不受支持，其余操作码保持原值。快照重试在解析前比较完整编码请求。可选单 Chunk 缓存拥有原始前缀记录体和描述符，增量驱动官方解析器，不保留事件切片。scratch 扩容前检查预算。随机输出复制和缓存存储纳入受控统计，解析器／解压器状态仍排除。

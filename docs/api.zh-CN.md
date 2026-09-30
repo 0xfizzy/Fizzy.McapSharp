@@ -89,6 +89,8 @@ while (true)
 
 可寻址源上的 `ReadRecordAt(offset)`、`ReadChunk(index)`、`ReadMessageIndexes(index)` 不消费顺序游标或待处理记录。偏移相对 MCAP 起点。ReadChunk 返回原始 Chunk 记录；OpenRecords(ExpandChunks) 用于顺序解压。消息索引包含 Chunk 内相对偏移。原始随机读取不校验全文件。
 
+分类枚举复用扫描缓冲区，仅为目标记录构造自有结果，但仍需扫描、解压和缓冲区复制。分别调用文件级分类方法会独立扫描；这些便利方法不提供零分配保证。
+
 ## Stream 会话与所有权
 
 使用 `McapReader.OpenMessages(stream, query, leaveOpen)` 或 `OpenRecords(stream, mode, leaveOpen)` 读取 Stream。当前位置作为 MCAP 偏移零点，从此位置到流末尾必须是一份完整 MCAP。会话增量读取，不完整复制流，不使用临时文件。
@@ -118,7 +120,7 @@ while (true)
 
 `WriteMessage(McapMessage)` 直接调用官方 `Writer::write`，按传入 ID 自动声明。零分配重载接收 `McapPreparedChannel`、匹配的 Header 和 payload Span。预准备对象保存 Schema 字节与元数据的不可变快照，但不注册声明；便利重载每次读取当前对象内容。
 
-`McapPreparedOperation` 提供 Schema、Channel、Metadata 和附件描述；`WritePrepared` 零托管分配执行并返回注册 ID，payload 单独通过 Span 传入。附件续写、私有记录及 Flush 也提供零分配路径。`Finish()` 完成并返回自有摘要；`Complete()` 后的 `OpenSummaryRecords()` 提供缓冲区摘要游标。`IntoInner()` 释放原生状态并交还 Stream 所有权，不隐式完成文件。
+`McapPreparedOperation` 提供 Schema、Channel、Metadata 和附件描述；`WritePrepared` 零托管分配执行并返回注册 ID，payload 单独通过 Span 传入。附件续写、私有记录及 Flush 也提供零分配路径。`Complete()` 显式完成写入，随后通过 `GetSummary()` 获取自有摘要；`Complete()` 后的 `OpenSummaryRecords()` 提供缓冲区摘要游标。`IntoInner()` 释放原生状态并交还 Stream 所有权，不隐式完成文件。
 
 ## 官方读取器直接适配
 
@@ -126,7 +128,7 @@ while (true)
 
 `McapRecords.Parse` 为所有标准记录返回强类型自有模型，未知记录返回 `McapRecord`。`McapRecordView.Parse` 使用官方 `parse_record` 校验，在调用方托管内存上提供视图；标量属性和 `Fields` 游标可零分配读取 UTF-8、映射、数组和二进制字段。`ToOwned` 显式复制；`ReadFooter` 和 `GetCompressedDataOffset` 直接调用上游辅助函数。
 
-`OpenIndexSnapshot()` 复制可定位源并读取官方摘要，不移动顺序游标；也可用 `new McapIndexSnapshot(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。`OpenChunkReader(index)` 返回独立、惰性、可释放的 McapBufferReader，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。`OpenChunkMessages` 成功初始化后才替换默认游标；`ReadChunkMessages` 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
+`OpenIndexSnapshot()` 复制可定位源并读取官方摘要，不移动顺序游标；也可用 `new McapIndexSnapshot(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。`OpenChunkReader(index)` 返回独立、惰性、可释放的 McapBufferReader，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。`ReadChunkMessages` 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
 
 `McapSansIoReader.CreateLinear/CreateSummary` 及已完成摘要会话的 `CreateIndexed` 提供值类型事件。用 `SupplyInput` 送入字节、`NotifySeeked` 确认定位、`InsertChunkData` 插入索引 Chunk 压缩数据。索引会话支持 `SetRecordLengthLimit`。输出复制到调用方 Span，不返回原生指针。`GetSummary` 返回自有快照，`OpenSummaryRecords` 返回缓冲区游标。上游没有自定义解压器注册入口，因此封装不公开自定义解压接口。内置 Lz4/Zstd 解压由官方 Rust 库处理。
 
@@ -174,7 +176,7 @@ var options = new McapWriterOptions { RecoverableErrors = McapRecoverableWriterE
 
 预算错误使用 `McapException.Kind=Binding`，`Details.resource`、`limit`、`requested` 给出类别和字节数。推进失败会终止读取器。快照构造失败恢复源位置，不消费 pending 消息；底层 Stream 故障可能阻止位置恢复。不自动重试或转存磁盘。
 
-会话、BufferReader、Snapshot、Sans-I/O 和异步读取器的 `GetMemoryStatistics()` 返回无托管分配的值类型，包含当前／峰值受控容量、申请／扩容次数、受测数据路径复制字节数和映射长度。容量覆盖输入副本、交付缓冲、Stream 临时缓冲、随机重试／缓存及排序存储。复制计数覆盖输入复制、解析器供给、pending／arena 存储和调用者缓冲交付，不含冷路径描述序列化及上游内部复制。它不是分配器全局或工作集统计。Snapshot 包含默认游标，不包含独立子游标。每个视图只计一次共享输入，不要累加相关视图。异步统计必须在消费当前操作后查询。不注册 GC 内存压力估算。
+会话、BufferReader、Snapshot、Sans-I/O 和异步读取器的 `GetMemoryStatistics()` 返回无托管分配的值类型，包含当前／峰值受控容量、申请／扩容次数、受测数据路径复制字节数和映射长度。容量覆盖输入副本、交付缓冲、Stream 临时缓冲、随机重试／缓存及排序存储。复制计数覆盖输入复制、解析器供给、pending／arena 存储和调用者缓冲交付，不含冷路径描述序列化及上游内部复制。它不是分配器全局或工作集统计。Snapshot 仅统计自身资源，不包含独立子游标。每个视图只计一次共享输入，不要累加相关视图。异步统计必须在消费当前操作后查询。不注册 GC 内存压力估算。
 
 ### 映射输入和可选随机缓存
 
@@ -182,7 +184,7 @@ var options = new McapWriterOptions { RecoverableErrors = McapRecoverableWriterE
 
 `MaxScratchBufferBytes`（`ulong?`，默认 null／不限制）限制索引 Stream 输入和随机记录临时缓冲容量，与 pending 预算独立。调用方缓冲区版 `ReadRecordAt` 直接从映射数据复制，或复用 Stream scratch；验证成功前不修改目标，目标不足时保持内容不变，并恢复 Stream 位置。scratch 预算拒绝会终止会话。
 
-随机 `SeekMessage` 和消息索引长度探测可以保留一个 owned 结果供相同请求重试。请求身份包含完整编码索引和消息参数。键与结果容量总和必须同时满足 `MaxPendingBufferBytes` 和 `MaxRetainedBufferBytes`，否则重试时重新计算。不同随机／默认游标请求替换重试槽，成功交付后释放。可选缓存容量不会把原本成功的读取变成预算错误。
+随机 `SeekMessage` 和消息索引长度探测可以保留一个 owned 结果供相同请求重试。请求身份包含完整编码索引和消息参数。键与结果容量总和必须同时满足 `MaxPendingBufferBytes` 和 `MaxRetainedBufferBytes`，否则重试时重新计算。不同随机请求替换重试槽，成功交付后释放。可选缓存容量不会把原本成功的读取变成预算错误。
 
 `MaxRandomAccessCacheBytes`（`ulong`，默认 0／关闭）启用快照最近访问 Chunk 已解析前缀的缓存。向后定位只将官方解析器推进至请求记录，已缓存位置不再解压。容量包含完整编码的调用方索引、原始记录体及描述符，不含解析器／解压器状态。容量不足时清除缓存并回退到官方随机辅助接口。缓存独立于顺序游标；重复随机访问可设置有界容量，连续批量读取优先使用 `OpenChunkReader`。缓存读取不代表已验证未访问的尾部。
 

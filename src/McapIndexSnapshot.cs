@@ -79,8 +79,6 @@ public sealed class McapIndexSnapshot : IDisposable
             finally { NativeMemory.Free(allocated); }
         }
     }
-    public void OpenChunkMessages(McapChunkIndex index) => Call(1, index, default, [], out _, out _);
-    public McapReadStatus ReadNext(Span<byte> destination, out McapMessageHeader header, out ulong length) => Call(7, null, default, destination, out header, out length);
     public McapReadStatus SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry message, Span<byte> destination, out McapMessageHeader header, out ulong length) => Call(2, chunk, message, destination, out header, out length);
     public McapReadStatus ReadMetadata(McapMetadataIndex index, Span<byte> destination, out ulong length) => Call(3, index, default, destination, out _, out length);
     public McapReadStatus ReadAttachment(McapAttachmentIndex index, Span<byte> destination, out ulong length) => Call(4, index, default, destination, out _, out length);
@@ -105,7 +103,7 @@ public sealed class McapIndexSnapshot : IDisposable
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(handle.IsClosed, this);
-            if (op is 1 or 2 or 3 or 4 or 5 or 8) ArgumentNullException.ThrowIfNull(index);
+            if (op is 2 or 3 or 4 or 5 or 8) ArgumentNullException.ThrowIfNull(index);
             int size = IndexEncoding.Size(index);
             byte* allocated = size > 1024 ? (byte*)NativeMemory.Alloc((nuint)size) : null;
             Span<byte> encoded = size <= 1024 ? stackalloc byte[size] : new Span<byte>(allocated, size);

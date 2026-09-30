@@ -288,11 +288,7 @@ pub unsafe extern "C" fn fm_memory_statistics(
             2 => {
                 let r = &*(p as *const extended::Snapshot);
                 {
-                    let mut s = r
-                        .cursor
-                        .as_ref()
-                        .map(|c| c.delivery.stats)
-                        .unwrap_or_default();
+                    let mut s = Statistics::default();
                     s.current += r.stats.current + r.cache.stats.current;
                     s.allocations += r.cache.stats.allocations;
                     s.copied += r.cache.stats.copied;

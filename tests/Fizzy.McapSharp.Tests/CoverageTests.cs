@@ -25,7 +25,8 @@ public partial class CoverageTests
         using (var w = new McapWriter(s, leaveOpen: true))
         {
             w.WriteMessage(new McapMessage(Channel(), 1, 2, 3, [4]));
-            Assert.Equal(1ul, w.Finish().Statistics!.MessageCount);
+            w.Complete();
+            Assert.Equal(1ul, w.GetSummary().Statistics!.MessageCount);
         }
         Assert.Equal(1024ul * 1024, new McapWriterOptions().ChunkSize);
         s.Position = 0;
@@ -75,8 +76,8 @@ public partial class CoverageTests
         Span<byte> b = stackalloc byte[128];
         Assert.Equal(McapReadStatus.Message, snapshot.SeekMessage(chunk, indexes[0].Records[0], b, out var retry, out _));
         Assert.Equal(h, retry);
-        snapshot.OpenChunkMessages(chunk);
-        Assert.Equal(McapReadStatus.Message, snapshot.ReadNext(b, out _, out _));
+        using var cursor = snapshot.OpenChunkReader(chunk);
+        Assert.Equal(McapReadStatus.Message, cursor.ReadNext(b, out _, out _));
         Assert.Equal("metadata", snapshot.ReadMetadata(summary.MetadataIndexes[0]).Name);
         Assert.Equal(new byte[] { 8, 9 }, snapshot.ReadAttachment(summary.AttachmentIndexes[0]).Data);
         Assert.True(snapshot.ReadFooter().SummaryStart > 0);

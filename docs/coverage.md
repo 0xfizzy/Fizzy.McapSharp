@@ -7,7 +7,7 @@ For API users choosing a direct Rust-equivalent operation, this map targets the 
 | Official surface | Managed entry | Verification |
 | --- | --- | --- |
 | `Writer::write` | `WriteMessage(McapMessage)` and prepared-channel overload, both directly invoking upstream write | Automatic declarations, immutable snapshots, allocation gate |
-| Other `Writer` methods | Registration, known-channel messages, attachments, metadata, private records, Flush, Finish and IntoInner | Round-trip, ownership, interoperability and allocation tests |
+| Other `Writer` methods | Registration, known-channel messages, attachments, metadata, private records, Flush, Complete/GetSummary and IntoInner | Round-trip, ownership, interoperability and allocation tests |
 | `WriteOptions` | `McapWriterOptions`; aggregate switch before explicit individual overrides | Native differential default/configuration tests |
 | `read::LinearReader`, `ChunkReader`, `ChunkFlattener`, `RawMessageStream`, `MessageStream` | `McapBufferReader` modes; official Sans-I/O with matching slice-reader configuration | Slice-reader, record-model and allocation tests |
 | `Summary::read`, `stream_chunk`, `seek_message`, `read_message_indexes` | `McapIndexSnapshot` and its summary/chunk/message/index operations | Random-access and retry tests |

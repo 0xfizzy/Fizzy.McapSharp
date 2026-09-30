@@ -1559,7 +1559,7 @@
     {
       "rust": "write.rs::Writer::finish",
       "kind": "method",
-      "managed": "McapWriter.Finish / Complete / OpenSummaryRecords",
+      "managed": "McapWriter.Complete / GetSummary / OpenSummaryRecords",
       "native": "write::Writer::finish",
       "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
       "files": [
@@ -2054,7 +2054,7 @@
     {
       "rust": "read.rs::Summary::stream_chunk",
       "kind": "method",
-      "managed": "McapIndexSnapshot.OpenChunkMessages / ReadChunkMessages",
+      "managed": "McapIndexSnapshot.OpenChunkReader / ReadChunkMessages",
       "native": "read::Summary::stream_chunk",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
