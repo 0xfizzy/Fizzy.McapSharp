@@ -894,6 +894,10 @@ impl crate::storage::BudgetRef {
             length,
         })
     }
+    /// Reserve capacity without allocating an error when the domain is exhausted.
+    pub fn try_reserve(&self, bytes:usize, category:ResourceCategory)->Result<Reservation,StorageFailure> {
+        self.reserve_class_fixed(bytes,category).map_err(StorageFailure::from)
+    }
     pub fn reserve(&self, bytes: usize) -> std::io::Result<Reservation> {
         self.reserve_class(bytes, ResourceCategory::Scratch)
     }
@@ -1279,6 +1283,9 @@ impl WriteBuffer {
         self.read_only = true;
     }
     pub fn reserve(&mut self, size: usize, preserve: Range<usize>) -> std::io::Result<()> {
+        self.reserve_fixed(size,preserve).map_err(StorageFailure::into_io)
+    }
+    pub fn reserve_fixed(&mut self,size:usize,preserve:Range<usize>)->Result<(),StorageFailure> {
         if let Some(SharedBytes {
             backing: Backing::Owned(b),
             ..
@@ -1289,7 +1296,7 @@ impl WriteBuffer {
             }
         }
         let growing = matches!(&self.backing, Some(SharedBytes { backing: Backing::Owned(old), .. }) if size > old.length);
-        let allocation = self.budget.allocate(size, self.category)?;
+        let allocation = self.budget.allocate_fixed(size, self.category)?;
         let old = &self.bytes()[preserve.clone()];
         unsafe {
             allocation.tail(0..old.len()).copy_from_slice(old);
@@ -1308,8 +1315,11 @@ impl WriteBuffer {
         Ok(())
     }
     pub fn relocate(&mut self, size: usize, preserve: Range<usize>) -> std::io::Result<()> {
+        self.relocate_fixed(size, preserve).map_err(StorageFailure::into_io)
+    }
+    pub fn relocate_fixed(&mut self, size: usize, preserve: Range<usize>) -> Result<(), StorageFailure> {
         let growing = matches!(&self.backing, Some(SharedBytes { backing: Backing::Owned(old), .. }) if size > old.length);
-        let allocation = self.budget.allocate(size, self.category)?;
+        let allocation = self.budget.allocate_fixed(size, self.category)?;
         let old = &self.bytes()[preserve];
         unsafe {
             allocation.tail(0..old.len()).copy_from_slice(old);

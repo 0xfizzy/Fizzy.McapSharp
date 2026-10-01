@@ -309,7 +309,7 @@ impl Delivery {
         // Allocate the exact control before transferring any pending data or charge.
         // A refusal leaves the original delivery available for a safe retry.
         let mut data=mcap::charged::ChargedShared::new_fixed(Backing::Empty,&self.options.domain,mcap::storage::ResourceCategory::Scratch)?;
-        let charge=match self.charge.take() { Some(c)=>c,None=>self.options.domain.reserve(self.data.capacity())? };
+        let charge=match self.charge.take() { Some(c)=>c,None=>self.options.domain.try_reserve(self.data.capacity(),mcap::storage::ResourceCategory::Scratch)? };
         self.stats.capacity(self.data.capacity(),0);
         *data.get_mut().unwrap()=Backing::owned(std::mem::take(&mut self.data),charge);
         self.active=false;

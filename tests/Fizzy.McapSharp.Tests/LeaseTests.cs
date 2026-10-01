@@ -134,14 +134,14 @@ public class LeaseTests
     {
         using var stream=new MemoryStream();
         using(var writer=new McapWriter(stream,new(){Compression=McapCompression.Lz4},true)) {
-            var c=writer.RegisterChannel("t","raw");writer.WriteMessage(new(c,1,1,0),new byte[8000]);writer.Complete();
+            var c=writer.RegisterChannel("t","raw");writer.WriteMessage(new(c,1,1,0),new byte[256*1024]);writer.Complete();
         }
         stream.Position=0;
         var probeBudget=new McapMemoryBudget(maxRetainedBytes:0);
-        ulong fixedBytes;
+        ulong constructorPeak;
         using(var probe=new McapAsyncReader(stream,new(){Memory=new(){Budget=probeBudget}},true))
-            fixedBytes=probeBudget.GetStatistics().CurrentBytes;
-        using var reader=new McapAsyncReader(stream,new(){Memory=new(){Budget=new(fixedBytes+8500,8400,0)}},true);
+            constructorPeak=probeBudget.GetStatistics().PeakBytes;
+        using var reader=new McapAsyncReader(stream,new(){Memory=new(){Budget=new(Math.Max(constructorPeak+8500,270*1024),270*1024,0)}},true);
         await Assert.ThrowsAsync<McapException>(()=>reader.ReadBatchLeaseAsync(1).AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
     }
 

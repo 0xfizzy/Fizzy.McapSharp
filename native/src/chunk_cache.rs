@@ -307,9 +307,9 @@ impl ChunkCache {
     }
     fn reserve(&mut self, n: usize) -> Outcome<mcap::storage::Reservation> {
         loop {
-            match self.domain.reserve(n) {
+            match self.domain.try_reserve(n,mcap::storage::ResourceCategory::Scratch) {
                 Ok(charge) => return Ok(charge),
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock && self.evict_one() => {}
+                Err(e) if e.kind == mcap::storage::StorageFailureKind::BudgetUnavailable && !e.terminal && self.evict_one() => {}
                 Err(e) => return Err(e.into()),
             }
         }

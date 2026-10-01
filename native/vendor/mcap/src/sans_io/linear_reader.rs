@@ -101,7 +101,7 @@ struct ChunkState {
 const OPCODE_LEN_SIZE: usize = 1 + 8;
 
 mod rw_buf {
-    use crate::storage::{SharedBytes, WriteBuffer};
+    use crate::storage::{SharedBytes, StorageFailure, StorageFailureKind, WriteBuffer};
 
     #[derive(Default)]
     pub struct RwBuf {
@@ -163,17 +163,20 @@ mod rw_buf {
         pub fn unwritten_mut(&mut self) -> &mut [u8] {
             unsafe { self.data.writable(self.end..self.writable_end) }
         }
-        pub fn reserve_exact(&mut self, n: usize) -> std::io::Result<()> {
-            self.writable_end = self
-                .end
-                .checked_add(n)
-                .ok_or_else(|| std::io::Error::other("Buffer overflow"))?;
-            self.data.reserve(self.writable_end, 0..self.end)
+        fn overflow(&self) -> StorageFailure {
+            StorageFailure::at(&self.data.budget, self.data.category, usize::MAX,
+                "parser buffer size", StorageFailureKind::Overflow)
         }
-        pub fn reserve_chunk(&mut self, n: usize) -> std::io::Result<()> {
-            self.data.reserve(n, 0..self.end)
+        pub fn reserve_exact(&mut self, n: usize) -> Result<(), StorageFailure> {
+            let writable_end = self.end.checked_add(n).ok_or_else(|| self.overflow())?;
+            self.data.reserve_fixed(writable_end, 0..self.end)?;
+            self.writable_end = writable_end;
+            Ok(())
         }
-        pub fn tail_with_size(&mut self, n: usize) -> std::io::Result<&mut [u8]> {
+        pub fn reserve_chunk(&mut self, n: usize) -> Result<(), StorageFailure> {
+            self.data.reserve_fixed(n, 0..self.end)
+        }
+        pub fn tail_with_size(&mut self, n: usize) -> Result<&mut [u8], StorageFailure> {
             // No unread bytes require a parser pin. Release it before trying to
             // allocate, so an external lease can actually unblock a retry.
             if self.len() == 0 {
@@ -191,8 +194,8 @@ mod rw_buf {
                     let size = self
                         .len()
                         .checked_add(n)
-                        .ok_or_else(|| std::io::Error::other("Buffer overflow"))?;
-                    self.data.relocate(size, self.start..self.end)?;
+                        .ok_or_else(|| self.overflow())?;
+                    self.data.relocate_fixed(size, self.start..self.end)?;
                 }
                 self.end -= self.start;
                 self.start = 0;
@@ -1046,6 +1049,28 @@ mod tests {
             writer.finish()?;
         }
         Ok(buf.into_inner())
+    }
+
+    #[test]
+    fn refused_buffer_growth_preserves_written_and_writable_ranges() {
+        use crate::storage::{BudgetLimits, BudgetRef, ResourceCategory, StorageFailureKind};
+        let domain = BudgetRef::new(BudgetLimits {
+            total: BudgetRef::allocation_size() + 32768, block: 8192, retained: 0,
+        }).unwrap();
+        let mut buffer = rw_buf::RwBuf::with_budget(false, domain.clone(), ResourceCategory::Input);
+        buffer.tail_with_size(128).unwrap().fill(7);
+        buffer.mark_written(64);
+        let before = domain.workload_statistics().current;
+        assert_eq!(buffer.reserve_exact(8192).unwrap_err().kind, StorageFailureKind::PermanentLimit);
+        assert_eq!(buffer.unread(), &[7; 64]);
+        assert_eq!(buffer.unwritten(), &[7; 64]);
+        assert_eq!(buffer.reserve_exact(usize::MAX).unwrap_err().kind, StorageFailureKind::Overflow);
+        assert_eq!(buffer.unwritten(), &[7; 64]);
+        assert_eq!(domain.workload_statistics().current, before);
+        buffer.mark_written(64);
+        assert_eq!(buffer.unread(), &[7; 128]);
+        drop(buffer);
+        assert_eq!(domain.workload_statistics().current, 0);
     }
 
     #[test]

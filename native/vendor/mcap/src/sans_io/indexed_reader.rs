@@ -235,7 +235,7 @@ impl IndexedReader {
             }
             false
         }) {
-            chunk_indexes.push(index.clone())?;
+            chunk_indexes.push_fixed(index.clone())?;
         }
 
         for chunk_index in chunk_indexes.iter() {
@@ -427,7 +427,7 @@ impl IndexedReader {
             let mut storage = crate::storage::WriteBuffer::default();
             storage.budget = self.budget.clone();
             storage.category = crate::storage::ResourceCategory::Decompressed;
-            storage.reserve(uncompressed_size, 0..0)?;
+            storage.reserve_fixed(uncompressed_size, 0..0)?;
             let output = unsafe { storage.writable(0..uncompressed_size) };
             match chunk_index.compression.as_str() {
                 "" => {
@@ -643,7 +643,7 @@ fn index_messages(
             sorting_required = msg.log_time < latest_timestamp;
         }
         latest_timestamp = latest_timestamp.max(msg.log_time);
-        message_indexes.push(MessageIndex {
+        message_indexes.push_fixed(MessageIndex {
             chunk_slot_idx,
             log_time: msg.log_time,
             offset,
@@ -703,7 +703,7 @@ fn find_or_make_chunk_slot(
         }
     }
     let idx = chunk_slots.len();
-    chunk_slots.push(ChunkSlot {
+    chunk_slots.push_fixed(ChunkSlot {
         message_count: 0,
         data_start,
         buf: crate::storage::SharedBytes::empty(),

@@ -347,6 +347,10 @@ fn controlled_allocation_identities_match_independent_allocator() {
     writer_option_text_has_exact_shared_allocation_identity();
     writer_constructor_control_and_text_are_fully_charged();
     indexed_channel_filter_pages_have_exact_allocation_identity();
+    indexed_constructor_capacity_errors_do_not_allocate();
+    fixed_reservation_errors_preserve_classification_without_allocations();
+    linear_input_capacity_errors_have_exact_allocation_identities();
+    retained_topic_filters_have_exact_allocation_identities();
     codec_callback_failures_do_not_allocate_error_payloads();
     summary_control_has_exact_identity_and_shared_purpose_pins();
     domain_root_bootstrap_has_exact_allocation_identity();
@@ -2285,4 +2289,113 @@ fn indexed_channel_filter_pages_have_exact_allocation_identity() {
     let calls=COUNTS.with(|c|c.replace(None).unwrap());let actual=identity::snapshot();
     assert_eq!(calls,(actual.bound,actual.bound_bytes));assert_eq!(actual.errors,0);assert_eq!(actual.live,[0;9]);
     assert_eq!(domain.workload_statistics().current,0);drop(audit);
+}
+
+fn indexed_constructor_capacity_errors_do_not_allocate() {
+    use mcap::storage::{BudgetRef,BudgetLimits};
+    let mut writer=mcap::WriteOptions::new().compression(None).create(std::io::Cursor::new(Vec::new())).unwrap();
+    let channel=writer.add_channel(0,"topic","raw",&BTreeMap::new()).unwrap();
+    writer.write_to_known_channel(&records::MessageHeader {channel_id:channel,sequence:0,log_time:0,publish_time:0},b"data").unwrap();
+    writer.finish().unwrap();let bytes=writer.into_inner().into_inner();
+    let summary=mcap::Summary::read(&bytes).unwrap().unwrap();
+    let baseline=BudgetRef::new(Default::default()).unwrap();
+    drop(sans_io::IndexedReader::new_with_options_and_budget(&summary,Default::default(),baseline.clone()).unwrap());
+    let required=baseline.workload_statistics().peak as usize;
+    for capacity in [0,1,required-1,required] {
+        let total=BudgetRef::allocation_size()+capacity;
+        let domain=BudgetRef::new(BudgetLimits {total,block:1,retained:0}).unwrap();
+        domain.observe_allocations(identity::claimed);
+        let audit=identity::start(domain.as_ptr() as usize);
+        let mut response=Response::default();
+        COUNTS.with(|c|c.set(Some((0,0))));
+        let status=guard(&mut response,|_| {
+            sans_io::IndexedReader::new_with_options_and_budget(&summary,Default::default(),domain.clone())?;Ok(0)
+        });
+        let calls=COUNTS.with(|c|c.replace(None).unwrap());let actual=identity::snapshot();
+        assert_eq!(calls,(actual.bound,actual.bound_bytes));assert_eq!(actual.errors,0);assert_eq!(actual.live,[0;9]);
+        assert_eq!(status,if capacity<required {-1} else {0});
+        assert_eq!(domain.workload_statistics().current,0);assert!(domain.statistics().peak<=total as u64);
+        drop(audit);
+    }
+}
+
+fn fixed_reservation_errors_preserve_classification_without_allocations() {
+    use mcap::storage::{BudgetRef,BudgetLimits,ResourceCategory};
+    let total=BudgetRef::allocation_size()+4096;
+    let domain=BudgetRef::new(BudgetLimits {total,block:4096,retained:0}).unwrap();
+    let occupied=domain.reserve(4096).unwrap();
+    for (requested,temporary) in [(1,true),(total+1,false)] {
+        let mut response=Response::default();
+        COUNTS.with(|c|c.set(Some((0,0))));
+        let status=guard(&mut response,|_| {
+            let error:Error=domain.try_reserve(requested,ResourceCategory::Scratch).err().unwrap().into();
+            assert_eq!(budget::unavailable(&error),temporary);
+            assert_eq!(budget::requested_capacity(&error),Some(requested));
+            Err(error)
+        });
+        assert_eq!(COUNTS.with(|c|c.replace(None).unwrap()),(0,0));assert_eq!(status,-1);
+        assert_eq!(domain.statistics().current,total as u64);
+    }
+    drop(occupied);assert_eq!(domain.workload_statistics().current,0);
+}
+
+fn linear_input_capacity_errors_have_exact_allocation_identities() {
+    use mcap::storage::{BudgetRef, BudgetLimits};
+    for temporary in [false, true] {
+        let domain = BudgetRef::new(BudgetLimits {
+            total: BudgetRef::allocation_size() + 32768, block: 8192, retained: 0,
+        }).unwrap();
+        domain.observe_allocations(identity::claimed);
+        let audit = identity::start(domain.as_ptr() as usize);
+        let mut reader = sans_io::LinearReader::new_with_options_and_budget(Default::default(), domain.clone());
+        COUNTS.with(|c| c.set(Some((0, 0))));
+        reader.try_insert(128).unwrap().fill(7);
+        reader.notify_read(128);
+        let occupied = if temporary {
+            Some(domain.reserve(32768 - domain.workload_statistics().current as usize).unwrap())
+        } else { None };
+        let mut response = Response::default();
+        let status = guard(&mut response, |_| {
+            let error: Error = reader.try_insert(if temporary { 4096 } else { 8192 }).err().unwrap().into();
+            assert_eq!(budget::unavailable(&error), temporary);
+            Err(error)
+        });
+        assert_eq!(status, -1);
+        drop(occupied);
+        assert_eq!(reader.try_insert(4096).unwrap().len(), 4096);
+        drop(reader);
+        let calls = COUNTS.with(|c| c.replace(None).unwrap());
+        let actual = identity::snapshot();
+        assert_eq!(calls, (actual.bound, actual.bound_bytes));
+        assert_eq!(actual.errors, 0);
+        assert_eq!(actual.live, [0; 9]);
+        assert_eq!(domain.workload_statistics().current, 0);
+        drop(audit);
+    }
+}
+
+fn retained_topic_filters_have_exact_allocation_identities() {
+    use mcap::storage::{BudgetRef,BudgetLimits};
+    let setup=BudgetRef::new(Default::default()).unwrap();
+    let document=budget_json::Document::parse(br#"["topic-a","topic-z","topic-a",null,7]"#,&setup).unwrap();
+    for fail in [None,Some(0),Some(1),Some(2),Some(3),Some(4),Some(5)] {
+        let domain=BudgetRef::new(BudgetLimits {retained:0,..Default::default()}).unwrap();
+        domain.observe_allocations(identity::claimed);
+        let audit=identity::start(domain.as_ptr() as usize);
+        if let Some(index)=fail { domain.fail_allocation_at(index); }
+        let mut response=Response::default();
+        COUNTS.with(|c|c.set(Some((0,0))));
+        let _=guard(&mut response,|_| {
+            let topics=topic_filter::Topics::parse(document.view(),&domain)?.unwrap();
+            assert!(topics.contains("topic-a")); assert!(topics.contains("topic-z"));
+            Ok(0)
+        });
+        let calls=COUNTS.with(|c|c.replace(None).unwrap());
+        let actual=identity::snapshot();
+        assert_eq!(calls,(actual.bound,actual.bound_bytes));
+        assert_eq!(actual.errors,0); assert_eq!(actual.live,[0;9]);
+        assert_eq!(domain.workload_statistics().current,0);
+        assert_eq!(domain.ownership_statistics().bytes[mcap::storage::OwnerKind::Parser as usize],0);
+        drop(audit);
+    }
 }

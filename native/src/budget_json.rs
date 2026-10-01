@@ -34,6 +34,7 @@ pub(super) struct Document {
     root: usize,
 }
 impl Document {
+    pub fn has_non_null(input:&[u8], path:&[&str])->Outcome<bool> {scan::has_non_null(input,path)}
     pub fn configured(input:&[u8], path:&[&str]) -> Outcome<(Self,mcap::storage::BudgetRef)> {
         let domain=budget::resolve(scan::select_id(input,path)?)?;
         Ok((Self::parse(input,&domain)?,domain))
@@ -173,6 +174,17 @@ impl<'a> View<'a> {
             index: None,
         }
     }
+    pub fn array(self) -> Option<ArrayValues<'a>> {
+        match self.kind() {
+            Some(Kind::Array(first)) => Some(ArrayValues { view: self, next: *first }),
+            _ => None,
+        }
+    }
+    pub fn any_true_member(self) -> bool {
+        let mut found = false;
+        let _ = self.members(|_, value| { found |= value.as_bool() == Some(true); Ok(()) });
+        found
+    }
     pub fn is_null(self) -> bool {matches!(self.kind(),None|Some(Kind::Null))}
     pub fn as_str(self) -> Option<&'a str> {
         match self.kind() {
@@ -216,6 +228,15 @@ impl<'a> View<'a> {
             return Err("Expected JSON object".into());
         };
         walk(self, *root, &mut f)
+    }
+}
+pub(super) struct ArrayValues<'a> { view: View<'a>, next: Option<usize> }
+impl<'a> Iterator for ArrayValues<'a> {
+    type Item = View<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.next?;
+        self.next = self.view.doc.nodes[index].next;
+        Some(View { doc: self.view.doc, index: Some(index) })
     }
 }
 struct Parser<'a, 'b> {
@@ -439,6 +460,16 @@ impl<'a> Control<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn bootstrap_presence_preserves_null_and_duplicate_semantics() {
+        for input in [r#"{}"#,r#"{"Memory":null}"#,r#"{"Memory":{},"Memory":null}"#,
+            r#"{"Memory":null,"Memory":{}}"#,r#"{"Memory":false}"#,r#"{"Memory":0}"#,
+            r#"{"Memory":[]}"#,r#"{"Mem\u006fry":{"Budget":{"id":3}}}"#] {
+            let value:Value=serde_json::from_str(input).unwrap();
+            assert_eq!(Document::has_non_null(input.as_bytes(), &["Memory"]).unwrap(), !value["Memory"].is_null());
+        }
+    }
+
     fn owned(view: View<'_>) -> Value {
         match view.kind().unwrap() {
             Kind::Null => Value::Null,

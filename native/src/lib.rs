@@ -17,6 +17,7 @@ mod memory;
 mod random_access;
 mod chunk_cache;
 mod sort_arena;
+mod topic_filter;
 use io::{Callbacks, Input, Output};
 use mcap::{records, sans_io};
 use memmap2::Mmap;
@@ -489,7 +490,7 @@ pub struct Reader {
     indexed: Option<sans_io::IndexedReader>,
     sorted: bool,
     order: u64,
-    topics: Option<std::collections::BTreeSet<String>>,
+    topics: Option<topic_filter::Topics>,
     limit: Option<usize>,
     arena: sort_arena::Arena,
     indexed_summary_owner: Option<SharedSummary>,
@@ -508,7 +509,7 @@ pub struct Reader {
     ended: bool,
     failed: bool,
     count: u64,
-    topic: Option<String>,
+    topic: Option<topic_filter::Text>,
     start: Option<u64>,
     end: Option<u64>,
     messages: bool,
@@ -602,7 +603,7 @@ impl Reader {
             .ok_or("Unknown message channel")?;
         Ok(!self.start.is_some_and(|n| h.log_time < n)
             && !self.end.is_some_and(|n| h.log_time >= n)
-            && !self.topic.as_ref().is_some_and(|t| t != &c.topic)
+            && !self.topic.as_ref().is_some_and(|t| &**t != c.topic.as_str())
             && !self.topics.as_ref().is_some_and(|t| !t.contains(&c.topic)))
     }
     fn next_with(
@@ -778,14 +779,15 @@ pub unsafe extern "C" fn fm_reader_open(
             return Err("Null output".into());
         }
         *handle = ptr::null_mut();
-        let v = request(p, n)?;
-        let memory_options=memory::Options::parse(&v["options"]["Memory"])?;
+        let (document, domain) = budget_json::Document::configured(bytes(p,n)?, &["options","Memory","Budget","id"])?;
+        let v = document.view();
+        let memory_options=memory::Options::parse_view(v.get("options").get("Memory"), domain)?;
         let input = if let Some(c) = callbacks.as_ref() {
             Input::Stream(*c)
         } else {
-            open_input(string(&v, "path")?, &memory_options.domain)?
+            open_input(budget_json::Control::Charged(v).string("path")?, &memory_options.domain)?
         };
-        let limit = v["recordLengthLimit"]
+        let limit = v.get("recordLengthLimit")
             .as_u64()
             .map(usize::try_from)
             .transpose()?;
@@ -795,18 +797,14 @@ pub unsafe extern "C" fn fm_reader_open(
             scratch: memory::Delivery::new(memory_options.clone()),
             indexed: None,
             sorted: false,
-            order: v["order"].as_u64().unwrap_or(2),
-            topics: v["topics"].as_array().map(|a| {
-                a.iter()
-                    .filter_map(|x| x.as_str().map(str::to_owned))
-                    .collect()
-            }),
+            order: v.get("order").as_u64().unwrap_or(2),
+            topics: topic_filter::Topics::parse(v.get("topics"), &memory_options.domain)?,
             limit,
             arena: sort_arena::Arena::default(),
             indexed_summary_owner:None,
             parser: Some(sans_io::LinearReader::new_with_options_and_budget(
-                extended::linear_options(&v["options"])?
-                    .with_emit_chunks(v["topLevel"].as_bool().unwrap_or(false)),
+                extended::linear_options_control(budget_json::Control::Charged(v.get("options")))?
+                    .with_emit_chunks(v.get("topLevel").as_bool().unwrap_or(false)),
                 memory_options.domain.clone(),
             )),
             input,
@@ -822,17 +820,15 @@ pub unsafe extern "C" fn fm_reader_open(
             ended: false,
             failed: false,
             count: 0,
-            topic: v["topic"].as_str().map(str::to_owned),
-            start: v["start"].as_u64(),
-            end: v["end"].as_u64(),
-            messages: v["messages"].as_bool().unwrap_or(true),
+            topic: v.get("topic").as_str().map(|t| topic_filter::Text::new(t, &memory_options.domain)).transpose()?,
+            start: v.get("start").as_u64(),
+            end: v.get("end").as_u64(),
+            messages: v.get("messages").as_bool().unwrap_or(true),
         };
         let mut reader=mcap::charged::ChargedBox::new_fixed(reader,&memory_options.domain,mcap::storage::ResourceCategory::Scratch)?;
         reader.charge_owner(mcap::storage::OwnerKind::Parser,true);
-        let linear_settings = v["options"]
-            .as_object()
-            .is_some_and(|o| o.iter().any(|(_, v)| v.as_bool() == Some(true)));
-        if v["indexedOnly"].as_bool().unwrap_or(false) && linear_settings {
+        let linear_settings = v.get("options").any_true_member();
+        if v.get("indexedOnly").as_bool().unwrap_or(false) && linear_settings {
             return Err("Linear parser options cannot be applied to indexed reading".into());
         }
         if reader.messages
@@ -846,11 +842,11 @@ pub unsafe extern "C" fn fm_reader_open(
         {
             reader.try_indexed()?;
         }
-        if v["indexedOnly"].as_bool().unwrap_or(false) && reader.indexed.is_none() {
+        if v.get("indexedOnly").as_bool().unwrap_or(false) && reader.indexed.is_none() {
             return Err("Indexed reading requires a complete indexed summary".into());
         }
         if reader.messages && reader.order != 2 && reader.indexed.is_none() {
-            if v["allowBufferedSort"].as_bool() == Some(false) {
+            if v.get("allowBufferedSort").as_bool() == Some(false) {
                 return Ok(3);
             }
             while reader.next_with(|r, _op, data, h| {

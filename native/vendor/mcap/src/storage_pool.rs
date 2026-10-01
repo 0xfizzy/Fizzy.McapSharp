@@ -179,15 +179,18 @@ impl crate::storage::BudgetRef {
         size: usize,
         category: ResourceCategory,
     ) -> std::io::Result<Allocation> {
+        self.allocate_fixed(size,category).map_err(StorageFailure::into_io)
+    }
+    pub(super) fn allocate_fixed(&self,size:usize,category:ResourceCategory)->Result<Allocation,StorageFailure> {
         if size > self.limits.block {
-            return Err(std::io::Error::other(StorageLimit {
+            return Err(StorageFailure {details:StorageLimit {
                 resource: "StorageBlock",
                 limit: self.limits.block,
                 domain_limit: self.limits.total,
                 requested: size,
                 current: self.statistics().current as usize,
                 phase: "storage allocation",
-            }));
+            },kind:StorageFailureKind::PermanentLimit,terminal:false});
         }
         let size = size
             .max(4096)
@@ -216,14 +219,15 @@ impl crate::storage::BudgetRef {
         let (layout, offset) = Layout::new::<Header>()
             .extend(
                 Layout::array::<u8>(size)
-                    .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput))?,
+                    .map_err(|_| StorageFailure::at(self,category,size,"storage layout",StorageFailureKind::Overflow))?,
             )
-            .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
+            .map_err(|_| StorageFailure::at(self,category,size,"storage layout",StorageFailureKind::Overflow))?;
         let layout = layout.pad_to_align();
-        let mut charge = self.reserve_class(layout.size(), category)?;
-        self.allocation_attempt()?;
+        let mut charge = self.try_reserve(layout.size(), category)?;
+        let failure=||StorageFailure::at(self,category,layout.size(),"storage allocation",StorageFailureKind::SystemAllocation);
+        self.allocation_attempt().map_err(|_|failure())?;
         let block = NonNull::new(unsafe { alloc_zeroed(layout) }.cast::<Header>())
-            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::OutOfMemory))?;
+            .ok_or_else(failure)?;
         unsafe {
             block.as_ptr().write(Header {
                 strong: AtomicUsize::new(1),
@@ -251,6 +255,27 @@ impl crate::storage::BudgetRef {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn fixed_storage_failures_preserve_limits_and_rollback() {
+        let domain=BudgetRef::new(BudgetLimits {total:BudgetRef::allocation_size()+16384,block:4096,retained:0}).unwrap();
+        let failure=domain.allocate_fixed(4097,ResourceCategory::Input).err().unwrap();
+        assert_eq!(failure.kind,StorageFailureKind::PermanentLimit);
+        assert_eq!(failure.details.resource,"StorageBlock");
+        assert_eq!(failure.details.requested,4097);
+        let occupied=domain.try_reserve(16384,ResourceCategory::Scratch).unwrap();
+        let failure=domain.allocate_fixed(4096,ResourceCategory::Input).err().unwrap();
+        assert_eq!(failure.kind,StorageFailureKind::BudgetUnavailable);
+        assert_eq!(failure.details.phase,"reservation");
+        drop(occupied);
+        assert_eq!(domain.workload_statistics().current,0);
+        let domain=BudgetRef::new(Default::default()).unwrap();
+        domain.fail_allocation_at(0);
+        let failure=domain.allocate_fixed(4096,ResourceCategory::Decompressed).err().unwrap();
+        assert_eq!(failure.kind,StorageFailureKind::SystemAllocation);
+        assert_eq!(failure.details.phase,"storage allocation");
+        assert_eq!(domain.workload_statistics().current,0);
+    }
+
     #[test]
     fn layout_and_idle_reuse_are_exact_and_no_domain_cycle_remains() {
         let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();

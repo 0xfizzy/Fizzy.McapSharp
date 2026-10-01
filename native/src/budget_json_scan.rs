@@ -88,10 +88,10 @@ impl Cursor<'_> {
         }
     }
 
-    fn value(&mut self, path: Option<&[&str]>, depth:usize)->Outcome<Option<u64>> {
+    fn value(&mut self, path: Option<&[&str]>, depth:usize, presence:bool)->Outcome<Option<u64>> {
         self.whitespace();
         let byte=*self.input.get(self.position).ok_or("Missing JSON value")?;
-        match byte {
+        let selected: Outcome<Option<u64>> = match byte {
             b'"'=>{self.string(|_|{})?;Ok(None)}
             b'{'|b'['=>{
                 if depth>=127 {return Err("JSON recursion limit exceeded".into());}
@@ -113,7 +113,7 @@ impl Cursor<'_> {
                             self.eat(b':')?;
                         }
                         let child=if matched {path.map(|p|&p[1..])} else {None};
-                        let value=self.value(child,depth+1)?;
+                        let value=self.value(child,depth+1,presence)?;
                         if matched {selected=value;}
                         self.whitespace();
                         if self.input.get(self.position)==Some(&end) {break;}
@@ -152,14 +152,24 @@ impl Cursor<'_> {
                 } else {Ok(None)}
             }
             _=>Err("Invalid JSON value".into()),
-        }
+        };
+        let selected=selected?;
+        if presence && path==Some(&[]) { Ok((byte!=b'n').then_some(1)) } else { Ok(selected) }
     }
     fn digits(&mut self) {while self.input.get(self.position).is_some_and(u8::is_ascii_digit) {self.position+=1;}}
 }
 pub(crate) fn select_id(input:&[u8],path:&[&str])->Outcome<u64> {
     let mut cursor=Cursor {input,position:0};
-    let id=cursor.value(Some(path),0)?.unwrap_or(0);
+    let id=cursor.value(Some(path),0,false)?.unwrap_or(0);
     cursor.whitespace();
     if cursor.position!=input.len() {return Err("Trailing JSON data".into());}
     Ok(id)
+}
+
+pub(crate) fn has_non_null(input:&[u8],path:&[&str])->Outcome<bool> {
+    let mut cursor=Cursor {input,position:0};
+    let found=cursor.value(Some(path),0,true)?.is_some();
+    cursor.whitespace();
+    if cursor.position!=input.len() {return Err("Trailing JSON data".into());}
+    Ok(found)
 }

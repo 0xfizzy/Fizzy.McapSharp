@@ -1,10 +1,13 @@
 use super::*;
 
 pub(super) fn linear_options(v: &Value) -> Outcome<sans_io::LinearReaderOptions> {
+    linear_options_control(budget_json::Control::Existing(v))
+}
+pub(super) fn linear_options_control(v: budget_json::Control<'_>) -> Outcome<sans_io::LinearReaderOptions> {
     let mut o = sans_io::LinearReaderOptions::default();
     macro_rules! flag {
         ($key:literal, $field:ident) => {
-            o.$field = v[$key].as_bool().unwrap_or(false);
+            o.$field = v.get($key).as_bool().unwrap_or(false);
         };
     }
     flag!("SkipStartMagic", skip_start_magic);
@@ -15,7 +18,7 @@ pub(super) fn linear_options(v: &Value) -> Outcome<sans_io::LinearReaderOptions>
     flag!("PrevalidateChunkCrcs", prevalidate_chunk_crcs);
     flag!("ValidateDataSectionCrc", validate_data_section_crc);
     flag!("ValidateSummarySectionCrc", validate_summary_section_crc);
-    o.record_length_limit = v["RecordLengthLimit"]
+    o.record_length_limit = v.get("RecordLengthLimit")
         .as_u64()
         .map(usize::try_from)
         .transpose()?;
@@ -106,18 +109,25 @@ pub unsafe extern "C" fn fm_engine_open(
             return Err("Null output".into());
         }
         *handle = ptr::null_mut();
-        let v = request(p, n)?;
-        let options=if kind == 2 && v["Memory"].is_null() {
-            summary.as_ref().ok_or("Missing summary")?.delivery.options.clone()
-        } else {memory::Options::parse(&v["Memory"])?};
+        let input=bytes(p,n)?;
+        let inherited=kind==2 && !budget_json::Document::has_non_null(input,&["Memory"])?;
+        let (document, options)=if inherited {
+            let options=summary.as_ref().ok_or("Missing summary")?.delivery.options.clone();
+            (budget_json::Document::parse(input,&options.domain)?,options)
+        } else {
+            let (document,domain)=budget_json::Document::configured(input,&["Memory","Budget","id"])?;
+            let options=memory::Options::parse_view(document.view().get("Memory"),domain)?;
+            (document,options)
+        };
+        let v=document.view();
         let mut engine = match kind {
-            0 => Engine::Linear(sans_io::LinearReader::new_with_options_and_budget(linear_options(&v)?, options.domain.clone())),
+            0 => Engine::Linear(sans_io::LinearReader::new_with_options_and_budget(linear_options_control(budget_json::Control::Charged(v))?, options.domain.clone())),
             1 => {
                 let mut opts = sans_io::SummaryReaderOptions::default();
-                if let Some(n) = v["FileSize"].as_u64() {
+                if let Some(n) = v.get("FileSize").as_u64() {
                     opts = opts.with_file_size(n);
                 }
-                if let Some(n) = v["RecordLengthLimit"].as_u64() {
+                if let Some(n) = v.get("RecordLengthLimit").as_u64() {
                     opts = opts.with_record_length_limit(n.try_into()?);
                 }
                 Engine::Summary(Some(sans_io::SummaryReader::new_with_options_and_budget(opts, options.domain.clone())))
@@ -128,31 +138,25 @@ pub unsafe extern "C" fn fm_engine_open(
                     .and_then(|s| s.summary.as_ref())
                     .ok_or("Summary reader must finish with a summary")?;
                 let mut opts = sans_io::IndexedReaderOptions::default();
-                opts.start = v["StartTime"].as_u64();
-                opts.end = v["EndTime"].as_u64();
-                opts.order = match v["Order"].as_u64().unwrap_or(0) {
+                opts.start = v.get("StartTime").as_u64();
+                opts.end = v.get("EndTime").as_u64();
+                opts.order = match v.get("Order").as_u64().unwrap_or(0) {
                     0 => sans_io::indexed_reader::ReadOrder::LogTime,
                     1 => sans_io::indexed_reader::ReadOrder::ReverseLogTime,
                     2 => sans_io::indexed_reader::ReadOrder::File,
                     _ => return Err("Invalid read order".into()),
                 };
-                opts.include_topics = v["Topics"]
-                    .as_array()
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(|x| x.as_str().map(str::to_owned))
-                            .collect()
-                    })
-                    .or_else(|| {
-                        v["Topic"]
-                            .as_str()
-                            .map(|t| [t.to_owned()].into_iter().collect())
-                    });
-                opts.record_length_limit = v["RecordLengthLimit"]
+                let topics=topic_filter::Topics::parse(v.get("Topics"),&options.domain)?;
+                let topic=v.get("Topic").as_str();
+                let filtered=topics.is_some() || topic.is_some();
+                let include=filtered.then_some(|name:&str| {
+                    if let Some(topics)=&topics {topics.contains(name)} else {topic==Some(name)}
+                });
+                opts.record_length_limit = v.get("RecordLengthLimit")
                     .as_u64()
                     .map(usize::try_from)
                     .transpose()?;
-                Engine::Indexed(sans_io::IndexedReader::new_with_options_and_budget(s, opts, options.domain.clone())?)
+                Engine::Indexed(sans_io::IndexedReader::new_with_topic_filter(s, opts, options.domain.clone(), include)?)
             }
             _ => return Err("Unknown engine".into()),
         };
