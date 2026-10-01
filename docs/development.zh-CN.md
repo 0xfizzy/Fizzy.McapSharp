@@ -164,6 +164,17 @@ cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- 
 
 `lease-gate` 固定每批一条消息和批次数，比较同步完成与 64 KiB、4 KiB、512 字节 I/O 下的真实挂起；汇总调用线程与工作线程分配，要求与同步完成的结果对象基线相等。另以直接 await 检查 I/O 线程上的 continuation 重入。`lease-profile` 输出相同测量而不强制分配相等，包含吞吐及批次延迟中位数/p95。原生诊断另报告分配次数、字节数和可识别的保留存储。报告放在忽略的 artifacts 下；诊断计时包含观测开销，不设性能通过阈值。
 
+原生 Release 测试提供存储策略专项诊断：
+
+```powershell
+cargo test --manifest-path native/Cargo.toml --release --locked sort_compaction_profile -- --nocapture
+cargo test --manifest-path native/Cargo.toml --release --locked random_access_profile -- --nocapture
+```
+
+排序夹具对相同密集／稀疏选中数据比较共享与自适应存储，报告去重 backing 保留容量、实际 payload 复制字节、紧凑组内新旧容量并存峰值、测试线程累计分配、结果就绪时间和吞吐。组内重叠不是进程总峰值；活动 parser 和已完成组需另计。计时及分配包含源准备，此夹具不测压缩与 RSS。阈值测试覆盖四倍比例及 256 KiB 节省规则两侧；托管回退测试覆盖压缩、短读、映射、超大／空消息、同时间戳、重试及释放后 lease。
+
+随机访问夹具在 None/Lz4/Zstd 下重复读取四个 chunk，比较关闭缓存、工作集超过缓存及缓存容纳整个工作集。断言加载／命中次数，报告缓存额度计费、去重 payload backing 容量、输入容量、分配和查询延迟中位数/p95。未压缩 chunk 的保留 backing 容量可能包含输入容量，不可重复相加。Chunk 游标遍历相同消息并单独报告分配与耗时；它包含向调用方缓冲的交付复制，缓存查找测量的是共享消息交付。测量包含测试观测开销，不包含初始化索引／摘要，也不覆盖绕过 Rust allocator 的 codec 分配。计时不设 CI 硬门槛，缓存默认值保持不变。
+
 `python scripts/test_upstream.py` 分别编译未修改的 registry mcap 和本地补丁版本，以独立进程比较写入字节、顺序与索引读取、截断及损坏输入。两者使用相同固定依赖版本；未修改参考工程有独立 Cargo.lock，不继承本地补丁。相同补丁源码之间的测试只证明内部一致性。
 
 `python scripts/check_vendor.py` 检查原始文件清单与本地补丁哈希。更新补丁时保持 UPSTREAM.json 不变，审阅差异后更新 PATCHES.json。允许范围、替代方案及验证要求见[本地补丁](patches.zh-CN.md)；不向上游提交。

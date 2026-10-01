@@ -900,7 +900,7 @@ pub unsafe extern "C" fn fm_reader_open(
                 Ok(0)
             })? != 1
             {}
-            reader.arena.sort(reader.order == 1);
+            reader.arena.sort(reader.order == 1)?;
             reader.sorted = true;
             reader.ended = false;
         }

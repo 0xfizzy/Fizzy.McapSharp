@@ -34,3 +34,5 @@ Local shared-storage and channel-query declarations are marked `local-extension`
 `LeaseWriteTests` verifies binding-provided lease batch forwarding and replacement headers through upstream known-channel writes, including pointer identity, preflight and completed-prefix failures. `InputReservationTests`, `LeaseStorageTests`, `AsyncLeaseStateTests`, native memory probes and `LeaseGate` cover input reservation, shared retention/eviction, cancellation and suspension costs. These are binding behaviors, not new official Rust APIs.
 
 Separate Complete/FlushToDisk, local caching and sort fallback are binding behavior. Caller-buffer reads perform a final copy; convenience APIs create independent copies. Performance contracts do not constrain upstream internal allocations or copies.
+
+`SortStorageTests` and native sort diagnostics cover binding-only adaptive fallback storage. The local `shares_backing` query supplies ownership identity; it does not add an official upstream capability.

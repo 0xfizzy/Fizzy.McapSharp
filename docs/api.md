@@ -213,7 +213,7 @@ Owned results remain independent: `McapMessage.Data` is a `byte[]` copy and muta
 
 Keep a lease in a using scope throughout span use. Access methods reject disposed owners, but an existing span cannot be revoked. Keep the owner alive and never overlap span access with concurrent disposal. Cross-thread transfer is supported with caller synchronization. Mapped files must remain unchanged until every reader, child cursor and lease referencing them is released.
 
-`ReadBatchLease` returns a batch, or null at EOF. `ReadBatchLeaseAsync` awaits I/O and supports cancellation; consume its ValueTask before another operation or disposal. Cancellation terminates the reader; delivered leases remain valid. Record and lease consumption cannot be mixed on one async reader. Message leases reject EmitChunks. No prefetch queue, spill file or automatic segmentation is created.
+`ReadBatchLease` returns a batch, or null at EOF. `ReadBatchLeaseAsync` awaits I/O and supports cancellation; consume its ValueTask before another operation or disposal. Cancellation terminates the reader; delivered leases remain valid. Record and lease consumption cannot be mixed on one async reader. Message leases reject EmitChunks. No prefetch queue, spill file or automatic file segmentation is created.
 
 Async lease reading uses a reusable completion source and continuation. Each delivered batch may allocate its lease and SafeHandle objects; I/O suspension does not require another per-operation async state machine. A nonempty batch is returned when the parser next requests input, even below the message/payload target. This avoids waiting for extra I/O merely to fill a batch. Stream implementations may have their own allocations. Input completion is consumed before cancellation can release parser resources.
 
@@ -227,10 +227,33 @@ Synchronous and asynchronous input reserve the parser's current complete require
 
 `McapQuery.MaxBufferedSortBytes` defaults to null. It limits fallback sorting's logical payload total plus descriptor capacity, not the native heap: shared references may retain larger native chunks. Exceeding it terminates the read session without changing ordering or spilling. `AllowBufferedSort=false` rejects fallback entirely. Record-length limits remain upstream parser options.
 
+### Choosing storage for retained results
+
+Use borrowed callbacks for synchronous processing and leases for short asynchronous pipelines or forwarding. For a few messages kept long term, copy only the needed payloads into independent arrays and release the lease:
+
+```csharp
+byte[] payload;
+using (var batch = session.ReadBatchLease(1))
+{
+    if (batch is null) return;
+    payload = new byte[batch.GetPayload(0).Length];
+    batch.CopyTo(0, payload);
+}
+// payload now has independent ownership.
+```
+
+Other leases, the parser or a cache may still retain the original backing; copying one slice does not necessarily release a chunk immediately. Backpressure should consider distinct storage owners and retention duration, not only message counts.
+
+Buffered sort chooses storage before publishing results. It groups selected messages by consecutive owned backing, retaining dense groups and compacting sparse groups at an owner change or end of scan. The current internal policy copies when capacity is at least four times selected payload bytes and saves at least 256 KiB of group backing capacity. Compact segments target 256 KiB at message boundaries; larger messages get their own segment. Empty payloads retain no backing. External storage, including mappings, stays shared. These thresholds are implementation choices, not public tuning options or performance guarantees.
+
+Compaction preserves message order, retries and lease lifetimes. It copies selected payloads once and temporarily holds old and new storage together. Other owners can delay actual reclamation. Sorting still collects results before delivery; its logical allowance does not cover transient copies, retained backing amplification, parser/codec memory or process RSS.
+
 ### Complete-chunk random access
 
 Cache keys use complete caller-supplied index semantics; hits do not decompress again. Uncompressed mapped payloads reference mapping ranges; compressed payloads share decompressed storage. Insufficient-buffer retries retain shared slices.
 
 `SeekMessages(ReadOnlySpan<McapSeekRequest>)` groups requests by chunk, loads each different chunk once, and returns a batch in request order including duplicates. Failure delivers no partial batch. `SeekMessage(preparedIndex, entry, visitor)` provides borrowed delivery; buffer and owned-result APIs copy at final delivery. `GetCacheStatistics` reports hits and chunk loads.
+
+For one-off random reads, leaving the cache disabled avoids retained cache storage. For repeated reads of the same chunks, configure `MaxRandomAccessCacheBytes` to cover the intended working set and inspect `GetCacheStatistics()`. When accessing many messages in a chunk, use `OpenChunkReader` to traverse it once, or `SeekMessages` to group requests. Prepared indexes avoid repeated descriptor work but do not prevent decompression on cache misses. Copying a returned payload does not cache its source chunk.
 
 Random reads validate the complete target chunk and may report tail corruption earlier than prefix reads. This is not full-file validation. See [local patches](patches.md) for patch boundaries and evidence.

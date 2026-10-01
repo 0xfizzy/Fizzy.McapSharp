@@ -487,3 +487,257 @@ fn bounded_lease_windows_share_storage_and_release_owners() {
         }
     }
 }
+
+#[test]
+fn sort_compaction_profile() {
+    // Same source sizes and selections for both policies. This isolates binding sort storage;
+    // codec costs and process RSS are not measured by this fixture.
+    for selected in [4096usize, 1024 * 1024] {
+        for baseline in [true, false] {
+            let measure = Measurement::start(true);
+            let start = std::time::Instant::now();
+            let mut arena = sort_arena::Arena::default();
+            arena.shared_baseline = baseline;
+            let mut first_owner = None;
+            for i in 0..16 {
+                let mut parser = sans_io::LinearReader::new_with_options(
+                    sans_io::LinearReaderOptions::default()
+                        .with_skip_start_magic(true)
+                        .with_skip_end_magic(true),
+                );
+                let size = 1024 * 1024;
+                let dest = parser.try_insert(size + 9).unwrap();
+                dest[0] = 0x80;
+                dest[1..9].copy_from_slice(&(size as u64).to_le_bytes());
+                dest[9..].fill(42);
+                parser.notify_read(size + 9);
+                let Some(Ok(sans_io::linear_reader::SharedReadEvent::Record { data, .. })) =
+                    parser.next_shared_event()
+                else {
+                    panic!("record")
+                };
+                if i == 0 {
+                    first_owner = Some(measure.owner(data.as_ref()).0);
+                }
+                arena
+                    .push_shared(
+                        MessageHeader {
+                            sequence: i,
+                            log_time: 16 - i as u64,
+                            ..Default::default()
+                        },
+                        data.slice(0..selected),
+                        &memory::Options::default(),
+                    )
+                    .unwrap();
+                // Check immediately after group closure, before later allocations can reuse
+                // the released address (address reuse alone is not an ownership leak).
+                if i == 1 && !baseline && selected == 4096 {
+                    LIVE.with(|v| {
+                        assert!(!v
+                            .borrow()
+                            .as_ref()
+                            .unwrap()
+                            .iter()
+                            .any(|(p, _)| Some(*p) == first_owner))
+                    });
+                }
+            }
+            arena.sort(false).unwrap();
+            let ready_us = start.elapsed().as_micros();
+            let copied = arena.copied_bytes;
+            let overlap = arena.peak_compaction_overlap;
+            let compact = !baseline && selected == 4096;
+            assert_eq!(copied, if compact { selected * 16 } else { 0 });
+            let mut owners = [(0usize, 0usize); 16];
+            let mut count = 0;
+            let mut retained = Vec::new();
+            let mut header = MessageHeader::default();
+            let mut response = Response::default();
+            while let Some(data) = arena.read_shared(&mut header, &mut response) {
+                assert_eq!(header.sequence as usize, 15 - retained.len());
+                let owner = measure.owner(data.as_ref());
+                if !owners[..count].contains(&owner) {
+                    owners[count] = owner;
+                    count += 1;
+                }
+                retained.push(data);
+            }
+            let capacity = owners[..count].iter().map(|(_, n)| n).sum::<usize>();
+            assert_eq!(
+                capacity,
+                if compact {
+                    selected * 16
+                } else {
+                    (1024 * 1024 + 9) * 16
+                }
+            );
+            let elapsed = start.elapsed();
+            let (allocations, allocated_bytes) = measure.totals();
+            drop(arena);
+            assert!(retained
+                .iter()
+                .all(|data| data.as_ref().iter().all(|b| *b == 42)));
+            drop(retained);
+            LIVE.with(|v| {
+                assert!(owners[..count].iter().all(|(p, _)| !v
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .any(|(live, _)| live == p)))
+            });
+            drop(measure);
+            println!("sort-storage baseline={baseline} selected_per_owner={selected} owners={count} retained_capacity={capacity} copied_bytes={copied} peak_group_old_plus_new={overlap} allocations={allocations} allocated_bytes={allocated_bytes} first_result_us={ready_us} total_us={} messages_per_second={}", elapsed.as_micros(), 16.0 / elapsed.as_secs_f64());
+        }
+    }
+}
+
+#[test]
+fn random_access_profile() {
+    for compression in [
+        None,
+        Some(mcap::Compression::Lz4),
+        Some(mcap::Compression::Zstd),
+    ] {
+        let mut writer = mcap::WriteOptions::new()
+            .compression(compression)
+            .chunk_size(None)
+            .create(std::io::Cursor::new(Vec::new()))
+            .unwrap();
+        let channel = writer.add_channel(0, "t", "raw", &BTreeMap::new()).unwrap();
+        for chunk in 0..4 {
+            for message in 0..16 {
+                let sequence = chunk * 16 + message;
+                writer
+                    .write_to_known_channel(
+                        &records::MessageHeader {
+                            channel_id: channel,
+                            sequence,
+                            log_time: sequence as u64,
+                            publish_time: 0,
+                        },
+                        &[42; 4096],
+                    )
+                    .unwrap();
+            }
+            writer.flush().unwrap();
+        }
+        writer.finish().unwrap();
+        let input = Arc::new(memory::Backing::Owned {
+            data: writer.into_inner().into_inner(),
+        });
+        let summary = Arc::new(mcap::Summary::read(&input).unwrap().unwrap());
+        assert_eq!(summary.chunk_indexes.len(), 4);
+        let entries: Vec<_> = summary
+            .chunk_indexes
+            .iter()
+            .map(|index| {
+                summary
+                    .read_message_indexes(&input, index)
+                    .unwrap()
+                    .into_values()
+                    .next()
+                    .unwrap()
+            })
+            .collect();
+        // Prepared, distinct keys isolate cache behavior from caller index encoding.
+        let keys: Vec<_> = summary
+            .chunk_indexes
+            .iter()
+            .map(|index| index.chunk_start_offset.to_le_bytes())
+            .collect();
+        for limit in [0u64, 100_000, 1_000_000] {
+            let mut cache = chunk_cache::ChunkCache::new();
+            let measure = Measurement::start(true);
+            let start = std::time::Instant::now();
+            let mut latencies = [0u128; 192];
+            let mut n = 0;
+            for _ in 0..3 {
+                for (i, index) in summary.chunk_indexes.iter().enumerate() {
+                    for entry in &entries[i] {
+                        let tick = std::time::Instant::now();
+                        let message = cache
+                            .message(&input, &summary, index, &keys[i], entry.offset, limit)
+                            .unwrap();
+                        assert_eq!(message.data.as_ref(), &[42; 4096]);
+                        latencies[n] = tick.elapsed().as_nanos();
+                        n += 1;
+                    }
+                }
+            }
+            assert_eq!(
+                cache.loads,
+                match limit {
+                    0 => 192,
+                    100_000 => 12,
+                    _ => 4,
+                }
+            );
+            assert_eq!(cache.hits + cache.loads, 192);
+            let elapsed = start.elapsed();
+            let (calls, bytes) = measure.totals();
+            let (charge, payloads) = cache.diagnostic_storage();
+            let mut owners = Vec::new();
+            for payload in payloads {
+                let pointer = payload.as_ref().as_ptr() as usize;
+                let input_start = input.as_ptr() as usize;
+                let owner = if pointer >= input_start
+                    && pointer + payload.as_ref().len() <= input_start + input.len()
+                {
+                    (input_start, input.capacity())
+                } else {
+                    measure.owner(payload.as_ref())
+                };
+                if !owners.contains(&owner) {
+                    owners.push(owner);
+                }
+            }
+            let retained: usize = owners.iter().map(|(_, n)| n).sum();
+            latencies.sort_unstable();
+            let loads = cache.loads;
+            let hits = cache.hits;
+            drop(cache);
+            drop(measure);
+            println!("random-access compression={compression:?} cache_limit={limit} chunk_loads={} cache_hits={} cache_charge_bytes={charge} unique_backing_capacity={retained} input_capacity={} allocations={calls} allocated_bytes={bytes} elapsed_us={} median_ns={} p95_ns={}", loads, hits, input.capacity(), elapsed.as_micros(), latencies[96], latencies[182]);
+        }
+        // Read the same messages in chunk order through the binding's lazy chunk cursor.
+        let measure = Measurement::start(false);
+        let start = std::time::Instant::now();
+        let mut delivered = 0;
+        for _ in 0..3 {
+            for index in &summary.chunk_indexes {
+                let cursor =
+                    buffer_reader::chunk_reader(input.clone(), summary.clone(), index).unwrap();
+                let mut payload = [0u8; 4096];
+                let mut result = Response::default();
+                let mut header = MessageHeader::default();
+                // Use the ABI to exercise the same cursor as OpenChunkReader.
+                let handle = Box::into_raw(Box::new(cursor));
+                unsafe {
+                    loop {
+                        let status = buffer_reader::fm_buffer_reader_message(
+                            handle,
+                            payload.as_mut_ptr(),
+                            payload.len(),
+                            &mut header,
+                            &mut result,
+                        );
+                        if status == 1 {
+                            break;
+                        }
+                        assert_eq!(status, 0);
+                        assert_eq!(payload, [42; 4096]);
+                        delivered += 1;
+                    }
+                    buffer_reader::fm_buffer_reader_free(handle);
+                }
+            }
+        }
+        let elapsed = start.elapsed();
+        let (calls, bytes) = measure.totals();
+        drop(measure);
+        assert_eq!(delivered, 192);
+        println!("chunk-sequential compression={compression:?} chunk_cursors=12 messages={delivered} cache_retained_bytes=0 allocations={calls} allocated_bytes={bytes} elapsed_us={}", elapsed.as_micros());
+    }
+}

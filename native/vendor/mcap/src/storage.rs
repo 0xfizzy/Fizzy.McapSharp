@@ -43,6 +43,15 @@ pub struct SharedBytes {
     range: Range<usize>,
 }
 impl SharedBytes {
+    /// Binding ownership query. Equal contents or adjacent ranges do not imply a shared owner.
+    pub fn shares_backing(&self, other: &Self) -> bool {
+        match (&self.backing, &other.backing) {
+            (Backing::Empty, Backing::Empty) => true,
+            (Backing::Owned(a), Backing::Owned(b)) => Arc::ptr_eq(a, b),
+            (Backing::External(a), Backing::External(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
     /// Capacity of retained output storage; external mappings have no native heap capacity.
     pub fn owned_capacity(&self) -> Option<usize> {
         match &self.backing {

@@ -215,7 +215,7 @@ Owned 结果保持独立：`McapMessage.Data` 仍为 `byte[]` 副本，可变声
 
 Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 owner，但已有 Span 无法撤销。禁止访问与 Dispose 并发；可在调用者同步下跨线程转移。所有相关 reader、子游标和 lease 释放前，映射文件必须保持不变。
 
-`ReadBatchLease` 返回批次，EOF 返回 null。异步 `ReadBatchLeaseAsync` 等待 I/O 并支持取消；消费当前 ValueTask 后才能再次读取或释放。取消终止 reader，已交付 lease 仍有效。同一异步 reader 不可混用 record 与 lease 消费；消息 lease 拒绝 EmitChunks。不创建预取队列、溢写文件或自动分段。
+`ReadBatchLease` 返回批次，EOF 返回 null。异步 `ReadBatchLeaseAsync` 等待 I/O 并支持取消；消费当前 ValueTask 后才能再次读取或释放。取消终止 reader，已交付 lease 仍有效。同一异步 reader 不可混用 record 与 lease 消费；消息 lease 拒绝 EmitChunks。不创建预取队列、溢写文件或文件自动分段。
 
 异步 lease 读取复用完成源和 continuation。每个交付批次允许分配 lease 与 SafeHandle 对象；I/O 挂起无需再创建逐操作 async 状态机。已有消息的批次在 parser 下一次请求输入时返回，即使尚未达到消息数或 payload 目标，避免仅为填满批次而等待额外 I/O。Stream 实现自身仍可能分配。取消释放 parser 资源前必须先消费输入完成结果。
 
@@ -229,10 +229,33 @@ Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 own
 
 `McapQuery.MaxBufferedSortBytes` 默认为 null。它限制回退排序的逻辑 payload 总长度加描述符容量，不是原生堆上限；共享引用可能保留更大的原生 chunk。超限终止该读取会话，不改变顺序或溢写。`AllowBufferedSort=false` 可完全拒绝回退排序。记录长度限制仍由上游解析器执行。
 
+### 为保留结果选择存储
+
+同步处理使用借用回调，短时异步流水线或转写使用 lease。长期保留少量消息时，只复制需要的 payload 到独立数组，然后释放 lease：
+
+```csharp
+byte[] payload;
+using (var batch = session.ReadBatchLease(1))
+{
+    if (batch is null) return;
+    payload = new byte[batch.GetPayload(0).Length];
+    batch.CopyTo(0, payload);
+}
+// payload 已拥有独立存储。
+```
+
+其他 lease、parser 或缓存仍可能引用原 backing；复制一条切片不保证立即释放整个 chunk。背压应同时考虑不同存储 owner 的数量、大小和保留时长，而不只是消息数量。
+
+回退排序在发布结果前选择存储。按连续遇到的 owned backing 对选中消息分组，在 owner 切换或扫描结束时保留密集组、紧凑化稀疏组。当前内部策略在容量至少为选中 payload 的四倍、且该组 backing 容量可减少至少 256 KiB 时复制。紧凑段以消息边界划分，目标 256 KiB；超大消息独立成段，空 payload 不保留 backing。映射等外部存储继续共享。这些阈值属于实现选择，不是公共配置或性能保证。
+
+紧凑化保持消息顺序、重试与 lease 寿命。选中 payload 只复制一次，期间新旧存储暂时并存；其他 owner 可能延迟实际回收。排序仍先收集结果再交付，其逻辑额度不覆盖瞬时复制、backing 保留放大、parser/codec 内存或进程 RSS。
+
 ### 完整 chunk 随机访问
 
 缓存按完整调用方索引语义区分条目，命中不重复解压。未压缩映射 payload 引用映射范围，压缩 payload 共享解压存储。缓冲不足重试保留共享切片。
 
 `SeekMessages(ReadOnlySpan<McapSeekRequest>)` 将同一 chunk 的请求分组，每个不同 chunk 加载一次，并按原请求顺序返回批次（包括重复项）；失败不交付半批。`SeekMessage(preparedIndex, entry, visitor)` 提供借用交付，缓冲区及自有结果 API 在最终交付时复制。`GetCacheStatistics` 报告命中和 chunk 加载次数。
+
+一次性随机访问可保持缓存关闭，避免缓存保留。重复访问相同 chunk 时，配置 `MaxRandomAccessCacheBytes` 覆盖预期工作集，并检查 `GetCacheStatistics()`。同一 chunk 中读取多条消息时，用 `OpenChunkReader` 遍历一次，或用 `SeekMessages` 合并请求。Prepared index 减少重复描述符工作，但不能避免缓存未命中时的解压；复制返回的 payload 也不会缓存源 chunk。
 
 随机读取校验完整目标 chunk，可能比前缀读取更早报告尾部损坏，但不代表全文件校验。补丁边界与证据见[本地补丁](patches.zh-CN.md)。

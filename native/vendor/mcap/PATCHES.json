@@ -2,7 +2,7 @@
   "purpose": "Local binding ownership and delivery extensions; upstream format behavior remains separate. See docs/patches.md.",
   "sha256": {
     "src/lib.rs": "e576906ecc5fdbd9586271ad5a62248e6664ad270b6cde4ad02754a71bf66ce2",
-    "src/storage.rs": "93e8ece6c5c088351e2eb33941ecba2a593d1803ce13e701a13ae5f948c2f837",
+    "src/storage.rs": "55a4b340e5075089073819103023182684d087a7b79ca73cdd0b8f69dd966819",
     "src/write.rs": "ffb0f27edcde3cbd85e6d7f51167aa75923efb38568e7d899e7c1ee6566cd2be",
     "src/sans_io/indexed_reader.rs": "923241471001684071958569446d4a7ff81aed4a1c5b07249264febc123da07c",
     "src/sans_io/linear_reader.rs": "d41e79b46a41ba0e9915c5e83a27df4c5b59e05861a59f9582cc66564574afe5"

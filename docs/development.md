@@ -166,6 +166,17 @@ cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- 
 
 `lease-gate` compares fixed one-message batch counts with inline completion and forced suspension at 64 KiB, 4 KiB and 512-byte I/O quanta. It sums caller/worker allocations and requires the same allocation total as the inline result-object baseline. A separate direct-await exercise checks continuation reentry on the I/O thread. `lease-profile` reports the same measurements without enforcing allocation equality, including throughput and median/p95 batch latency. Native diagnostics also report allocation counts/bytes and known retained storage. Keep reports under ignored artifacts; diagnostic timing includes instrumentation and has no performance pass threshold.
 
+Focused storage-policy diagnostics run in the native Release test executable:
+
+```powershell
+cargo test --manifest-path native/Cargo.toml --release --locked sort_compaction_profile -- --nocapture
+cargo test --manifest-path native/Cargo.toml --release --locked random_access_profile -- --nocapture
+```
+
+The sort fixture compares identical dense/sparse selections with shared and adaptive storage. It reports deduplicated retained backing capacity, exact copied payload bytes, peak old-plus-new capacity within a compacted group, cumulative test-thread allocations, time until results are ready and throughput. The group overlap is not a process-wide peak; active parser storage and previously completed groups are separate. Source preparation is included in timing/allocation counts; compression and RSS are not measured by this fixture. Threshold tests cover both sides of the four-times ratio and 256 KiB saving rule. Managed fallback tests cover compression, short reads, mapped input, oversized/empty messages, ties, retries and post-disposal leases.
+
+The random-access fixture reads four chunks repeatedly under None/Lz4/Zstd, with cache disabled, a cache smaller than the working set, and a cache that holds the working set. It asserts chunk-load/hit counts and reports cache allowance charge, deduplicated payload backing capacity, input capacity, allocations and median/p95 lookup latency. Input capacity can also appear in retained backing capacity for uncompressed chunks; do not add them twice. Chunk-cursor traversal reads the same messages and reports its own allocations and elapsed time; it includes caller-buffer delivery copies, whereas cache lookup measures shared message delivery. These measurements include test instrumentation, exclude setup indexes/summary and do not measure codec allocations made outside the Rust allocator. Timing has no CI pass threshold; cache defaults remain unchanged.
+
 `python scripts/test_upstream.py` compiles unmodified registry mcap and the local patched version separately, comparing write bytes, sequential/indexed reads, truncations and corrupt input in independent processes. Both use the same pinned dependency versions; the reference project has its own Cargo.lock and does not inherit the patch. Tests using the same patched source establish internal consistency only.
 
 `python scripts/check_vendor.py` verifies the original file inventory and local patch hashes. Keep UPSTREAM.json unchanged; review differences before updating PATCHES.json. See [local patches](patches.md) for allowed scope, alternatives and validation requirements. Do not submit patches upstream.

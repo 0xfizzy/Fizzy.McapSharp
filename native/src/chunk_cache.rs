@@ -56,6 +56,15 @@ impl Default for ChunkCache {
     }
 }
 impl ChunkCache {
+    #[cfg(test)]
+    pub fn diagnostic_storage(&self) -> (u64, impl Iterator<Item = &mcap::storage::SharedBytes>) {
+        (
+            self.retained_bytes,
+            self.chunks
+                .iter()
+                .flat_map(|c| c.entries.iter().map(|e| &e.data)),
+        )
+    }
     pub fn new() -> Self {
         Self {
             clock: 0,

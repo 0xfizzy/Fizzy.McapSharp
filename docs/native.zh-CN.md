@@ -78,4 +78,6 @@ pending 保存共享字节或合成记录体。Buffer reader 保留完整 Messag
 
 同步线性 feeding 通过 try_insert 预留 parser 当前完整需求，每次最多向该存储读取 64 KiB。顺序 Stream 读取、摘要回退扫描及验证复用同一 helper。异步直接填充也预留完整需求，只暴露所选 I/O 传输区间。异步 lease 交付采用可复用的显式状态机和缓存的 I/O continuation；仍允许 lease 结果及控制对象分配。非空批次仍在下一次输入请求时返回。
 
+回退排序使用绑定层 arena，保存 header、文件序号和共享范围。固定大小的待处理组跟踪连续 owned backing 的身份与选中字节，不建立全文件 owner 字典。组结束时，可将稀疏选中数据一次复制到按消息划分的不可变段，再发布结果；映射及其他外部 owner 不紧凑化。`SharedBytes::shares_backing` 是本地只读所有权查询，紧凑化决策和分配仍在绑定层执行。现有逻辑排序检查不变，新旧存储重叠不计入该额度。失败终止构造，不发布部分会话；ABI 不变。
+
 官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于[本地补丁](patches.zh-CN.md)。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。

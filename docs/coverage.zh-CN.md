@@ -34,3 +34,5 @@ Rust 生命周期、`Cow`、`Arc`、迭代器及 builder 映射为自有结果�
 `LeaseWriteTests` 验证绑定层通过上游已知 channel 写入转发 lease 批次与替换 header，包括指针一致性、预检和已完成前缀失败。`InputReservationTests`、`LeaseStorageTests`、`AsyncLeaseStateTests`、原生内存探针与 `LeaseGate` 覆盖输入预留、共享保留/驱逐、取消及挂起成本。这些属于绑定层行为，不是新增官方 Rust API。
 
 `Complete`／`FlushToDisk` 的分离、局部缓存和排序回退属于绑定层行为；调用方缓冲读取有最终复制，便利 API 创建独立副本。性能目标不约束上游内部的分配或复制。
+
+`SortStorageTests` 与原生排序诊断覆盖绑定层自适应回退存储。本地 `shares_backing` 查询提供所有权身份，不增加官方上游能力。
