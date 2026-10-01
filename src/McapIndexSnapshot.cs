@@ -11,24 +11,23 @@ public sealed partial class McapIndexSnapshot : IDisposable
     readonly object gate = new();
     internal McapIndexSnapshot(IntPtr p) => handle = new(p);
     public McapIndexSnapshot(ReadOnlySpan<byte> data) : this(data, null) { }
-    public unsafe McapIndexSnapshot(ReadOnlySpan<byte> data, McapMemoryOptions? options)
+    public unsafe McapIndexSnapshot(ReadOnlySpan<byte> data, McapIndexSnapshotOptions? options)
     {
         Native.EnsureAvailable();
         var config = Native.Request(options ?? new());
-        fixed (byte* p = data) { var status = Native.fm_snapshot_bytes_options(p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r); Native.Consume(status, r).Json?.Dispose(); GC.KeepAlive(options); handle = new(h); }
+        fixed (byte* p = data) { var status = Native.fm_snapshot_bytes_options(p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r); Native.Consume(status, r).Json?.Dispose(); handle = new(h); }
     }
     /// <summary>Maps a file without an owned input copy. Keep the file unchanged until this snapshot and all child cursors are disposed.</summary>
-    public static McapIndexSnapshot OpenMapped(string path, McapMemoryOptions? options = null)
+    public static McapIndexSnapshot OpenMapped(string path, McapIndexSnapshotOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         Native.EnsureAvailable();
         var config = Native.Request(new { path, options });
         int status = Native.fm_snapshot_mapped(config, (nuint)config.Length, out var h, out var r);
         Native.Consume(status, r).Json?.Dispose();
-        GC.KeepAlive(options);
+
         return new(h);
     }
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { Check(); return Native.MemoryStatistics(2, handle); } }
     public McapSummary? GetSummary()
     {
         lock (gate) { Check(); var status = Native.fm_snapshot_summary(handle, out var r); var response = Native.Consume(status, r); using var j = response.Json; return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options); }
@@ -129,7 +128,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
 public sealed partial class McapReadSession
 {
     public McapIndexSnapshot OpenIndexSnapshot() => OpenIndexSnapshot(null);
-    public McapIndexSnapshot OpenIndexSnapshot(McapMemoryOptions? options)
+    public McapIndexSnapshot OpenIndexSnapshot(McapIndexSnapshotOptions? options)
     {
         lock (gate)
         {
@@ -138,7 +137,7 @@ public sealed partial class McapReadSession
             var config = options is null ? Array.Empty<byte>() : Native.Request(options);
             int status = Native.fm_snapshot_open_options(handle, config, (nuint)config.Length, out var p, out var r);
             try { Native.Consume(status, r).Json?.Dispose(); return new(p); }
-            finally { GC.KeepAlive(options); handle.Bridge?.ThrowIfError(); }
+            finally { handle.Bridge?.ThrowIfError(); }
         }
     }
     public unsafe McapReadStatus ReadRecordAt(ulong offset, Span<byte> destination, out byte opcode, out ulong length)
@@ -153,9 +152,6 @@ public sealed partial class McapReadSession
                 if (status < 0)
                 {
                     var error = Native.ConsumeError(r);
-                    if (error.Kind == McapErrorKind.Binding && error.Details.ValueKind == JsonValueKind.Object &&
-                        error.Details.TryGetProperty("resource", out var resource) && resource.GetString() == "ScratchBuffer")
-                        failed = true;
                     handle.Bridge?.ThrowIfError();
                     throw error;
                 }
@@ -168,7 +164,7 @@ public sealed partial class McapReadSession
 internal sealed class SnapshotHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal SnapshotHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_snapshot_free(handle); NativeStorageSignal.Pulse(); return true; }
+    protected override bool ReleaseHandle() { Native.fm_snapshot_free(handle);  return true; }
 }
 internal static partial class Native
 {

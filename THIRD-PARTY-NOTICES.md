@@ -1,6 +1,6 @@
 # Third-party notices
 
-Native dependency versions are pinned in native/Cargo.lock. The vendored mcap adaptation adds budgeted codec allocation and streaming adapters, shared paged indexes, borrowed record validation, charged retained writer options, and resource-domain accounting. Existing mcap, zstd, lz4 and lz4-sys licenses below also cover their retained upstream interfaces and adapted behavior. Patch provenance is recorded in native/vendor/mcap/PATCHES.json. The fixed zstd-sys release is vendored with a null-allocation check in ZSTD_customCalloc; its source, licenses and patch fingerprints are recorded in native/vendor/zstd-sys/.
+Native dependency versions are pinned in native/Cargo.lock. Local mcap extensions provide stable shared storage, a channel membership query and explicit output-extraction disposal semantics. Original source and patch provenance are recorded in native/vendor/mcap/UPSTREAM.json and PATCHES.json. Compression dependencies use unmodified registry releases under the licenses below.
 
 
 ## array-init 2.1.0
@@ -4398,7 +4398,7 @@ SOFTWARE.
 
 ## mcap 0.25.0
 
-Vendored with local storage/budget extensions in native/vendor/mcap. Original source hashes and license provenance: UPSTREAM.json; reviewed patch fingerprints: PATCHES.json. The original MIT license is retained as native/vendor/mcap/LICENSE.
+Vendored with local binding storage/ownership extensions in native/vendor/mcap. Original source hashes and license provenance: UPSTREAM.json; reviewed patch fingerprints: PATCHES.json. The original MIT license is retained as native/vendor/mcap/LICENSE.
 License: MIT
 Repository: https://github.com/foxglove/mcap
 

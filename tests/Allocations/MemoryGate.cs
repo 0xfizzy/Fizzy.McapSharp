@@ -16,20 +16,20 @@ static class MemoryGate
                     for (uint i = 0; i < 2000; i++) writer.WriteMessage(new(channel, i, i, 0), payload);
                     writer.Complete();
                 }
-                using var snapshot = McapIndexSnapshot.OpenMapped(path, new() { MaxPendingBufferBytes = 0 });
+                using var snapshot = McapIndexSnapshot.OpenMapped(path, new());
                 using var reader = snapshot.OpenChunkReader(snapshot.GetSummary()!.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0));
-                for (int i = 0; i < 100; i++) { reader.ReadNext(payload, out _, out _); _ = reader.GetMemoryStatistics(); _ = snapshot.GetMemoryStatistics(); }
+                for (int i = 0; i < 100; i++) { reader.ReadNext(payload, out _, out _); }
                 long before = GC.GetAllocatedBytesForCurrentThread();
                 while (reader.ReadNext(payload, out _, out _) != McapReadStatus.EndOfStream)
-                { _ = reader.GetMemoryStatistics(); _ = snapshot.GetMemoryStatistics(); }
+                { }
                 reader.ReadNext(payload, out _, out _);
                 long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
-                if (bytes != 0) throw new Exception($"Mapped cursor/statistics allocated {bytes} B");
-                Console.WriteLine($"mapped cursor/statistics {compression}: {bytes} B");
+                if (bytes != 0) throw new Exception($"Mapped cursor allocated {bytes} B");
+                Console.WriteLine($"mapped cursor {compression}: {bytes} B");
                 using var mapped = McapBufferReader.OpenMapped(path);
                 for (int i = 0; i < 100; i++) mapped.ReadNext(payload, out _, out _);
                 before = GC.GetAllocatedBytesForCurrentThread();
-                while (mapped.ReadNext(payload, out _, out _) != McapReadStatus.EndOfStream) _ = mapped.GetMemoryStatistics();
+                while (mapped.ReadNext(payload, out _, out _) != McapReadStatus.EndOfStream) { }
                 bytes = GC.GetAllocatedBytesForCurrentThread() - before;
                 if (bytes != 0) throw new Exception($"Mapped reader allocated {bytes} B");
                 using var cached = McapIndexSnapshot.OpenMapped(path, new() { MaxRandomAccessCacheBytes = 1024 * 1024 });
@@ -44,8 +44,7 @@ static class MemoryGate
                 {
                     cached.SeekMessage(chunk, entry, payload, out _, out _);
                     session.ReadRecordAt(8, scratch, out _, out _);
-                    _ = cached.GetMemoryStatistics(); _ = session.GetMemoryStatistics();
-                }
+                    }
                 bytes = GC.GetAllocatedBytesForCurrentThread() - before;
                 if (bytes != 0) throw new Exception($"Cached seeks/scratch allocated {bytes} B");
                 Console.WriteLine($"mapped reader/cached seek/scratch {compression}: 0 B");

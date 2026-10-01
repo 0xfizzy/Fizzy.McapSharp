@@ -6,7 +6,7 @@ public class BatchSeekTests
     [InlineData(McapCompression.None)]
     [InlineData(McapCompression.Lz4)]
     [InlineData(McapCompression.Zstd)]
-    public void GroupedSeekAcrossDescriptorPagesKeepsDuplicatesAndLeases(McapCompression compression)
+    public void GroupedSeekKeepsDuplicatesAndLeases(McapCompression compression)
     {
         using var output = new MemoryStream();
         using (var writer = new McapWriter(output, new() { Compression = compression, ChunkSize = 1024, CompressionThreads = 0 }, true))
@@ -20,8 +20,7 @@ public class BatchSeekTests
             }
             writer.Complete();
         }
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
-        using var snapshot = new McapIndexSnapshot(output.ToArray(), new() { Budget = budget });
+        using var snapshot = new McapIndexSnapshot(output.ToArray(), new());
         var chunks = snapshot.GetSummary()!.ChunkIndexes;
         using var a = new McapPreparedChunkIndex(chunks[0]);
         using var b = new McapPreparedChunkIndex(chunks[1]);
@@ -40,42 +39,8 @@ public class BatchSeekTests
             Assert.Equal(expected, batch.GetHeader(i).Sequence);
             Assert.Equal((byte)expected, batch.GetPayload(i)[0]);
         }
-        Assert.InRange(budget.GetStatistics().PeakBytes, 1UL, budget.MaxBytes);
-        batch.Dispose();
-        BudgetAssertions.Idle(budget);
-    }
 
-    [Theory]
-    [InlineData(McapCompression.Lz4)] [InlineData(McapCompression.Zstd)]
-    public void DomainPressureEvictsReusableChunksBeforeRejecting(McapCompression compression)
-    {
-        var path=Path.Combine(Path.GetTempPath(),Guid.NewGuid()+".mcap");
-        try {
-            using(var writer=new McapWriter(path,new(){Compression=compression,ChunkSize=1024,CompressionThreads=0})) {
-                var c=writer.RegisterChannel("t","raw");
-                for(uint i=0;i<2;i++) writer.WriteMessage(new(c,i,i,0),new byte[70000]);
-                writer.Complete();
-            }
-            ulong capacity;
-            var probeBudget=new McapMemoryBudget(maxBlockBytes:100000,maxRetainedBytes:0);
-            using(var probe=McapIndexSnapshot.OpenMapped(path,new(){Budget=probeBudget,MaxRandomAccessCacheBytes=1024*1024})) {
-                var index=probe.GetSummary()!.ChunkIndexes[0];
-                using var prepared=new McapPreparedChunkIndex(index);
-                var entry=probe.ReadMessageIndexes(prepared)[0].Records[0];
-                probe.SeekMessage(prepared,entry,static(in McapMessageHeader h,ReadOnlySpan<byte> p)=>true);
-                capacity=probeBudget.GetStatistics().PeakBytes+8192;
-            }
-            var budget=new McapMemoryBudget(capacity,100000,0);
-            using var snapshot=McapIndexSnapshot.OpenMapped(path,new(){Budget=budget,MaxRandomAccessCacheBytes=1024*1024});
-            var indexes=snapshot.GetSummary()!.ChunkIndexes;
-            using var a=new McapPreparedChunkIndex(indexes[0]);using var b=new McapPreparedChunkIndex(indexes[1]);
-            var ea=snapshot.ReadMessageIndexes(a)[0].Records[0];var eb=snapshot.ReadMessageIndexes(b)[0].Records[0];
-            McapMessageVisitor visitor=static (in McapMessageHeader h,ReadOnlySpan<byte> p)=>true;
-            snapshot.SeekMessage(a,ea,visitor);snapshot.SeekMessage(b,eb,visitor);snapshot.SeekMessage(a,ea,visitor);
-            Assert.Equal(3UL,snapshot.GetCacheStatistics().ChunkLoads);
-            Assert.InRange(budget.GetStatistics().PeakBytes,0UL,budget.MaxBytes);
-        }
-        finally {File.Delete(path);}
+        batch.Dispose();
     }
 
     [Theory]

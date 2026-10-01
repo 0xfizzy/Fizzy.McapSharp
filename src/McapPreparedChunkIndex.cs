@@ -8,8 +8,7 @@ public sealed class McapPreparedChunkIndex : IDisposable
 {
     internal readonly PreparedChunkIndexHandle Handle;
     internal readonly object Gate = new();
-    public McapPreparedChunkIndex(McapChunkIndex index) : this(index,null) { }
-    public unsafe McapPreparedChunkIndex(McapChunkIndex index, McapMemoryBudget? budget)
+    public unsafe McapPreparedChunkIndex(McapChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
         Native.EnsureAvailable();
@@ -19,10 +18,9 @@ public sealed class McapPreparedChunkIndex : IDisposable
         new IndexEncoding(encoded).Write(owned);
         fixed (byte* p = encoded)
         {
-            int status = Native.fm_chunk_index_prepare_budget(p, (nuint)encoded.Length, budget?.Id ?? 0, out var h, out var r);
+            int status = Native.fm_chunk_index_prepare(p, (nuint)encoded.Length, out var h, out var r);
             Native.Consume(status, r).Json?.Dispose();
             Handle = new(h);
-            GC.KeepAlive(budget);
         }
     }
     internal void Check() => ObjectDisposedException.ThrowIf(Handle.IsClosed, this);
@@ -31,12 +29,10 @@ public sealed class McapPreparedChunkIndex : IDisposable
 internal sealed class PreparedChunkIndexHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal PreparedChunkIndexHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_chunk_index_free(handle); NativeStorageSignal.Pulse(); return true; }
+    protected override bool ReleaseHandle() { Native.fm_chunk_index_free(handle);  return true; }
 }
 internal static partial class Native
 {
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_chunk_index_prepare_budget(byte* data, nuint n, ulong budgetId, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_chunk_index_prepare(byte* data, nuint n, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

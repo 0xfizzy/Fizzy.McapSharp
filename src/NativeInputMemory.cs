@@ -34,7 +34,6 @@ public sealed partial class McapSansIoReader
     {
         int status = Native.fm_engine_input_buffer(handle, (nuint)size, out var pointer, out var result);
         if (status < 0) throw Native.ConsumeError(result);
-        if (status == 4) throw new McapMemoryBudgetUnavailableException();
         return pointer;
     }
     internal void CompleteInput(int count)

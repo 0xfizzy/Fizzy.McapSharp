@@ -6,25 +6,6 @@ namespace Fizzy.McapSharp.Tests;
 
 public class MemoryTests
 {
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void ResourceErrorsDistinguishApplicableAndDomainLimits(bool blockLimit)
-    {
-        var data = Recording(McapCompression.None);
-        var budget = new McapMemoryBudget(1024 * 1024, blockLimit ? 1024UL : 65536UL, 0);
-        var before = budget.GetStatistics().CurrentBytes;
-        var options = new McapMemoryOptions { Budget = budget, MaxOwnedInputBytes = blockLimit ? null : 32UL };
-        var error = Assert.Throws<McapException>(() => new McapBufferReader(data, McapBufferReadMode.Messages, false, options));
-        Assert.Equal(blockLimit ? "StorageBlock" : "OwnedInput", error.Details.GetProperty("resource").GetString());
-        Assert.Equal(blockLimit ? 1024UL : 32UL, error.Details.GetProperty("limit").GetUInt64());
-        Assert.Equal(budget.MaxBytes, error.Details.GetProperty("domainLimit").GetUInt64());
-        Assert.Equal((ulong)data.Length, error.Details.GetProperty("requested").GetUInt64());
-        Assert.True(error.Details.GetProperty("current").GetUInt64() <= budget.MaxBytes);
-        Assert.Equal("resource-check", error.Details.GetProperty("phase").GetString());
-        Assert.Equal("permanent", error.Details.GetProperty("failureKind").GetString());
-        Assert.Equal(before, budget.GetStatistics().CurrentBytes);
-    }
 
     static byte[] Recording(McapCompression compression, int count = 8, int size = 1024, bool chunks = true)
     {
@@ -41,13 +22,12 @@ public class MemoryTests
 
     [Theory]
     [InlineData(McapCompression.None)] [InlineData(McapCompression.Lz4)] [InlineData(McapCompression.Zstd)]
-    public void DirectReadsNeedNoPendingCapacity(McapCompression compression)
+    public void DirectReadsMatchBufferAndStream(McapCompression compression)
     {
         var data = Recording(compression);
-        var memory = new McapMemoryOptions { MaxPendingBufferBytes = 0 };
-        using var buffer = new McapBufferReader(data, McapBufferReadMode.Messages, false, memory);
+        using var buffer = new McapBufferReader(data, McapBufferReadMode.Messages, false);
         using var stream = new MemoryStream(data);
-        using var session = McapReader.OpenMessages(stream, options: new() { Memory = memory });
+        using var session = McapReader.OpenMessages(stream, options: new());
         byte[] output = new byte[1024];
         for (int i = 0; i < 8; i++)
         {
@@ -55,92 +35,35 @@ public class MemoryTests
             Assert.Equal(McapReadStatus.Message, session.ReadNext(output, out var b, out _));
             Assert.Equal(a, b); Assert.All(output, b => Assert.Equal((byte)42, b));
         }
-        Assert.Equal((ulong)data.Length, buffer.GetMemoryStatistics().CurrentControlledBytes);
-        Assert.Equal(0ul, session.GetMemoryStatistics().CurrentControlledBytes);
-        Assert.Equal(0ul, session.GetMemoryStatistics().AllocationCount);
+
+
+
         Assert.Equal(McapReadStatus.EndOfStream, buffer.ReadNext([], out _, out _));
-        var before = buffer.GetMemoryStatistics();
         Assert.Equal(McapReadStatus.EndOfStream, buffer.ReadNext([], out var end, out var length));
         Assert.Equal(default, end); Assert.Equal(0ul, length);
-        Assert.Equal(before, buffer.GetMemoryStatistics());
+
     }
 
     [Fact]
-    public void SharedPendingRetriesDoNotAllocateDeliveryBuffers()
+    public void PendingRetriesPreserveHeaderAndDestination()
     {
         var data = Recording(McapCompression.None, 3, 1024);
-        using var reader = new McapBufferReader(data, McapBufferReadMode.Messages, false, new() { MaxPendingBufferBytes = 1046, MaxRetainedBufferBytes = 1046 });
+        using var reader = new McapBufferReader(data, McapBufferReadMode.Messages, false);
         byte[] small = Enumerable.Repeat((byte)19, 20).ToArray(), output = new byte[1024];
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext(small, out var h, out var n));
-        var held = reader.GetMemoryStatistics();
         Assert.All(small, x => Assert.Equal((byte)19, x));
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext(small, out var h2, out var n2));
-        Assert.Equal(h, h2); Assert.Equal(n, n2); Assert.Equal(held, reader.GetMemoryStatistics());
+        Assert.Equal(h, h2); Assert.Equal(n, n2);
         Assert.Equal(McapReadStatus.Message, reader.ReadNext(output, out _, out _));
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out _, out _));
-        Assert.Equal(held.AllocationCount, reader.GetMemoryStatistics().AllocationCount);
-        using var trimmed = new McapBufferReader(data, McapBufferReadMode.Messages, false, new() { MaxRetainedBufferBytes = 32 });
+
+        using var trimmed = new McapBufferReader(data, McapBufferReadMode.Messages, false);
         Assert.Equal(McapReadStatus.BufferTooSmall, trimmed.ReadNext([], out _, out _));
-        Assert.Equal((ulong)data.Length, trimmed.GetMemoryStatistics().CurrentControlledBytes);
+
         trimmed.ReadNext(output, out _, out _);
-        Assert.Equal((ulong)data.Length, trimmed.GetMemoryStatistics().CurrentControlledBytes);
+
         trimmed.ReadNext(output, out _, out _);
-        Assert.Equal((ulong)data.Length, trimmed.GetMemoryStatistics().CurrentControlledBytes);
-    }
 
-    [Theory]
-    [InlineData(McapCompression.Lz4)]
-    [InlineData(McapCompression.Zstd)]
-    public void DecoderAllocationErrorsKeepDetailsAndTerminateReader(McapCompression compression)
-    {
-        var data = Recording(compression, count: 1, size: 1024);
-        var budget = new McapMemoryBudget(98304, 98304, 0);
-        using (var reader = new McapBufferReader(data, McapBufferReadMode.Messages, false, new() { Budget = budget }))
-        {
-            var error = Assert.Throws<McapException>(() => reader.ReadNext([], out _, out _));
-            Assert.Equal(McapErrorKind.Binding, error.Kind);
-            Assert.Equal("CodecDecoder", error.Details.GetProperty("resource").GetString());
-            Assert.Equal(98304UL, error.Details.GetProperty("limit").GetUInt64());
-            Assert.Equal(budget.MaxBytes, error.Details.GetProperty("domainLimit").GetUInt64());
-            Assert.True(error.Details.GetProperty("requested").GetUInt64() > 0);
-            Assert.True(error.Details.GetProperty("current").GetUInt64() <= 98304);
-            Assert.True(error.Details.GetProperty("terminal").GetBoolean());
-            Assert.Contains(error.Details.GetProperty("failureKind").GetString(), new[] { "permanent", "temporary" });
-            Assert.Throws<McapException>(() => reader.ReadNext([], out _, out _));
-        }
-        BudgetAssertions.Idle(budget);
-    }
-
-    [Fact]
-    public void BudgetErrorsAreStructuredAndTerminalButDescriptionsSurvive()
-    {
-        var data = Recording(McapCompression.None);
-        using var reader = new McapBufferReader(data, McapBufferReadMode.Messages, false, new() { MaxPendingBufferBytes = 0 });
-        var ex = Assert.Throws<McapException>(() => reader.ReadNext([], out _, out _));
-        Assert.Equal(McapErrorKind.Binding, ex.Kind);
-        Assert.Equal("PendingBuffer", ex.Details.GetProperty("resource").GetString());
-        Assert.Equal(0ul, ex.Details.GetProperty("limit").GetUInt64());
-        Assert.Equal(1046ul, ex.Details.GetProperty("requested").GetUInt64());
-        Assert.Equal("topic", reader.GetChannel(1).Topic);
-        Assert.Throws<McapException>(() => reader.ReadNext(new byte[1024], out _, out _));
-        Assert.Equal((ulong)data.Length, reader.GetMemoryStatistics().CurrentControlledBytes);
-        Assert.Throws<McapException>(() => new McapBufferReader(data, McapBufferReadMode.Messages, false, new() { MaxOwnedInputBytes = (ulong)data.Length - 1 }));
-        using var exact = new McapIndexSnapshot(data, new() { MaxOwnedInputBytes = (ulong)data.Length });
-        Assert.Equal((ulong)data.Length, exact.GetMemoryStatistics().CurrentControlledBytes);
-    }
-
-    [Fact]
-    public void FailedSnapshotBudgetRestoresSourceAndPendingMessage()
-    {
-        var data = Recording(McapCompression.None);
-        using var stream = new MemoryStream(data);
-        using var reader = McapReader.OpenMessages(stream, leaveOpen: true);
-        reader.ReadNext([], out var first, out _);
-        long position = stream.Position;
-        Assert.Throws<McapException>(() => reader.OpenIndexSnapshot(new() { MaxOwnedInputBytes = 0 }));
-        Assert.Equal(position, stream.Position);
-        Assert.Equal(McapReadStatus.Message, reader.ReadNext(new byte[1024], out var retry, out _));
-        Assert.Equal(first, retry);
     }
 
     [Theory]
@@ -151,19 +74,18 @@ public class MemoryTests
         var data = Recording(compression); File.WriteAllBytes(path, data);
         try
         {
-            var snapshot = McapIndexSnapshot.OpenMapped(path, new() { MaxOwnedInputBytes = 0, MaxPendingBufferBytes = 0 });
+            var snapshot = McapIndexSnapshot.OpenMapped(path, new());
             var summary = snapshot.GetSummary()!;
             var index = summary.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0);
             using var cursor = snapshot.OpenChunkReader(index);
             using var other = snapshot.OpenChunkReader(index);
-            var statistics = snapshot.GetMemoryStatistics();
-            Assert.Equal(0ul, statistics.CurrentControlledBytes); Assert.Equal((ulong)data.Length, statistics.MappedBytes);
+
             snapshot.Dispose();
             if (OperatingSystem.IsWindows()) Assert.Throws<IOException>(() => File.Open(path, FileMode.Open, FileAccess.Write).Dispose());
             Assert.Equal(McapReadStatus.Message, cursor.ReadNext(new byte[1024], out var a, out _));
             Assert.Equal(McapReadStatus.Message, other.ReadNext(new byte[1024], out var b, out _));
-            Assert.Equal(a, b); Assert.Equal((ulong)data.Length, cursor.GetMemoryStatistics().MappedBytes);
-            Assert.Equal(0ul, cursor.GetMemoryStatistics().CurrentControlledBytes);
+            Assert.Equal(a, b);
+
         }
         finally { File.Delete(path); }
     }
@@ -189,32 +111,31 @@ public class MemoryTests
     }
 
     [Fact]
-    public void SummaryEncodingIsLazyAndRetainedCapacityIsBounded()
+    public void SummaryCursorEnumeratesRecords()
     {
-        using var snapshot = new McapIndexSnapshot(Recording(McapCompression.None), new() { MaxRetainedBufferBytes = 0 });
+        using var snapshot = new McapIndexSnapshot(Recording(McapCompression.None), new());
         using var cursor = snapshot.OpenSummaryRecords();
-        Assert.Equal(0ul, cursor.GetMemoryStatistics().AllocationCount);
+
         byte[] buffer = new byte[4096]; int count = 0;
         while (cursor.ReadNextRecord(buffer, out _, out _) != McapReadStatus.EndOfStream)
-        { count++; Assert.Equal(0ul, cursor.GetMemoryStatistics().CurrentControlledBytes); }
+        { count++;  }
         Assert.True(count > 1);
     }
 
     [Theory]
     [InlineData(0)] [InlineData(32)] [InlineData(1200000)]
-    public void SortBudgetAndOrderAccountForDescriptorsAndPayload(int size)
+    public void SortAllowanceIncludesDescriptorsAndPayload(int size)
     {
         var data = Recording(McapCompression.None, 6, size, false);
         using var source = new MemoryStream(data);
         var error = Assert.Throws<McapException>(() => McapReader.OpenMessages(source,
-            new() { Memory = new() { MaxBufferedSortBytes = 0 } }, true));
+            new() { MaxBufferedSortBytes = 0  }, true));
         Assert.Equal("BufferedSort", error.Details.GetProperty("resource").GetString());
         foreach (var order in new[] { McapReadOrder.LogTime, McapReadOrder.ReverseLogTime })
         {
             using var input = new MemoryStream(data);
-            using var reader = McapReader.OpenMessages(input, new() { Order = order, Memory = new() { MaxBufferedSortBytes = 16 * 1024 * 1024 } });
-            var before = reader.GetMemoryStatistics();
-            Assert.True(before.CurrentControlledBytes > 0);
+            using var reader = McapReader.OpenMessages(input, new() { Order = order, MaxBufferedSortBytes = 16 * 1024 * 1024  });
+
             uint[] expected = [0, 3, 1, 4, 2, 5]; if (order == McapReadOrder.ReverseLogTime) Array.Reverse(expected);
             byte[] buffer = new byte[size];
             foreach (uint sequence in expected)
@@ -222,7 +143,7 @@ public class MemoryTests
                 if (size > 0) Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out _, out _));
                 Assert.Equal(McapReadStatus.Message, reader.ReadNext(buffer, out var h, out _)); Assert.Equal(sequence, h.Sequence);
             }
-            Assert.Equal(0ul, reader.GetMemoryStatistics().CurrentControlledBytes);
+
             Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext(buffer, out _, out _));
         }
     }
@@ -230,23 +151,22 @@ public class MemoryTests
     [Fact]
     public async Task AsyncDeliveryDoesNotNeedPendingAllocationWithAdequateBuffer()
     {
-        using var reader = new McapAsyncReader(new MemoryStream(Recording(McapCompression.Zstd)), new() { Memory = new() { MaxPendingBufferBytes = 0 } });
+        using var reader = new McapAsyncReader(new MemoryStream(Recording(McapCompression.Zstd)), new());
         byte[] buffer = new byte[65536];
         while ((await reader.ReadNextRecordAsync(buffer)).Status != McapReadStatus.EndOfStream) { }
-        Assert.Equal(0ul, reader.GetMemoryStatistics().AllocationCount);
-        Assert.Equal(40, Marshal.SizeOf<McapMemoryStatistics>());
+
     }
 
     [Fact]
-    public void IndexedStreamScratchDoesNotConsumePendingBudget()
+    public void IndexedStreamReadsAllMessages()
     {
         using var stream = new MemoryStream(Recording(McapCompression.Zstd));
-        using var reader = McapReader.OpenMessages(stream, new(), options: new() { Memory = new() { MaxPendingBufferBytes = 0, MaxRetainedBufferBytes = 0 } });
+        using var reader = McapReader.OpenMessages(stream, new(), options: new());
         byte[] buffer = new byte[1024]; int count = 0;
         while (reader.ReadNext(buffer, out _, out _) != McapReadStatus.EndOfStream) count++;
         Assert.Equal(8, count);
-        Assert.Equal(0ul, reader.GetMemoryStatistics().CurrentControlledBytes);
-        Assert.True(reader.GetMemoryStatistics().PeakControlledBytes > 0);
+
+
     }
 
     [Fact]
@@ -256,21 +176,11 @@ public class MemoryTests
         using var snapshot = new McapIndexSnapshot(bytes);
         Array.Clear(bytes);
         Assert.NotNull(snapshot.GetSummary());
-        Assert.NotNull(snapshot.ReadFooter());
+        Assert.True(snapshot.ReadFooter().SummaryStart > 0);
         using var stream = new MemoryStream(Recording(McapCompression.None, chunks: false));
         using var reader = McapReader.OpenMessages(stream,
-            new() { Memory = new() { MaxBufferedSortBytes = 0 } },
-            options: new() { Memory = new() { MaxBufferedSortBytes = 2 * 1024 * 1024 } });
+            new() { MaxBufferedSortBytes = 2 * 1024 * 1024 });
         Assert.Equal(8, reader.ReadMessages().Count());
     }
 
-    [Fact]
-    public async Task AsyncPendingBudgetFailureTerminatesSession()
-    {
-        using var reader = new McapAsyncReader(new MemoryStream(Recording(McapCompression.None)), new() { Memory = new() { MaxPendingBufferBytes = 0 } });
-        var error = await Assert.ThrowsAsync<McapException>(async () => await reader.ReadNextRecordAsync(Memory<byte>.Empty));
-        Assert.Equal("PendingBuffer", error.Details.GetProperty("resource").GetString());
-        Assert.Equal(0ul, reader.GetMemoryStatistics().CurrentControlledBytes);
-        Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[65536]));
-    }
 }

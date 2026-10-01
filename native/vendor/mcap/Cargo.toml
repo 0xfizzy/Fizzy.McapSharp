@@ -36,7 +36,6 @@ license = "MIT"
 repository = "https://github.com/foxglove/mcap"
 
 [features]
-allocation-audit = []
 default = [
     "zstd",
     "lz4",
@@ -218,6 +217,3 @@ optional = true
 version = "0.13"
 features = ["wasm"]
 optional = true
-
-[patch.crates-io]
-zstd-sys = { path = "../zstd-sys" }

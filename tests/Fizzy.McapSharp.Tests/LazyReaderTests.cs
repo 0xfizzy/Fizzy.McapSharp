@@ -26,9 +26,8 @@ public class LazyReaderTests
         using var first = snapshot.OpenChunkReader(chunks[0]);
         using var second = snapshot.OpenChunkReader(chunks[1]);
         Assert.Equal(McapReadStatus.BufferTooSmall, first.ReadNext([], out var pending, out var length));
-        var snapshotStats = snapshot.GetMemoryStatistics();
         Assert.Throws<McapException>(() => snapshot.OpenChunkReader(chunks[0] with { ChunkLength = ulong.MaxValue }));
-        Assert.Equal(snapshotStats, snapshot.GetMemoryStatistics());
+
         snapshot.ReadFooter();
         snapshot.Dispose();
         byte[] buffer = new byte[16];

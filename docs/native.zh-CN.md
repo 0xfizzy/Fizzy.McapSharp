@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 11，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 12，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -24,7 +24,7 @@
 
 私有消息头为 24 字节：u16 channel_id、u16 reserved、u32 sequence、u64 log_time、u64 publish_time，偏移分别为 0、2、4、8、16。与上游记录逐字段转换，不依赖 Rust 记录布局。读取 EOF 时，索引扫描及排序回退的 reserved 为 1，顺序扫描为 0；托管层据此判断是否能报告完整校验。
 
-4144 字节响应包含 JSON 指针/usize 长度、二进制指针/usize 长度、u64 标量，以及 usize 错误长度和 4096 字节内联错误缓冲（偏移 40、48）。支持的目标上指针及 C# nuint 均为 64 位。状态 0 成功、1 EOF、2 缓冲不足、负值错误。读取响应标量为所需/已复制长度，EOF 时为扫描计数。容量不足不修改目标缓冲，也不消费待处理记录。
+响应为 40 字节，依次包含 JSON 指针／usize 长度、binary 指针／usize 长度、u64 value。所有支持平台的指针和 nuint 均为 64 位。状态 0 成功、1 EOF、2 缓冲不足、负值错误。读取时 value 表示所需／复制字节数，EOF 时表示扫描数量。缓冲不足不写部分结果、不消费 pending。
 
 Writer 创建选项包含不可变位掩码 `recoverableErrors`：1 表示显式 Schema ID 无效，2 表示显式 Schema 冲突，4 表示 Channel 注册引用未知 Schema，8 表示显式 Channel 冲突，16 表示 header/payload 消息写入引用未知 Channel。省略时为 31；未知位在创建输出前被拒绝。Writer 状态 -2 保留普通结构化错误响应并允许继续使用；-1（包括 panic）表示终止。托管层先检查回调异常，再依据本次状态设置 `CanContinueWriting`，不依据异常类型放行。Reader 错误不采用恢复语义。
 
@@ -32,7 +32,7 @@ Writer 创建选项包含不可变位掩码 `recoverableErrors`：1 表示显式
 
 消息热路径只使用固定数据和调用方缓冲；边界上不需要 JSON、托管 payload 数组、原生结果分配或逐消息 Channel 描述序列化。Reader 内部仍可分配原生缓冲，并将原生数据复制到托管调用方内存。冷路径请求/描述使用长度限定 UTF-8 JSON，二进制数据不使用 Base64。
 
-非空冷路径响应缓冲属于 Rust。显式私有头部、对齐填充及数据容量在分配前作为 Scratch 计入来源域；头部将域保持到 fm_buffer_free。JSON 先计算长度，再直接序列化到最终缓冲；JSON 和二进制存储全部成功后才一并交付。Channel／Schema 描述流式读取共享声明，不构造中间 JSON 树或字段副本。二进制响应的复制（包括 schema 字节）计入 DeliveryCopyBytes。摘要从分页索引及已观察声明 ID 直接写入最终响应。随机记录输入引用映射范围，或保持精确 Input 计费至发布；记录校验借用文本和载荷字段，与 owned 解析共用声明长度及 attachment CRC 检查。重复键检查采用固定 u16 集合或计费分页字符串引用。仍需 owned 头部的 helper 及兼容 I/O 错误桥接仍有计费缺口。Native.Consume 在 finally 中释放两个缓冲，包括错误路径；错误使用响应内的固定缓冲保存含 kind、message、details 的 UTF-8 JSON，不构造 native JSON 树或堆响应缓冲；该内联存储不得传给 fm_buffer_free。panic 回退文本也使用内联存储，按 Binding 错误处理。成功热路径不返回需要释放的响应缓冲。输入 span 只在同步调用期间固定，原生代码不保留它。公共便利记录持有托管副本，原生指针保持私有，借用回调和存储 lease 遵循 API 生命周期契约。
+冷路径响应使用 Rust 所有的 JSON／binary 分配，调用方以 `fm_buffer_free` 释放；`Native.Consume` 在 finally 中释放两者。错误 JSON 包含 kind、message、details，不做固定长度截断。错误格式化也受 panic 边界保护。成功的热路径不返回自有响应缓冲。输入 Span 仅在同步调用期间固定。便利结果拥有托管副本；借用回调和 lease 按 API 生命周期契约使用。
 
 每个会话独占一个原生 Reader。映射输入同时拥有文件；增量 sans_io::LinearReader 状态和待处理记录使用原生自有缓冲，无需延长借用迭代器生命周期。Stream 增量读取并支持短读。索引查询直接使用官方 IndexedReader，时间排序可同时保留重叠 Chunk，不宣称完整校验；排序扫描回退会在原生内存收集匹配消息；摘要声明不足时回退顺序读取，解析部分摘要可能需要一次冷路径全扫描。
 
@@ -55,7 +55,7 @@ Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验�
 
 ## 扩展操作族
 
-`fm_channel_prepare/free` 保存不可变原生 Channel/Schema 快照，`fm_writer_full_message` 使用该描述和同步借用的 payload 直接调用上游 write。`fm_operation_prepare_budget` 接受域 ID（零表示独立默认域），旧 `fm_operation_prepare` 以零转发。描述根对象和 schema 载荷精确计费，并保持原域直至 `fm_operation_free`；解析后的 JSON 使用计费字符串存储和分段 AVL 节点，不物化 `serde_json::Value`。prepared 执行和非空 `fm_writer_call` 请求均在所属域使用计费 JSON 树，普通控制树在调用返回时释放；空控制请求不创建 JSON 树。writer 借用字段视图，Metadata 正文直接复用官方字段 writer；Channel 声明映射转换及保留的 metadata 索引名称仍待迁移。控制描述由 prepared 对象持有，`fm_writer_prepared` 复用描述，避免托管序列化；`fm_writer_private` 使用标量标志和 Span。
+`fm_channel_prepare/free` 保存不可变 Channel／Schema 快照。`fm_writer_full_message` 使用该描述符与同步借用 payload 调用官方写入。`fm_operation_prepare/free` 保存冷路径解析后的控制信息；`fm_writer_prepared` 复用描述符，避免重复托管序列化。`fm_writer_private` 接收标量标志和 Span。
 
 `fm_engine_open/next/feed/free` 封装官方线性、摘要和索引 Sans-I/O 状态。事件为 56 字节：u32 kind、u32 opcode、u64 length、u64 offset、u32 seek origin、u32 reserved、24 字节消息头。kind 0–5 对应 End、Read、Seek、Record、Message、ReadChunk；Current/End 定位偏移保留有符号补码。输入请求等待供给，记录/消息在缓冲不足时保持待取。`fm_engine_index_control` 支持索引插入及长度限制更新；`fm_engine_summary` 和 `fm_summary_records` 输出自有摘要或原生记录游标。
 
@@ -64,32 +64,14 @@ Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验�
 异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。
 
 
-## ABI 11 存储与批次
+## 稳定存储与批次
 
-ABI 11 使用私有 SafeHandle 和 opaque 存储 owner，禁止暴露 Rust 布局。`fm_budget_open/statistics/free` 管理共享域，JSON 中传递弱注册表 ID，不传原生地址。预算统计为五个 u64：current、peak、retained、allocations、copied；逐句柄 `fm_memory_statistics` 的旧布局不变，不能与域统计混算。
+`fm_writer_batch` 接收 24 字节 Header、8 字节 offset/length 范围、共享 payload 和独立的已完成前缀输出。`fm_read_batch`／`fm_visit_messages` 使用 40 字节 Progress（四个 u64、两个 u32）。预检先于写入；推进后的失败不回滚。
 
-`fm_writer_batch` 接收 24 字节消息头数组、8 字节 offset/length 数组、共享 payload 和独立完成前缀计数。`fm_read_batch` 和 `fm_visit_messages` 使用 40 字节 Progress：四个 u64 和两个 u32。所有消息头、输入缓冲仅在同步调用内固定。Writer 预检在修改前完成，推进失败不承诺回滚。
+`fm_reader_owned`、`fm_buffer_reader_owned`、`fm_snapshot_message_owned` 使用两个指针的 Sink（context、Cdecl 回调）。visitor 返回 1 表示正常停止，负值失败；托管异常不跨 FFI 展开。每次退出清除 sink。公开借用 Span 在回调返回时失效，自有交付创建独立副本。
 
-`fm_reader_owned`、`fm_buffer_reader_owned`、`fm_snapshot_message_owned` 的 Sink 为 context 和 Cdecl callback 两个指针。同步回调返回 1 表示正常停止，负数表示失败；fm_visit_messages 负责将停止转换为普通结果。托管异常不得穿过 FFI。GCHandle 仅在原生调用期间保活，每条退出路径清除 sink。借用公开 Span 仅在回调期间有效，原有 owned 回调仍创建独立副本。
+`fm_read_lease`、`fm_engine_lease_step` 与 `fm_lease_get/retain/free` 使用 SharedBytes 和普通批次描述符。存储所有权使映射及文件在 reader 释放后仍有效；Span 使用不得与释放并发。`fm_engine_input_buffer/complete` 让 Stream.ReadAsync 通过 MemoryManager 直接填充解析器存储，期间不得推进或销毁引擎。
 
-`fm_read_lease`、`fm_engine_lease_step`、`fm_lease_get/retain/free` 管理稳定 SharedBytes 和批次描述符。状态 4 表示可重试预算不足；0 成功，1 EOF，2 调用方缓冲不足，3 visitor 正常停止。所有权含映射和文件，reader 释放后 lease 仍有效。消息访问与并发释放不可重叠。`fm_engine_input_buffer/complete` 仅供私有 MemoryManager 将 Stream.ReadAsync 直接写入解析器原生输入块；等待期间不能推进或释放引擎。 批次根存储和描述符页在读取推进前计费；发布只转移不透明分配句柄，不进行新分配，必须由对应 lease 析构入口释放。
+pending 保存共享字节或合成记录体。Buffer reader 保留完整 Message body，交付时才选择 payload 范围，支持 record/message 重试切换。indexed Stream 将读入缓冲的所有权转入解析器，避免对未压缩 chunk 再复制一次；短读使用 read_exact。缓存和排序仅执行 API 描述的局部限制。
 
-`fm_snapshot_seek_batch` 按完整索引键分组，并恢复请求顺序。快照多 chunk LRU 保存完整校验后的共享块和范围；消息索引也可缓存。未压缩映射块不复制 payload；压缩块直接解压到最终共享存储。不足缓冲重试保留切片，不回退逐消息 owned helper。随机完整 chunk 校验不等于全文件校验。
-
-`fm_channel_prepare_budget` 在原 prepared-channel 输入上增加域 ID；原 `fm_channel_prepare` 以 ID 零委托。私有句柄持有计费 JSON 文档、Schema 字节和精确布局根对象，`fm_channel_free` 释放三者。`fm_writer_full_message` 同步借用不可变字段，不创建 Arc Channel 或临时 metadata map。
-
-`fm_chunk_index_prepare_budget` 允许 prepared 索引使用共享域，原入口使用独立默认域。其 SafeHandle 实参在调用期间保活。原生存储和元数据预留范围、保守计费及 临时对象／控制存储排除项见 [API 指南](api.zh-CN.md)。不能用 wrapper 计数替代完整原生分配证据。 prepared 根、编码键、压缩名及通道偏移页按实际存储计费；共享索引克隆不重建 map。
-
-fm_budget_detailed_statistics 返回 488 字节：九行资源数据（每行四个 u64）、三个分配计数、十四个流量计数、两个唯一堆载荷拥有权计数和三个域容量计数，最后追加扩容次数、立即可回收容量及映射逻辑长度；该布局由私有 native／managed DTO 定义；vendor 计费结构和公开统计值类型通过逐字段转换连接。布局测试锁定私有 DTO 的尺寸与偏移，不约束公开类型。fm_budget_notify 注册私有域通知，fm_budget_dispatch 在原生操作退出及句柄释放后派发容量通知，不在 codec 分配回调内执行。托管 continuation 异步调度，通知仅面向注册域，不向无关 reader 广播。
-
-### 共享 pending 交付
-
-私有交付状态保留稳定共享字节或自有合成 record body。共享 pending 引用使用 Pending 所有权标记；交付、lease 转移、失败和释放显式释放或转移该标记。Buffer reader 保留完整 Message body，仅在交付时选择 payload 子范围，以支持 record/message 重试切换。普通 reader 与 SansIO reader 使用同一重试交付和复制计数。最终实际复制记为 Delivery，合成 pending 字节记为 Other；借用与所有者转移不增加 payload 复制量。Codec 流量与复制计数保持区分。
-
-Indexed Stream 读取未压缩 chunk 时，将预算化输入存储转交 indexed reader；压缩 chunk 复用 scratch 输入，直接解压至最终共享输出。两条路径均在分配输入前检查 Stream scratch 限制，短读通过 `read_exact` 补齐，已保留 chunk 不会被覆盖。映射输入继续共享映射范围。这些存储扩展保持官方格式状态机及现有私有 C ABI 布局。
-
-codec 分配回调通过固定错误值的事务预留容量，首个失败保存在已计费状态中；拒绝时不格式化字符串，也不构造自定义 I/O 错误。解码失败以固定 `StorageFailure` 值传播，Binding 明细新增 `failureKind` 和 `terminal`。即使被拒绝的容量随后可能释放，codec 失败仍为终止。Lz4/Zstd 损坏帧错误引用 codec 静态错误名，保留原有托管 Io／DecompressionError 种类。编码器同样直接传播固定失败。Chunk 序列化将首个输出错误保留至记录边界，避免 binrw 为此构造堆诊断；后续序列化不再推进输出。短写、Interrupted、WriteZero 及 CRC 仅按实际成功字节处理。ChunkSink 扩容以及 chunk 头部初写／回填使用同一类型化输出通道；替换存储期间同时计费新旧块。单块超限和分配失败保留固定终止明细。资源错误区分适用上限 `limit` 和域总上限 `domainLimit`；设置单块上限不会覆盖总上限。调用方 Stream 失败及其他序列化错误构造仍待完成。
-
-binding 错误通过内联带类型值传播，不再使用装箱 trait 对象。经审计的 writer 安全拒绝点携带显式标记；parser 推进后错误使用终止标记，不再嵌套另一个 I/O 错误，也不丢失容量明细。binding 生成的诊断文本最多保留 256 个 UTF-8 字节，截断时附加标记。上游错误保留原有载荷所有权，其分配覆盖仍见[清单](memory-accounting.zh-CN.md)中的未完成项。
-
-共享摘要外层在发布前预留精确的声明／摘要控制存储。完成的 writer 使用 Operation 标记，摘要 cursor 使用 Parser 标记；源对象释放后仍保持原存储及资源域，共享不另建控制块。writer 完成或摘要 parser EOF 后的分配拒绝为终止失败，即使格式字节已写入或读完。显式 JSON／owned 导出临时分配仍属于[清单](memory-accounting.zh-CN.md)中的待完成项。
+官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于[本地补丁](patches.zh-CN.md)。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。

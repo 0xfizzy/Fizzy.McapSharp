@@ -1,108 +1,51 @@
 use crate::{
-    codec_memory::{self, CodecMemory},
-    storage::ResourceCategory,
-};
-use crate::{
     sans_io::decompressor::{DecompressResult, Decompressor},
-    McapResult,
+    McapError, McapResult,
 };
-use std::ffi::c_void;
-use zstd::zstd_safe::zstd_sys as sys;
-#[repr(C)]
-struct CustomMem {
-    alloc: Option<unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void>,
-    free: Option<unsafe extern "C" fn(*mut c_void, *mut c_void)>,
-    opaque: *mut c_void,
-}
-extern "C" {
-    fn ZSTD_createDCtx_advanced(memory: CustomMem) -> *mut sys::ZSTD_DCtx;
-}
+use zstd::zstd_safe::{get_error_name, DStream, InBuffer, OutBuffer, ResetDirective, SafeResult};
+
 pub struct ZstdDecoder {
-    s: *mut sys::ZSTD_DCtx,
-    memory: crate::charged::ChargedBox<CodecMemory>,
+    s: DStream<'static>,
     need: usize,
-    started: bool,
 }
-unsafe impl Send for ZstdDecoder {}
+
+/// A Decompressor wrapper for Zstd streaming decompression.
 impl ZstdDecoder {
-    pub(crate) fn with_budget(budget: crate::storage::BudgetRef) -> McapResult<Self> {
-        let memory = CodecMemory::new_fixed(budget, ResourceCategory::CodecDecoder)?;
-        let s = unsafe {
-            ZSTD_createDCtx_advanced(CustomMem {
-                alloc: Some(codec_memory::allocate),
-                free: Some(codec_memory::free),
-                opaque: CodecMemory::opaque(&memory),
-            })
-        };
-        if s.is_null() {
-            return Err(memory.fixed_error().into());
-        }
-        let mut decoder = Self {
-            s,
-            memory,
-            need: 0,
-            started: false,
-        };
-        decoder.need = decoder.check(unsafe { sys::ZSTD_initDStream(s) })?;
-        Ok(decoder)
-    }
-    fn check(&self, code: usize) -> McapResult<usize> {
-        if let Some(error) = self.memory.take_failure() {
-            return Err(error.into());
-        }
-        if unsafe { sys::ZSTD_isError(code) } != 0 {
-            return Err(crate::McapError::StaticDecompressionError(
-                zstd::zstd_safe::get_error_name(code),
-            ));
-        }
-        Ok(code)
-    }
-}
-impl Drop for ZstdDecoder {
-    fn drop(&mut self) {
-        unsafe {
-            sys::ZSTD_freeDCtx(self.s);
+    pub fn new() -> Self {
+        let mut stream = DStream::create();
+        ZstdDecoder {
+            need: stream.init().expect("zstd decoder init failed"),
+            s: stream,
         }
     }
 }
+
+fn handle_error(res: SafeResult) -> McapResult<usize> {
+    match res {
+        Ok(n) => Ok(n),
+        Err(code) => Err(McapError::DecompressionError(get_error_name(code).into())),
+    }
+}
+
 impl Decompressor for ZstdDecoder {
     fn next_read_size(&self) -> usize {
         self.need
     }
-    fn decompress(&mut self, src: &[u8], dst: &mut [u8]) -> McapResult<DecompressResult> {
-        if !self.started {
-            self.memory.decode_event(false);
-            self.started = true;
-        }
-        let mut input = sys::ZSTD_inBuffer {
-            src: src.as_ptr().cast(),
-            size: src.len(),
-            pos: 0,
-        };
-        let mut output = sys::ZSTD_outBuffer {
-            dst: dst.as_mut_ptr().cast(),
-            size: dst.len(),
-            pos: 0,
-        };
-        let code = unsafe { sys::ZSTD_decompressStream(self.s, &mut output, &mut input) };
-        self.memory.progress(input.pos, output.pos);
-        self.need = self.check(code)?;
-        if self.need == 0 {
-            self.memory.decode_event(true);
-            self.started = false;
-        }
+    fn decompress(&mut self, src: &[u8], dst: &mut [u8]) -> crate::McapResult<DecompressResult> {
+        let mut in_buffer = InBuffer::around(src);
+        let mut out_buffer = OutBuffer::around(dst);
+        let need = handle_error(self.s.decompress_stream(&mut out_buffer, &mut in_buffer))?;
+        self.need = need;
         Ok(DecompressResult {
-            consumed: input.pos,
-            wrote: output.pos,
+            consumed: in_buffer.pos,
+            wrote: out_buffer.pos(),
         })
     }
     fn reset(&mut self) -> McapResult<()> {
-        self.check(unsafe {
-            sys::ZSTD_DCtx_reset(self.s, sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
-        })?;
-        self.started = false;
+        handle_error(self.s.reset(ResetDirective::SessionOnly))?;
         Ok(())
     }
+
     fn name(&self) -> &'static str {
         "zstd"
     }

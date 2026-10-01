@@ -68,9 +68,9 @@ pub unsafe extern "C" fn fm_writer_batch(
             if !inner.contains_channel(h.channel_id) {
                 let e = mcap::McapError::UnknownChannel(h.sequence, h.channel_id);
                 return Err(if w.recoverable_errors & 16 != 0 {
-                    Error::safe_rejection(e)
+                    Box::new(SafeRejection(e)) as Error
                 } else {
-                    Error::from(e)
+                    Box::new(e)
                 });
             }
         }

@@ -12,30 +12,27 @@ public sealed partial class McapBufferReader : IDisposable
     readonly BufferReaderHandle handle;
     readonly object gate = new();
     internal McapBufferReader(IntPtr p) => handle = new(p);
-    public McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode = McapBufferReadMode.Messages, bool ignoreEndMagic = false)
-        : this(data, mode, ignoreEndMagic, null) { }
-    public unsafe McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode, bool ignoreEndMagic, McapMemoryOptions? options)
+    public unsafe McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode = McapBufferReadMode.Messages, bool ignoreEndMagic = false)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
         Native.EnsureAvailable();
-        var config = Native.Request(options ?? new());
         fixed (byte* p = data)
         {
-            var status = Native.fm_buffer_reader_open_options((uint)mode, ignoreEndMagic, p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r);
-            Native.Consume(status, r).Json?.Dispose(); GC.KeepAlive(options); handle = new(h);
+            var status = Native.fm_buffer_reader_open((uint)mode, ignoreEndMagic, p, (nuint)data.Length, out var h, out var r);
+            Native.Consume(status, r).Json?.Dispose();  handle = new(h);
         }
     }
     /// <summary>Maps immutable file contents until this reader is disposed.</summary>
     public static McapBufferReader OpenMapped(string path, McapBufferReadMode mode = McapBufferReadMode.Messages,
-        bool ignoreEndMagic = false, McapMemoryOptions? options = null)
+        bool ignoreEndMagic = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
         Native.EnsureAvailable();
-        var config = Native.Request(new { path = Path.GetFullPath(path), mode = (uint)mode, ignoreEndMagic, options });
+        var config = Native.Request(new { path = Path.GetFullPath(path), mode = (uint)mode, ignoreEndMagic });
         int status = Native.fm_buffer_reader_mapped(config, (nuint)config.Length, out var p, out var r);
         Native.Consume(status, r).Json?.Dispose();
-        GC.KeepAlive(options);
+
         return new(p);
     }
     public unsafe McapReadStatus ReadNextRecord(Span<byte> destination, out byte opcode, out ulong length)
@@ -112,13 +109,12 @@ public sealed partial class McapBufferReader : IDisposable
             yield return new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, data);
         }
     }
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { Check(); return Native.MemoryStatistics(1, handle); } }
     public void Dispose() { lock (gate) { borrowed.CheckReentry(); handle.Dispose(); } }
 }
 internal sealed class BufferReaderHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal BufferReaderHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_buffer_reader_free(handle); NativeStorageSignal.Pulse(); return true; }
+    protected override bool ReleaseHandle() { Native.fm_buffer_reader_free(handle);  return true; }
 }
 internal static partial class Native
 {

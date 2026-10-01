@@ -4,7 +4,13 @@
 //! Consider [memory-mapping](https://docs.rs/memmap2/0.9.5/memmap2/struct.Mmap.html)
 //! the file - the OS will load (and cache!) it on-demand, without any
 //! further system calls.
-use std::{borrow::Cow, collections::HashMap, fmt, io::Cursor, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{hash_map::Entry, BTreeMap, HashMap},
+    fmt,
+    io::Cursor,
+    sync::Arc,
+};
 
 use binrw::prelude::*;
 use byteorder::{ReadBytesExt, LE};
@@ -51,13 +57,12 @@ impl<'a> LinearReader<'a> {
         Ok(Self {
             inner: InnerReader {
                 buf,
-                reader: SansIoReader::new_with_options_and_budget(
+                reader: SansIoReader::new_with_options(
                     LinearReaderOptions::default()
                         .with_record_length_limit(buf.len())
                         .with_skip_end_magic(options.contains(Options::IgnoreEndMagic))
                         .with_validate_chunk_crcs(true)
                         .with_emit_chunks(true),
-                    crate::storage::BudgetRef::try_default()?,
                 ),
             },
         })
@@ -107,7 +112,15 @@ pub fn parse_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
             let mut c = Cursor::new(body);
             let header: records::SchemaHeader = c.read_le()?;
             let data_len = c.read_u32::<LE>()?;
-            let data = schema_payload(body, c.position() as usize, data_len)?;
+            let mut data = &body[c.position() as usize..];
+
+            if data_len > data.len() as u32 {
+                return Err(McapError::BadSchemaLength {
+                    header: data_len,
+                    available: data.len() as u32,
+                });
+            }
+            data = &data[..data_len as usize];
             Record::Schema {
                 header,
                 data: Cow::Borrowed(data),
@@ -123,7 +136,14 @@ pub fn parse_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
         op::CHUNK => {
             let mut c = Cursor::new(body);
             let header: records::ChunkHeader = c.read_le()?;
-            let data = chunk_payload(body, c.position() as usize, header.compressed_size)?;
+            let mut data = &body[c.position() as usize..];
+            if header.compressed_size > data.len() as u64 {
+                return Err(McapError::BadChunkLength {
+                    header: header.compressed_size,
+                    available: data.len() as u64,
+                });
+            }
+            data = &data[..header.compressed_size as usize];
             Record::Chunk {
                 header,
                 data: Cow::Borrowed(data),
@@ -135,7 +155,37 @@ pub fn parse_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
             let mut c = Cursor::new(body);
             let header: records::AttachmentHeader = c.read_le()?;
             let data_len = c.read_u64::<LE>()?;
-            let (data, crc) = attachment_payload(body, c.position() as usize, data_len)?;
+            let header_len = c.position() as usize;
+
+            let mut data = &body[header_len..body.len() - 4];
+            if data_len > data.len() as u64 {
+                return Err(McapError::BadAttachmentLength {
+                    header: data_len,
+                    available: data.len() as u64,
+                });
+            }
+            data = &data[..data_len as usize];
+            let crc: u32 = Cursor::new(&body[header_len + data.len()..]).read_le()?;
+
+            // We usually leave CRCs to higher-level readers -
+            // (ChunkReader, read_summary(), etc.) - but
+            //
+            // 1. We can trivially check it here without checking other records,
+            //    decompressing anything, or doing any other non-trivial work
+            //
+            // 2. Since the CRC depends on the serialized header, it doesn't make
+            //    much sense to have users check it.
+            // We still provide the parsed CRC to the caller in case they want to re-serialize the
+            // record in another MCAP, and so they know if the record had a non-zero CRC.
+            if crc != 0 {
+                let calculated = crc32(&body[..header_len + data.len()]);
+                if crc != calculated {
+                    return Err(McapError::BadAttachmentCrc {
+                        saved: crc,
+                        calculated,
+                    });
+                }
+            }
 
             Record::Attachment {
                 header,
@@ -154,171 +204,6 @@ pub fn parse_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
             data: Cow::Borrowed(body),
         },
     })
-}
-
-// Owned and borrowed record parsing share declared-length and attachment CRC
-// validation. Trailing record bytes retain the official parser's semantics.
-fn schema_payload(body: &[u8], header_end: usize, length: u32) -> McapResult<&[u8]> {
-    let available = &body[header_end..];
-    if length > available.len() as u32 {
-        return Err(McapError::BadSchemaLength {header:length,available:available.len() as u32});
-    }
-    Ok(&available[..length as usize])
-}
-/// Parse a pinned chunk body without allocating its compression name.
-/// Uses the same declared payload bounds and trailing-byte semantics as `parse_record`.
-pub fn parse_borrowed_chunk(body: &[u8]) -> McapResult<(records::BorrowedChunkHeader<'_>, &[u8])> {
-    let header = records::BorrowedChunkHeader::read(body)?;
-    let data = chunk_payload(body, 40 + header.compression.len(), header.compressed_size)?;
-    Ok((header, data))
-}
-fn chunk_payload(body: &[u8], header_end: usize, length: u64) -> McapResult<&[u8]> {
-    let available = &body[header_end..];
-    if length > available.len() as u64 {
-        return Err(McapError::BadChunkLength {header:length,available:available.len() as u64});
-    }
-    Ok(&available[..length as usize])
-}
-fn attachment_payload(body: &[u8], header_end: usize, length: u64) -> McapResult<(&[u8],u32)> {
-    let eof = || std::io::Error::from(std::io::ErrorKind::UnexpectedEof);
-    let end = body.len().checked_sub(4).ok_or_else(eof)?;
-    let available = body.get(header_end..end).ok_or_else(eof)?;
-    if length > available.len() as u64 {
-        return Err(McapError::BadAttachmentLength {header:length,available:available.len() as u64});
-    }
-    let data = &available[..length as usize];
-    let crc_end = header_end + data.len();
-    let crc: u32 = Cursor::new(&body[crc_end..]).read_le()?;
-    // A record's attachment CRC covers its serialized header and declared data,
-    // not any extra bytes after the saved CRC.
-    if crc != 0 {
-        let calculated = crc32(&body[..crc_end]);
-        if crc != calculated { return Err(McapError::BadAttachmentCrc {saved:crc,calculated}); }
-    }
-    Ok((data,crc))
-}
-
-/// Validate records whose variable data can remain borrowed. Returns false for
-/// map-bearing records, which require the caller's budget-aware duplicate-key
-/// tracking. This is record validation, not a full-file or chunk CRC scan.
-pub fn validate_borrowed_record(op: u8, body: &[u8]) -> McapResult<bool> {
-    use crate::shared_declarations::read_text;
-    let mut cursor = Cursor::new(body);
-    match op {
-        op::HEADER => { read_text(&mut cursor)?; read_text(&mut cursor)?; }
-        op::SCHEMA => {
-            let _: u16 = cursor.read_le()?;
-            read_text(&mut cursor)?; read_text(&mut cursor)?;
-            let length = cursor.read_u32::<LE>()?;
-            schema_payload(body,cursor.position() as usize,length)?;
-        }
-        op::CHUNK => {
-            let header = records::BorrowedChunkHeader::read(body)?;
-            chunk_payload(body,40 + header.compression.len(),header.compressed_size)?;
-        }
-        op::ATTACHMENT => {
-            let _: u64 = cursor.read_le()?;
-            let _: u64 = cursor.read_le()?;
-            read_text(&mut cursor)?; read_text(&mut cursor)?;
-            let length = cursor.read_u64::<LE>()?;
-            attachment_payload(body,cursor.position() as usize,length)?;
-        }
-        op::MESSAGE_INDEX => {
-            let _: u16 = cursor.read_le()?;
-            let length: u32 = cursor.read_le()?;
-            let start = cursor.position();
-            // Same byte-count loop as records::parse_vec, including non-multiple
-            // lengths and duplicate timestamp/offset entries.
-            while cursor.position() - start < u64::from(length) {
-                let _: u64 = cursor.read_le()?;
-                let _: u64 = cursor.read_le()?;
-            }
-        }
-        op::MESSAGE | op::FOOTER | op::SUMMARY_OFFSET | op::DATA_END => {
-            let length = match op {op::MESSAGE=>22,op::FOOTER=>20,op::SUMMARY_OFFSET=>17,_=>4};
-            if body.len()<length {return Err(binrw::Error::Io(std::io::ErrorKind::UnexpectedEof.into()).into());}
-        }
-        op::CHUNK_INDEX => {
-            for _ in 0..4 {let _:u64=cursor.read_le()?;}
-            validate_u16_map(&mut cursor)?;
-            let _:u64=cursor.read_le()?;
-            read_text(&mut cursor)?;
-            let _:u64=cursor.read_le()?;let _:u64=cursor.read_le()?;
-        }
-        op::STATISTICS => {
-            let _:u64=cursor.read_le()?;let _:u16=cursor.read_le()?;
-            for _ in 0..4 {let _:u32=cursor.read_le()?;}
-            let _:u64=cursor.read_le()?;let _:u64=cursor.read_le()?;
-            validate_u16_map(&mut cursor)?;
-        }
-        op::ATTACHMENT_INDEX => {
-            for _ in 0..5 {let _:u64=cursor.read_le()?;}
-            read_text(&mut cursor)?;read_text(&mut cursor)?;
-        }
-        op::METADATA_INDEX => {
-            let _:u64=cursor.read_le()?;let _:u64=cursor.read_le()?;
-            read_text(&mut cursor)?;
-        }
-        op::CHANNEL | op::METADATA => return Ok(false),
-        _ => {} // Unknown records contain opaque borrowed bytes.
-    }
-    Ok(true)
-}
-
-fn validate_u16_map(cursor: &mut Cursor<&[u8]>) -> McapResult<()> {
-    let length:u32=cursor.read_le()?;
-    let start=cursor.position();
-    // A u16 keyspace has a fixed 8 KiB set representation; no heap or growth.
-    let mut present=[0u64;1024];
-    while cursor.position()-start<u64::from(length) {
-        let key:u16=cursor.read_le()?;let _:u64=cursor.read_le()?;
-        let (word,mask)=(usize::from(key)/64,1u64<<(key%64));
-        if present[word]&mask!=0 {
-            return Err(McapError::StaticParseError {position:start,description:"Duplicate keys in map"});
-        }
-        present[word]|=mask;
-    }
-    Ok(())
-}
-
-/// Validate metadata without copying its strings or rebuilding a BTreeMap.
-/// Only the duplicate-key descriptors need temporary, budgeted storage.
-pub fn validate_metadata_record(body: &[u8], domain: &crate::storage::BudgetRef) -> McapResult<()> {
-    let mut cursor=Cursor::new(body);
-    crate::shared_declarations::read_text(&mut cursor)?;
-    validate_string_map(&mut cursor,domain)
-}
-
-/// Validate a standalone channel without resolving or copying its schema.
-pub fn validate_channel_record(body: &[u8], domain: &crate::storage::BudgetRef) -> McapResult<()> {
-    let mut cursor=Cursor::new(body);
-    let _:u16=cursor.read_le()?;let _:u16=cursor.read_le()?;
-    crate::shared_declarations::read_text(&mut cursor)?;
-    crate::shared_declarations::read_text(&mut cursor)?;
-    validate_string_map(&mut cursor,domain)
-}
-
-fn validate_string_map(cursor: &mut Cursor<&[u8]>, domain: &crate::storage::BudgetRef) -> McapResult<()> {
-    use crate::{charged::ChargedTree,segmented::BudgetedSegmentedVec,
-        shared_declarations::read_text,storage::{OwnerKind,ResourceCategory}};
-    let length: u32=cursor.read_le()?;
-    let start=cursor.position();
-    if length==0 {return Ok(());}
-    let mut keys=ChargedTree::new_owned_fixed(
-        BudgetedSegmentedVec::new(domain.clone(),ResourceCategory::Descriptor),
-        domain,ResourceCategory::Descriptor,OwnerKind::Operation)?;
-    while cursor.position()-start<u64::from(length) {
-        let key=read_text(cursor)?;
-        read_text(cursor)?;
-        keys.get_mut().unwrap().push_fixed(key)?;
-    }
-    keys.get_mut().unwrap().sort_by(|a,b|a.cmp(b));
-    for i in 1..keys.len() {
-        if keys[i-1]==keys[i] {
-            return Err(McapError::StaticParseError {position:start,description:"Duplicate keys in map"});
-        }
-    }
-    Ok(())
 }
 
 /// Streams records out of a [Chunk](Record::Chunk), decompressing as needed.
@@ -385,20 +270,16 @@ impl<'a> ChunkFlattener<'a> {
     }
 
     pub fn new_with_options(buf: &'a [u8], options: EnumSet<Options>) -> McapResult<Self> {
-        Ok(Self::with_memory_budget(buf, options, crate::storage::BudgetRef::try_default()?))
-    }
-    fn with_memory_budget(buf: &'a [u8], options: EnumSet<Options>, domain: crate::storage::BudgetRef) -> Self {
-        Self {
+        Ok(Self {
             inner: InnerReader {
                 buf,
-                reader: SansIoReader::new_with_options_and_budget(
+                reader: SansIoReader::new_with_options(
                     LinearReaderOptions::default()
                         .with_skip_end_magic(options.contains(Options::IgnoreEndMagic))
                         .with_validate_chunk_crcs(true),
-                    domain,
                 ),
             },
-        }
+        })
     }
 }
 
@@ -411,26 +292,13 @@ impl<'a> Iterator for ChunkFlattener<'a> {
 }
 
 /// Parses schemas and channels and wires them together
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct ChannelAccumulator<'a> {
-    pub(crate) schemas: crate::u16_table::SharedU16Table<Arc<Schema<'a>>>,
-    pub(crate) channels: crate::u16_table::SharedU16Table<Arc<Channel<'a>>>,
+    pub(crate) schemas: HashMap<u16, Arc<Schema<'a>>>,
+    pub(crate) channels: HashMap<u16, Arc<Channel<'a>>>,
 }
 
 impl<'a> ChannelAccumulator<'a> {
-    pub(crate) fn new(domain: crate::storage::BudgetRef) -> Self {
-        Self {
-            schemas: crate::u16_table::SharedU16Table::new(
-                domain.clone(),
-                crate::storage::ResourceCategory::Declaration,
-            ),
-            channels: crate::u16_table::SharedU16Table::new(
-                domain,
-                crate::storage::ResourceCategory::Declaration,
-            ),
-        }
-    }
-
     pub(crate) fn add_schema(
         &mut self,
         header: records::SchemaHeader,
@@ -439,9 +307,10 @@ impl<'a> ChannelAccumulator<'a> {
         if header.id == 0 {
             return Err(McapError::InvalidSchemaId);
         }
-        match self.schemas.get(&header.id) {
-            Some(schema) => {
+        match self.schemas.entry(header.id) {
+            Entry::Occupied(entry) => {
                 // If we already have this schema, it must be identical.
+                let schema = entry.get();
                 if schema.name == header.name
                     && schema.encoding == header.encoding
                     && schema.data == data
@@ -451,16 +320,13 @@ impl<'a> ChannelAccumulator<'a> {
                     Err(McapError::ConflictingSchemas(header.name))
                 }
             }
-            None => {
-                self.schemas.insert(
-                    header.id,
-                    Arc::new(Schema {
-                        id: header.id,
-                        name: header.name,
-                        encoding: header.encoding,
-                        data,
-                    }),
-                )?;
+            Entry::Vacant(entry) => {
+                entry.insert(Arc::new(Schema {
+                    id: header.id,
+                    name: header.name.clone(),
+                    encoding: header.encoding,
+                    data,
+                }));
                 Ok(())
             }
         }
@@ -479,9 +345,10 @@ impl<'a> ChannelAccumulator<'a> {
                 }
             }
         };
-        match self.channels.get(&chan.id) {
-            Some(channel) => {
+        match self.channels.entry(chan.id) {
+            Entry::Occupied(entry) => {
                 // If we already have this channel, it must be identical.
+                let channel = entry.get();
                 if channel.topic == chan.topic
                     && channel.schema.as_ref().map(|s| s.id).unwrap_or(0) == chan.schema_id
                     && channel.message_encoding == chan.message_encoding
@@ -492,17 +359,14 @@ impl<'a> ChannelAccumulator<'a> {
                     Err(McapError::ConflictingChannels(chan.topic))
                 }
             }
-            None => {
-                self.channels.insert(
-                    chan.id,
-                    Arc::new(Channel {
-                        id: chan.id,
-                        topic: chan.topic,
-                        schema,
-                        message_encoding: chan.message_encoding,
-                        metadata: chan.metadata,
-                    }),
-                )?;
+            Entry::Vacant(entry) => {
+                entry.insert(Arc::new(Channel {
+                    id: chan.id,
+                    topic: chan.topic.clone(),
+                    schema,
+                    message_encoding: chan.message_encoding,
+                    metadata: chan.metadata,
+                }));
                 Ok(())
             }
         }
@@ -535,13 +399,12 @@ impl<'a> RawMessageStream<'a> {
     }
 
     pub fn new_with_options(buf: &'a [u8], options: EnumSet<Options>) -> McapResult<Self> {
-        let domain = crate::storage::BudgetRef::try_default()?;
-        let records = ChunkFlattener::with_memory_budget(buf, options, domain.clone());
+        let records = ChunkFlattener::new_with_options(buf, options)?;
 
         Ok(Self {
             records,
             done: false,
-            channeler: ChannelAccumulator::new(domain),
+            channeler: ChannelAccumulator::default(),
         })
     }
 
@@ -689,25 +552,29 @@ pub fn footer(mcap: &[u8]) -> McapResult<records::Footer> {
 }
 
 /// Indexes of an MCAP file parsed from its (optional) summary section
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Default, Eq, PartialEq, Clone)]
 pub struct Summary {
-    pub(crate) bookkeeping: crate::storage::Bookkeeping,
-    pub stats: Option<crate::shared_statistics::SharedStatistics>,
+    pub stats: Option<records::Statistics>,
     /// Maps channel IDs to their channel
-    pub channels: crate::u16_table::SharedU16Table<crate::shared_declarations::SharedChannel>,
+    pub channels: HashMap<u16, Arc<Channel<'static>>>,
     /// Maps schema IDs to their schema
-    pub schemas: crate::u16_table::SharedU16Table<crate::shared_declarations::SharedSchema>,
-    pub chunk_indexes: crate::segmented::SharedSegmentedVec<crate::shared_chunk_index::SharedChunkIndex>,
-    pub attachment_indexes: crate::segmented::SharedSegmentedVec<crate::shared_attachment_index::SharedAttachmentIndex>,
-    pub metadata_indexes: crate::segmented::SharedSegmentedVec<crate::shared_metadata_index::SharedMetadataIndex>,
+    pub schemas: HashMap<u16, Arc<Schema<'static>>>,
+    pub chunk_indexes: Vec<records::ChunkIndex>,
+    pub attachment_indexes: Vec<records::AttachmentIndex>,
+    pub metadata_indexes: Vec<records::MetadataIndex>,
 }
 
 impl fmt::Debug for Summary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Keep the actual maps as HashMaps for constant-time lookups,
+        // but order everything up before debug printing it here.
+        let channels = self.channels.iter().collect::<BTreeMap<_, _>>();
+        let schemas = self.schemas.iter().collect::<BTreeMap<_, _>>();
+
         f.debug_struct("Summary")
             .field("stats", &self.stats)
-            .field("channels", &self.channels)
-            .field("schemas", &self.schemas)
+            .field("channels", &channels)
+            .field("schemas", &schemas)
             .field("chunk_indexes", &self.chunk_indexes)
             .field("attachment_indexes", &self.attachment_indexes)
             .field("metadata_indexes", &self.metadata_indexes)
@@ -715,49 +582,18 @@ impl fmt::Debug for Summary {
     }
 }
 
-impl Default for Summary {
-    fn default() -> Self {
-        Self::with_memory_budget(Default::default())
-    }
-}
 impl Summary {
-    pub(crate) fn with_memory_budget(domain: crate::storage::BudgetRef) -> Self {
-        Self {
-            bookkeeping: Default::default(),
-            stats: None,
-            channels: crate::u16_table::SharedU16Table::new(
-                domain.clone(),
-                crate::storage::ResourceCategory::Declaration,
-            ),
-            schemas: crate::u16_table::SharedU16Table::new(
-                domain.clone(),
-                crate::storage::ResourceCategory::Declaration,
-            ),
-            chunk_indexes: crate::segmented::SharedSegmentedVec::new(domain.clone()),
-            attachment_indexes: crate::segmented::SharedSegmentedVec::new(domain.clone()),
-            metadata_indexes: crate::segmented::SharedSegmentedVec::new(domain),
-        }
-    }
-
     /// Read the summary section of the given mapped MCAP file, if it has one.
     pub fn read(mcap: &[u8]) -> McapResult<Option<Self>> {
-        Self::read_with_memory_budget(mcap, crate::storage::BudgetRef::try_default()?)
-    }
-    /// Reads a summary with shared finite storage accounting.
-    pub fn read_with_memory_budget(
-        mcap: &[u8],
-        budget: crate::storage::BudgetRef,
-    ) -> McapResult<Option<Self>> {
         use std::io::{Read, Seek};
         let mut cursor = std::io::Cursor::new(mcap);
-        let mut summary_reader = SummaryReader::new_with_options_and_budget(
+        let mut summary_reader = SummaryReader::new_with_options(
             SummaryReaderOptions::default().with_file_size(mcap.len() as u64),
-            budget,
         );
         while let Some(event) = summary_reader.next_event() {
             match event? {
                 SummaryReadEvent::ReadRequest(n) => {
-                    let read = cursor.read(summary_reader.try_insert(n)?)?;
+                    let read = cursor.read(summary_reader.insert(n))?;
                     summary_reader.notify_read(read);
                 }
                 SummaryReadEvent::SeekRequest(to) => {
@@ -777,9 +613,8 @@ impl Summary {
     pub fn stream_chunk<'a, 'b: 'a>(
         &'b self,
         mcap: &'a [u8],
-        index: &impl crate::shared_chunk_index::ChunkIndexAccess,
+        index: &records::ChunkIndex,
     ) -> McapResult<impl Iterator<Item = McapResult<Message<'a>>> + 'a> {
-        let index = index.index_view();
         let end = (index.chunk_start_offset + index.chunk_length) as usize;
         if mcap.len() < end {
             return Err(McapError::BadIndex);
@@ -809,7 +644,7 @@ impl Summary {
             Ok(records::Record::Message { header, data }) => {
                 // Correlate the message to its channel from this summary.
                 let channel = match self.channels.get(&header.channel_id) {
-                    Some(c) => c.to_owned_channel(),
+                    Some(c) => c.clone(),
                     None => {
                         return Some(Err(McapError::UnknownChannel(
                             header.sequence,
@@ -846,9 +681,8 @@ impl Summary {
     pub fn read_message_indexes(
         &self,
         mcap: &[u8],
-        index: &impl crate::shared_chunk_index::ChunkIndexAccess,
+        index: &records::ChunkIndex,
     ) -> McapResult<HashMap<Arc<Channel<'_>>, Vec<records::MessageIndexEntry>>> {
-        let index = index.index_view();
         if index.message_index_offsets.is_empty() {
             // Message indexing is optional... should we be more descriptive here?
             return Err(McapError::BadIndex);
@@ -856,7 +690,7 @@ impl Summary {
 
         let mut indexes = HashMap::new();
 
-        for (channel_id, offset) in index.message_index_offsets.iter() {
+        for (channel_id, offset) in &index.message_index_offsets {
             let offset = *offset as usize;
 
             // Message indexes are at least 15 bytes:
@@ -878,7 +712,7 @@ impl Summary {
             };
 
             // The channel ID from the chunk index and the message index should match
-            if channel_id != index.channel_id {
+            if *channel_id != index.channel_id {
                 return Err(McapError::BadIndex);
             }
 
@@ -892,7 +726,7 @@ impl Summary {
                 }
             };
 
-            if indexes.insert(channel.to_owned_channel(), index.records).is_some() {
+            if indexes.insert(channel.clone(), index.records).is_some() {
                 return Err(McapError::ConflictingChannels(channel.topic.clone()));
             }
         }
@@ -910,11 +744,10 @@ impl Summary {
     pub fn seek_message<'a>(
         &self,
         mcap: &'a [u8],
-        index: &impl crate::shared_chunk_index::ChunkIndexAccess,
+        index: &records::ChunkIndex,
         message: &records::MessageIndexEntry,
     ) -> McapResult<Message<'_>> {
         // Get the chunk (as a header and its data) out of the file at the given offset.
-        let index = index.index_view();
         let end = (index.chunk_start_offset + index.chunk_length) as usize;
         if mcap.len() < end {
             return Err(McapError::BadIndex);
@@ -960,7 +793,7 @@ impl Summary {
                         match parse_record(opcode, data)? {
                             Record::Message { header, data } => {
                                 let channel = match self.channels.get(&header.channel_id) {
-                                    Some(c) => c.to_owned_channel(),
+                                    Some(c) => c.clone(),
                                     None => {
                                         return Err(McapError::UnknownChannel(
                                             header.sequence,

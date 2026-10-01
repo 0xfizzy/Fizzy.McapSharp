@@ -3,12 +3,6 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-public enum McapLeaseReadStatus { Batch, EndOfStream, BudgetUnavailable }
-public sealed class McapMemoryBudgetUnavailableException : InvalidOperationException
-{
-    internal McapMemoryBudgetUnavailableException() : base("Native storage budget is occupied. Release outstanding leases and retry.") { }
-}
-
 /// <summary>Owns stable native message storage. Keep this lease alive until all payload access
 /// has finished. Access and disposal must not overlap. Payload spans expire on disposal.</summary>
 public sealed class McapMessageBatchLease : IDisposable
@@ -57,12 +51,6 @@ public sealed partial class McapReadSession
     /// <summary>Returns null at EOF. Target bytes are a soft batch boundary; messages are never split.</summary>
     public McapMessageBatchLease? ReadBatchLease(int maxMessages = 256, int targetPayloadBytes = 4 * 1024 * 1024)
     {
-        var status = TryReadBatchLease(out var batch, maxMessages, targetPayloadBytes);
-        if (status == McapLeaseReadStatus.BudgetUnavailable) throw new McapMemoryBudgetUnavailableException();
-        return batch;
-    }
-    public McapLeaseReadStatus TryReadBatchLease(out McapMessageBatchLease? batch, int maxMessages = 256, int targetPayloadBytes = 4 * 1024 * 1024)
-    {
         Native.CheckLeaseRequest(maxMessages, targetPayloadBytes);
         if (!messages) throw new InvalidOperationException("This is a record session.");
         lock (gate)
@@ -73,8 +61,7 @@ public sealed partial class McapReadSession
                 int status = Native.fm_read_lease(0, handle, (nuint)maxMessages, (nuint)targetPayloadBytes, out var p, out var progress, out var result);
                 if (status < 0) { var error = Native.ConsumeError(result); handle.Bridge?.ThrowIfError(); throw error; }
                 CompleteBatch(status, progress);
-                batch = p == IntPtr.Zero ? null : new(p, checked((int)progress.Count));
-                return status == 4 ? McapLeaseReadStatus.BudgetUnavailable : batch is null ? McapLeaseReadStatus.EndOfStream : McapLeaseReadStatus.Batch;
+                return p == IntPtr.Zero ? null : new(p, checked((int)progress.Count));
             }
             catch { failed = true; throw; }
         }
@@ -84,27 +71,20 @@ public sealed partial class McapBufferReader
 {
     public McapMessageBatchLease? ReadBatchLease(int maxMessages = 256, int targetPayloadBytes = 4 * 1024 * 1024)
     {
-        var status = TryReadBatchLease(out var batch, maxMessages, targetPayloadBytes);
-        if (status == McapLeaseReadStatus.BudgetUnavailable) throw new McapMemoryBudgetUnavailableException();
-        return batch;
-    }
-    public McapLeaseReadStatus TryReadBatchLease(out McapMessageBatchLease? batch, int maxMessages = 256, int targetPayloadBytes = 4 * 1024 * 1024)
-    {
         Native.CheckLeaseRequest(maxMessages, targetPayloadBytes);
         lock (gate)
         {
             Check();
             int status = Native.fm_read_lease(1, handle, (nuint)maxMessages, (nuint)targetPayloadBytes, out var p, out var progress, out var result);
             if (status < 0) throw Native.ConsumeError(result);
-            batch = p == IntPtr.Zero ? null : new(p, checked((int)progress.Count));
-            return status == 4 ? McapLeaseReadStatus.BudgetUnavailable : batch is null ? McapLeaseReadStatus.EndOfStream : McapLeaseReadStatus.Batch;
+            return p == IntPtr.Zero ? null : new(p, checked((int)progress.Count));
         }
     }
 }
 internal sealed class MessageLeaseHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal MessageLeaseHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_lease_free(handle); NativeStorageSignal.Pulse(); return true; }
+    protected override bool ReleaseHandle() { Native.fm_lease_free(handle);  return true; }
 }
 internal static partial class Native
 {

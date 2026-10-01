@@ -8,15 +8,13 @@ internal static partial class Native
 {
     const string Library = "fizzy_mcap_native";
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe struct Result
+    internal struct Result
     {
         public IntPtr Json;
         public nuint JsonLength;
         public IntPtr Data;
         public nuint DataLength;
         public ulong Value;
-        public nuint ErrorLength;
-        public fixed byte ErrorBytes[4096];
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -75,28 +73,22 @@ internal static partial class Native
     {
         if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
             throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
-        if (fm_abi_version() != 11)
+        if (fm_abi_version() != 12)
             throw new McapException("Incompatible native ABI.");
     }
 
-    internal static unsafe McapException ConsumeError(Result r, bool canContinueWriting = false)
+    internal static McapException ConsumeError(Result r, bool canContinueWriting = false)
     {
         try
         {
-            return DecodeError(in r, canContinueWriting);
+            var b = Copy(r.Json, r.JsonLength);
+            return McapException.Decode(Encoding.UTF8.GetString(b), canContinueWriting);
         }
         finally
         {
             fm_buffer_free(r.Json, r.JsonLength);
             fm_buffer_free(r.Data, r.DataLength);
         }
-    }
-
-    static unsafe McapException DecodeError(in Result r, bool canContinueWriting = false)
-    {
-        if (r.ErrorLength > 4096) return new McapException("Invalid native error length.");
-        fixed (byte* p = r.ErrorBytes)
-            return McapException.Decode(Encoding.UTF8.GetString(new ReadOnlySpan<byte>(p, (int)r.ErrorLength)), canContinueWriting);
     }
 
     internal static byte[] Copy(IntPtr p, nuint n)
@@ -112,9 +104,9 @@ internal static partial class Native
     {
         try
         {
-            if (status < 0)
-                throw DecodeError(in r);
             var j = Copy(r.Json, r.JsonLength);
+            if (status < 0)
+                throw McapException.Decode(Encoding.UTF8.GetString(j));
             return (j.Length == 0 ? null : JsonDocument.Parse(j), Copy(r.Data, r.DataLength), r.Value);
         }
         finally
@@ -138,7 +130,6 @@ internal sealed class WriterHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         Native.fm_writer_free(handle);
         Bridge?.Release();
-        NativeStorageSignal.Pulse();
         return true;
     }
 }
@@ -156,7 +147,6 @@ internal sealed class ReaderHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         Native.fm_reader_free(handle);
         Bridge?.Release();
-        NativeStorageSignal.Pulse();
         return true;
     }
 }

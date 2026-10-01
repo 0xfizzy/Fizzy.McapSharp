@@ -69,14 +69,6 @@
 pub mod read;
 pub mod records;
 pub mod storage;
-pub mod segmented;
-mod canonical;
-mod declaration_key;
-mod option_text;
-mod codec_memory;
-#[cfg(feature = "allocation-audit")]
-pub use codec_memory::allocation_probe as codec_allocation_probe;
-mod codec_writer;
 #[cfg(feature = "tokio")]
 pub mod tokio;
 pub mod write;
@@ -125,9 +117,6 @@ pub enum McapError {
     ConflictingSchemas(String),
     #[error("Record parse failed")]
     Parse(#[from] binrw::Error),
-    /// Fixed diagnostic for budget-aware borrowed record validation.
-    #[error("Record parse failed")]
-    StaticParseError { position: u64, description: &'static str },
     #[error("I/O error from writing, or reading a compression stream")]
     Io(#[from] std::io::Error),
     #[error("Schema has an ID of 0")]
@@ -162,14 +151,6 @@ pub enum McapError {
     AttemptedWriteAfterFailure,
     #[error("file has more bytes after end magic")]
     BytesAfterEndMagic,
-    #[error("{0}")]
-    Storage(#[from] storage::StorageFailure),
-    #[error("Error during decompression: `{0}`")]
-    StaticDecompressionError(&'static str),
-    #[error("I/O error from writing, or reading a compression stream")]
-    Lz4Error(&'static str),
-    #[error("I/O error from writing, or reading a compression stream")]
-    StaticIoError(&'static str),
 }
 
 pub type McapResult<T> = Result<T, McapError>;
@@ -260,14 +241,3 @@ mod assertions {
     #[cfg(feature = "tokio")]
     assert_impl_all!(tokio::linear_reader::LinearReader<Cursor<Vec<u8>>>: Send);
 }
-
-pub mod charged;
-
-pub mod u16_table;
-pub mod shared_statistics;
-
-pub mod shared_metadata_index;
-
-pub mod shared_attachment_index;
-pub mod shared_chunk_index;
-pub mod shared_declarations;

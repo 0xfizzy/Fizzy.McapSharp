@@ -10,7 +10,7 @@ use std::{borrow::Cow, collections::BTreeMap};
 
 use binrw::*;
 
-use crate::McapResult;
+use crate::{McapError, McapResult};
 
 /// Opcodes for MCAP file records.
 ///
@@ -154,10 +154,6 @@ struct McapString {
 /// Avoids taking a copy to turn a String to an McapString for serialization
 #[binrw::writer(writer, endian)]
 fn write_string(s: &String) -> BinResult<()> {
-    write_str(s, writer, endian)
-}
-
-fn write_str<W: std::io::Write + std::io::Seek>(s: &str, writer: &mut W, endian: Endian) -> BinResult<()> {
     (s.len() as u32).write_options(writer, endian, ())?;
     (s.as_bytes()).write_options(writer, endian, ())?;
     Ok(())
@@ -205,13 +201,6 @@ pub struct Header {
     #[bw(write_with = write_string)]
     pub library: String,
 }
-#[derive(BinWrite)]
-pub(crate) struct HeaderRef<'a> {
-    #[bw(write_with = write_string_ref)]
-    pub(crate) profile: &'a str,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) library: &'a str,
-}
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, BinRead, BinWrite)]
 pub struct Footer {
@@ -257,14 +246,9 @@ fn parse_string_map() -> BinResult<BTreeMap<String, String>> {
 
 #[binrw::writer(writer, endian)]
 fn write_string_map(s: &BTreeMap<String, String>) -> BinResult<()> {
-    write_string_pairs(s.iter().map(|(k,v)| (k.as_str(),v.as_str())), writer, endian)
-}
-
-fn write_string_pairs<'a, W, I>(pairs: I, writer: &mut W, endian: Endian) -> BinResult<()>
-where W: std::io::Write + std::io::Seek, I: Clone + Iterator<Item=(&'a str, &'a str)> {
     // Ugh: figure out total number of bytes to write:
     let mut byte_len = 0;
-    for (k, v) in pairs.clone() {
+    for (k, v) in s {
         byte_len += 8; // Four bytes each for lengths of key and value
         byte_len += k.len();
         byte_len += v.len();
@@ -273,25 +257,12 @@ where W: std::io::Write + std::io::Seek, I: Clone + Iterator<Item=(&'a str, &'a 
     (byte_len as u32).write_options(writer, endian, ())?;
     let pos = writer.stream_position()?;
 
-    for (k, v) in pairs {
-        write_str(k, writer, endian)?;
-        write_str(v, writer, endian)?;
+    for (k, v) in s {
+        write_string(k, writer, endian, ())?;
+        write_string(v, writer, endian, ())?;
     }
     assert_eq!(writer.stream_position()?, pos + byte_len as u64);
     Ok(())
-}
-
-/// Serialization-only metadata view; cloned iterators must yield identical pairs.
-pub(crate) struct MetadataRef<'a, I> {
-    pub(crate) name: &'a str,
-    pub(crate) pairs: I,
-}
-impl<'a, I: Clone + Iterator<Item=(&'a str, &'a str)>> BinWrite for MetadataRef<'a, I> {
-    type Args<'b> = ();
-    fn write_options<W: std::io::Write + std::io::Seek>(&self, writer: &mut W, endian: Endian, _: ()) -> BinResult<()> {
-        write_str(self.name, writer, endian)?;
-        write_string_pairs(self.pairs.clone(), writer, endian)
-    }
 }
 
 #[binrw::writer(writer, endian)]
@@ -359,98 +330,6 @@ pub struct Channel {
     pub metadata: BTreeMap<String, String>,
 }
 
-#[binrw::writer(writer, endian)]
-fn write_string_ref(s: &&str) -> BinResult<()> {
-    write_str(s, writer, endian)
-}
-#[cfg(test)]
-#[binrw::writer(writer, endian)]
-fn write_string_map_ref(s: &&BTreeMap<String, String>) -> BinResult<()> {
-    write_string_map(s, writer, endian, ())
-}
-
-/// Serialization-only views reuse the owned records' field writers without cloning data.
-#[cfg(test)]
-#[derive(BinWrite)]
-pub(crate) struct ChannelRef<'a> {
-    pub(crate) id: u16,
-    pub(crate) schema_id: u16,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) topic: &'a str,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) message_encoding: &'a str,
-    #[bw(write_with = write_string_map_ref)]
-    pub(crate) metadata: &'a BTreeMap<String, String>,
-}
-pub(crate) struct ChannelPairsRef<'a, I> {
-    pub(crate) id: u16,
-    pub(crate) schema_id: u16,
-    pub(crate) topic: &'a str,
-    pub(crate) message_encoding: &'a str,
-    pub(crate) metadata: I,
-}
-impl<'a, I: Clone + Iterator<Item=(&'a str, &'a str)>> BinWrite for ChannelPairsRef<'a, I> {
-    type Args<'b> = ();
-    fn write_options<W: std::io::Write + std::io::Seek>(&self, writer: &mut W, endian: Endian, _: ()) -> BinResult<()> {
-        self.id.write_options(writer, endian, ())?;
-        self.schema_id.write_options(writer, endian, ())?;
-        write_str(self.topic, writer, endian)?;
-        write_str(self.message_encoding, writer, endian)?;
-        write_string_pairs(self.metadata.clone(), writer, endian)
-    }
-}
-#[derive(BinWrite)]
-pub(crate) struct SchemaHeaderRef<'a> {
-    pub(crate) id: u16,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) name: &'a str,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) encoding: &'a str,
-}
-
-/// Borrowed summary bodies. Serialization reuses the official field writers and
-/// never clones declarations, strings, or nested index tables.
-pub enum SummaryRecordRef<'a> {
-    Channel(&'a crate::shared_declarations::SharedChannel),
-    Schema(&'a crate::Schema<'static>),
-    Statistics(&'a crate::shared_statistics::SharedStatistics),
-    ChunkIndex(&'a crate::shared_chunk_index::SharedChunkIndex),
-    AttachmentIndex(&'a AttachmentIndex),
-    MetadataIndex(&'a MetadataIndex),
-}
-impl SummaryRecordRef<'_> {
-    pub fn opcode(&self) -> u8 {
-        match self {
-            Self::Channel(_) => op::CHANNEL,
-            Self::Schema(_) => op::SCHEMA,
-            Self::Statistics(_) => op::STATISTICS,
-            Self::ChunkIndex(_) => op::CHUNK_INDEX,
-            Self::AttachmentIndex(_) => op::ATTACHMENT_INDEX,
-            Self::MetadataIndex(_) => op::METADATA_INDEX,
-        }
-    }
-    pub fn write_body<W: std::io::Write + std::io::Seek>(&self, out: &mut W) -> BinResult<()> {
-        match self {
-            Self::Channel(c) => ChannelPairsRef {
-                id: c.id, schema_id: c.schema_id,
-                topic: &c.topic, message_encoding: &c.message_encoding, metadata: c.metadata.iter().map(|(k,v)|(k.as_str(),v.as_str())),
-            }.write_le(out),
-            Self::Schema(s) => {
-                let length = u32::try_from(s.data.len()).map_err(|_| binrw::Error::Io(
-                    std::io::Error::new(std::io::ErrorKind::InvalidInput, "Schema data exceeds wire length")))?;
-                SchemaHeaderRef { id: s.id, name: &s.name, encoding: &s.encoding }.write_le(out)?;
-                out.write_all(&length.to_le_bytes())?;
-                out.write_all(&s.data)?;
-                Ok(())
-            }
-            Self::Statistics(v) => v.write_le(out),
-            Self::ChunkIndex(v) => v.write_le(out),
-            Self::AttachmentIndex(v) => v.write_le(out),
-            Self::MetadataIndex(v) => v.write_le(out),
-        }
-    }
-}
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq, BinRead, BinWrite)]
 pub struct MessageHeader {
     pub channel_id: u16,
@@ -485,43 +364,6 @@ pub struct ChunkHeader {
     pub compression: String,
 
     pub compressed_size: u64,
-}
-#[derive(BinWrite)]
-pub(crate) struct ChunkHeaderRef<'a> {
-    pub(crate) message_start_time: u64,
-    pub(crate) message_end_time: u64,
-    pub(crate) uncompressed_size: u64,
-    pub(crate) uncompressed_crc: u32,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) compression: &'a str,
-    pub(crate) compressed_size: u64,
-}
-
-/// Borrowed representation of the same wire header, used while parser input is pinned.
-pub struct BorrowedChunkHeader<'a> {
-    pub uncompressed_size: u64,
-    pub uncompressed_crc: u32,
-    pub compression: &'a str,
-    pub compressed_size: u64,
-}
-impl<'a> BorrowedChunkHeader<'a> {
-    pub(crate) fn read(bytes: &'a [u8]) -> BinResult<Self> {
-        let eof = || binrw::Error::Io(std::io::ErrorKind::UnexpectedEof.into());
-        let prefix = bytes.get(..32).ok_or_else(eof)?;
-        let compression_len = u32::from_le_bytes(prefix[28..32].try_into().unwrap()) as usize;
-        let end = 32usize.checked_add(compression_len).ok_or_else(eof)?;
-        let compression = std::str::from_utf8(bytes.get(32..end).ok_or_else(eof)?)
-            .map_err(|_| binrw::Error::Io(std::io::ErrorKind::InvalidData.into()))?;
-        let tail = bytes
-            .get(end..end.checked_add(8).ok_or_else(eof)?)
-            .ok_or_else(eof)?;
-        Ok(Self {
-            uncompressed_size: u64::from_le_bytes(prefix[16..24].try_into().unwrap()),
-            uncompressed_crc: u32::from_le_bytes(prefix[24..28].try_into().unwrap()),
-            compression,
-            compressed_size: u64::from_le_bytes(tail.try_into().unwrap()),
-        })
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, BinRead, BinWrite)]
@@ -570,7 +412,21 @@ impl ChunkIndex {
     /// This can be useful for retrieving just the compressed content of a chunk given its index.
     /// Returns [`McapError::BadChunkStartOffset`] if the resulting offset would be greater than [`u64::MAX`].
     pub fn compressed_data_offset(&self) -> McapResult<u64> {
-        crate::shared_chunk_index::compressed_data_offset(self.chunk_start_offset, self.compression.len())
+        let res = self.chunk_start_offset.checked_add(
+            1                                     // opcode
+                + 8                               // chunk record length
+                + 8                               // start time
+                + 8                               // end time
+                + 8                               // uncompressed size
+                + 4                               // CRC
+                + 4                               // compression string length
+                + (self.compression.len() as u64) // 32-bit compression string length
+                + 8, // compressed size
+        );
+        match res {
+            Some(n) => Ok(n),
+            None => Err(McapError::BadChunkStartOffset(self.chunk_start_offset)),
+        }
     }
 }
 
@@ -587,16 +443,6 @@ pub struct AttachmentHeader {
     #[br(map = |s: McapString| s.inner )]
     #[bw(write_with = write_string)]
     pub media_type: String,
-}
-
-#[derive(BinWrite)]
-pub(crate) struct AttachmentHeaderRef<'a> {
-    pub(crate) log_time: u64,
-    pub(crate) create_time: u64,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) name: &'a str,
-    #[bw(write_with = write_string_ref)]
-    pub(crate) media_type: &'a str,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, BinRead, BinWrite)]
@@ -728,193 +574,5 @@ mod tests {
         Cursor::new(&mut buf).write_le(&header).unwrap();
 
         assert_eq!(len as usize, buf.len());
-    }
-}
-
-#[cfg(test)]
-mod borrowed_chunk_tests {
-    use super::*;
-    #[test]
-    fn borrowed_header_matches_official_owned_header_and_rejects_truncation() {
-        for compression in ["", "lz4", "zstd", "unknown", "编码"] {
-            let header = ChunkHeader {
-                message_start_time: 17,
-                message_end_time: 91,
-                uncompressed_size: 12345,
-                uncompressed_crc: 123,
-                compression: compression.into(),
-                compressed_size: 6789,
-            };
-            let mut bytes = std::io::Cursor::new(Vec::new());
-            bytes.write_le(&header).unwrap();
-            let bytes = bytes.into_inner();
-            let borrowed = BorrowedChunkHeader::read(&bytes).unwrap();
-            assert_eq!(borrowed.compression, header.compression);
-            assert_eq!(borrowed.uncompressed_size, header.uncompressed_size);
-            assert_eq!(borrowed.uncompressed_crc, header.uncompressed_crc);
-            assert_eq!(borrowed.compressed_size, header.compressed_size);
-            for end in 0..bytes.len() {
-                assert!(BorrowedChunkHeader::read(&bytes[..end]).is_err());
-                assert!(std::io::Cursor::new(&bytes[..end])
-                    .read_le::<ChunkHeader>()
-                    .is_err());
-            }
-        }
-    }
-    #[test]
-    fn invalid_utf8_is_rejected_by_both_header_readers() {
-        let mut bytes = vec![0u8; 41];
-        bytes[28] = 1;
-        bytes[32] = 0xff;
-        assert!(BorrowedChunkHeader::read(&bytes).is_err());
-        assert!(std::io::Cursor::new(&bytes)
-            .read_le::<ChunkHeader>()
-            .is_err());
-    }
-}
-
-#[cfg(test)]
-mod declaration_view_tests {
-    use super::*;
-    #[test]
-    fn borrowed_declarations_match_owned_serialization() {
-        for text in ["", "/é/通道"] {
-            let channel = Channel {
-                id: 65535,
-                schema_id: 42,
-                topic: text.into(),
-                message_encoding: "raw".into(),
-                metadata: BTreeMap::from([("z".into(), "末".into()), ("a".into(), text.into())]),
-            };
-            let view = ChannelRef {
-                id: channel.id,
-                schema_id: channel.schema_id,
-                topic: &channel.topic,
-                message_encoding: &channel.message_encoding,
-                metadata: &channel.metadata,
-            };
-            let mut owned = std::io::Cursor::new(Vec::new());
-            let mut borrowed = std::io::Cursor::new(Vec::new());
-            owned.write_le(&channel).unwrap();
-            borrowed.write_le(&view).unwrap();
-            assert_eq!(owned.into_inner(), borrowed.into_inner());
-            let header = SchemaHeader {
-                id: 42,
-                name: text.into(),
-                encoding: "jsonschema".into(),
-            };
-            let view = SchemaHeaderRef {
-                id: header.id,
-                name: &header.name,
-                encoding: &header.encoding,
-            };
-            let mut owned = std::io::Cursor::new(Vec::new());
-            let mut borrowed = std::io::Cursor::new(Vec::new());
-            owned.write_le(&header).unwrap();
-            borrowed.write_le(&view).unwrap();
-            assert_eq!(owned.into_inner(), borrowed.into_inner());
-        }
-    }
-}
-
-#[cfg(test)]
-mod summary_view_tests {
-    use super::*;
-    #[test]
-    fn summary_declaration_bodies_roundtrip_through_official_parser() {
-        for text in ["", "通道/é"] {
-            let schema = std::sync::Arc::new(crate::Schema {
-                id: 42, name: text.into(), encoding: "raw".into(),
-                data: std::borrow::Cow::Owned(vec![0, 1, 255]),
-            });
-            let channel = crate::Channel {
-                id: 65535, topic: text.into(), message_encoding: "raw".into(),
-                schema: Some(schema.clone()),
-                metadata: BTreeMap::from([("key".into(), text.into())]),
-            };
-            let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-            let shared_schema = crate::shared_declarations::SharedSchema::new(schema.id,&schema.name,&schema.encoding,&schema.data,&domain,crate::storage::OwnerKind::Parser).unwrap();
-            let shared_channel = crate::shared_declarations::SharedChannel::new(channel.id,&channel.topic,&channel.message_encoding,Some(shared_schema.clone()),channel.metadata.iter().map(|(k,v)|(k.as_str(),v.as_str())),&domain,crate::storage::OwnerKind::Parser).unwrap();
-            for view in [SummaryRecordRef::Schema(&shared_schema), SummaryRecordRef::Channel(&shared_channel)] {
-                let mut body = std::io::Cursor::new(Vec::new());
-                view.write_body(&mut body).unwrap();
-                let bytes = body.into_inner();
-                match crate::parse_record(view.opcode(), &bytes).unwrap() {
-                    Record::Schema { header, data } => {
-                        assert_eq!(header.id, schema.id);
-                        assert_eq!(header.name, schema.name);
-                        assert_eq!(header.encoding, schema.encoding);
-                        assert_eq!(data, schema.data);
-                    }
-                    Record::Channel(v) => {
-                        assert_eq!(v.id, channel.id);
-                        assert_eq!(v.schema_id, schema.id);
-                        assert_eq!(v.topic, channel.topic);
-                        assert_eq!(v.message_encoding, channel.message_encoding);
-                        assert_eq!(v.metadata, channel.metadata);
-                    }
-                    _ => panic!("unexpected declaration"),
-                }
-                // Writing into a fixed caller buffer must produce the identical body.
-                let mut fixed = vec![0; bytes.len()];
-                view.write_body(&mut std::io::Cursor::new(fixed.as_mut_slice())).unwrap();
-                assert_eq!(fixed, bytes);
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-mod metadata_view_tests {
-    use super::*;
-    #[test]
-    fn metadata_pairs_match_owned_wire_and_parse() {
-        for name in ["", "é/元数据"] {
-            let metadata=Metadata {name:name.into(),metadata:BTreeMap::from([("a".into(),"é".into()),("z".into(),"末".into())])};
-            let mut expected=std::io::Cursor::new(Vec::new());
-            metadata.write_le(&mut expected).unwrap();
-            let mut actual=std::io::Cursor::new(Vec::new());
-            MetadataRef {name,pairs:metadata.metadata.iter().map(|(k,v)|(k.as_str(),v.as_str()))}.write_le(&mut actual).unwrap();
-            assert_eq!(actual.get_ref(),expected.get_ref());
-            let Record::Metadata(parsed)=crate::parse_record(op::METADATA,actual.get_ref()).unwrap() else {panic!()};
-            assert_eq!(parsed,metadata);
-        }
-    }
-}
-
-#[cfg(test)]
-mod writer_header_view_tests {
-    #[test]
-    fn borrowed_attachment_header_matches_official_fields() {
-        use binrw::BinWrite;
-        for (name, media_type) in [("", ""), ("名字🌍", "数据/类型")] {
-            let owned = super::AttachmentHeader { log_time: 1, create_time: u64::MAX, name: name.into(), media_type: media_type.into() };
-            let borrowed = super::AttachmentHeaderRef { log_time: 1, create_time: u64::MAX, name, media_type };
-            let mut a = std::io::Cursor::new(Vec::new()); let mut b = std::io::Cursor::new(Vec::new());
-            owned.write_le(&mut a).unwrap(); borrowed.write_le(&mut b).unwrap();
-            assert_eq!(a.into_inner(), b.into_inner());
-        }
-    }
-    use super::*;
-    #[test]
-    fn borrowed_file_and_chunk_headers_match_owned_wire() {
-        for (profile, library) in [("", ""), ("profile/通道", "library\0build")] {
-            let owned = Header { profile: profile.into(), library: library.into() };
-            let view = HeaderRef { profile, library };
-            let mut expected = std::io::Cursor::new(Vec::new());
-            let mut actual = std::io::Cursor::new(Vec::new());
-            owned.write_le(&mut expected).unwrap();
-            view.write_le(&mut actual).unwrap();
-            assert_eq!(actual.into_inner(), expected.into_inner());
-        }
-        for compression in ["", "lz4", "zstd"] {
-            let owned = ChunkHeader { message_start_time: 1, message_end_time: u64::MAX, uncompressed_size: 3, uncompressed_crc: 42, compression: compression.into(), compressed_size: 5 };
-            let view = ChunkHeaderRef { message_start_time: 1, message_end_time: u64::MAX, uncompressed_size: 3, uncompressed_crc: 42, compression, compressed_size: 5 };
-            let mut expected = std::io::Cursor::new(Vec::new());
-            let mut actual = std::io::Cursor::new(Vec::new());
-            owned.write_le(&mut expected).unwrap();
-            view.write_le(&mut actual).unwrap();
-            assert_eq!(actual.into_inner(), expected.into_inner());
-        }
     }
 }

@@ -2,7 +2,8 @@ namespace Fizzy.McapSharp;
 
 public sealed record McapReaderOptions
 {
-    public McapMemoryOptions? Memory { get; init; }
+    /// <summary>Cache allowance for snapshots opened from this session. Zero disables retention; does not limit leases or upstream memory.</summary>
+    public ulong MaxRandomAccessCacheBytes { get; init; }
     public bool SkipStartMagic { get; init; }
     public bool SkipEndMagic { get; init; }
     public bool CheckFinishesAfterEndMagic { get; init; }
@@ -18,7 +19,6 @@ public sealed record McapReaderOptions
 
 public sealed record McapSummaryReaderOptions
 {
-    public McapMemoryOptions? Memory { get; init; }
     public ulong? FileSize { get; init; }
     public ulong? RecordLengthLimit { get; init; }
 }

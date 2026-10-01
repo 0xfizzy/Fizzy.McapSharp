@@ -1,26 +1,25 @@
 //! Write MCAP files
 
-#[cfg(test)]
-use std::io::Cursor;
-#[cfg(test)]
-use crate::Channel;
 use std::{
     borrow::Cow,
-    collections::BTreeMap,
-    io::{self, prelude::*, SeekFrom},
-    mem::size_of,
+    collections::{btree_map::Entry, BTreeMap, HashMap},
+    io::{self, prelude::*, Cursor, SeekFrom},
+    mem::{size_of, take},
+    sync::Arc,
 };
 
-use crate::canonical::CanonicalMap;
+use bimap::BiHashMap;
 use binrw::prelude::*;
 use byteorder::{WriteBytesExt, LE};
 use enumset::{EnumSet, EnumSetType};
+#[cfg(feature = "zstd")]
+use zstd::stream::{raw as zraw, zio};
 
 use crate::{
     chunk_sink::{ChunkMode, ChunkSink},
-    io_utils::{CountingCrcWriter, McapWrite},
-    records::{self, op, AttachmentHeader, MessageHeader, Record},
-    Attachment, Compression, McapError, McapResult, Message, Summary, MAGIC,
+    io_utils::CountingCrcWriter,
+    records::{self, op, AttachmentHeader, AttachmentIndex, MessageHeader, Record},
+    Attachment, Channel, Compression, McapError, McapResult, Message, Schema, Summary, MAGIC,
 };
 
 // re-export to help with linear writing
@@ -47,49 +46,16 @@ fn op_and_len<W: Write>(w: &mut W, op: u8, len: u64) -> io::Result<()> {
     Ok(())
 }
 
-fn serialized_body_len<T>(body: &T) -> io::Result<u64>
-where
-    T: BinWrite,
-    for<'a> T::Args<'a>: Default,
-{
-    let mut counter = NoSeek::new(io::sink());
-    counter.write_le(body).map_err(io::Error::other)?;
-    counter.stream_position()
-}
-
-fn write_record_body<W: Write, T>(writer: &mut W, opcode: u8, body: &T) -> io::Result<()>
-where
-    T: BinWrite,
-    for<'a> T::Args<'a>: Default,
-{
-    op_and_len(writer, opcode, serialized_body_len(body)?)?;
-    NoSeek::new(writer).write_le(body).map_err(io::Error::other)
-}
-
-fn write_schema_record<W: Write, T>(mut writer: &mut W, header: &T, data: &[u8]) -> io::Result<()>
-where
-    T: BinWrite,
-    for<'a> T::Args<'a>: Default,
-{
-    let header_len = serialized_body_len(header)?;
-    op_and_len(
-        writer,
-        op::SCHEMA,
-        header_len + size_of::<u32>() as u64 + data.len() as u64,
-    )?;
-    NoSeek::new(&mut writer)
-        .write_le(header)
-        .map_err(io::Error::other)?;
-    writer.write_u32::<LE>(data.len() as u32)?;
-    writer.write_all(data)
-}
-
 fn write_record<W: Write>(mut w: &mut W, r: &Record) -> io::Result<()> {
-    // Official record serializers only query their position. Measure into a sink,
-    // then serialize directly, avoiding an intermediate allocation and copy.
+    // Annoying: our stream isn't Seek if we're writing to a compressed chunk stream,
+    // so we need an intermediate buffer.
     macro_rules! record {
         ($op:expr, $b:ident) => {{
-            write_record_body(w, $op, $b)?;
+            let mut rec_buf = Vec::new();
+            Cursor::new(&mut rec_buf).write_le($b).unwrap();
+
+            op_and_len(w, $op, rec_buf.len() as _)?;
+            w.write_all(&rec_buf)?;
         }};
     }
 
@@ -98,7 +64,19 @@ fn write_record<W: Write>(mut w: &mut W, r: &Record) -> io::Result<()> {
         Record::Footer(_) => {
             unreachable!("Footer handles its own serialization because its CRC is self-referencing")
         }
-        Record::Schema { header, data } => write_schema_record(w, header, data)?,
+        Record::Schema { header, data } => {
+            let mut header_buf = Vec::new();
+            Cursor::new(&mut header_buf).write_le(header).unwrap();
+
+            op_and_len(
+                w,
+                op::SCHEMA,
+                (header_buf.len() + size_of::<u32>() + data.len()) as _,
+            )?;
+            w.write_all(&header_buf)?;
+            w.write_u32::<LE>(data.len() as u32)?;
+            w.write_all(data)?;
+        }
         Record::Channel(c) => record!(op::CHANNEL, c),
         Record::Message { header, data } => {
             let header_len = header.serialized_len();
@@ -136,10 +114,9 @@ fn write_record<W: Write>(mut w: &mut W, r: &Record) -> io::Result<()> {
 
 #[derive(Debug, Clone)]
 pub struct WriteOptions {
-    memory_budget: Option<crate::storage::BudgetRef>,
     compression: Option<Compression>,
-    profile: crate::option_text::Text,
-    library: crate::option_text::Text,
+    profile: String,
+    library: String,
     chunk_size: Option<u64>,
     use_chunks: bool,
     disable_seeking: bool,
@@ -158,19 +135,18 @@ pub struct WriteOptions {
     #[cfg(any(feature = "zstd", feature = "lz4"))]
     compression_level: u32,
     #[cfg(feature = "zstd")]
-    compression_threads: Option<u32>,
+    compression_threads: u32,
 }
 
 impl Default for WriteOptions {
     fn default() -> Self {
         Self {
-            memory_budget: Default::default(),
             #[cfg(feature = "zstd")]
             compression: Some(Compression::Zstd),
             #[cfg(not(feature = "zstd"))]
             compression: None,
-            profile: crate::option_text::Text::Borrowed(""),
-            library: crate::option_text::Text::Borrowed(crate::LIBRARY_IDENTIFIER),
+            profile: String::new(),
+            library: crate::LIBRARY_IDENTIFIER.to_string(),
             chunk_size: Some(Self::DEFAULT_CHUNK_SIZE),
             use_chunks: true,
             disable_seeking: false,
@@ -189,17 +165,12 @@ impl Default for WriteOptions {
             #[cfg(any(feature = "zstd", feature = "lz4"))]
             compression_level: 0,
             #[cfg(feature = "zstd")]
-            compression_threads: None,
+            compression_threads: num_cpus::get_physical() as u32,
         }
     }
 }
 
 impl WriteOptions {
-    /// Selects the shared native storage domain.
-    pub fn memory_budget(mut self, budget: crate::storage::BudgetRef) -> Self {
-        self.memory_budget = Some(budget);
-        self
-    }
     /// Default target uncompressed chunk size used by [`WriteOptions`].
     pub const DEFAULT_CHUNK_SIZE: u64 = 1024 * 1024;
 
@@ -218,7 +189,7 @@ impl WriteOptions {
     /// Specifies the profile that should be written to the MCAP Header record.
     pub fn profile<S: Into<String>>(self, profile: S) -> Self {
         Self {
-            profile: crate::option_text::Text::Owned(profile.into()),
+            profile: profile.into(),
             ..self
         }
     }
@@ -229,34 +200,9 @@ impl WriteOptions {
     /// It is not used for any other purpose.
     pub fn library<S: Into<String>>(self, library: S) -> Self {
         Self {
-            library: crate::option_text::Text::Owned(library.into()),
+            library: library.into(),
             ..self
         }
-    }
-
-    /// Retain profile text in the selected storage domain; clones share its allocation.
-    pub fn try_profile(mut self, profile: &str) -> McapResult<Self> {
-        let domain=self.text_domain()?;
-        self.profile=crate::option_text::Text::new(profile,&domain)?;
-        Ok(self)
-    }
-    /// Retain library text in the selected storage domain; clones share its allocation.
-    pub fn try_library(mut self, library: &str) -> McapResult<Self> {
-        let domain=self.text_domain()?;
-        self.library=crate::option_text::Text::new(library,&domain)?;
-        Ok(self)
-    }
-    fn text_domain(&mut self)->McapResult<crate::storage::BudgetRef> {
-        let domain=match &self.memory_budget {Some(domain)=>domain.clone(),None=>crate::storage::BudgetRef::try_default()?};
-        self.check_text_domain(&domain)?;
-        self.memory_budget=Some(domain.clone());
-        Ok(domain)
-    }
-    fn check_text_domain(&self,domain:&crate::storage::BudgetRef)->McapResult<()> {
-        if !self.profile.belongs_to(domain) || !self.library.belongs_to(domain) {
-            return Err(McapError::StaticIoError("Writer option storage cannot change memory budget domains"));
-        }
-        Ok(())
     }
 
     /// Specifies the target uncompressed size of each chunk.
@@ -387,7 +333,7 @@ impl WriteOptions {
     /// is equal to the number of physical CPUs.
     #[cfg(feature = "zstd")]
     pub fn compression_threads(mut self, compression_threads: u32) -> Self {
-        self.compression_threads = Some(compression_threads);
+        self.compression_threads = compression_threads;
         self
     }
 
@@ -421,49 +367,26 @@ impl WriteOptions {
     }
 }
 
-fn validate_channel_pairs<'a>(pairs: impl Iterator<Item = (&'a str, &'a str)>) -> io::Result<()> {
-    let mut previous = None;
-    for (key, _) in pairs {
-        if previous.is_some_and(|p| p >= key) {
-            return Err(io::ErrorKind::InvalidInput.into());
-        }
-        previous = Some(key);
-    }
-    Ok(())
-}
-
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct ChannelContent<'a, I> {
+#[derive(Hash, PartialEq, Eq, Debug)]
+struct ChannelContent<'a> {
     topic: Cow<'a, str>,
     schema_id: u16,
     message_encoding: Cow<'a, str>,
-    metadata: I,
+    metadata: Cow<'a, BTreeMap<String, String>>,
 }
 
-impl<'a, I: Clone + Iterator<Item = (&'a str, &'a str)>> ChannelContent<'a, I> {
-    fn into_owned(
-        self,
-        domain: &crate::storage::BudgetRef,
-    ) -> Result<crate::declaration_key::ChannelKey,crate::storage::StorageFailure> {
-        crate::declaration_key::ChannelKey::new_pairs(
-            &self.topic,
-            self.schema_id,
-            &self.message_encoding,
-            self.metadata.clone(),
-            domain,
-        )
-    }
-    fn compare(&self, stored: &crate::declaration_key::ChannelKey) -> std::cmp::Ordering {
-        stored.compare_pairs(
-            &self.topic,
-            self.schema_id,
-            &self.message_encoding,
-            self.metadata.clone(),
-        )
+impl ChannelContent<'_> {
+    fn into_owned(self) -> ChannelContent<'static> {
+        ChannelContent {
+            topic: Cow::Owned(self.topic.into_owned()),
+            schema_id: self.schema_id,
+            message_encoding: Cow::Owned(self.message_encoding.into_owned()),
+            metadata: Cow::Owned(self.metadata.into_owned()),
+        }
     }
 }
 
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Hash, PartialEq, Eq, Debug)]
 struct SchemaContent<'a> {
     name: Cow<'a, str>,
     encoding: Cow<'a, str>,
@@ -471,14 +394,12 @@ struct SchemaContent<'a> {
 }
 
 impl SchemaContent<'_> {
-    fn into_owned(
-        self,
-        domain: &crate::storage::BudgetRef,
-    ) -> Result<crate::declaration_key::SchemaKey,crate::storage::StorageFailure> {
-        crate::declaration_key::SchemaKey::new(&self.name, &self.encoding, &self.data, domain)
-    }
-    fn compare(&self, stored: &crate::declaration_key::SchemaKey) -> std::cmp::Ordering {
-        stored.compare(&self.name, &self.encoding, &self.data)
+    fn into_owned(self) -> SchemaContent<'static> {
+        SchemaContent {
+            name: Cow::Owned(self.name.into_owned()),
+            encoding: Cow::Owned(self.encoding.into_owned()),
+            data: Cow::Owned(self.data.into_owned()),
+        }
     }
 }
 
@@ -487,32 +408,28 @@ impl SchemaContent<'_> {
 /// Users should call [`finish()`](Self::finish) to flush the stream
 /// and check for errors when done; otherwise the result will be unwrapped on drop.
 pub struct Writer<W: Write + Seek> {
-    domain: crate::storage::BudgetRef,
-    bookkeeping: crate::storage::Bookkeeping,
     writer: Option<WriteMode<W>>,
     finished_summary: Option<Summary>,
     chunk_mode: ChunkMode,
     options: WriteOptions,
     // Maps all unique channel content to its "canonical" or first written ID.
-    canonical_channels: CanonicalMap<crate::declaration_key::ChannelKey>,
+    canonical_channels: BiHashMap<ChannelContent<'static>, u16>,
     // Maps all written IDs of channels to the canonical ID for their content.
-    all_channel_ids: crate::u16_table::U16Table<u16>,
+    all_channel_ids: BTreeMap<u16, u16>,
     // Maps all unique schema content to its "canonical" or first written ID.
-    canonical_schemas: CanonicalMap<crate::declaration_key::SchemaKey>,
+    canonical_schemas: BiHashMap<SchemaContent<'static>, u16>,
     // Maps all written IDs of schemas to the canonical ID for their content.
-    all_schema_ids: crate::u16_table::U16Table<u16>,
+    all_schema_ids: BTreeMap<u16, u16>,
     next_schema_id: u16,
     next_channel_id: u16,
-    chunk_indexes: crate::segmented::SharedSegmentedVec<crate::shared_chunk_index::SharedChunkIndex>,
+    chunk_indexes: Vec<records::ChunkIndex>,
     attachment_count: u32,
-    attachment_indexes:
-        crate::segmented::SharedSegmentedVec<crate::shared_attachment_index::SharedAttachmentIndex>,
+    attachment_indexes: Vec<records::AttachmentIndex>,
     metadata_count: u32,
-    metadata_indexes:
-        crate::segmented::SharedSegmentedVec<crate::shared_metadata_index::SharedMetadataIndex>,
+    metadata_indexes: Vec<records::MetadataIndex>,
     /// Message start and end time, or None if there are no messages yet.
     message_bounds: Option<(u64, u64)>,
-    channel_message_counts: crate::u16_table::SharedU16Table<u64>,
+    channel_message_counts: BTreeMap<u16, u64>,
 }
 
 impl<W: Write + Seek> Writer<W> {
@@ -522,28 +439,16 @@ impl<W: Write + Seek> Writer<W> {
     }
 
     /// Create a new MCAP [`Writer`] using the provided seeking writer and [`WriteOptions`].
-    pub fn with_options(writer: W, mut opts: WriteOptions) -> McapResult<Self> {
-        let domain = match opts.memory_budget.clone() {
-            Some(domain) => domain,
-            None => crate::storage::BudgetRef::try_default()?,
-        };
-        opts.check_text_domain(&domain)?;
-        #[cfg(feature = "zstd")]
-        if opts.compression_threads.is_none() {
-            opts.compression_threads = Some(if opts.use_chunks && matches!(opts.compression, Some(Compression::Zstd)) {
-                num_cpus::get_physical() as u32
-            } else { 0 });
-        }
+    pub fn with_options(writer: W, opts: WriteOptions) -> McapResult<Self> {
         let mut writer = CountingCrcWriter::new(writer, opts.calculate_data_section_crc);
         writer.write_all(MAGIC)?;
 
-        write_record_body(
+        write_record(
             &mut writer,
-            op::HEADER,
-            &records::HeaderRef {
-                profile: &opts.profile,
-                library: &opts.library,
-            },
+            &Record::Header(records::Header {
+                profile: opts.profile.clone(),
+                library: opts.library.clone(),
+            }),
         )?;
 
         // If both the `use_chunks` and `disable_seeking` options are enabled set the chunk
@@ -552,66 +457,35 @@ impl<W: Write + Seek> Writer<W> {
         let chunk_mode = if opts.use_chunks && opts.disable_seeking {
             let buffer_size = opts.chunk_size.unwrap_or_default();
 
-            let size: usize = buffer_size
-                .try_into()
-                .map_err(|_| McapError::ChunkBufferTooLarge(buffer_size))?;
-            if size > domain.limits().block {
-                return Err(McapError::ChunkBufferTooLarge(buffer_size));
-            }
-            let (buffer, charge) = crate::charged::bytes(
-                &domain,
-                crate::storage::ResourceCategory::Writer,
-                size,
-            )?;
-            ChunkMode::Buffered { buffer, charge }
+            let buffer = Vec::with_capacity(
+                buffer_size
+                    .try_into()
+                    .map_err(|_| McapError::ChunkBufferTooLarge(buffer_size))?,
+            );
+
+            ChunkMode::Buffered { buffer }
         } else {
             ChunkMode::Direct
         };
 
         Ok(Self {
-            bookkeeping: crate::storage::Bookkeeping::new_owned(
-                &domain,
-                crate::storage::OwnerKind::Operation,
-            )?,
             writer: Some(WriteMode::Raw(writer)),
             finished_summary: None,
+            options: opts,
             chunk_mode,
-            canonical_schemas: CanonicalMap::new(domain.clone()),
-            canonical_channels: CanonicalMap::new(domain.clone()),
-            all_channel_ids: crate::u16_table::U16Table::new_owned(
-                domain.clone(),
-                crate::storage::ResourceCategory::Declaration,
-                crate::storage::OwnerKind::Operation,
-            ),
-            all_schema_ids: crate::u16_table::U16Table::new_owned(
-                domain.clone(),
-                crate::storage::ResourceCategory::Declaration,
-                crate::storage::OwnerKind::Operation,
-            ),
+            canonical_schemas: Default::default(),
+            canonical_channels: Default::default(),
+            all_channel_ids: Default::default(),
+            all_schema_ids: Default::default(),
             next_channel_id: 1,
             next_schema_id: 1,
-            chunk_indexes: crate::segmented::SharedSegmentedVec::new_owned(
-                domain.clone(),
-                crate::storage::OwnerKind::Operation,
-            ),
+            chunk_indexes: Default::default(),
             attachment_count: 0,
-            attachment_indexes: crate::segmented::SharedSegmentedVec::new_owned(
-                domain.clone(),
-                crate::storage::OwnerKind::Operation,
-            ),
+            attachment_indexes: Default::default(),
             metadata_count: 0,
-            metadata_indexes: crate::segmented::SharedSegmentedVec::new_owned(
-                domain.clone(),
-                crate::storage::OwnerKind::Operation,
-            ),
+            metadata_indexes: Default::default(),
             message_bounds: None,
-            channel_message_counts: crate::u16_table::SharedU16Table::new_owned(
-                domain.clone(),
-                crate::storage::ResourceCategory::Index,
-                crate::storage::OwnerKind::Operation,
-            ),
-            options: opts,
-            domain,
+            channel_message_counts: BTreeMap::new(),
         })
     }
 
@@ -630,10 +504,7 @@ impl<W: Write + Seek> Writer<W> {
             encoding: encoding.into(),
             data: data.into(),
         };
-        if let Some(&id) = self
-            .canonical_schemas
-            .find_by(|stored| content.compare(stored))
-        {
+        if let Some(&id) = self.canonical_schemas.get_by_left(&content) {
             return Ok(id);
         }
         while self.all_schema_ids.contains_key(&self.next_schema_id) {
@@ -644,10 +515,16 @@ impl<W: Write + Seek> Writer<W> {
         }
         let id = self.next_schema_id;
         self.next_schema_id += 1;
-        self.write_schema(id, name, encoding, data)?;
+        self.write_schema(Schema {
+            id,
+            name: name.into(),
+            encoding: encoding.into(),
+            data: Cow::Owned(data.into()),
+        })?;
         self.canonical_schemas
-            .insert_no_overwrite(content.into_owned(&self.domain)?, id)?;
-        assert!(self.all_schema_ids.insert_fixed(id, id)?.is_none());
+            .insert_no_overwrite(content.into_owned(), id)
+            .expect("neither schema ID or content should be present in canonical_schemas");
+        assert!(self.all_schema_ids.insert(id, id).is_none());
         Ok(id)
     }
 
@@ -689,10 +566,7 @@ impl<W: Write + Seek> Writer<W> {
         };
 
         if let Some(existing_canonical_id) = self.all_schema_ids.get(&id).copied() {
-            let Some(current_canonical_id) = self
-                .canonical_schemas
-                .find_by(|stored| content.compare(stored))
-                .copied()
+            let Some(current_canonical_id) = self.canonical_schemas.get_by_left(&content).copied()
             else {
                 return Err(McapError::ConflictingSchemas(name.into()));
             };
@@ -702,33 +576,39 @@ impl<W: Write + Seek> Writer<W> {
             return Ok(id);
         }
 
-        self.write_schema(id, name, encoding, data)?;
+        self.write_schema(Schema {
+            id,
+            name: name.into(),
+            encoding: encoding.into(),
+            data: Cow::Owned(data.into()),
+        })?;
 
-        if let Some(canonical_id) = self
-            .canonical_schemas
-            .find_by(|stored| content.compare(stored))
-            .copied()
-        {
-            self.all_schema_ids.insert_fixed(id, canonical_id)?;
+        if let Some(canonical_id) = self.canonical_schemas.get_by_left(&content).copied() {
+            self.all_schema_ids.insert(id, canonical_id);
         } else {
             self.canonical_schemas
-                .insert_no_overwrite(content.into_owned(&self.domain)?, id)?;
-            self.all_schema_ids.insert_fixed(id, id)?;
+                .insert_no_overwrite(content.into_owned(), id)
+                .expect("neither content nor new ID should be present in canonical_schemas");
+            self.all_schema_ids.insert(id, id);
         }
 
         Ok(id)
     }
 
     /// Write a schema record into the MCAP.
-    fn write_schema(&mut self, id: u16, name: &str, encoding: &str, data: &[u8]) -> McapResult<()> {
-        if data.len() > self.domain.limits().block {
-            return Err(McapError::ChunkBufferTooLarge(data.len() as u64));
-        }
-        let header = records::SchemaHeaderRef { id, name, encoding };
+    fn write_schema(&mut self, schema: Schema) -> McapResult<()> {
+        let record = Record::Schema {
+            header: records::SchemaHeader {
+                id: schema.id,
+                name: schema.name,
+                encoding: schema.encoding,
+            },
+            data: schema.data,
+        };
         if self.options.use_chunks {
-            self.start_chunk()?.serialize(|sink| write_schema_record(sink, &header, data))
+            self.start_chunk()?.write_record(&record)
         } else {
-            Ok(write_schema_record(self.finish_chunk()?, &header, data)?)
+            Ok(write_record(&mut self.finish_chunk()?, &record)?)
         }
     }
 
@@ -750,34 +630,13 @@ impl<W: Write + Seek> Writer<W> {
         message_encoding: &str,
         metadata: &BTreeMap<String, String>,
     ) -> McapResult<u16> {
-        self.add_channel_borrowed(
-            schema_id,
-            topic,
-            message_encoding,
-            metadata.iter().map(|(k, v)| (k.as_str(), v.as_str())),
-        )
-    }
-
-    /// Borrows stable, repeatable metadata pairs in strictly increasing key order.
-    /// Input is consumed synchronously; invalid ordering is rejected before advancement.
-    pub fn add_channel_borrowed<'a, I: Clone + Iterator<Item = (&'a str, &'a str)>>(
-        &mut self,
-        schema_id: u16,
-        topic: &'a str,
-        message_encoding: &'a str,
-        metadata: I,
-    ) -> McapResult<u16> {
-        validate_channel_pairs(metadata.clone())?;
         let content = ChannelContent {
             topic: Cow::Borrowed(topic),
             schema_id,
             message_encoding: Cow::Borrowed(message_encoding),
-            metadata: metadata.clone(),
+            metadata: Cow::Borrowed(metadata),
         };
-        if let Some(&id) = self
-            .canonical_channels
-            .find_by(|stored| content.compare(stored))
-        {
+        if let Some(&id) = self.canonical_channels.get_by_left(&content) {
             return Ok(id);
         }
         if schema_id != 0 && !self.all_schema_ids.contains_key(&schema_id) {
@@ -792,16 +651,17 @@ impl<W: Write + Seek> Writer<W> {
         }
         let id = self.next_channel_id;
         self.next_channel_id += 1;
-        self.write_channel(records::ChannelPairsRef {
+        self.write_channel(records::Channel {
             id,
             schema_id,
-            topic,
-            message_encoding,
-            metadata,
+            topic: topic.into(),
+            message_encoding: message_encoding.into(),
+            metadata: metadata.clone(),
         })?;
         self.canonical_channels
-            .insert_no_overwrite(content.into_owned(&self.domain)?, id)?;
-        assert!(self.all_channel_ids.insert_fixed(id, id)?.is_none());
+            .insert_no_overwrite(content.into_owned(), id)
+            .expect("neither content nor new ID should be present in canonical_channels");
+        assert!(self.all_channel_ids.insert(id, id).is_none());
         Ok(id)
     }
 
@@ -833,26 +693,6 @@ impl<W: Write + Seek> Writer<W> {
         message_encoding: &str,
         metadata: &BTreeMap<String, String>,
     ) -> McapResult<u16> {
-        self.add_channel_with_id_borrowed(
-            id,
-            schema_id,
-            topic,
-            message_encoding,
-            metadata.iter().map(|(k, v)| (k.as_str(), v.as_str())),
-        )
-    }
-
-    /// Borrows stable, repeatable metadata pairs in strictly increasing key order.
-    /// Input is consumed synchronously; invalid ordering is rejected before advancement.
-    pub fn add_channel_with_id_borrowed<'a, I: Clone + Iterator<Item = (&'a str, &'a str)>>(
-        &mut self,
-        id: u16,
-        schema_id: u16,
-        topic: &'a str,
-        message_encoding: &'a str,
-        metadata: I,
-    ) -> McapResult<u16> {
-        validate_channel_pairs(metadata.clone())?;
         if schema_id != 0 && !self.all_schema_ids.contains_key(&schema_id) {
             return Err(McapError::UnknownSchema(topic.into(), schema_id));
         }
@@ -861,14 +701,11 @@ impl<W: Write + Seek> Writer<W> {
             topic: Cow::Borrowed(topic),
             schema_id,
             message_encoding: Cow::Borrowed(message_encoding),
-            metadata: metadata.clone(),
+            metadata: Cow::Borrowed(metadata),
         };
 
         if let Some(existing_canonical_id) = self.all_channel_ids.get(&id).copied() {
-            let Some(current_canonical_id) = self
-                .canonical_channels
-                .find_by(|stored| content.compare(stored))
-                .copied()
+            let Some(current_canonical_id) = self.canonical_channels.get_by_left(&content).copied()
             else {
                 return Err(McapError::ConflictingChannels(topic.into()));
             };
@@ -878,174 +715,125 @@ impl<W: Write + Seek> Writer<W> {
             return Ok(id);
         }
 
-        self.write_channel(records::ChannelPairsRef {
+        self.write_channel(records::Channel {
             id,
             schema_id,
-            topic,
-            message_encoding,
-            metadata,
+            topic: topic.into(),
+            message_encoding: message_encoding.into(),
+            metadata: metadata.clone(),
         })?;
 
-        if let Some(canonical_id) = self
-            .canonical_channels
-            .find_by(|stored| content.compare(stored))
-            .copied()
-        {
-            self.all_channel_ids.insert_fixed(id, canonical_id)?;
+        if let Some(canonical_id) = self.canonical_channels.get_by_left(&content).copied() {
+            self.all_channel_ids.insert(id, canonical_id);
         } else {
             self.canonical_channels
-                .insert_no_overwrite(content.into_owned(&self.domain)?, id)?;
-            self.all_channel_ids.insert_fixed(id, id)?;
+                .insert_no_overwrite(content.into_owned(), id)
+                .expect("neither content nor new ID should be present in canonical_channels");
+            self.all_channel_ids.insert(id, id);
         }
 
         Ok(id)
     }
 
     /// Write a channel record into the MCAP.
-    fn write_channel<'a, I: Clone + Iterator<Item = (&'a str, &'a str)>>(
-        &mut self,
-        channel: records::ChannelPairsRef<'a, I>,
-    ) -> McapResult<()> {
+    fn write_channel(&mut self, channel: records::Channel) -> McapResult<()> {
+        let record = Record::Channel(channel);
         if self.options.use_chunks {
-            self.start_chunk()?.serialize(|sink| write_record_body(sink, op::CHANNEL, &channel))
+            self.start_chunk()?.write_record(&record)
         } else {
-            Ok(write_record_body(
-                self.finish_chunk()?,
-                op::CHANNEL,
-                &channel,
-            )?)
+            Ok(write_record(self.finish_chunk()?, &record)?)
         }
     }
 
     /// Write the given message (and its provided channel, if not already added).
     /// The provided channel ID and schema ID will be used as IDs in the resulting MCAP.
     pub fn write(&mut self, message: &Message) -> McapResult<()> {
-        self.write_borrowed(
-            message.channel.id,
-            &message.channel.topic,
-            &message.channel.message_encoding,
-            message
-                .channel
-                .metadata
-                .iter()
-                .map(|(k, v)| (k.as_str(), v.as_str())),
-            message
-                .channel
-                .schema
-                .as_ref()
-                .map(|s| (s.id, s.name.as_str(), s.encoding.as_str(), s.data.as_ref())),
-            &MessageHeader {
-                channel_id: message.channel.id,
-                sequence: message.sequence,
-                log_time: message.log_time,
-                publish_time: message.publish_time,
-            },
-            &message.data,
-        )
-    }
-
-    /// Writes a full message using borrowed declaration fields. Metadata pairs
-    /// must be stable, repeatable and ordered by unique key. Input is consumed
-    /// before return; retained declaration content is copied into charged storage.
-    pub fn write_borrowed<'a, I: Clone + Iterator<Item = (&'a str, &'a str)>>(
-        &mut self,
-        channel_id: u16,
-        topic: &'a str,
-        message_encoding: &'a str,
-        metadata: I,
-        schema: Option<(u16, &'a str, &'a str, &'a [u8])>,
-        header: &MessageHeader,
-        data: &[u8],
-    ) -> McapResult<()> {
-        if header.channel_id != channel_id {
-            return Err(io::Error::from(io::ErrorKind::InvalidInput).into());
-        }
-        validate_channel_pairs(metadata.clone())?;
-        if let Some((schema_id, name, encoding, schema_data)) = schema {
-            if schema_data.len() > self.domain.limits().block {
-                return Err(McapError::ChunkBufferTooLarge(schema_data.len() as u64));
-            }
+        if let Some(schema) = message.channel.schema.as_ref() {
             let content = SchemaContent {
-                name: Cow::Borrowed(name),
-                encoding: Cow::Borrowed(encoding),
-                data: Cow::Borrowed(schema_data),
+                name: Cow::Borrowed(&schema.name),
+                encoding: Cow::Borrowed(&schema.encoding),
+                data: Cow::Borrowed(&schema.data),
             };
-            let canonical_schema_id = self
-                .canonical_schemas
-                .find_by(|stored| content.compare(stored));
-            match self.all_schema_ids.get(&schema_id).copied() {
-                Some(other) => {
+            let canonical_schema_id = self.canonical_schemas.get_by_left(&content);
+            match self.all_schema_ids.entry(schema.id) {
+                Entry::Occupied(other) => {
                     // ensure that this message schema does not conflict with the existing one's content
                     let canonical_schema_id = canonical_schema_id
                         .expect("all values in all_schema_ids should be canonical schema IDs");
-                    if other != *canonical_schema_id {
-                        return Err(McapError::ConflictingSchemas(name.to_owned()));
+                    if *other.get() != *canonical_schema_id {
+                        return Err(McapError::ConflictingSchemas(schema.name.clone()));
                     }
                 }
-                None => {
+                Entry::Vacant(entry) => {
                     // no previous schema has been written with this ID, but one may have with the same content.
                     // this is OK.
                     if let Some(canonical_schema_id) = canonical_schema_id {
-                        self.all_schema_ids
-                            .insert_fixed(schema_id, *canonical_schema_id)?;
+                        entry.insert(*canonical_schema_id);
                     } else {
-                        self.canonical_schemas.insert_no_overwrite(
-                            content.into_owned(&self.domain)?,
-                            schema_id,
-                        )?;
-                        self.all_schema_ids.insert_fixed(schema_id, schema_id)?;
+                        self.canonical_schemas.insert_no_overwrite(content.into_owned(), schema.id).expect(
+                            "all right values in canonical_schemas should correspond to a key in all_schema_ids");
+                        entry.insert(schema.id);
                     }
-                    self.write_schema(schema_id, name, encoding, schema_data)?;
+                    self.write_schema(schema.as_ref().clone())?;
                 }
             }
         }
-        let schema_id = schema.map_or(0, |s| s.0);
-        let channel_content = ChannelContent {
-            topic: Cow::Borrowed(topic),
-            schema_id,
-            message_encoding: Cow::Borrowed(message_encoding),
-            metadata: metadata.clone(),
+        let schema_id = match message.channel.schema.as_ref() {
+            None => 0,
+            Some(schema) => schema.id,
         };
-        let canonical_channel_id = self
-            .canonical_channels
-            .find_by(|stored| channel_content.compare(stored));
-        match self.all_channel_ids.get(&channel_id).copied() {
-            Some(other) => {
+        let channel_content = ChannelContent {
+            topic: Cow::Borrowed(&message.channel.topic),
+            schema_id,
+            message_encoding: Cow::Borrowed(&message.channel.message_encoding),
+            metadata: Cow::Borrowed(&message.channel.metadata),
+        };
+        let canonical_channel_id = self.canonical_channels.get_by_left(&channel_content);
+        match self.all_channel_ids.entry(message.channel.id) {
+            Entry::Occupied(other) => {
                 let canonical_channel_id = canonical_channel_id
                     .expect("values in all_channel_ids should be valid canonical channel IDs");
-                if *canonical_channel_id != other {
-                    return Err(McapError::ConflictingChannels(topic.to_owned()));
+                if *canonical_channel_id != *other.get() {
+                    return Err(McapError::ConflictingChannels(
+                        message.channel.topic.clone(),
+                    ));
                 }
             }
-            None => {
+            Entry::Vacant(entry) => {
                 // no previous channel has been written with this ID, but one may have with the same content.
                 // this is OK.
                 if let Some(canonical_channel_id) = canonical_channel_id {
-                    self.all_channel_ids
-                        .insert_fixed(channel_id, *canonical_channel_id)?;
+                    entry.insert(*canonical_channel_id);
                 } else {
-                    self.canonical_channels.insert_no_overwrite(
-                        channel_content.into_owned(&self.domain)?,
-                        channel_id,
-                    )?;
-                    self.all_channel_ids.insert_fixed(channel_id, channel_id)?;
+                    self.canonical_channels
+                        .insert_no_overwrite(channel_content.into_owned(), message.channel.id)
+                        .expect(
+                            "all values in all_channel_ids should be valid canonical channel IDs",
+                        );
+                    entry.insert(message.channel.id);
                 }
-                self.write_channel(records::ChannelPairsRef {
-                    id: channel_id,
-                    schema_id: schema_id,
-                    topic: topic,
-                    message_encoding: message_encoding,
-                    metadata: metadata.clone(),
+                self.write_channel(records::Channel {
+                    id: message.channel.id,
+                    schema_id: message.channel.schema.as_ref().map(|s| s.id).unwrap_or(0),
+                    topic: message.channel.topic.clone(),
+                    message_encoding: message.channel.message_encoding.clone(),
+                    metadata: message.channel.metadata.clone(),
                 })?;
             }
         }
-        self.write_to_known_channel(header, data)
+        let header = MessageHeader {
+            channel_id: message.channel.id,
+            sequence: message.sequence,
+            log_time: message.log_time,
+            publish_time: message.publish_time,
+        };
+        let data: &[u8] = &message.data;
+        self.write_to_known_channel(&header, data)
     }
 
     /// Write a message to an added channel, given its ID.
     ///
     /// This skips hash lookups of the channel and schema if you already added them.
-    /// Tests channel registration without mutating writer state.
     pub fn contains_channel(&self, id: u16) -> bool {
         self.all_channel_ids.contains_key(&id)
     }
@@ -1066,13 +854,10 @@ impl<W: Write + Seek> Writer<W> {
             None => (header.log_time, header.log_time),
             Some((start, end)) => (start.min(header.log_time), end.max(header.log_time)),
         });
-        let count = self
+        *self
             .channel_message_counts
-            .get(&header.channel_id)
-            .copied()
-            .unwrap_or(0);
-        self.channel_message_counts
-            .insert_fixed(header.channel_id, count + 1)?;
+            .entry(header.channel_id)
+            .or_insert(0) += 1;
 
         // if the current chunk is larger than our target chunk size, finish it
         // and start a new one.
@@ -1174,49 +959,23 @@ impl<W: Write + Seek> Writer<W> {
         attachment_length: u64,
         header: AttachmentHeader,
     ) -> McapResult<()> {
-        self.start_attachment_borrowed(
-            attachment_length,
-            header.log_time,
-            header.create_time,
-            &header.name,
-            &header.media_type,
-        )
-    }
-
-    /// Consumes borrowed header fields synchronously. Only retained indexes copy
-    /// strings, directly into their final, budgeted storage before header output.
-    pub fn start_attachment_borrowed(
-        &mut self,
-        attachment_length: u64,
-        log_time: u64,
-        create_time: u64,
-        name: &str,
-        media_type: &str,
-    ) -> McapResult<()> {
         self.finish_chunk()?;
+        if let Some(WriteMode::Failed(_)) = &self.writer {
+            return Err(McapError::AttemptedWriteAfterFailure);
+        }
         let WriteMode::Raw(w) = self.writer.take().expect(Self::WRITER_IS_NONE) else {
-            unreachable!("finish_chunk establishes raw write mode");
+            unreachable!(
+                "since finish_chunk was called, write mode is guaranteed to be raw at this point"
+            );
         };
-        let header = records::AttachmentHeaderRef {
-            log_time,
-            create_time,
-            name,
-            media_type,
-        };
-        match AttachmentWriter::new(
+
+        self.writer = Some(WriteMode::Attachment(AttachmentWriter::new(
             w,
             attachment_length,
             header,
             self.options.calculate_attachment_crcs,
-            self.options.emit_attachment_indexes,
-            &self.domain,
-        ) {
-            Ok(writer) => self.writer = Some(WriteMode::Attachment(writer)),
-            Err((writer, error)) => {
-                self.writer = Some(WriteMode::Failed(writer.finalize().0));
-                return Err(error);
-            }
-        }
+        )?));
+
         Ok(())
     }
 
@@ -1250,20 +1009,11 @@ impl<W: Write + Seek> Writer<W> {
             panic!("WriteMode is guaranteed to be attachment by this point");
         };
 
-        let (writer, attachment_index) = match writer.finish() {
-            Ok(result) => result,
-            Err((writer, error)) => {
-                self.writer = Some(WriteMode::Failed(writer.finalize().0));
-                return Err(error);
-            }
-        };
+        let (writer, attachment_index) = writer.finish()?;
         self.attachment_count += 1;
 
-        if let Some(attachment_index) = attachment_index {
-            if let Err(error) = self.attachment_indexes.push_fixed(attachment_index) {
-                self.writer = Some(WriteMode::Failed(writer.finalize().0));
-                return Err(error.into());
-            }
+        if self.options.emit_attachment_indexes {
+            self.attachment_indexes.push(attachment_index);
         }
 
         self.writer = Some(WriteMode::Raw(writer));
@@ -1274,72 +1024,38 @@ impl<W: Write + Seek> Writer<W> {
     /// Write an attachment to the MCAP file. This finishes any current chunk before writing the
     /// attachment.
     pub fn attach(&mut self, attachment: &Attachment) -> McapResult<()> {
-        self.attach_borrowed(
-            attachment.log_time,
-            attachment.create_time,
-            &attachment.name,
-            &attachment.media_type,
-            &attachment.data,
-        )
-    }
+        let header = records::AttachmentHeader {
+            log_time: attachment.log_time,
+            create_time: attachment.create_time,
+            name: attachment.name.clone(),
+            media_type: attachment.media_type.clone(),
+        };
 
-    /// Writes borrowed attachment fields and payload without temporary owned headers.
-    pub fn attach_borrowed(
-        &mut self,
-        log_time: u64,
-        create_time: u64,
-        name: &str,
-        media_type: &str,
-        data: &[u8],
-    ) -> McapResult<()> {
-        self.start_attachment_borrowed(data.len() as u64, log_time, create_time, name, media_type)?;
-        self.put_attachment_bytes(data)?;
-        self.finish_attachment()
+        self.start_attachment(attachment.data.len() as _, header)?;
+        self.put_attachment_bytes(&attachment.data[..])?;
+        self.finish_attachment()?;
+
+        Ok(())
     }
 
     /// Write a [Metadata](https://mcap.dev/spec#metadata-op0x0c) record to the MCAP file. This
     /// finishes any current chunk before writing the metadata.
     pub fn write_metadata(&mut self, metadata: &Metadata) -> McapResult<()> {
-        self.write_metadata_borrowed(
-            &metadata.name,
-            metadata
-                .metadata
-                .iter()
-                .map(|(k, v)| (k.as_str(), v.as_str())),
-        )
-    }
-
-    /// Writes borrowed metadata without cloning the name or map for serialization.
-    /// The iterator must yield unique keys in sorted order and its clones must
-    /// produce identical pairs. Input is consumed synchronously before returning.
-    pub fn write_metadata_borrowed<'a, I>(&mut self, name: &'a str, pairs: I) -> McapResult<()>
-    where
-        I: Clone + Iterator<Item = (&'a str, &'a str)>,
-    {
         let w = self.finish_chunk()?;
         let offset = w.stream_position()?;
 
-        write_record_body(w, op::METADATA, &records::MetadataRef { name, pairs })?;
+        // Should we specialize this to avoid taking a clone of the map?
+        write_record(w, &Record::Metadata(metadata.clone()))?;
 
         let length = w.stream_position()? - offset;
 
         self.metadata_count += 1;
         if self.options.emit_metadata_indexes {
-            let result = crate::shared_metadata_index::SharedMetadataIndex::new(
+            self.metadata_indexes.push(records::MetadataIndex {
                 offset,
                 length,
-                name,
-                &self.domain,
-                crate::storage::OwnerKind::Operation,
-            )
-            .and_then(|index| self.metadata_indexes.push_fixed(index));
-            if let Err(error) = result {
-                let Some(WriteMode::Raw(writer)) = self.writer.take() else {
-                    unreachable!()
-                };
-                self.writer = Some(WriteMode::Failed(writer.finalize().0));
-                return Err(error.into());
-            }
+                name: metadata.name.clone(),
+            });
         }
 
         Ok(())
@@ -1401,12 +1117,11 @@ impl<W: Write + Seek> Writer<W> {
                     self.options.compression,
                     std::mem::take(&mut self.chunk_mode),
                     self.options.emit_message_indexes,
-                    self.domain.clone(),
                     self.options.calculate_chunk_crcs,
                     #[cfg(any(feature = "zstd", feature = "lz4"))]
                     self.options.compression_level,
                     #[cfg(feature = "zstd")]
-                    self.options.compression_threads.expect("thread count resolved at creation"),
+                    self.options.compression_threads,
                 )?)
             }
             chunk => chunk,
@@ -1435,10 +1150,7 @@ impl<W: Write + Seek> Writer<W> {
         match self.writer.take().expect(Self::WRITER_IS_NONE) {
             WriteMode::Chunk(c) => match c.finish() {
                 Ok((w, mode, index)) => {
-                    if let Err(error) = self.chunk_indexes.push_fixed(index) {
-                        self.writer = Some(WriteMode::Failed(w.finalize().0));
-                        return Err(error.into());
-                    }
+                    self.chunk_indexes.push(index);
                     self.chunk_mode = mode;
                     self.writer = Some(WriteMode::Raw(w))
                 }
@@ -1474,17 +1186,7 @@ impl<W: Write + Seek> Writer<W> {
         // Finish any chunk we were working on and update stats, indexes, etc.
         self.finish_chunk()?;
 
-        let summary = match self.take_summary() {
-            Ok(summary) => summary,
-            Err(error) => {
-                // Summary creation consumes statistics; refusal cannot be retried.
-                let Some(WriteMode::Raw(writer)) = self.writer.take() else {
-                    unreachable!()
-                };
-                self.writer = Some(WriteMode::Failed(writer.finalize().0));
-                return Err(error);
-            }
-        };
+        let summary = self.take_summary();
         self.finished_summary = Some(summary.clone());
 
         // Grab the writer - self.writer becoming None makes subsequent writes fail.
@@ -1506,94 +1208,63 @@ impl<W: Write + Seek> Writer<W> {
     }
 
     /// moves writer bookkeeping fields into a summary struct, which can be returned on finish.
-    fn take_summary(&mut self) -> McapResult<Summary> {
+    fn take_summary(&mut self) -> Summary {
         // Grab stats before we munge all the self fields below.
         let message_bounds = self.message_bounds.unwrap_or((0, 0));
-        let channel_message_counts = std::mem::replace(
-            &mut self.channel_message_counts,
-            crate::u16_table::SharedU16Table::new_owned(
-                self.domain.clone(),
-                crate::storage::ResourceCategory::Index,
-                crate::storage::OwnerKind::Operation,
-            ),
-        );
-        let stats = crate::shared_statistics::SharedStatistics {
-            fields: crate::shared_statistics::StatisticsFields {
-                message_count: channel_message_counts.values().sum(),
-                schema_count: self.all_schema_ids.len() as u16,
-                channel_count: self.all_channel_ids.len() as u32,
-                attachment_count: self.attachment_count,
-                metadata_count: self.metadata_count,
-                chunk_count: self.chunk_indexes.len() as u32,
-                message_start_time: message_bounds.0,
-                message_end_time: message_bounds.1,
-            },
+        let channel_message_counts = take(&mut self.channel_message_counts);
+        let stats = records::Statistics {
+            message_count: channel_message_counts.values().sum(),
+            schema_count: self.all_schema_ids.len() as u16,
+            channel_count: self.all_channel_ids.len() as u32,
+            attachment_count: self.attachment_count,
+            metadata_count: self.metadata_count,
+            chunk_count: self.chunk_indexes.len() as u32,
+            message_start_time: message_bounds.0,
+            message_end_time: message_bounds.1,
             channel_message_counts,
         };
-        let mut schemas = crate::u16_table::SharedU16Table::new_owned(
-            self.domain.clone(),
-            crate::storage::ResourceCategory::Declaration,
-            crate::storage::OwnerKind::Operation,
-        );
-        let mut channels = crate::u16_table::SharedU16Table::new_owned(
-            self.domain.clone(),
-            crate::storage::ResourceCategory::Declaration,
-            crate::storage::OwnerKind::Operation,
-        );
+        let mut schemas: HashMap<u16, Arc<Schema<'static>>> =
+            HashMap::with_capacity(self.all_schema_ids.len());
+        let mut channels = HashMap::with_capacity(self.all_channel_ids.len());
         for (schema_id, canonical_id) in self.all_schema_ids.iter() {
             let schema_content = self
                 .canonical_schemas
                 .get_by_right(canonical_id)
                 .expect("schema content must be present for canonical id");
-            schemas.insert_fixed(
-                schema_id,
-                crate::shared_declarations::SharedSchema::new(
-                    schema_id, schema_content.name.text(), schema_content.encoding.text(),
-                    schema_content.data.bytes(), &self.domain, crate::storage::OwnerKind::Operation,
-                )?,
-            )?;
+            schemas.insert(
+                *schema_id,
+                Arc::new(Schema {
+                    id: *schema_id,
+                    name: schema_content.name.clone().into(),
+                    encoding: schema_content.encoding.clone().into(),
+                    data: schema_content.data.clone(),
+                }),
+            );
         }
         for (channel_id, canonical_id) in self.all_channel_ids.iter() {
             let channel_content = self
                 .canonical_channels
                 .get_by_right(canonical_id)
                 .expect("channel content must be present for canonical id");
-            channels.insert_fixed(
-                channel_id,
-                crate::shared_declarations::SharedChannel::new(
-                    channel_id, channel_content.topic.text(), channel_content.message_encoding.text(),
-                    schemas.get(&channel_content.schema_id).cloned(), channel_content.metadata(),
-                    &self.domain, crate::storage::OwnerKind::Operation,
-                )?,
-            )?;
+            channels.insert(
+                *channel_id,
+                Arc::new(Channel {
+                    id: *channel_id,
+                    topic: channel_content.topic.clone().into(),
+                    schema: schemas.get(&channel_content.schema_id).cloned(),
+                    message_encoding: channel_content.message_encoding.clone().into(),
+                    metadata: channel_content.metadata.as_ref().to_owned(),
+                }),
+            );
         }
-        Ok(Summary {
-            bookkeeping: self.bookkeeping.clone(),
+        Summary {
             stats: Some(stats),
             channels,
             schemas,
-            chunk_indexes: std::mem::replace(
-                &mut self.chunk_indexes,
-                crate::segmented::SharedSegmentedVec::new_owned(
-                    self.domain.clone(),
-                    crate::storage::OwnerKind::Operation,
-                ),
-            ),
-            attachment_indexes: std::mem::replace(
-                &mut self.attachment_indexes,
-                crate::segmented::SharedSegmentedVec::new_owned(
-                    self.domain.clone(),
-                    crate::storage::OwnerKind::Operation,
-                ),
-            ),
-            metadata_indexes: std::mem::replace(
-                &mut self.metadata_indexes,
-                crate::segmented::SharedSegmentedVec::new_owned(
-                    self.domain.clone(),
-                    crate::storage::OwnerKind::Operation,
-                ),
-            ),
-        })
+            chunk_indexes: take(&mut self.chunk_indexes),
+            attachment_indexes: take(&mut self.attachment_indexes),
+            metadata_indexes: take(&mut self.metadata_indexes),
+        }
     }
 
     /// Consumes this writer, returning the underlying stream. Unless [`Self::finish()`] was called
@@ -1603,6 +1274,9 @@ impl<W: Write + Seek> Writer<W> {
     /// particular, if using [`std::fs::File`], you may wish to call [`std::fs::File::sync_all()`]
     /// to ensure all data was sent to the filesystem.
     pub fn into_inner(mut self) -> W {
+        if self.finished_summary.is_none() {
+            self.finished_summary = Some(self.take_summary());
+        }
         // Peel away all the layers of the writer to get the underlying stream.
         match self.writer.take().expect(Self::WRITER_IS_NONE) {
             WriteMode::Raw(w) => w.finalize().0,
@@ -1615,11 +1289,7 @@ impl<W: Write + Seek> Writer<W> {
 
 impl<W: Write + Seek> Drop for Writer<W> {
     fn drop(&mut self) {
-        // Extraction must not build a summary just to suppress implicit finish.
-        // The stream is absent after into_inner, including during unwinding.
-        if self.writer.is_some() {
-            let _ = self.finish();
-        }
+        if self.writer.is_some() { let _ = self.finish(); }
     }
 }
 
@@ -1629,18 +1299,39 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
     summary: &Summary,
     options: &WriteOptions,
 ) -> McapResult<()> {
+    let all_channels: Vec<_> = summary
+        .channels
+        .iter()
+        .map(|(&id, channel)| {
+            let schema_id = channel.schema.as_ref().map(|schema| schema.id).unwrap_or(0);
+            records::Channel {
+                id,
+                schema_id,
+                topic: channel.topic.clone(),
+                message_encoding: channel.message_encoding.clone(),
+                metadata: channel.metadata.clone(),
+            }
+        })
+        .collect();
+    let all_schemas: Vec<_> = summary
+        .schemas
+        .iter()
+        .map(|(&id, schema)| Record::Schema {
+            header: records::SchemaHeader {
+                id,
+                name: schema.name.clone(),
+                encoding: schema.encoding.clone(),
+            },
+            data: schema.data.clone(),
+        })
+        .collect();
+
     let summary_start = writer.stream_position()?;
     let summary_offset_start;
     // Let's get a CRC of the summary section.
     let mut ccw;
 
-    // At most one offset for each of the six summary record groups.
-    let mut offsets: [Option<records::SummaryOffset>; 6] = std::array::from_fn(|_| None);
-    let mut offset_count = 0;
-    let mut add_offset = |offset| {
-        offsets[offset_count] = Some(offset);
-        offset_count += 1;
-    };
+    let mut offsets = Vec::new();
 
     let mut summary_end = summary_start;
     ccw = CountingCrcWriter::new(writer, options.calculate_summary_section_crc);
@@ -1650,18 +1341,13 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
     }
 
     // Write all schemas.
-    if options.repeat_schemas && !summary.schemas.is_empty() {
+    if options.repeat_schemas && !all_schemas.is_empty() {
         let schemas_start: u64 = summary_start;
-        for (id, schema) in summary.schemas.iter() {
-            let header = records::SchemaHeaderRef {
-                id,
-                name: &schema.name,
-                encoding: &schema.encoding,
-            };
-            write_schema_record(&mut ccw, &header, schema.data.as_ref())?;
+        for schema in all_schemas.iter() {
+            write_record(&mut ccw, schema)?;
         }
         summary_end = posit(&mut ccw)?;
-        add_offset(records::SummaryOffset {
+        offsets.push(records::SummaryOffset {
             group_opcode: op::SCHEMA,
             group_start: schemas_start,
             group_length: summary_end - schemas_start,
@@ -1669,20 +1355,13 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
     }
 
     // Write all channels.
-    if options.repeat_channels && !summary.channels.is_empty() {
+    if options.repeat_channels && !all_channels.is_empty() {
         let channels_start = summary_end;
-        for (id, channel) in summary.channels.iter() {
-            let channel = records::ChannelPairsRef {
-                id,
-                schema_id: channel.schema.as_ref().map_or(0, |schema| schema.id),
-                topic: &channel.topic,
-                message_encoding: &channel.message_encoding,
-                metadata: channel.metadata.iter().map(|(k,v)|(k.as_str(),v.as_str())),
-            };
-            write_record_body(&mut ccw, op::CHANNEL, &channel)?;
+        for channel in all_channels {
+            write_record(&mut ccw, &Record::Channel(channel))?;
         }
         summary_end = posit(&mut ccw)?;
-        add_offset(records::SummaryOffset {
+        offsets.push(records::SummaryOffset {
             group_opcode: op::CHANNEL,
             group_start: channels_start,
             group_length: summary_end - channels_start,
@@ -1691,16 +1370,17 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
 
     if options.emit_statistics {
         let statistics_start = summary_end;
-        write_record_body(
+        write_record(
             &mut ccw,
-            op::STATISTICS,
-            summary
-                .stats
-                .as_ref()
-                .expect("summarize always emits Some(stats)"),
+            &Record::Statistics(
+                summary
+                    .stats
+                    .clone()
+                    .expect("summarize always emits Some(stats)"),
+            ),
         )?;
         summary_end = posit(&mut ccw)?;
-        add_offset(records::SummaryOffset {
+        offsets.push(records::SummaryOffset {
             group_opcode: op::STATISTICS,
             group_start: statistics_start,
             group_length: summary_end - statistics_start,
@@ -1711,10 +1391,10 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
         // Write all chunk indexes.
         let chunk_indexes_start = summary_end;
         for index in &summary.chunk_indexes {
-            write_record_body(&mut ccw, op::CHUNK_INDEX, index)?;
+            write_record(&mut ccw, &Record::ChunkIndex(index.clone()))?;
         }
         summary_end = posit(&mut ccw)?;
-        add_offset(records::SummaryOffset {
+        offsets.push(records::SummaryOffset {
             group_opcode: op::CHUNK_INDEX,
             group_start: chunk_indexes_start,
             group_length: summary_end - chunk_indexes_start,
@@ -1725,10 +1405,10 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
     if options.emit_attachment_indexes && !summary.attachment_indexes.is_empty() {
         let attachment_indexes_start = summary_end;
         for index in &summary.attachment_indexes {
-            write_record_body(&mut ccw, op::ATTACHMENT_INDEX, index)?;
+            write_record(&mut ccw, &Record::AttachmentIndex(index.clone()))?;
         }
         summary_end = posit(&mut ccw)?;
-        add_offset(records::SummaryOffset {
+        offsets.push(records::SummaryOffset {
             group_opcode: op::ATTACHMENT_INDEX,
             group_start: attachment_indexes_start,
             group_length: summary_end - attachment_indexes_start,
@@ -1739,10 +1419,10 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
     if options.emit_metadata_indexes && !summary.metadata_indexes.is_empty() {
         let metadata_indexes_start = summary_end;
         for index in &summary.metadata_indexes {
-            write_record_body(&mut ccw, op::METADATA_INDEX, index)?;
+            write_record(&mut ccw, &Record::MetadataIndex(index.clone()))?;
         }
         summary_end = posit(&mut ccw)?;
-        add_offset(records::SummaryOffset {
+        offsets.push(records::SummaryOffset {
             group_opcode: op::METADATA_INDEX,
             group_start: metadata_indexes_start,
             group_length: summary_end - metadata_indexes_start,
@@ -1752,7 +1432,7 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
     // Write the summary offsets we've been accumulating
     if options.emit_summary_offsets {
         summary_offset_start = summary_end;
-        for offset in offsets.into_iter().flatten() {
+        for offset in offsets {
             write_record(&mut ccw, &Record::SummaryOffset(offset))?;
         }
     } else {
@@ -1785,22 +1465,25 @@ fn write_summary_and_footer_magic<W: Write + Seek>(
     Ok(())
 }
 
-enum Compressor<W: McapWrite> {
+enum Compressor<W: Write> {
     Null(W),
     // zstd's Encoder wrapper doesn't let us get the inner writer without calling finish(), so use
     // zio::Writer directly instead.
     #[cfg(feature = "zstd")]
-    Zstd(crate::codec_writer::zstd_encoder::Encoder<W>),
+    Zstd(zio::Writer<W, zraw::Encoder<'static>>),
     #[cfg(feature = "lz4")]
-    Lz4(crate::codec_writer::lz4_encoder::Encoder<W>),
+    Lz4(lz4::Encoder<W>),
 }
 
-impl<W: McapWrite> Compressor<W> {
-    fn finish(self) -> (W, McapResult<()>) {
+impl<W: Write> Compressor<W> {
+    fn finish(self) -> (W, std::io::Result<()>) {
         match self {
             Compressor::Null(w) => (w, Ok(())),
             #[cfg(feature = "zstd")]
-            Compressor::Zstd(w) => w.finish(),
+            Compressor::Zstd(mut w) => {
+                let result = w.finish();
+                (w.into_inner().0, result)
+            }
             #[cfg(feature = "lz4")]
             Compressor::Lz4(w) => w.finish(),
         }
@@ -1810,17 +1493,17 @@ impl<W: McapWrite> Compressor<W> {
         match self {
             Compressor::Null(w) => w,
             #[cfg(feature = "zstd")]
-            Compressor::Zstd(w) => w.into_inner(),
+            Compressor::Zstd(w) => w.into_inner().0,
             #[cfg(feature = "lz4")]
-            Compressor::Lz4(w) => w.into_inner(),
+            Compressor::Lz4(w) => w.finish().0,
         }
     }
 }
 
-impl<W: McapWrite> Compressor<W> {
-    fn write(&mut self, buf: &[u8]) -> McapResult<usize> {
+impl<W: Write> Write for Compressor<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match self {
-            Compressor::Null(w) => w.write_mcap(buf),
+            Compressor::Null(w) => w.write(buf),
             #[cfg(feature = "zstd")]
             Compressor::Zstd(w) => w.write(buf),
             #[cfg(feature = "lz4")]
@@ -1828,57 +1511,14 @@ impl<W: McapWrite> Compressor<W> {
         }
     }
 
-    fn flush(&mut self) -> McapResult<()> {
+    fn flush(&mut self) -> io::Result<()> {
         match self {
-            Compressor::Null(w) => w.flush_mcap(),
+            Compressor::Null(w) => w.flush(),
             #[cfg(feature = "zstd")]
             Compressor::Zstd(w) => w.flush(),
             #[cfg(feature = "lz4")]
             Compressor::Lz4(w) => w.flush(),
         }
-    }
-}
-
-impl<W: McapWrite> McapWrite for Compressor<W> {
-    fn write_mcap(&mut self, bytes: &[u8]) -> McapResult<usize> { self.write(bytes) }
-    fn flush_mcap(&mut self) -> McapResult<()> { self.flush() }
-}
-fn serialize_output<W: McapWrite>(writer: &mut W,
-    write: impl FnOnce(&mut RecordSink<'_, W>) -> io::Result<()>) -> McapResult<()> {
-    let mut sink = RecordSink {compressor: writer, failure: None};
-    let result = write(&mut sink);
-    if let Some(error) = sink.failure { return Err(error); }
-    Ok(result?)
-}
-
-// Keep I/O failures out of binrw's diagnostic allocation path. The serializer
-// completes against this local facade after the first failure, but no further
-// codec or output operation occurs. The record boundary MUST inspect failure.
-// Counting/CRC only track writes accepted by the actual compressor.
-struct RecordSink<'a, W: McapWrite> {
-    compressor: &'a mut W,
-    failure: Option<McapError>,
-}
-impl<W: McapWrite> Write for RecordSink<'_, W> {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        if self.failure.is_none() {
-            loop {
-                match self.compressor.write_mcap(bytes) {
-                    Ok(count) if count != 0 || bytes.is_empty() => return Ok(count),
-                    Ok(_) => self.failure = Some(io::Error::from(io::ErrorKind::WriteZero).into()),
-                    Err(McapError::Io(error)) if error.kind() == io::ErrorKind::Interrupted => continue,
-                    Err(error) => self.failure = Some(error),
-                }
-                break;
-            }
-        }
-        Ok(bytes.len())
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        if self.failure.is_none() {
-            if let Err(error) = self.compressor.flush_mcap() { self.failure = Some(error); }
-        }
-        Ok(())
     }
 }
 
@@ -1891,10 +1531,7 @@ struct ChunkWriter<W: Write> {
     message_bounds: Option<(u64, u64)>,
     compression_name: &'static str,
     compressor: CountingCrcWriter<Compressor<CountingCrcWriter<ChunkSink<W>>>>,
-    indexes: crate::u16_table::U16Table<
-        crate::segmented::BudgetedSegmentedVec<records::MessageIndexEntry>,
-    >,
-    index_domain: crate::storage::BudgetRef,
+    indexes: BTreeMap<u16, Vec<records::MessageIndexEntry>>,
 
     // Hasher from data before the chunk.
     pre_chunk_crc: Option<crc32fast::Hasher>,
@@ -1908,7 +1545,6 @@ impl<W: Write + Seek> ChunkWriter<W> {
         compression: Option<Compression>,
         mode: ChunkMode,
         emit_message_indexes: bool,
-        budget: crate::storage::BudgetRef,
         calculate_chunk_crcs: bool,
         #[cfg(any(feature = "zstd", feature = "lz4"))] compression_level: u32,
         #[cfg(feature = "zstd")] compression_threads: u32,
@@ -1922,6 +1558,7 @@ impl<W: Write + Seek> ChunkWriter<W> {
         // Relative to start of chunk sink stream.
         let header_start = sink.stream_position()?;
 
+        op_and_len(&mut sink, op::CHUNK, !0)?;
 
         let compression_name = match compression {
             #[cfg(feature = "zstd")]
@@ -1935,39 +1572,42 @@ impl<W: Write + Seek> ChunkWriter<W> {
 
         // Write a dummy header that we'll overwrite with the actual values later.
         // We just need its size (which only varies based on compression name).
-        let header = records::ChunkHeaderRef {
+        let header = records::ChunkHeader {
             message_start_time: 0,
             message_end_time: 0,
             uncompressed_size: !0,
             uncompressed_crc: !0,
-            compression: compression_name,
+            compression: String::from(compression_name),
             compressed_size: !0,
         };
-        serialize_output(&mut sink, |output| {
-            op_and_len(output, op::CHUNK, !0)?;
-            NoSeek::new(output).write_le(&header).map_err(io::Error::other)
-        })?;
+        sink.write_le(&header)?;
         let data_start = sink.stream_position()?;
         let sink = CountingCrcWriter::new(sink, calculate_chunk_crcs);
 
         let compressor = match compression {
             #[cfg(feature = "zstd")]
             Some(Compression::Zstd) => {
-                Compressor::Zstd(crate::codec_writer::zstd_encoder::Encoder::new(
-                    sink,
-                    compression_level as i32,
-                    compression_threads,
-                    budget.clone(),
-                )?)
+                #[allow(unused_mut)]
+                let mut enc = zraw::Encoder::with_dictionary(compression_level as i32, &[])?;
+                // Enable multithreaded encoding on non-WASM targets.
+                #[cfg(not(target_arch = "wasm32"))]
+                enc.set_parameter(zraw::CParameter::NbWorkers(compression_threads))?;
+
+                Compressor::Zstd(zio::Writer::new(sink, enc))
             }
             #[cfg(feature = "lz4")]
-            Some(Compression::Lz4) => {
-                Compressor::Lz4(crate::codec_writer::lz4_encoder::Encoder::new(
-                    sink,
-                    compression_level,
-                    budget.clone(),
-                )?)
-            }
+            Some(Compression::Lz4) => Compressor::Lz4(
+                // Note: lz4-1.10.0 supports multithreaded compression
+                // (github.com/lz4/lz4/pull/1336), but this is not yet
+                // available through the lz4 / lz4-sys crates.
+                lz4::EncoderBuilder::new()
+                    .level(compression_level)
+                    // Disable the block checksum for wider compatibility with MCAP tooling that
+                    // includes a fault block checksum calculation. Since the MCAP spec includes a
+                    // CRC for the compressed chunk this would be a superfluous check anyway.
+                    .block_checksum(lz4::liblz4::BlockChecksum::NoBlockChecksum)
+                    .build(sink)?,
+            ),
             #[cfg(not(any(feature = "zstd", feature = "lz4")))]
             Some(_) => unreachable!("`Compression` is an empty enum that cannot be instantiated"),
             None => Compressor::Null(sink),
@@ -1980,22 +1620,15 @@ impl<W: Write + Seek> ChunkWriter<W> {
             compressor,
             compression_name,
             message_bounds: None,
-            indexes: crate::u16_table::U16Table::new(
-                budget.clone(),
-                crate::storage::ResourceCategory::Index,
-            ),
-            index_domain: budget,
+            indexes: BTreeMap::new(),
             pre_chunk_crc,
             emit_message_indexes,
         })
     }
 
-    fn serialize(&mut self, write: impl FnOnce(&mut RecordSink<'_, CountingCrcWriter<Compressor<CountingCrcWriter<ChunkSink<W>>>>>) -> io::Result<()>)
-        -> McapResult<()> {
-        serialize_output(&mut self.compressor, write)
-    }
     fn write_record(&mut self, record: &Record) -> McapResult<()> {
-        self.serialize(|sink| write_record(sink, record))
+        write_record(&mut self.compressor, record)?;
+        Ok(())
     }
 
     fn write_message(&mut self, header: &MessageHeader, data: &[u8]) -> McapResult<()> {
@@ -2007,18 +1640,13 @@ impl<W: Write + Seek> ChunkWriter<W> {
 
         if self.emit_message_indexes {
             // Add an index for this message
-            if !self.indexes.contains_key(&header.channel_id) {
-                let entries = crate::segmented::BudgetedSegmentedVec::new(
-                    self.index_domain.clone(),
-                    crate::storage::ResourceCategory::Index,
-                );
-                self.indexes.insert_fixed(header.channel_id, entries)?;
-            }
-            let entries = self.indexes.get_mut(&header.channel_id).unwrap();
-            entries.push_fixed(records::MessageIndexEntry {
-                log_time: header.log_time,
-                offset: self.compressor.position(),
-            })?;
+            self.indexes
+                .entry(header.channel_id)
+                .or_default()
+                .push(records::MessageIndexEntry {
+                    log_time: header.log_time,
+                    offset: self.compressor.position(),
+                });
         }
 
         self.write_record(&Record::Message {
@@ -2031,7 +1659,7 @@ impl<W: Write + Seek> ChunkWriter<W> {
 
     fn finish(
         self,
-    ) -> Result<(CountingCrcWriter<W>, ChunkMode, crate::shared_chunk_index::SharedChunkIndex), (W, McapError)> {
+    ) -> Result<(CountingCrcWriter<W>, ChunkMode, records::ChunkIndex), (W, McapError)> {
         // Get the number of uncompressed bytes written and the CRC.
         fn unwrap_writer<W>(writer: CountingCrcWriter<ChunkSink<W>>) -> W {
             writer.finalize().0.inner
@@ -2063,22 +1691,22 @@ impl<W: Write + Seek> ChunkWriter<W> {
         // Compute the CRC of the pre-chunk data concatenated with the chunk header.
         let mut writer = CountingCrcWriter::with_hasher(sink, self.pre_chunk_crc);
 
+        if let Err(err) = op_and_len(&mut writer, op::CHUNK, record_size) {
+            return Err((unwrap_writer(writer), err.into()));
+        }
         let message_bounds = self.message_bounds.unwrap_or((0, 0));
-        let header = records::ChunkHeaderRef {
+        let header = records::ChunkHeader {
             message_start_time: message_bounds.0,
             message_end_time: message_bounds.1,
             uncompressed_size,
             uncompressed_crc: uncompressed_crc
                 .map(|hasher| hasher.finalize())
                 .unwrap_or(0),
-            compression: self.compression_name,
+            compression: String::from(self.compression_name),
             compressed_size,
         };
-        if let Err(err) = serialize_output(&mut writer, |output| {
-            op_and_len(output, op::CHUNK, record_size)?;
-            NoSeek::new(output).write_le(&header).map_err(io::Error::other)
-        }) {
-            return Err((unwrap_writer(writer), err));
+        if let Err(err) = writer.write_le(&header) {
+            return Err((unwrap_writer(writer), err.into()));
         }
         let (mut sink, mut post_chunk_header_crc) = writer.finalize();
         let position = match sink.stream_position() {
@@ -2113,34 +1741,28 @@ impl<W: Write + Seek> ChunkWriter<W> {
                 return Err((writer.finalize().0, err.into()));
             }
         };
-        let mut message_index_offsets = crate::shared_chunk_index::ChunkOffsets::empty();
+        let mut message_index_offsets: BTreeMap<u16, u64> = BTreeMap::new();
+        let mut index_buf = Vec::new();
         for (channel_id, records) in self.indexes {
             let position = match writer.stream_position() {
                 Ok(v) => v,
                 Err(err) => return Err((writer.finalize().0, err.into())),
             };
-            let existing_offset = match message_index_offsets.insert(channel_id, position, &self.index_domain, crate::storage::OwnerKind::Operation) {
-                Ok(value) => value,
-                Err(error) => return Err((writer.finalize().0, error.into())),
-            };
+            let existing_offset = message_index_offsets.insert(channel_id, position);
             assert!(existing_offset.is_none());
 
-            let result = (|| -> std::io::Result<()> {
-                let bytes = records
-                    .len()
-                    .checked_mul(16)
-                    .and_then(|n| u32::try_from(n).ok())
-                    .ok_or_else(|| std::io::Error::other("Message index length overflow"))?;
-                op_and_len(&mut writer, op::MESSAGE_INDEX, 6 + bytes as u64)?;
-                writer.write_all(&channel_id.to_le_bytes())?;
-                writer.write_all(&bytes.to_le_bytes())?;
-                for record in records.iter() {
-                    writer.write_all(&record.log_time.to_le_bytes())?;
-                    writer.write_all(&record.offset.to_le_bytes())?;
-                }
-                Ok(())
-            })();
-            if let Err(err) = result {
+            index_buf.clear();
+            let index = records::MessageIndex {
+                channel_id,
+                records,
+            };
+            if let Err(err) = Cursor::new(&mut index_buf).write_le(&index) {
+                return Err((writer.finalize().0, err.into()));
+            }
+            if let Err(err) = op_and_len(&mut writer, op::MESSAGE_INDEX, index_buf.len() as _) {
+                return Err((writer.finalize().0, err.into()));
+            }
+            if let Err(err) = writer.write_all(&index_buf) {
                 return Err((writer.finalize().0, err.into()));
             }
         }
@@ -2152,18 +1774,16 @@ impl<W: Write + Seek> ChunkWriter<W> {
         };
         let message_index_length = position - data_end;
 
-        let index = match crate::shared_chunk_index::SharedChunkIndex::new(
-            crate::shared_chunk_index::ChunkIndexFields {
-                message_start_time: header.message_start_time,
-                message_end_time: header.message_end_time,
-                chunk_start_offset: self.chunk_offset,
-                chunk_length,
-            }, message_index_length, header.compression, header.compressed_size,
-            header.uncompressed_size, message_index_offsets, &self.index_domain,
-            crate::storage::OwnerKind::Operation,
-        ) {
-            Ok(index) => index,
-            Err(error) => return Err((writer.finalize().0, error.into())),
+        let index = records::ChunkIndex {
+            message_start_time: header.message_start_time,
+            message_end_time: header.message_end_time,
+            chunk_start_offset: self.chunk_offset,
+            chunk_length,
+            message_index_offsets,
+            message_index_length,
+            compression: header.compression,
+            compressed_size: header.compressed_size,
+            uncompressed_size: header.uncompressed_size,
         };
 
         Ok((writer, mode, index))
@@ -2174,7 +1794,7 @@ struct AttachmentWriter<W> {
     record_offset: u64,
     attachment_offset: u64,
     attachment_length: u64,
-    index: Option<crate::shared_attachment_index::SharedAttachmentIndex>,
+    header: AttachmentHeader,
     writer: CountingCrcWriter<W>,
 }
 
@@ -2183,57 +1803,39 @@ impl<W: Write + Seek> AttachmentWriter<W> {
     fn new(
         mut writer: W,
         attachment_length: u64,
-        header: records::AttachmentHeaderRef<'_>,
+        header: AttachmentHeader,
         calculate_crc: bool,
-        emit_index: bool,
-        domain: &crate::storage::BudgetRef,
-    ) -> Result<Self, (W, McapError)> {
-        let prepared = (|| -> McapResult<_> {
-            let record_offset = writer.stream_position()?;
-            let length = serialized_body_len(&header)?
-                .checked_add(size_of::<u64>() as u64)
-                .and_then(|n| n.checked_add(attachment_length))
-                .and_then(|n| n.checked_add(size_of::<u32>() as u64))
-                .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
-            let index = if emit_index {
-                Some(crate::shared_attachment_index::SharedAttachmentIndex::new(
-                    record_offset,
-                    0,
-                    header.log_time,
-                    header.create_time,
-                    attachment_length,
-                    header.name,
-                    header.media_type,
-                    domain,
-                    crate::storage::OwnerKind::Operation,
-                )?)
-            } else {
-                None
-            };
-            Ok((record_offset, length, index))
-        })();
-        let (record_offset, length, index) = match prepared {
-            Ok(value) => value,
-            Err(error) => return Err((writer, error)),
-        };
-        if let Err(error) = op_and_len(&mut writer, op::ATTACHMENT, length) {
-            return Err((writer, error.into()));
-        }
+    ) -> McapResult<Self> {
+        let record_offset = writer.stream_position()?;
+
+        // We have to write to a temporary buffer here as the CountingCrcWriter doesn't support
+        // seeking.
+        let mut header_buf = vec![];
+        Cursor::new(&mut header_buf).write_le(&header)?;
+
+        op_and_len(
+            &mut writer,
+            op::ATTACHMENT,
+            header_buf.len() as u64
+                // attachment_length
+                + size_of::<u64>() as u64
+                // attachment
+                + attachment_length
+                // crc
+                + size_of::<u32>() as u64,
+        )?;
+
         let mut writer = CountingCrcWriter::new(writer, calculate_crc);
-        let result = (|| -> McapResult<()> {
-            NoSeek::new(&mut writer).write_le(&header)?;
-            writer.write_u64::<LE>(attachment_length)?;
-            Ok(())
-        })();
-        if let Err(error) = result {
-            return Err((writer.finalize().0, error));
-        }
+        writer.write_all(&header_buf)?;
+        writer.write_u64::<LE>(attachment_length)?;
+
         let attachment_offset = writer.position();
+
         Ok(Self {
             record_offset,
             attachment_offset,
             attachment_length,
-            index,
+            header,
             writer,
         })
     }
@@ -2259,303 +1861,40 @@ impl<W: Write + Seek> AttachmentWriter<W> {
         Ok(())
     }
 
-    /// Finish the attachment and write the CRC to the output, returning the [`records::AttachmentIndex`]
+    /// Finish the attachment and write the CRC to the output, returning the [`AttachmentIndex`]
     /// for the written attachment.
-    fn finish(
-        mut self,
-    ) -> Result<
-        (
-            W,
-            Option<crate::shared_attachment_index::SharedAttachmentIndex>,
-        ),
-        (W, McapError),
-    > {
+    fn finish(self) -> McapResult<(W, AttachmentIndex)> {
         let expected = self.attachment_length;
         let current = self.writer.position() - self.attachment_offset;
+
         if expected != current {
-            return Err((
-                self.writer.finalize().0,
-                McapError::AttachmentIncomplete { expected, current },
-            ));
+            return Err(McapError::AttachmentIncomplete { expected, current });
         }
+
         let (mut writer, hasher) = self.writer.finalize();
         let crc = hasher.map(|hasher| hasher.finalize()).unwrap_or(0);
-        let result = (|| -> McapResult<()> {
-            writer.write_u32::<LE>(crc)?;
-            let length = writer.stream_position()? - self.record_offset;
-            if let Some(index) = &mut self.index {
-                index.finish_length(length);
-            }
-            Ok(())
-        })();
-        match result {
-            Ok(()) => Ok((writer, self.index)),
-            Err(error) => Err((writer, error)),
-        }
+        writer.write_u32::<LE>(crc)?;
+
+        let offset = self.record_offset;
+        let length = writer.stream_position()? - offset;
+
+        Ok((
+            writer,
+            AttachmentIndex {
+                offset,
+                length,
+                log_time: self.header.log_time,
+                media_type: self.header.media_type,
+                name: self.header.name,
+                create_time: self.header.create_time,
+                data_size: self.attachment_length,
+            },
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn buffered_chunk_header_refusal_preserves_typed_failure() {
-        use crate::storage::{BudgetLimits, BudgetRef, ResourceCategory, StorageFailureKind};
-        for block in [16, 4096] {
-            let domain = BudgetRef::new(BudgetLimits {block, ..Default::default()}).unwrap();
-            let mode = ChunkMode::Buffered {
-                buffer: Vec::new(), charge: domain.reserve_class(0, ResourceCategory::Writer).unwrap(),
-            };
-            if block == 4096 { domain.fail_allocation_at(0); }
-            let result = ChunkWriter::new(CountingCrcWriter::new(Cursor::new(Vec::new()), true),
-                None, mode, false, domain.clone(), true,
-                #[cfg(any(feature = "zstd", feature = "lz4"))] 0,
-                #[cfg(feature = "zstd")] 0);
-            let Err(McapError::Storage(error)) = result else { panic!("expected fixed storage failure") };
-            assert!(error.terminal);
-            if block == 16 {
-                assert_eq!(error.kind, StorageFailureKind::PermanentLimit);
-                assert_eq!(error.details.limit, 16);
-                assert_eq!(error.details.domain_limit, domain.limits().total);
-                assert_eq!(error.details.resource, "WriterBuffer");
-                assert_eq!(error.details.phase, "chunk-growth");
-            } else { assert_eq!(error.kind, StorageFailureKind::SystemAllocation); }
-            assert_eq!(domain.workload_statistics().current, 0);
-        }
-    }
-
-    #[test]
-    fn record_sink_preserves_short_writes_and_first_failure() {
-        struct Output {
-            bytes: Vec<u8>,
-            calls: usize,
-            stop: Option<io::ErrorKind>,
-        }
-        impl Write for Output {
-            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-                self.calls += 1;
-                if self.calls == 1 { return Err(io::ErrorKind::Interrupted.into()); }
-                if self.bytes.len() >= 4 {
-                    if let Some(kind) = self.stop {
-                        return if kind == io::ErrorKind::WriteZero { Ok(0) } else { Err(kind.into()) };
-                    }
-                }
-                let count = bytes.len().min(2);
-                self.bytes.extend_from_slice(&bytes[..count]);
-                Ok(count)
-            }
-            fn flush(&mut self) -> io::Result<()> {
-                self.calls += 1;
-                Err(io::ErrorKind::PermissionDenied.into())
-            }
-        }
-        impl McapWrite for Output {
-            fn write_mcap(&mut self, bytes: &[u8]) -> McapResult<usize> { Ok(self.write(bytes)?) }
-            fn flush_mcap(&mut self) -> McapResult<()> { Ok(self.flush()?) }
-        }
-        for stop in [None, Some(io::ErrorKind::WriteZero), Some(io::ErrorKind::BrokenPipe)] {
-            let output = Output { bytes: Vec::new(), calls: 0, stop };
-            let mut compressor = CountingCrcWriter::new(Compressor::Null(output), true);
-            let mut sink = RecordSink { compressor: &mut compressor, failure: None };
-            sink.write_all(b"abcdefgh").unwrap();
-            if let Some(expected) = stop {
-                assert!(matches!(&sink.failure, Some(McapError::Io(error)) if error.kind() == expected));
-                sink.write_all(b"ignored").unwrap();
-                sink.flush().unwrap();
-                assert!(matches!(&sink.failure, Some(McapError::Io(error)) if error.kind() == expected));
-            } else {
-                assert!(sink.failure.is_none());
-                sink.flush().unwrap();
-                assert!(matches!(&sink.failure, Some(McapError::Io(error)) if error.kind() == io::ErrorKind::PermissionDenied));
-            }
-            let expected = if stop.is_some() { &b"abcd"[..] } else { &b"abcdefgh"[..] };
-            assert_eq!(compressor.position(), expected.len() as u64);
-            assert_eq!(compressor.current_checksum(), crc32fast::hash(expected));
-            let (Compressor::Null(output), _) = compressor.finalize() else { unreachable!() };
-            assert_eq!(output.bytes, expected);
-            assert_eq!(output.calls, if stop.is_some() { 4 } else { 6 });
-        }
-    }
-
-    #[test]
-    fn all_summary_declaration_allocation_refusals_are_terminal_and_releasable() {
-        fn setup(domain: &crate::storage::BudgetRef) -> Writer<std::io::Cursor<Vec<u8>>> {
-            let mut writer=WriteOptions::new().compression(None).use_chunks(false).memory_budget(domain.clone()).create(std::io::Cursor::new(Vec::new())).unwrap();
-            let schema=writer.add_schema("schema","raw",&[7;1024]).unwrap();
-            writer.add_channel(schema,"topic","raw",&[("a".into(),"one".into()),("z".into(),"two".into())].into()).unwrap();
-            writer
-        }
-        let domain=crate::storage::BudgetRef::new(Default::default()).unwrap();
-        let mut writer=setup(&domain);
-        let before=domain.workload_detailed_statistics().allocation_count;
-        let summary=writer.finish().unwrap();
-        let count=domain.workload_detailed_statistics().allocation_count-before;
-        assert!(count>=12);
-        let duplicate=summary.clone();drop(writer);drop(summary);
-        assert_eq!(duplicate.channels[&1].metadata.get("z").unwrap(),"two");
-        assert_eq!(duplicate.schemas[&1].data.as_ref(),&[7;1024]);
-        drop(duplicate);assert_eq!(domain.workload_statistics().current,0);
-        for fail in 0..count {
-            let domain=crate::storage::BudgetRef::new(Default::default()).unwrap();
-            let mut writer=setup(&domain);domain.fail_allocation_at(fail as usize);
-            assert!(writer.finish().is_err());
-            assert!(matches!(writer.finish(),Err(McapError::AttemptedWriteAfterFailure)));
-            drop(writer);assert_eq!(domain.workload_statistics().current,0);assert_eq!(domain.ownership_statistics(),Default::default());
-        }
-    }
-    #[test]
-    fn default_options_defer_unused_storage_and_preserve_thread_selection() {
-        let options = WriteOptions::new();
-        assert!(options.memory_budget.is_none());
-        assert!(matches!(options.profile, crate::option_text::Text::Borrowed("")));
-        assert!(matches!(options.library, crate::option_text::Text::Borrowed(crate::LIBRARY_IDENTIFIER)));
-        #[cfg(feature = "zstd")]
-        {
-            assert_eq!(options.compression_threads, None);
-            let writer = options.clone().create(std::io::Cursor::new(Vec::new())).unwrap();
-            assert_eq!(writer.options.compression_threads, Some(num_cpus::get_physical() as u32));
-            let writer = options.clone().compression_threads(0).create(std::io::Cursor::new(Vec::new())).unwrap();
-            assert_eq!(writer.options.compression_threads, Some(0));
-            let writer = options.clone().compression_threads(2).create(std::io::Cursor::new(Vec::new())).unwrap();
-            assert_eq!(writer.options.compression_threads, Some(2));
-        }
-    }
-    #[test]
-    fn chunk_index_allocation_refusals_leave_writer_terminal() {
-        for compression in [None, Some(crate::Compression::Lz4), Some(crate::Compression::Zstd)] {
-            fn setup(compression: Option<crate::Compression>, domain: &crate::storage::BudgetRef) -> super::Writer<std::io::Cursor<Vec<u8>>> {
-                let mut writer = super::WriteOptions::new().compression(compression).chunk_size(None)
-                    .memory_budget(domain.clone()).create(std::io::Cursor::new(Vec::new())).unwrap();
-                for id in [1, 255, 256, 512, 65535] {
-                    writer.add_channel_with_id(id, 0, "topic", "raw", &Default::default()).unwrap();
-                    writer.write_to_known_channel(&crate::records::MessageHeader { channel_id:id, sequence:0, log_time:0, publish_time:0 }, &[1,2,3]).unwrap();
-                }
-                writer
-            }
-            let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-            let mut writer = setup(compression, &domain);
-            let before = domain.workload_detailed_statistics().allocation_count;
-            writer.finish_chunk().unwrap();
-            let calls = domain.workload_detailed_statistics().allocation_count - before;
-            assert!(calls >= 6);
-            drop(writer);
-            assert_eq!(domain.workload_statistics().current, 0);
-            for fail in 0..calls {
-                let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-                let mut writer = setup(compression, &domain);
-                domain.fail_allocation_at(fail as usize);
-                assert!(writer.finish_chunk().is_err(), "{compression:?}/{fail}");
-                assert!(matches!(writer.finish(), Err(crate::McapError::AttemptedWriteAfterFailure)));
-                drop(writer);
-                assert_eq!(domain.workload_statistics().current, 0, "{compression:?}/{fail}");
-                assert_eq!(domain.ownership_statistics(), Default::default());
-            }
-        }
-    }
-    #[test]
-    fn attachment_io_failures_return_output_and_release_final_index_storage() {
-        struct Limited {
-            position: u64,
-            limit: u64,
-        }
-        impl std::io::Write for Limited {
-            fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
-                let n = data.len().min((self.limit - self.position) as usize);
-                if n == 0 {
-                    return Err(std::io::ErrorKind::Other.into());
-                }
-                self.position += n as u64;
-                Ok(n)
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        impl std::io::Seek for Limited {
-            fn seek(&mut self, offset: std::io::SeekFrom) -> std::io::Result<u64> {
-                match offset {
-                    std::io::SeekFrom::Current(0) => Ok(self.position),
-                    _ => Err(std::io::ErrorKind::Unsupported.into()),
-                }
-            }
-        }
-        // 9-byte record prefix + 31-byte header + 8-byte data length + 3 payload + 4 CRC.
-        for limit in 0..=55 {
-            let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-            let header = records::AttachmentHeaderRef {
-                log_time: 1,
-                create_time: 2,
-                name: "name",
-                media_type: "raw",
-            };
-            match AttachmentWriter::new(
-                Limited { position: 0, limit },
-                3,
-                header,
-                true,
-                true,
-                &domain,
-            ) {
-                Err((output, _)) => assert_eq!(output.position, limit),
-                Ok(mut attachment) => {
-                    let _ = attachment.put_bytes(&[1, 2, 3]);
-                    match attachment.finish() {
-                        Err((output, _)) => {
-                            assert!(limit < 55);
-                            assert_eq!(output.position, limit);
-                        }
-                        Ok((output, index)) => {
-                            assert_eq!(limit, 55);
-                            assert_eq!(output.position, 55);
-                            let index = index.unwrap();
-                            assert_eq!(index.length, 55);
-                            assert_eq!(index.name, "name");
-                        }
-                    }
-                }
-            }
-            assert_eq!(domain.workload_statistics().current, 0);
-            assert_eq!(domain.ownership_statistics(), Default::default());
-        }
-    }
-    #[test]
-    fn summary_directory_refusal_is_terminal() {
-        let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-        let mut writer = super::WriteOptions::default()
-            .use_chunks(false)
-            .memory_budget(domain.clone())
-            .create(std::io::Cursor::new(Vec::new()))
-            .unwrap();
-        writer
-            .add_channel(0, "topic", "raw", &Default::default())
-            .unwrap();
-        domain.fail_allocation_at(0);
-        assert!(writer.finish().is_err());
-        assert!(matches!(
-            writer.finish(),
-            Err(crate::McapError::AttemptedWriteAfterFailure)
-        ));
-        drop(writer);
-        assert_eq!(domain.workload_statistics().current, 0);
-    }
-
-    #[test]
-    fn extracting_unfinished_stream_does_not_write_summary_or_footer() {
-        let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-        let mut writer = super::WriteOptions::default()
-            .use_chunks(false)
-            .memory_budget(domain.clone())
-            .create(std::io::Cursor::new(Vec::new()))
-            .unwrap();
-        writer
-            .add_channel(0, "topic", "raw", &Default::default())
-            .unwrap();
-        // Extraction remains valid even when no further budget allocation can succeed.
-        domain.fail_allocation_at(0);
-        let bytes = writer.into_inner().into_inner();
-        assert!(bytes.starts_with(crate::MAGIC));
-        assert!(!bytes.ends_with(crate::MAGIC));
-        assert_eq!(domain.workload_statistics().current, 0);
-    }
     use assert_matches::assert_matches;
     use std::sync::Arc;
 
@@ -3451,26 +2790,26 @@ mod tests {
     fn test_write_failure_does_not_cause_panic() {
         #[derive(Default)]
         struct FailingWriter {
-            fail: std::rc::Rc<std::cell::Cell<bool>>,
+            write_count: i32,
         }
 
         impl std::io::Write for FailingWriter {
             fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-                if self.fail.get() {
+                if self.write_count > 5 {
                     return Err(std::io::Error::other("writes now fail"));
                 }
+                self.write_count += 1;
                 Ok(buf.len())
             }
             fn flush(&mut self) -> io::Result<()> {
                 Ok(())
             }
         }
-        let fail = std::rc::Rc::new(std::cell::Cell::new(false));
         let mut writer = WriteOptions::new()
             .disable_seeking(true)
             .use_chunks(true)
             .chunk_size(Some(10))
-            .create(NoSeek::new(FailingWriter { fail: fail.clone() }))
+            .create(NoSeek::new(FailingWriter::default()))
             .expect("writer should construct");
 
         let message = Message {
@@ -3487,131 +2826,10 @@ mod tests {
             data: Cow::Borrowed(b"hello"),
         };
         writer.write(&message).expect("first should not fail");
-        fail.set(true);
         assert_matches!(writer.write(&message), Err(McapError::Io(_)));
         assert_matches!(
             writer.write(&message),
             Err(McapError::AttemptedWriteAfterFailure)
         );
-    }
-}
-
-#[cfg(test)]
-mod borrowed_channel_tests {
-    use super::*;
-    #[test]
-    fn borrowed_channel_ordering_refusal_does_not_advance_output_or_ids() {
-        let mut writer = WriteOptions::new()
-            .use_chunks(false)
-            .create(Cursor::new(Vec::new()))
-            .unwrap();
-        let position = writer.finish_chunk().unwrap().stream_position().unwrap();
-        for pairs in [[("z", "one"), ("a", "two")], [("a", "one"), ("a", "two")]] {
-            assert!(writer
-                .add_channel_borrowed(0, "topic", "raw", pairs.into_iter())
-                .is_err());
-            assert!(writer
-                .add_channel_with_id_borrowed(42, 0, "topic", "raw", pairs.into_iter())
-                .is_err());
-            assert_eq!(
-                writer.finish_chunk().unwrap().stream_position().unwrap(),
-                position
-            );
-        }
-        assert_eq!(
-            writer
-                .add_channel_borrowed(0, "topic", "raw", [("a", "one"), ("z", "two")].into_iter())
-                .unwrap(),
-            1
-        );
-        writer.finish().unwrap();
-    }
-    #[test]
-    fn borrowed_and_owned_channel_calls_produce_identical_recording() {
-        let fields = BTreeMap::from([
-            ("a".to_string(), "one".to_string()),
-            ("z".to_string(), "two".to_string()),
-        ]);
-        let recording = |borrowed| {
-            let mut writer = WriteOptions::new()
-                .use_chunks(false)
-                .create(Cursor::new(Vec::new()))
-                .unwrap();
-            if borrowed {
-                assert_eq!(
-                    writer
-                        .add_channel_with_id_borrowed(
-                            42,
-                            0,
-                            "topic",
-                            "raw",
-                            fields.iter().map(|(k, v)| (k.as_str(), v.as_str()))
-                        )
-                        .unwrap(),
-                    42
-                );
-                assert_eq!(
-                    writer
-                        .add_channel_borrowed(
-                            0,
-                            "topic",
-                            "raw",
-                            fields.iter().map(|(k, v)| (k.as_str(), v.as_str()))
-                        )
-                        .unwrap(),
-                    42
-                );
-            } else {
-                assert_eq!(
-                    writer
-                        .add_channel_with_id(42, 0, "topic", "raw", &fields)
-                        .unwrap(),
-                    42
-                );
-                assert_eq!(writer.add_channel(0, "topic", "raw", &fields).unwrap(), 42);
-            }
-            writer.finish().unwrap();
-            writer.into_inner().into_inner()
-        };
-        assert_eq!(recording(true), recording(false));
-    }
-}
-
-#[cfg(test)]
-mod charged_option_tests {
-    use super::*;
-    use crate::storage::{BudgetRef,OwnerKind};
-    #[test]
-    fn charged_text_clones_share_storage_and_preserve_headers() {
-        let domain=BudgetRef::new(Default::default()).unwrap();
-        let options=WriteOptions::new().memory_budget(domain.clone()).compression(None)
-            .try_profile("profile\u{4e2d}").unwrap().try_library("library").unwrap();
-        let before=domain.workload_detailed_statistics().allocation_count;
-        let retained=domain.workload_statistics().current;
-        assert!(retained>"profile\u{4e2d}library".len() as u64);
-        let alias=options.clone();
-        assert_eq!(domain.workload_detailed_statistics().allocation_count,before);
-        drop(options);
-        assert_eq!(domain.workload_statistics().current,retained);
-        let mut bytes=std::io::Cursor::new(Vec::new());
-        let writer=alias.create(&mut bytes).unwrap();drop(writer);
-        assert_eq!(domain.workload_statistics().current,0);
-        assert_eq!(domain.ownership_statistics().bytes[OwnerKind::Operation as usize],0);
-        let data=bytes.into_inner();
-        let length=u64::from_le_bytes(data[9..17].try_into().unwrap()) as usize;
-        let Record::Header(header)=crate::parse_record(op::HEADER,&data[17..17+length]).unwrap() else {panic!()};
-        assert_eq!(header.profile,"profile\u{4e2d}");assert_eq!(header.library,"library");
-    }
-    #[test]
-    fn charged_option_domain_change_is_rejected_before_output() {
-        let original=BudgetRef::new(Default::default()).unwrap();
-        let other=BudgetRef::new(Default::default()).unwrap();
-        let options=WriteOptions::new().memory_budget(original.clone()).try_profile("profile").unwrap().memory_budget(other.clone());
-        let mut output=std::io::Cursor::new(Vec::new());
-        assert!(options.clone().create(&mut output).is_err());
-        assert!(output.get_ref().is_empty());
-        assert!(options.try_library("library").is_err());
-        assert_eq!(original.workload_statistics().current,0);
-        assert_eq!(other.workload_statistics().current,0);
     }
 }

@@ -11,7 +11,6 @@ public sealed partial class McapReadSession : IDisposable
     readonly bool messages;
     readonly bool topLevel;
     readonly bool strict;
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { borrowed.CheckReentry(); handle.Bridge?.CheckReentry(); ObjectDisposedException.ThrowIf(disposed, this); return Native.MemoryStatistics(0, handle); } }
     public bool IsScanComplete { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed; } } }
     public bool IsComplete { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed && fullyValidated; } } }
     ulong scannedRecordCount;
@@ -25,7 +24,6 @@ public sealed partial class McapReadSession : IDisposable
         if (query?.StartTime > query?.EndTime)
             throw new ArgumentException("StartTime must not exceed EndTime.", nameof(query));
         options ??= new();
-        if (options.Memory is null && query?.Memory is not null) options = options with { Memory = query.Memory };
         strict = options.IsStrict;
         if (query is not null && !Enum.IsDefined(query.Order)) throw new ArgumentOutOfRangeException(nameof(query));
         if (query?.Topic is not null && query.Topics is not null) throw new ArgumentException("Specify Topic or Topics, not both.", nameof(query));
@@ -33,7 +31,7 @@ public sealed partial class McapReadSession : IDisposable
         topLevel = mode == McapRecordMode.TopLevel || options.EmitChunks;
         if (messages && topLevel) throw new ArgumentException("Messages require expanded chunks.", nameof(options));
         seekable = stream?.CanSeek ?? true;
-        var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), allowBufferedSort = query?.AllowBufferedSort ?? true, indexedOnly, options, recordLengthLimit = options.RecordLengthLimit });
+        var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), allowBufferedSort = query?.AllowBufferedSort ?? true, indexedOnly, options, maxBufferedSortBytes = query?.MaxBufferedSortBytes, recordLengthLimit = options.RecordLengthLimit });
         StreamBridge? bridge = stream is null ? null : new(stream, false, leaveOpen);
         try
         {
@@ -49,7 +47,6 @@ public sealed partial class McapReadSession : IDisposable
                 bridge?.ThrowIfError();
             }
 
-            GC.KeepAlive(options);
             handle = new(p, bridge);
         }
         catch

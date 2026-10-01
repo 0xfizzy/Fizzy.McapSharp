@@ -130,6 +130,7 @@ def build(test=False):
         run(cargo, "test", "--release", "--locked", "--target", target,
             "--target-dir", ROOT / "native/target", "--manifest-path", ROOT / "native/Cargo.toml")
         run(sys.executable, "scripts/check_api_coverage.py")
+        run(sys.executable, "scripts/test_upstream.py")
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py")
         run("dotnet", "test", ROOT / "tests/Fizzy.McapSharp.Tests", "-c", "Release",
             "--logger", "trx;LogFileName=managed.trx", "--results-directory", ROOT / "artifacts/reports")

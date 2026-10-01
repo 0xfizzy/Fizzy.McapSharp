@@ -6,7 +6,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ["lib.rs", "write.rs", "read.rs", "records.rs", "sans_io/linear_reader.rs",
-         "sans_io/indexed_reader.rs", "sans_io/summary_reader.rs", "sans_io/decompressor.rs", "tokio/linear_reader.rs"]
+         "sans_io/indexed_reader.rs", "sans_io/summary_reader.rs", "sans_io/decompressor.rs", "tokio/linear_reader.rs", "storage.rs"]
 
 
 def crate_source():
@@ -23,7 +23,9 @@ def inventory(source):
         owner = ""
         enum_owner = None
         public_owner = False
-        for line_number, line in enumerate((source / file).read_text(encoding="utf-8").splitlines(), 1):
+        source_text = (source / file).read_text(encoding="utf-8")
+        public_types = set(re.findall(r"^pub (?:struct|enum|trait|type) (\w+)", source_text, re.MULTILINE))
+        for line_number, line in enumerate(source_text.splitlines(), 1):
             if file == "sans_io/linear_reader.rs" and not line.startswith("pub ") and not public_owner:
                 continue
             declaration = re.match(r"pub (?:struct|enum|trait|type) (\w+)", line)
@@ -42,6 +44,8 @@ def inventory(source):
             if impl:
                 owner = impl[1]
                 public_owner = not line.startswith("impl Iterator")
+                if file == "storage.rs":
+                    public_owner = owner in public_types
             if re.match(r"(?:struct|enum) ", line):
                 public_owner = False
             member = re.match(r"    pub (?:async )?fn (\w+)", line)
@@ -67,10 +71,16 @@ def inventory(source):
 def main():
     actual = inventory(crate_source())
     manifest = json.loads((ROOT / "docs/api-coverage.json").read_text(encoding="utf-8"))
+    official = json.loads((ROOT / "docs/upstream-api.json").read_text(encoding="utf-8"))["declarations"]
+    if not set(official) <= set(actual):
+        raise AssertionError("Local patch removed an upstream declaration")
     expected = {item["rust"]: item for item in manifest["items"]}
     if set(actual) != set(expected):
         raise AssertionError(f"Unreviewed API changes: missing={set(actual)-set(expected)}, stale={set(expected)-set(actual)}")
     for symbol, item in expected.items():
+        origin = "upstream" if symbol in official else "local-extension"
+        if item.get("origin") != origin or item["kind"] != actual[symbol]:
+            raise AssertionError(f"Incorrect API origin/kind: {symbol}")
         for key in ["managed", "native", "test"]:
             if not item.get(key):
                 raise AssertionError(f"Unmapped {symbol}: {key}")

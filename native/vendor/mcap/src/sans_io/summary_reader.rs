@@ -2,7 +2,7 @@ use binrw::BinRead;
 
 use crate::{
     parse_record,
-    records::Footer,
+    records::{Footer, Record},
     sans_io::linear_reader::{LinearReadEvent, LinearReader, LinearReaderOptions},
     McapError, McapResult, Summary, MAGIC,
 };
@@ -33,7 +33,8 @@ enum State {
     },
     ReadingSummary {
         summary_start: u64,
-        reader: crate::charged::ChargedBox<LinearReader>,
+        reader: Box<LinearReader>,
+        channeler: crate::read::ChannelAccumulator<'static>,
     },
 }
 
@@ -88,24 +89,16 @@ enum State {
 ///     Ok(reader.finish())
 /// }
 /// ```
+#[derive(Default)]
 pub struct SummaryReader {
-    budget: crate::storage::BudgetRef,
     pos: u64,
     footer_buf: Vec<u8>,
-    footer_charge: Option<crate::storage::Reservation>,
     file_size: Option<u64>,
     state: State,
     summary: crate::Summary,
     summary_present: bool,
     at_eof: bool,
-    budget_locked: bool,
     options: SummaryReaderOptions,
-}
-
-impl Default for SummaryReader {
-    fn default() -> Self {
-        Self::new_with_options(Default::default())
-    }
 }
 
 #[derive(Debug, Default)]
@@ -147,72 +140,15 @@ fn compute_record_length_limit(
 }
 
 impl SummaryReader {
-    fn empty_summary(budget: &crate::storage::BudgetRef) -> Summary {
-        Summary::with_memory_budget(budget.clone())
-    }
-
-    /// Sets the domain for parser input and retained summary declarations/indexes.
-    pub fn set_memory_budget(
-        &mut self,
-        budget: crate::storage::BudgetRef,
-    ) -> McapResult<()> {
-        if crate::storage::BudgetRef::ptr_eq(&self.budget, &budget) {
-            return Ok(());
-        }
-        if self.budget_locked {
-            return Err(std::io::Error::other(
-                "Summary memory domain is immutable after allocation or advancement",
-            )
-            .into());
-        }
-        if self.summary.chunk_indexes.is_empty() {
-            self.summary.chunk_indexes = crate::segmented::SharedSegmentedVec::new(budget.clone());
-        }
-        if self.summary.attachment_indexes.is_empty() {
-            self.summary.attachment_indexes =
-                crate::segmented::SharedSegmentedVec::new(budget.clone());
-        }
-        if self.summary.metadata_indexes.is_empty() {
-            self.summary.metadata_indexes =
-                crate::segmented::SharedSegmentedVec::new(budget.clone());
-        }
-        self.summary.schemas = crate::u16_table::SharedU16Table::new(
-            budget.clone(),
-            crate::storage::ResourceCategory::Declaration,
-        );
-        self.summary.channels = crate::u16_table::SharedU16Table::new(
-            budget.clone(),
-            crate::storage::ResourceCategory::Declaration,
-        );
-        self.budget = budget;
-        Ok(())
-    }
-
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn new_with_options(options: SummaryReaderOptions) -> Self {
-        Self::new_with_options_and_budget(options, Default::default())
-    }
-
-    /// Construct parser and retained summary storage in one resource domain.
-    pub fn new_with_options_and_budget(
-        options: SummaryReaderOptions,
-        budget: crate::storage::BudgetRef,
-    ) -> Self {
         Self {
-            summary: Self::empty_summary(&budget),
-            budget,
-            pos: 0,
-            footer_buf: Vec::new(),
-            footer_charge: None,
             file_size: options.file_size,
-            state: State::default(),
-            summary_present: false,
-            at_eof: false,
-            budget_locked: false,
             options,
+            ..Default::default()
         }
     }
 
@@ -223,10 +159,6 @@ impl SummaryReader {
     }
 
     pub fn next_event_inner(&mut self) -> McapResult<Option<SummaryReadEvent>> {
-        self.budget_locked = true;
-        if !self.summary.bookkeeping.is_charged() {
-            self.summary.bookkeeping = crate::storage::Bookkeeping::new(&self.budget)?;
-        }
         loop {
             match &mut self.state {
                 State::SeekingToFooter => {
@@ -297,12 +229,10 @@ impl SummaryReader {
                         ) {
                             options = options.with_record_length_limit(limit);
                         }
-                        let reader = LinearReader::new_with_options_and_budget(options, self.budget.clone());
-                        let reader = crate::charged::ChargedBox::new(reader, &self.budget, crate::storage::ResourceCategory::Scratch)?;
-                        reader.charge_owner(crate::storage::OwnerKind::Parser, true);
                         self.state = State::ReadingSummary {
                             summary_start: *summary_start,
-                            reader,
+                            reader: Box::new(LinearReader::new_with_options(options)),
+                            channeler: crate::read::ChannelAccumulator::default(),
                         };
                         continue;
                     } else {
@@ -312,53 +242,26 @@ impl SummaryReader {
                     }
                 }
                 State::ReadingSummary {
-                    reader, ..
+                    reader, channeler, ..
                 } => match reader.next_event() {
                     Some(Ok(LinearReadEvent::Record { data, opcode })) => {
-                        if opcode == crate::records::op::CHUNK_INDEX {
-                            let index = crate::shared_chunk_index::SharedChunkIndex::read(
-                                data, &self.budget, crate::storage::OwnerKind::Parser,
-                            )?;
-                            self.summary.chunk_indexes.push_fixed(index)?;
-                            continue;
-                        }
-                        if opcode == crate::records::op::ATTACHMENT_INDEX {
-                            let index = crate::shared_attachment_index::SharedAttachmentIndex::read(
-                                data, &self.budget, crate::storage::OwnerKind::Parser,
-                            )?;
-                            self.summary.attachment_indexes.push_fixed(index)?;
-                            continue;
-                        }
-                        if opcode == crate::records::op::METADATA_INDEX {
-                            let index = crate::shared_metadata_index::SharedMetadataIndex::read(
-                                data, &self.budget, crate::storage::OwnerKind::Parser,
-                            )?;
-                            self.summary.metadata_indexes.push_fixed(index)?;
-                            continue;
-                        }
-                        if opcode == crate::records::op::STATISTICS {
-                            self.summary.stats = Some(crate::shared_statistics::SharedStatistics::read(
-                                &mut std::io::Cursor::new(data), self.budget.clone(),
-                                crate::storage::OwnerKind::Parser,
-                            )?);
-                            continue;
-                        }
-                        match opcode {
-                            crate::records::op::SCHEMA => {
-                                let schema = crate::shared_declarations::SharedSchema::read(data,&self.budget,crate::storage::OwnerKind::Parser)?;
-                                if schema.id == 0 { return Err(McapError::InvalidSchemaId); }
-                                if let Some(old) = self.summary.schemas.get(&schema.id) {
-                                    if old != &schema { return Err(McapError::ConflictingSchemas(schema.name.clone())); }
-                                } else { self.summary.schemas.insert_fixed(schema.id,schema)?; }
+                        match parse_record(opcode, data)?.into_owned() {
+                            Record::AttachmentIndex(index) => {
+                                self.summary.attachment_indexes.push(index);
                             }
-                            crate::records::op::CHANNEL => {
-                                let channel = crate::shared_declarations::SharedChannel::read(data,&self.summary.schemas,&self.budget,crate::storage::OwnerKind::Parser)?;
-                                if let Some(old) = self.summary.channels.get(&channel.id) {
-                                    if old != &channel { return Err(McapError::ConflictingChannels(channel.topic.clone())); }
-                                } else { self.summary.channels.insert_fixed(channel.id,channel)?; }
+                            Record::MetadataIndex(index) => {
+                                self.summary.metadata_indexes.push(index);
                             }
-                            _ => { parse_record(opcode,data)?; }
-                        }
+                            Record::Statistics(statistics) => {
+                                self.summary.stats = Some(statistics);
+                            }
+                            Record::Channel(channel) => channeler.add_channel(channel)?,
+                            Record::Schema { header, data } => {
+                                channeler.add_schema(header, data)?;
+                            }
+                            Record::ChunkIndex(index) => self.summary.chunk_indexes.push(index),
+                            _ => {}
+                        };
                         continue;
                     }
                     Some(Ok(LinearReadEvent::ReadRequest(n))) => {
@@ -368,6 +271,8 @@ impl SummaryReader {
                         return Err(err);
                     }
                     None => {
+                        self.summary.schemas = channeler.schemas.clone();
+                        self.summary.channels = channeler.channels.clone();
                         return Ok(None);
                     }
                 },
@@ -379,7 +284,6 @@ impl SummaryReader {
     ///
     /// Panics if `n` is greater than the last `n` provided to [`Self::insert`].
     pub fn notify_read(&mut self, n: usize) {
-        self.budget_locked = true;
         self.at_eof = n == 0;
         match &mut self.state {
             State::ReadingFooter { loaded_bytes, .. } => {
@@ -399,7 +303,6 @@ impl SummaryReader {
 
     /// Inform the summary reader of the result of the latest seek of the underlying stream.
     pub fn notify_seeked(&mut self, pos: u64) {
-        self.budget_locked = true;
         if self.at_eof && self.pos != pos {
             self.at_eof = false;
         }
@@ -417,7 +320,7 @@ impl SummaryReader {
                 }
                 State::ReadingSummary { summary_start, .. } => {
                     self.state = State::SeekingToSummary { summary_start };
-                    self.summary = Self::empty_summary(&self.budget);
+                    self.summary = Summary::default();
                 }
                 _ => {}
             }
@@ -427,64 +330,19 @@ impl SummaryReader {
 
     /// Get a mutable buffer of size `n` to read new MCAP data into from the stream.
     pub fn insert(&mut self, n: usize) -> &mut [u8] {
-        self.budget_locked = true;
-        self.try_insert(n).expect("summary buffer budget exceeded")
-    }
-    /// Fallible input allocation for bounded readers.
-    pub fn try_insert(&mut self, n: usize) -> McapResult<&mut [u8]> {
-        if n > self.budget.limits().block {
-            return Err(std::io::Error::other(crate::storage::StorageLimit {
-                resource: "SummaryInput",
-                limit: self.budget.limits().block,
-                domain_limit: self.budget.limits().total,
-                requested: n,
-                current: self.budget.statistics().current as usize,
-                phase: "summary input",
-            })
-            .into());
-        }
-        let start = match &mut self.state {
-            State::ReadingSummary { reader, .. } => {
-                let data = reader.try_insert(n)?;
-                self.budget_locked = true;
-                return Ok(data);
+        match &mut self.state {
+            State::ReadingFooter { loaded_bytes } => {
+                self.footer_buf.resize(*loaded_bytes + n, 0);
+                &mut self.footer_buf[*loaded_bytes..]
             }
-            State::ReadingFooter { loaded_bytes } => *loaded_bytes,
-            _ => 0,
-        };
-        let needed = start
-            .checked_add(n)
-            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
-        if needed > self.budget.limits().block {
-            return Err(std::io::Error::other(crate::storage::StorageLimit {
-                resource: "SummaryInput",
-                limit: self.budget.limits().block,
-                domain_limit: self.budget.limits().total,
-                requested: needed,
-                current: self.budget.statistics().current as usize,
-                phase: "summary input",
-            })
-            .into());
-        }
-        if needed > self.footer_buf.capacity() {
-            let (mut replacement, charge) = crate::charged::bytes(
-                &self.budget,
-                crate::storage::ResourceCategory::Input,
-                needed,
-            )?;
-            let growing = self.footer_buf.capacity() != 0;
-            replacement.extend_from_slice(&self.footer_buf);
-            self.budget
-                .copy_bytes(crate::storage::CopyKind::Compaction, self.footer_buf.len());
-            self.footer_buf = replacement;
-            self.footer_charge = Some(charge);
-            if growing {
-                self.budget.reallocated();
+            State::ReadingSummary { reader, .. } => reader.insert(n),
+            _ => {
+                // we don't need data in any other state, but just for simplicity give the user a place
+                // to put their bogus data.
+                self.footer_buf.resize(n, 0);
+                &mut self.footer_buf[..]
             }
         }
-        self.footer_buf.resize(needed, 0);
-        self.budget_locked = true;
-        Ok(&mut self.footer_buf[start..])
     }
 
     /// Get the finished summary information out of the reader. Returns None if the MCAP reader has
@@ -503,49 +361,6 @@ mod tests {
     use super::*;
     use assert_matches::assert_matches;
     use std::io::{Read, Seek, Write};
-
-    #[test]
-    fn footer_growth_is_transactional_and_freezes_domain() {
-        use crate::storage::BudgetLimits;
-
-        let domain = crate::storage::BudgetRef::new(BudgetLimits {
-            total: (96) + crate::storage::BudgetRef::allocation_size(),
-            block: 96,
-            retained: 0,
-        }).unwrap();
-        let mut reader = SummaryReader::new();
-        reader.set_memory_budget(domain.clone()).unwrap();
-        reader.try_insert(32).unwrap().fill(7);
-        assert_eq!(domain.workload_statistics().current, 32);
-        assert!(reader.try_insert(80).is_err());
-        assert_eq!(reader.footer_buf, vec![7; 32]);
-        assert_eq!(domain.workload_statistics().current, 32);
-        assert!(reader
-            .set_memory_budget(crate::storage::BudgetRef::new(Default::default()).unwrap())
-            .is_err());
-        reader.try_insert(64).unwrap();
-        assert_eq!(&reader.footer_buf[..32], &[7; 32]);
-        assert_eq!(domain.workload_statistics().current, 64);
-        assert_eq!(domain.workload_statistics().peak, 96);
-        drop(reader);
-        assert_eq!(domain.workload_statistics().current, 0);
-    }
-
-    #[test]
-    fn memory_domain_freezes_on_first_event() {
-        let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-        let other = crate::storage::BudgetRef::new(Default::default()).unwrap();
-        let mut reader = SummaryReader::new();
-        reader.set_memory_budget(domain.clone()).unwrap();
-        let _ = reader.next_event();
-        let before = domain.workload_statistics().current;
-        assert!(reader.set_memory_budget(other.clone()).is_err());
-        reader.set_memory_budget(domain.clone()).unwrap();
-        assert_eq!(domain.workload_statistics().current, before);
-        assert_eq!(other.workload_statistics().current, 0);
-        drop(reader);
-        assert_eq!(domain.workload_statistics().current, 0);
-    }
 
     #[test]
     fn test_smoke() {

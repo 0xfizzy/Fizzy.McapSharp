@@ -1,7 +1,7 @@
 //! Standalone FFI driver: rustc uses the repository's pinned toolchain, no extra crates.
 use std::{env, ffi::c_void, fs, mem, ptr, slice};
 #[repr(C)]
-struct Response { json: *mut u8, json_len: usize, data: *mut u8, data_len: usize, value: u64, error_len: usize, error: [u8; 4096] }
+struct Response { json: *mut u8, json_len: usize, data: *mut u8, data_len: usize, value: u64 }
 impl Default for Response { fn default() -> Self { unsafe { mem::zeroed() } } }
 #[repr(C)]
 struct Header { channel: u16, reserved: u16, sequence: u32, log_time: u64, publish_time: u64 }
@@ -19,20 +19,20 @@ extern "C" {
     fn fm_snapshot_free(h: *mut c_void);
 }
 unsafe fn release(r: &mut Response) {
-    let panic = r.error_len > 0 && String::from_utf8_lossy(&r.error[..r.error_len]).contains("Native MCAP panic");
+    let panic = r.json_len > 0 && String::from_utf8_lossy(slice::from_raw_parts(r.json, r.json_len)).contains("Native MCAP panic");
     fm_buffer_free(r.json, r.json_len); fm_buffer_free(r.data, r.data_len);
     *r = Response::default();
     assert!(!panic, "FFI caught a panic");
 }
 fn main() {
-    assert_eq!(mem::size_of::<Response>(), 4144);
+    assert_eq!(mem::size_of::<Response>(), 40);
     assert_eq!(mem::size_of::<Header>(), 24);
     assert_eq!(mem::offset_of!(Header, log_time), 8);
     let args: Vec<_> = env::args().collect();
     let data = fs::read(&args[1]).unwrap();
     let repeats = args.get(2).map(|s| s.parse::<usize>().unwrap()).unwrap_or(1);
     unsafe {
-        assert_eq!(fm_abi_version(), 11);
+        assert_eq!(fm_abi_version(), 12);
         for _ in 0..repeats {
             let mut indexes = Vec::new();
             for mode in [0, 2, 4, 5] {

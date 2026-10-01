@@ -8,15 +8,14 @@ public sealed class McapPreparedOperation : IDisposable
 {
     internal readonly OperationHandle Handle;
     internal readonly uint Operation;
-    unsafe McapPreparedOperation(uint operation, object args, ReadOnlySpan<byte> data = default, McapMemoryBudget? budget = null)
+    unsafe McapPreparedOperation(uint operation, object args, ReadOnlySpan<byte> data = default)
     {
         Native.EnsureAvailable(); Operation = operation;
         var req = Native.Request(args);
         fixed (byte* p = data)
         {
-            int status = Native.fm_operation_prepare_budget(operation, req, (nuint)req.Length, p, (nuint)data.Length, budget?.Id ?? 0, out var h, out var r);
+            int status = Native.fm_operation_prepare(operation, req, (nuint)req.Length, p, (nuint)data.Length, out var h, out var r);
             Native.Consume(status, r).Json?.Dispose(); Handle = new(h);
-            GC.KeepAlive(budget);
         }
     }
     public static McapPreparedOperation Schema(string name, string encoding, ReadOnlySpan<byte> data, ushort? id = null) => new(1, new { name, encoding, id }, data);
@@ -24,13 +23,6 @@ public sealed class McapPreparedOperation : IDisposable
     public static McapPreparedOperation Metadata(string name, IReadOnlyDictionary<string, string> metadata) => new(4, new { name, metadata });
     public static McapPreparedOperation Attachment(string name, string mediaType, ulong logTime, ulong createTime) => new(5, new { name, media_type = mediaType, log_time = logTime, create_time = createTime });
     public static McapPreparedOperation StartAttachment(string name, string mediaType, ulong logTime, ulong createTime, ulong length) => new(8, new { name, media_type = mediaType, log_time = logTime, create_time = createTime, length });
-    /// <summary>Prepares a descriptor in the supplied native resource domain.</summary>
-    public static McapPreparedOperation Schema(McapMemoryBudget budget, string name, string encoding, ReadOnlySpan<byte> data, ushort? id = null) => new(1, new { name, encoding, id }, data, Required(budget));
-    public static McapPreparedOperation Channel(McapMemoryBudget budget, string topic, string encoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null, ushort? id = null) => new(2, new { topic, encoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>(), id }, budget: Required(budget));
-    public static McapPreparedOperation Metadata(string name, IReadOnlyDictionary<string, string> metadata, McapMemoryBudget budget) => new(4, new { name, metadata }, budget: Required(budget));
-    public static McapPreparedOperation Attachment(string name, string mediaType, ulong logTime, ulong createTime, McapMemoryBudget budget) => new(5, new { name, media_type = mediaType, log_time = logTime, create_time = createTime }, budget: Required(budget));
-    public static McapPreparedOperation StartAttachment(string name, string mediaType, ulong logTime, ulong createTime, ulong length, McapMemoryBudget budget) => new(8, new { name, media_type = mediaType, log_time = logTime, create_time = createTime, length }, budget: Required(budget));
-    static McapMemoryBudget Required(McapMemoryBudget budget) { ArgumentNullException.ThrowIfNull(budget); return budget; }
     public void Dispose() => Handle.Dispose();
 }
 
@@ -65,8 +57,6 @@ internal sealed class OperationHandle : SafeHandleZeroOrMinusOneIsInvalid
 }
 internal static partial class Native
 {
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_operation_prepare_budget(uint op, byte[] req, nuint n, byte* data, nuint len, ulong budgetId, out IntPtr p, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_operation_prepare(uint op, byte[] req, nuint n, byte* data, nuint len, out IntPtr p, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

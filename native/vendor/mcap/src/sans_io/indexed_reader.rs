@@ -1,8 +1,7 @@
 use binrw::BinRead;
 
 use crate::{
-    records::{op, MessageHeader},
-    shared_chunk_index::SharedChunkIndex as ChunkIndex,
+    records::{op, ChunkIndex, MessageHeader},
     sans_io::check_len,
     McapError, McapResult,
 };
@@ -30,7 +29,8 @@ pub enum IndexedReadEvent<'a> {
 }
 
 struct ChunkSlot {
-    buf: crate::storage::SharedBytes,
+    buf: crate::storage::WriteBuffer,
+    data_len: usize,
     data_start: u64,
     message_count: usize,
 }
@@ -88,18 +88,17 @@ struct ChunkSlot {
 pub struct IndexedReader {
     // This MCAP's chunk indexes, pre-filtered by time range and topic and sorted in the order
     // they should be visited.
-    chunk_indexes: crate::segmented::BudgetedSegmentedVec<ChunkIndex>,
+    chunk_indexes: Vec<ChunkIndex>,
     // The index in `chunk_indexes` of the current chunk to be loaded. cur_chunk_index >=
     // chunk_indexes.len() means that all chunks have been loaded.
     cur_chunk_index: usize,
     // A set of decompressed chunks. Slots are re-used when their message count reaches zero.  There
     // may be more than one chunk slot in use at a time if we are reading in log-time or
     // reverse-log-time order, and there are chunks that overlap in time range.
-    chunk_slots: crate::segmented::BudgetedSegmentedVec<ChunkSlot>,
-    budget: crate::storage::BudgetRef,
+    chunk_slots: Vec<ChunkSlot>,
     // An index into the messages stored in chunk slots. Index entries are sorted in the order
     // they should be yielded.
-    message_indexes: crate::segmented::BudgetedSegmentedVec<MessageIndex>,
+    message_indexes: Vec<MessageIndex>,
     // The index in `message_indexes` of the next message to yield. cur_message_index >=
     // message_indexes.len() means that no more indexed messages are available, and more messages
     // should be loaded from the next chunk.
@@ -130,19 +129,7 @@ fn chunk_request(
 }
 
 impl IndexedReader {
-    /// Sets the shared domain used for decompressed chunk storage.
-    pub fn set_memory_budget(
-        &mut self,
-        budget: crate::storage::BudgetRef,
-    ) -> McapResult<()> {
-        if !crate::storage::BudgetRef::ptr_eq(&self.budget, &budget) {
-            return Err(std::io::Error::other(
-                "Indexed reader memory domain is fixed at construction",
-            )
-            .into());
-        }
-        Ok(())
-    }
+
     /// A stable owned message event, without a per-message payload copy.
     pub fn next_shared_event(&mut self) -> Option<McapResult<SharedIndexedReadEvent>> {
         let (header, p, n) = match self.next_event()? {
@@ -156,12 +143,12 @@ impl IndexedReader {
             Ok(IndexedReadEvent::Message { header, data }) => (header, data.as_ptr(), data.len()),
         };
         for slot in &self.chunk_slots {
-            let b = slot.buf.as_ref();
+            let b = &slot.buf.bytes()[..slot.data_len];
             if let Some(start) = (p as usize).checked_sub(b.as_ptr() as usize) {
                 if start.checked_add(n).is_some_and(|end| end <= b.len()) {
                     return Some(Ok(SharedIndexedReadEvent::Message {
                         header,
-                        data: slot.buf.slice(start..start + n),
+                        data: slot.buf.share(start..start + n),
                     }));
                 }
             }
@@ -176,67 +163,50 @@ impl IndexedReader {
         summary: &crate::Summary,
         options: IndexedReaderOptions,
     ) -> McapResult<Self> {
-        Self::new_with_options_and_budget(summary, options, crate::storage::BudgetRef::try_default()?)
-    }
-    /// Constructs indexed metadata and storage in a shared finite domain.
-    pub fn new_with_options_and_budget(
-        summary: &crate::Summary,
-        options: IndexedReaderOptions,
-        budget: crate::storage::BudgetRef,
-    ) -> McapResult<Self> {
-        let mut options=options;
-        let topics=options.include_topics.take();
-        Self::new_with_topic_filter(summary,options,budget,topics.as_ref().map(|topics|move |topic:&str|topics.contains(topic)))
-    }
-    /// Synchronously evaluates a borrowed topic predicate; it is never retained.
-    /// As with include_topics, an empty matched channel set preserves upstream behavior.
-    pub fn new_with_topic_filter<F:Fn(&str)->bool>(
-        summary:&crate::Summary,
-        options:IndexedReaderOptions,
-        budget:crate::storage::BudgetRef,
-        include:Option<F>,
-    )->McapResult<Self> {
-        let mut channel_ids=crate::u16_table::U16Table::new_owned(
-            budget.clone(),crate::storage::ResourceCategory::Index,crate::storage::OwnerKind::Parser);
-        if let Some(include)=include {
-            for (id,channel) in summary.channels.iter() {
-                if include(&channel.topic) {channel_ids.insert_fixed(id,())?;}
+        let channel_ids = if let Some(include_topics) = options.include_topics {
+            let mut set = BTreeSet::new();
+            for (id, channel) in summary.channels.iter() {
+                if include_topics.contains(&channel.topic) {
+                    set.insert(*id);
+                }
             }
-        }
+            set
+        } else {
+            BTreeSet::new()
+        };
 
         // filter out chunks that we won't use
-        let mut chunk_indexes = crate::segmented::BudgetedSegmentedVec::new(
-            budget.clone(),
-            crate::storage::ResourceCategory::Index,
-        );
-        for index in summary.chunk_indexes.iter().filter(|chunk_index| {
-            if let Some(start) = options.start {
-                if chunk_index.message_end_time < start {
-                    return false;
+        let mut chunk_indexes: Vec<crate::records::ChunkIndex> = summary
+            .chunk_indexes
+            .iter()
+            .filter(|chunk_index| {
+                if let Some(start) = options.start {
+                    if chunk_index.message_end_time < start {
+                        return false;
+                    }
                 }
-            }
-            if let Some(end) = options.end {
-                if chunk_index.message_start_time >= end {
-                    return false;
+                if let Some(end) = options.end {
+                    if chunk_index.message_start_time >= end {
+                        return false;
+                    }
                 }
-            }
-            if channel_ids.is_empty() {
-                return true;
-            }
-            // NOTE: if there are no message indexes, we can't reject this chunk because
-            // the file may not have message indexes included.
-            if chunk_index.message_index_offsets.is_empty() {
-                return true;
-            }
-            for key in chunk_index.message_index_offsets.keys() {
-                if channel_ids.contains_key(&key) {
+                if channel_ids.is_empty() {
                     return true;
                 }
-            }
-            false
-        }) {
-            chunk_indexes.push_fixed(index.clone())?;
-        }
+                // NOTE: if there are no message indexes, we can't reject this chunk because
+                // the file may not have message indexes included.
+                if chunk_index.message_index_offsets.is_empty() {
+                    return true;
+                }
+                for key in chunk_index.message_index_offsets.keys() {
+                    if channel_ids.contains(key) {
+                        return true;
+                    }
+                }
+                false
+            })
+            .cloned()
+            .collect();
 
         for chunk_index in chunk_indexes.iter() {
             // check that compressed data offset can be computed for every chunk index we intend to
@@ -279,15 +249,8 @@ impl IndexedReader {
         // need to deep-clone channels and schemas here.
         Ok(Self {
             chunk_indexes,
-            chunk_slots: crate::segmented::BudgetedSegmentedVec::new(
-                budget.clone(),
-                crate::storage::ResourceCategory::Index,
-            ),
-            budget: budget.clone(),
-            message_indexes: crate::segmented::BudgetedSegmentedVec::new(
-                budget.clone(),
-                crate::storage::ResourceCategory::Index,
-            ),
+            chunk_slots: Vec::new(),
+            message_indexes: Vec::new(),
             cur_message_index: 0,
             cur_chunk_index: 0,
             order: options.order,
@@ -315,7 +278,7 @@ impl IndexedReader {
             }
             // slice the message out of its decompressed chunk buffer and yield it.
             let chunk_slot = &mut self.chunk_slots[message_index.chunk_slot_idx];
-            let buf = &chunk_slot.buf.as_ref()[message_index.offset..];
+            let buf = &chunk_slot.buf.bytes()[message_index.offset..chunk_slot.data_len];
             let Some((&[opcode], buf)) = buf.split_first_chunk() else {
                 return Some(Err(McapError::UnexpectedEoc));
             };
@@ -376,15 +339,6 @@ impl IndexedReader {
         self.insert_chunk_data(offset, compressed_data, None)
     }
 
-    /// Whether the requested chunk can retain stable input without decompression.
-    /// Private binding storage extension; no parser state is advanced.
-    pub fn can_share_chunk_input(&self, offset: u64) -> McapResult<bool> {
-        self.chunk_indexes.iter().skip(self.cur_chunk_index)
-            .find(|index| index.compressed_data_offset().ok() == Some(offset))
-            .map(|index| index.compression.is_empty())
-            .ok_or(McapError::UnexpectedChunkDataInserted)
-    }
-
     /// Inserts stable input; uncompressed chunks retain its owner without copying.
     pub fn insert_shared_chunk_record_data(
         &mut self,
@@ -400,10 +354,10 @@ impl IndexedReader {
         compressed_data: &[u8],
         shared: Option<&crate::storage::SharedBytes>,
     ) -> McapResult<()> {
-        let chunk_indexes = self.chunk_indexes.iter().skip(self.cur_chunk_index);
+        let chunk_indexes = &self.chunk_indexes[self.cur_chunk_index..];
         // linear search through our chunk indexes to figure out which one it is. In the common case,
         // the first chunk index will be right.
-        let Some((i, chunk_index)) = chunk_indexes.enumerate().find(|(_, chunk_index)| {
+        let Some((i, chunk_index)) = chunk_indexes.iter().enumerate().find(|(_, chunk_index)| {
             let chunk_start_offset = chunk_index
                 .compressed_data_offset()
                 .expect("chunk data start offset checked in new()");
@@ -415,42 +369,42 @@ impl IndexedReader {
             return Err(McapError::UnexpectedChunkDataInserted);
         }
         let uncompressed_size = chunk_index.uncompressed_size as usize;
-        let slot_idx = find_or_make_chunk_slot(&mut self.chunk_slots, offset)?;
+        let slot_idx = find_or_make_chunk_slot(&mut self.chunk_slots, offset);
 
         let slot = &mut self.chunk_slots[slot_idx];
         if chunk_index.compression.is_empty() && shared.is_some() {
             if compressed_data.len() != uncompressed_size {
                 return Err(McapError::BadIndex);
             }
-            slot.buf = shared.unwrap().clone();
+            slot.buf.external(shared.unwrap().clone());
         } else {
-            let mut storage = crate::storage::WriteBuffer::default();
-            storage.budget = self.budget.clone();
-            storage.category = crate::storage::ResourceCategory::Decompressed;
-            storage.reserve_fixed(uncompressed_size, 0..0)?;
-            let output = unsafe { storage.writable(0..uncompressed_size) };
+            slot.buf.reserve(uncompressed_size, 0..0)?;
+            let output = unsafe { slot.buf.writable(0..uncompressed_size) };
             match chunk_index.compression.as_str() {
                 "" => {
-                    if compressed_data.len() != uncompressed_size {
-                        return Err(McapError::BadIndex);
-                    }
                     output.copy_from_slice(compressed_data);
-                    self.budget.copied(compressed_data.len());
                 }
                 #[cfg(feature = "zstd")]
                 "zstd" => {
-                    let mut decoder = super::zstd::ZstdDecoder::with_budget(self.budget.clone())?;
-                    decode_chunk(&mut decoder, compressed_data, output)?;
+                    let n = zstd::zstd_safe::decompress(output, compressed_data).map_err(|e| {
+                        McapError::DecompressionError(zstd::zstd_safe::get_error_name(e).into())
+                    })?;
+                    if n != uncompressed_size {
+                        return Err(McapError::DecompressionError(format!(
+                            "zstd decompression error: expected {uncompressed_size}, got {n}"
+                        )));
+                    }
                 }
                 #[cfg(feature = "lz4")]
                 "lz4" => {
-                    let mut decoder = super::lz4::Lz4Decoder::with_budget(self.budget.clone())?;
-                    decode_chunk(&mut decoder, compressed_data, output)?;
+                    use std::io::Read;
+                    let mut decoder = lz4::Decoder::new(std::io::Cursor::new(compressed_data))?;
+                    decoder.read_exact(output)?;
                 }
                 other => return Err(McapError::UnsupportedCompression(other.into())),
             }
-            slot.buf = storage.share(0..uncompressed_size);
         }
+        slot.data_len = uncompressed_size;
         // index the current chunk slot
         // before starting, check if all existing message indexes have been exhausted and clear them
         // to re-use space in `self.message_indexes`. This is the common case, since most MCAPs do
@@ -473,7 +427,7 @@ impl IndexedReader {
         // If there is more dead space at the front of `self.message_indexes` than the
         // set of new message indexes, compact the message index array now.
         if message_count < (self.cur_message_index) {
-            self.message_indexes.remove_prefix(self.cur_message_index);
+            self.message_indexes.drain(0..self.cur_message_index);
             self.cur_message_index = 0;
         }
         // Now we need to remove the corresponding chunk index. In the common case, where
@@ -510,7 +464,7 @@ struct Filter {
     // exclusive log time range end
     end: Option<u64>,
     // If non-empty, only channels with these IDs will be yielded
-    channel_ids: crate::u16_table::U16Table<()>,
+    channel_ids: BTreeSet<u16>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -585,10 +539,10 @@ impl IndexedReaderOptions {
 /// criteria.
 fn index_messages(
     chunk_slot_idx: usize,
-    chunk_slots: &crate::segmented::BudgetedSegmentedVec<ChunkSlot>,
+    chunk_slots: &[ChunkSlot],
     order: ReadOrder,
     filter: &Filter,
-    message_indexes: &mut crate::segmented::BudgetedSegmentedVec<MessageIndex>,
+    message_indexes: &mut Vec<MessageIndex>,
     cur_message_index: usize,
     record_length_limit: Option<usize>,
 ) -> McapResult<usize> {
@@ -600,7 +554,8 @@ fn index_messages(
     let mut sorting_required = !message_indexes.is_empty();
     let mut latest_timestamp = 0;
     let new_message_index_start = message_indexes.len();
-    let chunk_data = chunk_slots[chunk_slot_idx].buf.as_ref();
+    let slot = &chunk_slots[chunk_slot_idx];
+    let chunk_data = &slot.buf.bytes()[..slot.data_len];
     while offset < chunk_data.len() {
         let buf = &chunk_data[offset..];
         let Some((&[opcode], buf)) = buf.split_first_chunk() else {
@@ -635,7 +590,7 @@ fn index_messages(
                 continue;
             }
         }
-        if !filter.channel_ids.is_empty() && !filter.channel_ids.contains_key(&msg.channel_id) {
+        if !filter.channel_ids.is_empty() && !filter.channel_ids.contains(&msg.channel_id) {
             offset = next_offset;
             continue;
         }
@@ -643,11 +598,11 @@ fn index_messages(
             sorting_required = msg.log_time < latest_timestamp;
         }
         latest_timestamp = latest_timestamp.max(msg.log_time);
-        message_indexes.push_fixed(MessageIndex {
+        message_indexes.push(MessageIndex {
             chunk_slot_idx,
             log_time: msg.log_time,
             offset,
-        })?;
+        });
         offset = next_offset
     }
     match order {
@@ -655,14 +610,16 @@ fn index_messages(
             // in file order, message indexes only need sorting if the caller has loaded chunks
             // out-of-order.
             if sorting_required {
-                message_indexes.sort_range_by_key(cur_message_index, |index| {
+                let unread_message_indexes = &mut message_indexes[cur_message_index..];
+                unread_message_indexes.sort_by_key(|index| {
                     (chunk_slots[index.chunk_slot_idx].data_start, index.offset)
                 });
             }
         }
         ReadOrder::LogTime => {
             if sorting_required {
-                message_indexes.sort_range_by_key(cur_message_index, |index| {
+                let unread_message_indexes = &mut message_indexes[cur_message_index..];
+                unread_message_indexes.sort_by_key(|index| {
                     (
                         index.log_time,
                         chunk_slots[index.chunk_slot_idx].data_start,
@@ -674,9 +631,11 @@ fn index_messages(
         ReadOrder::ReverseLogTime => {
             // first, reverse the order of the new message indexes. This removes the need to sort
             // in the common case, where all messages are already in log-time order.
-            message_indexes.reverse_range(new_message_index_start);
+            let new_message_indexes = &mut message_indexes[new_message_index_start..];
+            new_message_indexes.reverse();
             if sorting_required {
-                message_indexes.sort_range_by_key(cur_message_index, |index| {
+                let unread_message_indexes = &mut message_indexes[cur_message_index..];
+                unread_message_indexes.sort_by_key(|index| {
                     Reverse((
                         index.log_time,
                         chunk_slots[index.chunk_slot_idx].data_start,
@@ -690,25 +649,22 @@ fn index_messages(
 }
 
 /// Finds a free chunk slot or creates a new one if none are available, and returns its index.
-fn find_or_make_chunk_slot(
-    chunk_slots: &mut crate::segmented::BudgetedSegmentedVec<ChunkSlot>,
-    data_start: u64,
-) -> McapResult<usize> {
-    for i in 0..chunk_slots.len() {
-        let slot = &mut chunk_slots[i];
+fn find_or_make_chunk_slot(chunk_slots: &mut Vec<ChunkSlot>, data_start: u64) -> usize {
+    for (i, slot) in chunk_slots.iter_mut().enumerate() {
         if slot.message_count == 0 {
             slot.data_start = data_start;
-            slot.buf = crate::storage::SharedBytes::empty();
-            return Ok(i);
+            slot.buf.reset();
+            return i;
         }
     }
     let idx = chunk_slots.len();
-    chunk_slots.push_fixed(ChunkSlot {
+    chunk_slots.push(ChunkSlot {
         message_count: 0,
         data_start,
-        buf: crate::storage::SharedBytes::empty(),
-    })?;
-    Ok(idx)
+        buf: crate::storage::WriteBuffer::default(),
+        data_len: 0,
+    });
+    idx
 }
 
 #[cfg(test)]
@@ -721,48 +677,6 @@ mod tests {
     use crate::sans_io::{SummaryReadEvent, SummaryReader};
 
     use super::*;
-
-    #[test]
-    fn selected_channel_pages_are_exact_and_refusal_rolls_back() {
-        let wire=make_mcap(None,&[&[(1,1),(256,2),(513,3),(65534,4)]]);
-        let summary=crate::Summary::read(&wire).unwrap().unwrap();
-        let domain=crate::storage::BudgetRef::new(Default::default()).unwrap();
-        let options=IndexedReaderOptions::new().include_topics(["even"]);
-        let reader=IndexedReader::new_with_options_and_budget(&summary,options.clone(),domain.clone()).unwrap();
-        assert_eq!(reader.filter.channel_ids.len(),2);
-        assert!(reader.filter.channel_ids.contains_key(&256));
-        assert!(reader.filter.channel_ids.contains_key(&65534));
-        let stats=domain.workload_detailed_statistics();
-        assert!(stats.resources[crate::storage::ResourceCategory::Index as usize].live>0);
-        assert_eq!(stats.resources.iter().map(|r|r.reserved).sum::<u64>(),0);
-        let allocations=stats.allocation_count;
-        drop(reader);assert_eq!(domain.workload_statistics().current,0);
-        for failure in 0..allocations {
-            let domain=crate::storage::BudgetRef::new(Default::default()).unwrap();
-            domain.fail_allocation_at(failure as usize);
-            assert!(IndexedReader::new_with_options_and_budget(&summary,options.clone(),domain.clone()).is_err());
-            assert_eq!(domain.workload_statistics().current,0);
-            assert_eq!(domain.ownership_statistics(),Default::default());
-        }
-    }
-
-    #[test]
-    fn borrowed_topic_filter_matches_owned_options() {
-        let data=make_mcap(None,&[&[(1,1),(256,2),(513,3),(65534,4)]]);
-        let summary=crate::Summary::read(&data).unwrap().unwrap();
-        for topic in ["even","odd","absent"] {
-            let domain=crate::storage::BudgetRef::new(Default::default()).unwrap();
-            let owned=IndexedReader::new_with_options_and_budget(&summary,
-                IndexedReaderOptions::new().include_topics([topic]),domain.clone()).unwrap();
-            let borrowed=IndexedReader::new_with_topic_filter(&summary,IndexedReaderOptions::new(),domain.clone(),Some(|name:&str|name==topic)).unwrap();
-            assert_eq!(owned.filter.channel_ids.len(),borrowed.filter.channel_ids.len());
-            for id in [1,256,513,65534] {
-                assert_eq!(owned.filter.channel_ids.contains_key(&id),borrowed.filter.channel_ids.contains_key(&id));
-            }
-            assert_eq!(owned.chunk_indexes.len(),borrowed.chunk_indexes.len());
-            drop((owned,borrowed));assert_eq!(domain.workload_statistics().current,0);
-        }
-    }
 
     fn make_mcap(compression: Option<crate::Compression>, chunks: &[&[(u16, u64)]]) -> Vec<u8> {
         let mut writer = crate::WriteOptions::new()
@@ -837,7 +751,7 @@ mod tests {
             .expect("there should be a summary");
         let mut indexed_reader = IndexedReader::new_with_options(&summary, options)
             .expect("reader construction should not fail");
-        let mut my_chunk_indexes = summary.chunk_indexes.iter().cloned().collect::<Vec<_>>();
+        let mut my_chunk_indexes = summary.chunk_indexes.clone();
         my_chunk_indexes.sort_by_key(|chunk_index| Reverse(chunk_index.chunk_start_offset));
 
         let mut found = Vec::new();
@@ -1051,102 +965,4 @@ pub enum SharedIndexedReadEvent {
         header: MessageHeader,
         data: crate::storage::SharedBytes,
     },
-}
-
-fn decode_chunk(
-    decoder: &mut dyn super::decompressor::Decompressor,
-    src: &[u8],
-    dst: &mut [u8],
-) -> McapResult<()> {
-    let (mut read, mut wrote) = (0, 0);
-    loop {
-        let result = decoder.decompress(&src[read..], &mut dst[wrote..])?;
-        read += result.consumed;
-        wrote += result.wrote;
-        if decoder.next_read_size() == 0 && read == src.len() {
-            break;
-        }
-        if result.consumed == 0 && result.wrote == 0 {
-            return Err(McapError::UnexpectedEoc);
-        }
-    }
-    if wrote != dst.len() {
-        return Err(McapError::BadIndex);
-    }
-    Ok(())
-}
-
-#[cfg(all(test, feature = "zstd"))]
-mod budgeted_decode_tests {
-    use super::*;
-    #[test]
-    fn concatenated_frames_and_trailing_corruption() {
-        let mut input = zstd::stream::encode_all(&b"first"[..], 0).unwrap();
-        input.extend(zstd::stream::encode_all(&b"second"[..], 0).unwrap());
-        let budget = crate::storage::BudgetRef::new(Default::default()).unwrap();
-        let mut decoder = super::super::zstd::ZstdDecoder::with_budget(budget.clone()).unwrap();
-        let mut output = [0; 11];
-        decode_chunk(&mut decoder, &input, &mut output).unwrap();
-        assert_eq!(&output, b"firstsecond");
-        input.push(0xff);
-        let mut decoder = super::super::zstd::ZstdDecoder::with_budget(budget).unwrap();
-        assert!(decode_chunk(&mut decoder, &input, &mut output).is_err());
-    }
-}
-
-#[cfg(all(test, feature = "zstd", feature = "lz4"))]
-mod decoder_failure_matrix {
-    use crate::sans_io::decompressor::Decompressor;
-
-
-    fn decode(domain: crate::storage::BudgetRef, compressed: &[u8], lz4: bool) -> crate::McapResult<()> {
-        let mut decoder: Box<dyn Decompressor> = if lz4 {
-            Box::new(crate::sans_io::lz4::Lz4Decoder::with_budget(domain)?)
-        } else {
-            Box::new(crate::sans_io::zstd::ZstdDecoder::with_budget(domain)?)
-        };
-        let mut output = [0u8; 65536];
-        for _ in 0..2 {
-            let (mut input, mut written) = (0, 0);
-            loop {
-                let progress = decoder.decompress(&compressed[input..], &mut output[written..])?;
-                input += progress.consumed;
-                written += progress.wrote;
-                if decoder.next_read_size() == 0 {
-                    break;
-                }
-                assert!(progress.consumed != 0 || progress.wrote != 0);
-            }
-            assert_eq!(written, output.len());
-            decoder.reset()?;
-        }
-        Ok(())
-    }
-    #[test]
-    fn every_observed_decoder_allocation_failure_releases_domain() {
-        use std::io::Write;
-        for lz4 in [false, true] {
-            let compressed = if lz4 {
-                let mut encoder = lz4::EncoderBuilder::new().build(Vec::new()).unwrap();
-                encoder.write_all(&[37u8; 65536]).unwrap();
-                let (data, status) = encoder.finish();
-                status.unwrap();
-                data
-            } else {
-                zstd::stream::encode_all(&[37u8; 65536][..], 0).unwrap()
-            };
-            let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
-            decode(domain.clone(), &compressed, lz4).unwrap();
-            let attempts = domain.allocation_attempt_count();
-            assert!(attempts > 1);
-            for index in 0..attempts {
-                domain.fail_allocation_at(index);
-                let result = decode(domain.clone(), &compressed, lz4);
-                if domain.allocation_attempt_count() > index {
-                    assert!(result.is_err());
-                }
-                assert_eq!(domain.workload_statistics().current, 0, "lz4={lz4} index={index}");
-            }
-        }
-    }
 }

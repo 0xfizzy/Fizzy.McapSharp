@@ -12,9 +12,5 @@ crc32fast = "=1.5.0"
 enumset = "=1.1.14"
 binrw = "=0.15.2"
 
-[dev-dependencies]
-mcap = { version = "=0.25.0", features = ["allocation-audit"] }
-
 [patch.crates-io]
 mcap = { path = "vendor/mcap" }
-zstd-sys = { path = "vendor/zstd-sys" }

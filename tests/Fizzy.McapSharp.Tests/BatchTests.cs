@@ -93,13 +93,11 @@ public class BatchTests
             if (useSession)
             {
                 Assert.Throws<InvalidOperationException>(() => session.Dispose());
-                Assert.Throws<InvalidOperationException>(() => session.GetMemoryStatistics());
                 Assert.Throws<InvalidOperationException>(() => session.ReadNext([], out _, out _));
             }
             else
             {
                 Assert.Throws<InvalidOperationException>(() => buffer.Dispose());
-                Assert.Throws<InvalidOperationException>(() => buffer.GetMemoryStatistics());
                 Assert.Throws<InvalidOperationException>(() => buffer.ReadNext([], out _, out _));
             }
             return false;

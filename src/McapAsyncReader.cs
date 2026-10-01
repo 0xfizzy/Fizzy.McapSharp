@@ -10,7 +10,6 @@ public readonly record struct McapRecordReadResult(McapReadStatus Status, byte O
 public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskSource<McapRecordReadResult>, IValueTaskSource<McapMessageBatchLease?>
 {
     readonly Stream stream;
-    readonly McapMemoryBudget memoryBudget;
     readonly StreamBridge bridge;
     readonly McapSansIoReader parser;
     readonly NativeInputMemory input;
@@ -30,8 +29,6 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
         ArgumentNullException.ThrowIfNull(stream);
         if (inputBufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(inputBufferSize));
         this.stream = stream;
-        memoryBudget = options?.Memory?.Budget ?? new McapMemoryBudget();
-        options = (options ?? new()) with { Memory = (options?.Memory ?? new()) with { Budget = memoryBudget } };
         emitChunks = options?.EmitChunks ?? false;
         this.inputBufferSize = inputBufferSize;
         bridge = new(stream, false, leaveOpen);
@@ -43,7 +40,6 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
         // A consumer may resume on the completing I/O thread; no context is imposed.
         completion.RunContinuationsAsynchronously = false;
     }
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); if (active) throw new InvalidOperationException("Consume the pending operation first."); return parser.GetMemoryStatistics(); } }
     public ValueTask<McapRecordReadResult> ReadNextRecordAsync(Memory<byte> destination, CancellationToken cancellationToken = default)
     {
         lock (gate)

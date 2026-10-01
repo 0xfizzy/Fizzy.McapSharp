@@ -73,49 +73,39 @@ impl Output {
                 SYNC_TEST.with(|state| {
                     let (calls, fail) = state.get();
                     state.set((calls + 1, fail));
-                    if fail { Err(io::Error::other("Injected sync failure")) } else { Ok(()) }
+                    if fail {
+                        Err(io::Error::other("Injected sync failure"))
+                    } else {
+                        Ok(())
+                    }
                 })?;
                 f.sync_all()
-            },
-            Self::Stream(_) => Err(io::Error::new(io::ErrorKind::Unsupported, "Stream persistence is managed by the caller")),
+            }
+            Self::Stream(_) => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Stream persistence is managed by the caller",
+            )),
         }
     }
 }
-pub struct MappedInput { pub mapping: Mmap, pub _file: File, pub _registration: mcap::storage::MappingRegistration }
-impl std::ops::Deref for MappedInput { type Target = [u8]; fn deref(&self) -> &[u8] { &self.mapping } }
-impl mcap::storage::SharedSource for MappedInput {}
-impl AsRef<[u8]> for MappedInput { fn as_ref(&self) -> &[u8] { &self.mapping } }
-/// A reader input pin, distinct from the storage retained by mapped payload slices.
-pub struct MappingOwner(Option<mcap::charged::ChargedShared<MappedInput>>);
-impl MappingOwner {
-    pub fn new(mapping: Mmap, file: File, domain: &mcap::storage::BudgetRef) -> super::Outcome<Self> {
-        let root=mcap::charged::ChargedShared::new_fixed(MappedInput {
-            _registration:domain.register_mapping(mapping.len() as u64)?, mapping, _file:file,
-        },domain,mcap::storage::ResourceCategory::Scratch)?;
-        root.charge_owner(mcap::storage::OwnerKind::Parser,true);
-        Ok(Self(Some(root)))
-    }
-    pub fn into_shared(mut self) -> mcap::charged::ChargedShared<MappedInput> {
-        let root=self.0.take().unwrap();
-        root.charge_owner(mcap::storage::OwnerKind::Parser,false);
-        root
-    }
-    pub fn shared(&self, range: std::ops::Range<usize>) -> mcap::storage::SharedBytes {
-        mcap::storage::SharedBytes::charged_external(self.0.as_ref().unwrap().clone().into_source(),range)
+pub struct MappedInput {
+    pub mapping: Mmap,
+    pub _file: File,
+}
+impl std::ops::Deref for MappedInput {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.mapping
     }
 }
-impl std::ops::Deref for MappingOwner {
-    type Target=MappedInput;
-    fn deref(&self) -> &MappedInput { self.0.as_deref().unwrap() }
-}
-impl Drop for MappingOwner {
-    fn drop(&mut self) {
-        if let Some(root)=&self.0 { root.charge_owner(mcap::storage::OwnerKind::Parser,false); }
+impl AsRef<[u8]> for MappedInput {
+    fn as_ref(&self) -> &[u8] {
+        &self.mapping
     }
 }
 pub enum Input {
     Map {
-        mapping: MappingOwner,
+        mapping: std::sync::Arc<MappedInput>,
         position: usize,
     },
     Stream(Callbacks),
@@ -169,47 +159,5 @@ impl Input {
             Self::Map { .. } => true,
             Self::Stream(c) => c.seekable != 0,
         }
-    }
-}
-
-#[cfg(test)]
-mod mapping_tests {
-    use super::*;
-    use mcap::storage::{BudgetLimits, OwnerKind};
-    #[test]
-    fn input_pin_releases_before_last_mapped_lease() {
-        let path=std::env::temp_dir().join(format!("fizzy-input-map-control-{}.bin",std::process::id()));
-        std::fs::write(&path,[9;128]).unwrap();
-        let domain=mcap::storage::BudgetRef::new(Default::default()).unwrap();
-        let file=File::open(&path).unwrap();
-        let map=unsafe { Mmap::map(&file).unwrap() };
-        let owner=MappingOwner::new(map,file,&domain).unwrap();
-        let capacity=domain.workload_statistics().current;
-        let lease=owner.shared(3..7).clone_for(OwnerKind::Lease);
-        assert_eq!(domain.ownership_statistics().bytes[OwnerKind::Parser as usize],capacity);
-        assert_eq!(domain.ownership_statistics().externally_releasable,0);
-        assert_eq!(domain.workload_detailed_statistics().lease_payload_bytes,0);
-        drop(owner);
-        assert_eq!(domain.ownership_statistics().bytes[OwnerKind::Parser as usize],0);
-        assert_eq!(domain.ownership_statistics().externally_releasable,capacity);
-        assert_eq!(domain.mapped_logical_bytes(),128);
-        assert_eq!(lease.as_ref(),&[9;4]);
-        drop(lease);
-        assert_eq!(domain.workload_statistics().current,0);
-        assert_eq!(domain.mapped_logical_bytes(),0);
-        std::fs::remove_file(path).unwrap();
-    }
-    #[test]
-    fn refused_mapping_control_rolls_back_mapping_registration() {
-        let path=std::env::temp_dir().join(format!("fizzy-refused-map-control-{}.bin",std::process::id()));
-        std::fs::write(&path,[9;128]).unwrap();
-        let domain=mcap::storage::BudgetRef::new(BudgetLimits { total:(1) + mcap::storage::BudgetRef::allocation_size(), block:1, retained:0 }).unwrap();
-        let file=File::open(&path).unwrap();
-        let map=unsafe { Mmap::map(&file).unwrap() };
-        assert!(MappingOwner::new(map,file,&domain).is_err());
-        assert_eq!(domain.workload_statistics().current,0);
-        assert_eq!(domain.mapped_logical_bytes(),0);
-        assert_eq!(domain.ownership_statistics(),Default::default());
-        std::fs::remove_file(path).unwrap();
     }
 }

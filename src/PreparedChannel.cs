@@ -8,10 +8,7 @@ public sealed class McapPreparedChannel : IDisposable
 {
     internal readonly PreparedChannelHandle Handle;
     public ushort Id { get; }
-    public McapPreparedChannel(McapChannel channel) : this(channel, null, true) { }
-    /// <summary>Creates an immutable snapshot in the supplied native resource domain.</summary>
-    public McapPreparedChannel(McapChannel channel, McapMemoryBudget budget) : this(channel, budget ?? throw new ArgumentNullException(nameof(budget)), true) { }
-    unsafe McapPreparedChannel(McapChannel channel, McapMemoryBudget? budget, bool _)
+    public unsafe McapPreparedChannel(McapChannel channel)
     {
         ArgumentNullException.ThrowIfNull(channel);
         Native.EnsureAvailable();
@@ -27,10 +24,9 @@ public sealed class McapPreparedChannel : IDisposable
         });
         fixed (byte* data = s?.Data)
         {
-            int status = Native.fm_channel_prepare_budget(req, (nuint)req.Length, data, (nuint)(s?.Data.Length ?? 0), budget?.Id ?? 0, out var p, out var r);
+            int status = Native.fm_channel_prepare(req, (nuint)req.Length, data, (nuint)(s?.Data.Length ?? 0), out var p, out var r);
             Native.Consume(status, r).Json?.Dispose();
             Handle = new(p);
-            GC.KeepAlive(budget);
         }
     }
     public void Dispose() => Handle.Dispose();
@@ -44,8 +40,6 @@ internal sealed class PreparedChannelHandle : SafeHandleZeroOrMinusOneIsInvalid
 
 internal static partial class Native
 {
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_channel_prepare_budget(byte[] req, nuint n, byte* data, nuint len, ulong budgetId, out IntPtr p, out Result result);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_channel_prepare(byte[] req, nuint n, byte* data, nuint len, out IntPtr p, out Result result);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

@@ -23,7 +23,7 @@ public sealed partial class McapSansIoReader : IDisposable
             summary?.handle.DangerousAddRef(ref added);
             int status = Native.fm_engine_open(kind, req, (nuint)req.Length, summary?.handle.DangerousGetHandle() ?? IntPtr.Zero, out var p, out var r);
             Native.Consume(status, r).Json?.Dispose();
-            GC.KeepAlive(options);
+
             handle = new(p);
         }
         finally { if (added) summary!.handle.DangerousRelease(); }
@@ -34,7 +34,7 @@ public sealed partial class McapSansIoReader : IDisposable
     {
         query ??= new();
         if (!Enum.IsDefined(query.Order) || query.StartTime > query.EndTime || (query.Topic is not null && query.Topics is not null)) throw new ArgumentException("Invalid query.", nameof(query));
-        lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return new(2, new { query.Topic, query.Topics, query.StartTime, query.EndTime, query.Order, RecordLengthLimit = recordLengthLimit, query.Memory }, this); }
+        lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return new(2, new { query.Topic, query.Topics, query.StartTime, query.EndTime, query.Order, RecordLengthLimit = recordLengthLimit }, this); }
     }
     public unsafe McapReadStatus NextEvent(Span<byte> destination, out McapReadEvent readEvent)
     {
@@ -87,14 +87,13 @@ public sealed partial class McapSansIoReader : IDisposable
             return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options);
         }
     }
-    public McapMemoryStatistics GetMemoryStatistics() { lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return Native.MemoryStatistics(3, handle); } }
     public void Dispose() { lock (gate) { if (disposed) return; disposed = true; handle.Dispose(); } }
 }
 
 internal sealed class EngineHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     internal EngineHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_engine_free(handle); NativeStorageSignal.Pulse(); return true; }
+    protected override bool ReleaseHandle() { Native.fm_engine_free(handle);  return true; }
 }
 internal static partial class Native
 {

@@ -23,7 +23,7 @@ def verify(ROOT):
     print(f"Vendored {upstream['crate']} {upstream['version']}: {len(patches)} reviewed patched/new files; license verified")
 
 def main():
-    for name in ("mcap", "zstd-sys"):
+    for name in ("mcap",):
         verify(ROOT.parent / name)
 
 if __name__ == "__main__":

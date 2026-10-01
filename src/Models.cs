@@ -29,7 +29,6 @@ public enum McapRecoverableWriterErrors
 
 public sealed record McapWriterOptions
 {
-    public McapMemoryOptions? Memory { get; init; }
     public McapRecoverableWriterErrors RecoverableErrors { get; init; } =
         McapRecoverableWriterErrors.InvalidSchemaIdOnRegistration |
         McapRecoverableWriterErrors.ConflictingSchemaOnRegistration |
@@ -68,7 +67,8 @@ public sealed record McapAttachment(string Name, string MediaType, ulong LogTime
 public enum McapReadOrder { LogTime, ReverseLogTime, File }
 public sealed record McapQuery
 {
-    public McapMemoryOptions? Memory { get; init; }
+    /// <summary>Optional fallback-sort allowance for logical payload bytes plus descriptor capacity, not total native memory.</summary>
+    public ulong? MaxBufferedSortBytes { get; init; }
     /// <summary>Allows scanning and buffering all selected messages when time ordering cannot use indexes.</summary>
     public bool AllowBufferedSort { get; init; } = true;
     public McapReadOrder Order { get; init; } = McapReadOrder.LogTime;

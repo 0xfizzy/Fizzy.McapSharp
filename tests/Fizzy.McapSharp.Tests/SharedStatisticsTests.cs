@@ -4,7 +4,7 @@ namespace Fizzy.McapSharp.Tests;
 public sealed class SharedStatisticsTests
 {
     [Fact]
-    public void IndexedMetadataAndAttachmentChargeOnlyActualCallerDelivery()
+    public void IndexedMetadataAndAttachmentReportRequiredLengths()
     {
         using var stream = new MemoryStream();
         using (var writer = new McapWriter(stream, new() { UseChunks = false }, true))
@@ -13,80 +13,64 @@ public sealed class SharedStatisticsTests
             writer.WriteAttachment("attachment", "raw", 4, 5, new byte[1024 * 1024]);
             writer.Complete();
         }
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
-        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new() { Budget = budget }))
+        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new()))
         {
             var summary = snapshot.GetSummary()!;
-            var before = budget.GetDetailedStatistics();
             snapshot.ReadMetadata(summary.MetadataIndexes[0], Span<byte>.Empty, out var metadataLength);
             snapshot.ReadAttachment(summary.AttachmentIndexes[0], Span<byte>.Empty, out var attachmentLength);
-            Assert.Equal(before.Flow.DeliveryCopyBytes, budget.GetDetailedStatistics().Flow.DeliveryCopyBytes);
+
             var metadata = new byte[checked((int)metadataLength)];
             var attachment = new byte[checked((int)attachmentLength)];
             snapshot.ReadMetadata(summary.MetadataIndexes[0], metadata, out var metadataWritten);
             snapshot.ReadAttachment(summary.AttachmentIndexes[0], attachment, out var attachmentWritten);
             Assert.Equal(metadataLength, metadataWritten);
             Assert.Equal(attachmentLength, attachmentWritten);
-            var after = budget.GetDetailedStatistics();
-            Assert.Equal(before.Flow.DeliveryCopyBytes + metadataLength + attachmentLength, after.Flow.DeliveryCopyBytes);
-            Assert.Equal(before.Flow.InputCopyBytes, after.Flow.InputCopyBytes);
-            Assert.Equal(before.CurrentBytes, after.CurrentBytes);
+
         }
-        BudgetAssertions.Idle(budget);
     }
 
     [Fact]
-    public void SharedSummaryControlRemainsChargedUntilLastCursor()
+    public void SummarySurvivesSourceAndSiblingDisposal()
     {
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
         using var stream = new MemoryStream();
         McapBufferReader first;
         McapBufferReader second;
-        ulong declarationBytes;
         using (var writer = new McapWriter(stream, new()
         {
-            UseChunks = false, Compression = McapCompression.None, Memory = new() { Budget = budget }
-        }, true))
+            UseChunks = false, Compression = McapCompression.None, }, true))
         {
             writer.Complete();
             // No Schema/Channel declarations: this is the retained summary control.
-            declarationBytes = budget.GetDetailedStatistics().Declaration.LiveBytes;
-            Assert.True(declarationBytes > 0);
             first = writer.OpenSummaryRecords();
             second = writer.OpenSummaryRecords();
-            Assert.Equal(declarationBytes, budget.GetDetailedStatistics().Declaration.LiveBytes);
+
         }
         using (second)
         {
             first.Dispose();
-            Assert.Equal(declarationBytes, budget.GetDetailedStatistics().Declaration.LiveBytes);
+
             Assert.Contains(second.ReadRecords(), record => record.Opcode == 11);
         }
-        BudgetAssertions.Idle(budget);
 
-        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new() { Budget = budget }))
+        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new()))
         {
-            declarationBytes = budget.GetDetailedStatistics().Declaration.LiveBytes;
-            Assert.True(declarationBytes > 0);
             first = snapshot.OpenSummaryRecords();
             second = snapshot.OpenSummaryRecords();
-            Assert.Equal(declarationBytes, budget.GetDetailedStatistics().Declaration.LiveBytes);
+
         }
         using (second)
         {
             first.Dispose();
-            Assert.Equal(declarationBytes, budget.GetDetailedStatistics().Declaration.LiveBytes);
+
             Assert.Contains(second.ReadRecords(), record => record.Opcode == 11);
         }
-        BudgetAssertions.Idle(budget);
     }
     [Theory]
     [InlineData(McapCompression.None, false)] [InlineData(McapCompression.None, true)]
     [InlineData(McapCompression.Lz4, false)] [InlineData(McapCompression.Lz4, true)]
     [InlineData(McapCompression.Zstd, false)] [InlineData(McapCompression.Zstd, true)]
-    public void ReaderDeclarationsHaveExactStorageAndIndependentOwnedExports(McapCompression compression, bool buffer)
+    public void ReaderDeclarationsHaveIndependentOwnedExports(McapCompression compression, bool buffer)
     {
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
         using var stream = new MemoryStream();
         var fields = Enumerable.Range(0, 2000).ToDictionary(i => $"key/{i:000000}", i => $"value/{i}");
         ushort channel;
@@ -99,7 +83,7 @@ public sealed class SharedStatisticsTests
         }
         if (buffer)
         {
-            using var reader = new McapBufferReader(stream.ToArray(), McapBufferReadMode.Messages, false, new() { Budget = budget });
+            using var reader = new McapBufferReader(stream.ToArray(), McapBufferReadMode.Messages, false);
             Assert.Single(reader.ReadMessages());
             Check(reader.GetChannel(channel), reader.GetChannel(channel));
         }
@@ -107,17 +91,16 @@ public sealed class SharedStatisticsTests
         {
             stream.Position = 0;
             using var reader = McapReader.OpenMessages(stream, new() { Order = McapReadOrder.File }, true,
-                new() { Memory = new() { Budget = budget } });
+                new());
             // Shared summary declarations are then compared against raw sequential declarations.
             Assert.NotNull(reader.GetSummary());
             Assert.Single(reader.ReadMessages());
             Check(reader.GetChannel(channel), reader.GetChannel(channel));
         }
-        BudgetAssertions.Idle(budget);
         void Check(McapChannel first, McapChannel second)
         {
-            Assert.Equal(0UL, budget.GetDetailedStatistics().Declaration.ReservedBytes);
-            Assert.True(budget.GetDetailedStatistics().Declaration.LiveBytes > 100_000);
+
+
             Assert.Equal(2000, first.Metadata.Count);
             Assert.Equal("value/1999", first.Metadata["key/001999"]);
             Assert.Equal("名字", first.Schema!.Name);
@@ -128,22 +111,20 @@ public sealed class SharedStatisticsTests
     }
 
     [Fact]
-    public void PagedDeclarationsOutliveWriterAndOwnedSchemaCopiesRemainIndependent()
+    public void DeclarationsOutliveWriterAndOwnedSchemaCopiesRemainIndependent()
     {
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
         var fields = Enumerable.Range(0, 2000).ToDictionary(i => $"key/{i:000000}", i => $"value/{i}");
         using var stream = new MemoryStream();
         McapBufferReader cursor;
         ushort channel;
         using (var writer = new McapWriter(stream, new()
         {
-            UseChunks = false, Compression = McapCompression.None, Memory = new() { Budget = budget }
-        }, true))
+            UseChunks = false, Compression = McapCompression.None, }, true))
         {
             var schema = writer.RegisterSchema("名字", "raw", new byte[100_000]);
             channel = writer.RegisterChannel("topic", "raw", schema, fields);
             writer.Complete();
-            Assert.Equal(0UL, budget.GetDetailedStatistics().Declaration.ReservedBytes);
+
             cursor = writer.OpenSummaryRecords();
         }
         using (cursor)
@@ -154,14 +135,12 @@ public sealed class SharedStatisticsTests
             Assert.Equal(0, cursor.GetChannel(channel).Schema!.Data[0]);
             Assert.Contains(cursor.ReadRecords(), record => record.Opcode == 3);
         }
-        BudgetAssertions.Idle(budget);
-        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new() { Budget = budget }))
+        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new()))
         {
             using var readSummary = snapshot.OpenSummaryRecords();
             Check(readSummary.GetChannel(channel));
-            Assert.Equal(0UL, budget.GetDetailedStatistics().Declaration.ReservedBytes);
+
         }
-        BudgetAssertions.Idle(budget);
         static void Check(McapChannel value)
         {
             Assert.Equal("topic", value.Topic);
@@ -176,19 +155,17 @@ public sealed class SharedStatisticsTests
     [InlineData(true, true)]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public void AttachmentHeaderStorageSurvivesPagedSummaryAndSequentialScan(bool indexes, bool crc)
+    public void AttachmentHeadersSurviveSummaryAndSequentialScan(bool indexes, bool crc)
     {
         const int count = 5000;
         const string name = "附件/名字";
         const string media = "application/数据";
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
         using var storage = new MemoryStream();
         using (var writer = new McapWriter(storage, new()
         {
             Compression = McapCompression.None, UseChunks = false,
             EmitAttachmentIndexes = indexes, CalculateAttachmentCrcs = crc,
-            Memory = new() { Budget = budget }
-        }, true))
+            }, true))
         {
             for (var i = 0; i < count; ++i)
             {
@@ -205,7 +182,6 @@ public sealed class SharedStatisticsTests
             Check(writer.GetSummary());
             Check(writer.GetSummary());
         }
-        BudgetAssertions.Idle(budget);
         storage.Position = 0;
         using var reader = McapReader.OpenMessages(storage, leaveOpen: true);
         Check(reader.GetSummary()!);
@@ -227,7 +203,6 @@ public sealed class SharedStatisticsTests
     [Fact]
     public void PagedMetadataNamesSurviveSummarySharingAndSequentialScan()
     {
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
         using var storage = new MemoryStream();
         const int count = 5000;
         const string name = "metadata/名字";
@@ -235,16 +210,14 @@ public sealed class SharedStatisticsTests
         using (var writer = new McapWriter(storage, new()
         {
             Compression = McapCompression.None, UseChunks = false,
-            Memory = new() { Budget = budget }
-        }, true))
+            }, true))
         {
             for (var i = 0; i < count; ++i) writer.WriteMetadata(name, fields);
             writer.Complete();
             Check(writer.GetSummary());
             Check(writer.GetSummary());
-            Assert.True(budget.GetDetailedStatistics().Index.LiveBytes > (ulong)(count * name.Length));
+
         }
-        BudgetAssertions.Idle(budget);
         storage.Position = 0;
         using var reader = McapReader.OpenMessages(storage, leaveOpen: true);
         Check(reader.GetSummary()!);
@@ -266,13 +239,11 @@ public sealed class SharedStatisticsTests
     public void CrossPageCountsSurviveCompletionRepeatedExportAndSequentialScan(McapCompression compression)
     {
         using var storage = new MemoryStream();
-        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
         ushort[] ids = [1, 256, 512, ushort.MaxValue];
         using (var writer = new McapWriter(storage, new()
         {
             Compression = compression, ChunkSize = 128,
-            Memory = new() { Budget = budget }
-        }, true))
+            }, true))
         {
             for (var i = 0; i < ids.Length; ++i)
             {
@@ -284,7 +255,6 @@ public sealed class SharedStatisticsTests
             for (var attempt = 0; attempt < 3; ++attempt)
                 Check(writer.GetSummary());
         }
-        BudgetAssertions.Idle(budget);
         storage.Position = 0;
         using (var reader = McapReader.OpenMessages(storage, leaveOpen: true))
         {

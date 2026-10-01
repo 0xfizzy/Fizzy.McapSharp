@@ -67,12 +67,12 @@ fn test_attach_in_multiple_parts() -> Result<()> {
     let ours = unsafe { Mmap::map(&tmp) }?;
     let summary = mcap::Summary::read(&ours)?;
 
-    let mut expected_summary = mcap::Summary::default();
-    expected_summary.stats = Some(shared_statistics(mcap::records::Statistics {
+    let expected_summary = Some(mcap::Summary {
+        stats: Some(mcap::records::Statistics {
             attachment_count: 1,
             ..Default::default()
-        })?);
-    expected_summary.attachment_indexes.push(shared_attachment_index(mcap::records::AttachmentIndex {
+        }),
+        attachment_indexes: vec![mcap::records::AttachmentIndex {
             // offset depends on the length of the embedded library string, which includes the crate version
             offset: 25 + DEFAULT_LIBRARY_LENGTH,
             length: 95,
@@ -81,8 +81,10 @@ fn test_attach_in_multiple_parts() -> Result<()> {
             data_size: 10,
             name: "great-attachment".into(),
             media_type: "application/octet-stream".into(),
-        })?)?;
-    assert_eq!(summary, Some(expected_summary));
+        }],
+        ..Default::default()
+    });
+    assert_eq!(summary, expected_summary);
 
     let expected_attachment = mcap::Attachment {
         log_time: 100,
@@ -127,12 +129,12 @@ fn round_trip() -> Result<()> {
     let ours = unsafe { Mmap::map(&tmp) }?;
     let summary = mcap::Summary::read(&ours)?;
 
-    let mut expected_summary = mcap::Summary::default();
-    expected_summary.stats = Some(shared_statistics(mcap::records::Statistics {
+    let expected_summary = Some(mcap::Summary {
+        stats: Some(mcap::records::Statistics {
             attachment_count: 1,
             ..Default::default()
-        })?);
-    expected_summary.attachment_indexes.push(shared_attachment_index(mcap::records::AttachmentIndex {
+        }),
+        attachment_indexes: vec![mcap::records::AttachmentIndex {
             // offset depends on the length of the embedded library string, which includes the crate version
             offset: 25 + DEFAULT_LIBRARY_LENGTH,
             length: 78,
@@ -141,8 +143,10 @@ fn round_trip() -> Result<()> {
             data_size: 3,
             name: String::from("myFile"),
             media_type: String::from("application/octet-stream"),
-        })?)?;
-    assert_eq!(summary, Some(expected_summary));
+        }],
+        ..Default::default()
+    });
+    assert_eq!(summary, expected_summary);
 
     let expected_attachment = mcap::Attachment {
         log_time: 2,
