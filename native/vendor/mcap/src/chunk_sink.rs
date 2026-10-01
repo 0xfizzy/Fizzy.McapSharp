@@ -1,4 +1,5 @@
 use std::io::{Cursor, Seek, Write};
+use crate::{io_utils::McapWrite, storage::{StorageFailure, StorageFailureKind, ResourceCategory}, McapResult};
 
 /// The kind of writer that should be used for writing chunks.
 ///
@@ -93,18 +94,22 @@ impl<W: Seek> Seek for ChunkSink<W> {
     }
 }
 
-impl<W: Write> Write for ChunkSink<W> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+impl<W: Write> McapWrite for ChunkSink<W> {
+    fn write_mcap(&mut self, buf: &[u8]) -> McapResult<usize> {
         if let Some(w) = &mut self.buffer {
+            let charge = self.charge.as_mut().unwrap();
+            let domain = charge.domain();
             let needed = usize::try_from(w.position())
                 .ok()
                 .and_then(|p| p.checked_add(buf.len()))
-                .ok_or_else(|| std::io::Error::other("Chunk buffer overflow"))?;
-            let charge = self.charge.as_mut().unwrap();
+                .ok_or_else(|| StorageFailure::at(&domain, ResourceCategory::Writer, usize::MAX,
+                    "chunk-growth", StorageFailureKind::Overflow).terminal())?;
             if needed > charge.limits().block {
-                return Err(std::io::Error::other(
-                    "Chunk buffer exceeds storage block limit",
-                ));
+                let mut error = StorageFailure::at(&domain, ResourceCategory::Writer, needed,
+                    "chunk-growth", StorageFailureKind::PermanentLimit).terminal();
+                error.details.resource = "WriterBuffer";
+                error.details.limit = charge.limits().block;
+                return Err(error.into());
             }
             let v = w.get_mut();
             if needed > v.capacity() {
@@ -113,39 +118,42 @@ impl<W: Write> Write for ChunkSink<W> {
                     .min(charge.limits().block);
                 let domain = charge.domain();
                 // Keep the old allocation charged until its replacement is allocated and copied.
-                let (mut replacement, replacement_charge) = crate::charged::bytes(
+                let (mut replacement, replacement_charge) = crate::charged::vector_fixed::<u8>(
                     &domain,
                     crate::storage::ResourceCategory::Writer,
                     capacity,
-                )?;
+                ).map_err(StorageFailure::terminal)?;
+                let growing = v.capacity() != 0;
                 replacement.extend_from_slice(v);
                 domain.copy_bytes(crate::storage::CopyKind::Compaction, v.len());
                 *v = replacement;
                 *charge = replacement_charge;
+                if growing {
+                    domain.reallocated();
+                }
             }
-            w.write(buf)
+            Ok(w.write(buf)?)
         } else {
-            self.inner.write(buf)
+            Ok(self.inner.write(buf)?)
         }
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.as_mut_write().flush()
+    fn flush_mcap(&mut self) -> McapResult<()> {
+        Ok(self.as_mut_write().flush()?)
     }
 }
-
 #[cfg(test)]
 mod growth_tests {
     use super::*;
-    use crate::storage::{BudgetLimits, MemoryBudget, ResourceCategory};
-    use std::sync::Arc;
+    use crate::storage::{BudgetLimits, ResourceCategory};
+
     #[test]
     fn buffered_growth_is_geometric_and_failure_preserves_old_storage() {
-        let domain = Arc::new(MemoryBudget::new(BudgetLimits {
-            total: 20000,
+        let domain = crate::storage::BudgetRef::new(BudgetLimits {
+            total: (20000) + crate::storage::BudgetRef::allocation_size(),
             block: 20000,
             retained: 0,
-        }));
+        }).unwrap();
         let mut sink = ChunkSink::new(
             Vec::new(),
             ChunkMode::Buffered {
@@ -154,14 +162,14 @@ mod growth_tests {
             },
         );
         for _ in 0..8 {
-            sink.write_all(&[7; 1024]).unwrap();
+            sink.write_all_mcap(&[7; 1024]).unwrap();
         }
-        assert_eq!(domain.detailed_statistics().allocation_count, 2);
-        assert_eq!(domain.statistics().current, 8192);
-        assert!(sink.write_all(&[8; 1024]).is_err());
+        assert_eq!(domain.workload_detailed_statistics().allocation_count, 2);
+        assert_eq!(domain.workload_statistics().current, 8192);
+        assert!(sink.write_all_mcap(&[8; 1024]).is_err());
         assert_eq!(sink.buffer.as_ref().unwrap().get_ref(), &vec![7; 8192]);
-        assert_eq!(domain.statistics().current, 8192);
+        assert_eq!(domain.workload_statistics().current, 8192);
         drop(sink);
-        assert_eq!(domain.statistics().current, 0);
+        assert_eq!(domain.workload_statistics().current, 0);
     }
 }

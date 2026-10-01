@@ -52,20 +52,15 @@ fn round_trip() -> Result<()> {
     let ours = unsafe { Mmap::map(&tmp) }?;
     let summary = mcap::Summary::read(&ours)?;
 
-    let expected_summary = Some(mcap::Summary {
-        stats: Some(mcap::records::Statistics {
+    let mut expected_summary = mcap::Summary::default();
+    expected_summary.stats = Some(shared_statistics(mcap::records::Statistics {
             metadata_count: 1,
             ..Default::default()
-        }),
-        metadata_indexes: vec![mcap::records::MetadataIndex {
-            // offset depends on the length of the embedded library string, which includes the crate version
-            offset: 25 + DEFAULT_LIBRARY_LENGTH,
-            length: 41,
-            name: String::from("myMetadata"),
-        }],
-        ..Default::default()
-    });
-    assert_eq!(summary, expected_summary);
+        })?);
+    expected_summary.metadata_indexes.push(mcap::shared_metadata_index::SharedMetadataIndex::new(
+        25 + DEFAULT_LIBRARY_LENGTH, 41, "myMetadata", &Default::default(), mcap::storage::OwnerKind::Parser,
+    )?)?;
+    assert_eq!(summary, Some(expected_summary));
 
     let expected = mcap::records::Metadata {
         name: String::from("myMetadata"),

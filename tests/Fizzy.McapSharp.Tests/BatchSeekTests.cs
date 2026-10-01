@@ -3,6 +3,49 @@ namespace Fizzy.McapSharp.Tests;
 public class BatchSeekTests
 {
     [Theory]
+    [InlineData(McapCompression.None)]
+    [InlineData(McapCompression.Lz4)]
+    [InlineData(McapCompression.Zstd)]
+    public void GroupedSeekAcrossDescriptorPagesKeepsDuplicatesAndLeases(McapCompression compression)
+    {
+        using var output = new MemoryStream();
+        using (var writer = new McapWriter(output, new() { Compression = compression, ChunkSize = 1024, CompressionThreads = 0 }, true))
+        {
+            var channel = writer.RegisterChannel("t", "raw");
+            for (uint i = 0; i < 2; i++)
+            {
+                var payload = new byte[70000];
+                Array.Fill(payload, (byte)i);
+                writer.WriteMessage(new(channel, i, i, 0), payload);
+            }
+            writer.Complete();
+        }
+        var budget = new McapMemoryBudget(maxRetainedBytes: 0);
+        using var snapshot = new McapIndexSnapshot(output.ToArray(), new() { Budget = budget });
+        var chunks = snapshot.GetSummary()!.ChunkIndexes;
+        using var a = new McapPreparedChunkIndex(chunks[0]);
+        using var b = new McapPreparedChunkIndex(chunks[1]);
+        var ea = snapshot.ReadMessageIndexes(a)[0].Records[0];
+        var eb = snapshot.ReadMessageIndexes(b)[0].Records[0];
+        // Cross both the 64 KiB ordering page and the smaller message-slot pages.
+        var requests = new McapSeekRequest[8201];
+        for (int i = 0; i < requests.Length; i++)
+            requests[i] = (i % 3 == 0) ? new(b, eb) : new(a, ea);
+        using var batch = snapshot.SeekMessages(requests);
+        Assert.Equal(2UL, snapshot.GetCacheStatistics().ChunkLoads);
+        snapshot.Dispose();
+        for (int i = 0; i < requests.Length; i++)
+        {
+            var expected = (uint)(i % 3 == 0 ? 1 : 0);
+            Assert.Equal(expected, batch.GetHeader(i).Sequence);
+            Assert.Equal((byte)expected, batch.GetPayload(i)[0]);
+        }
+        Assert.InRange(budget.GetStatistics().PeakBytes, 1UL, budget.MaxBytes);
+        batch.Dispose();
+        BudgetAssertions.Idle(budget);
+    }
+
+    [Theory]
     [InlineData(McapCompression.Lz4)] [InlineData(McapCompression.Zstd)]
     public void DomainPressureEvictsReusableChunksBeforeRejecting(McapCompression compression)
     {

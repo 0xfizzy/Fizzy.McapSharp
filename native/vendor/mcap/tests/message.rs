@@ -81,8 +81,8 @@ fn run_round_trip(use_chunks: bool) -> Result<()> {
         metadata: [(String::from("foo"), String::from("bar"))].into(),
     });
 
-    let expected_summary = mcap::Summary {
-        stats: Some(mcap::records::Statistics {
+    let mut expected_summary = mcap::Summary::default();
+    expected_summary.stats = Some(shared_statistics(mcap::records::Statistics {
             message_count: 1,
             schema_count: 1,
             channel_count: 1,
@@ -91,11 +91,9 @@ fn run_round_trip(use_chunks: bool) -> Result<()> {
             message_end_time: 2,
             channel_message_counts: [(1, 1)].into(),
             ..Default::default()
-        }),
-        channels: [(1, channel.clone())].into(),
-        schemas: [(1, schema.clone())].into(),
-        ..Default::default()
-    };
+        })?);
+    expected_summary.channels.insert(1, shared_channel(&channel)?)?;
+    expected_summary.schemas.insert(1, shared_schema(&schema)?)?;
     // Don't assert the chunk indexes - their size is at the whim of compressors.
     assert_eq!(summary.stats, expected_summary.stats);
     assert_eq!(summary.channels, expected_summary.channels);

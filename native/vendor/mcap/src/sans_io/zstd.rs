@@ -1,12 +1,12 @@
 use crate::{
     codec_memory::{self, CodecMemory},
-    storage::{MemoryBudget, ResourceCategory},
+    storage::ResourceCategory,
 };
 use crate::{
     sans_io::decompressor::{DecompressResult, Decompressor},
     McapResult,
 };
-use std::{ffi::c_void, sync::Arc};
+use std::ffi::c_void;
 use zstd::zstd_safe::zstd_sys as sys;
 #[repr(C)]
 struct CustomMem {
@@ -25,8 +25,8 @@ pub struct ZstdDecoder {
 }
 unsafe impl Send for ZstdDecoder {}
 impl ZstdDecoder {
-    pub(crate) fn with_budget(budget: Arc<MemoryBudget>) -> McapResult<Self> {
-        let memory = CodecMemory::new(budget, ResourceCategory::CodecDecoder)?;
+    pub(crate) fn with_budget(budget: crate::storage::BudgetRef) -> McapResult<Self> {
+        let memory = CodecMemory::new_fixed(budget, ResourceCategory::CodecDecoder)?;
         let s = unsafe {
             ZSTD_createDCtx_advanced(CustomMem {
                 alloc: Some(codec_memory::allocate),
@@ -35,7 +35,7 @@ impl ZstdDecoder {
             })
         };
         if s.is_null() {
-            return Err(memory.error().into());
+            return Err(memory.fixed_error().into());
         }
         let mut decoder = Self {
             s,
@@ -47,12 +47,12 @@ impl ZstdDecoder {
         Ok(decoder)
     }
     fn check(&self, code: usize) -> McapResult<usize> {
-        if let Some(error) = self.memory.take_error() {
+        if let Some(error) = self.memory.take_failure() {
             return Err(error.into());
         }
         if unsafe { sys::ZSTD_isError(code) } != 0 {
-            return Err(crate::McapError::DecompressionError(
-                zstd::zstd_safe::get_error_name(code).into(),
+            return Err(crate::McapError::StaticDecompressionError(
+                zstd::zstd_safe::get_error_name(code),
             ));
         }
         Ok(code)

@@ -1561,7 +1561,7 @@
       "kind": "method",
       "managed": "McapWriter.Complete / GetSummary (format completion; FlushToDisk is a separate binding extension)",
       "native": "write::Writer::finish",
-      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests / WriterCompletionTests / coverage_tests.completion_does_not_sync_and_sync_failure_is_terminal",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests / WriterCompletionTests / coverage_tests.completion_does_not_sync_and_sync_failure_is_terminal / coverage_tests.summary_control_refusal_after_complete_is_terminal_and_releases_storage / SharedStatisticsTests.SharedSummaryControlRemainsChargedUntilLastCursor",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
@@ -1570,7 +1570,8 @@
         "native/src/lib.rs",
         "native/src/extended.rs",
         "tests/Fizzy.McapSharp.Tests/WriterCompletionTests.cs",
-        "native/src/coverage_tests.rs"
+        "native/src/coverage_tests.rs",
+        "tests/Fizzy.McapSharp.Tests/SharedStatisticsTests.cs"
       ]
     },
     {
@@ -1960,7 +1961,8 @@
         "src/McapIndexSnapshot.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/extended.rs"
+        "native/src/extended.rs",
+        "native/vendor/mcap/src/shared_statistics.rs"
       ]
     },
     {
@@ -2020,7 +2022,8 @@
         "src/McapIndexSnapshot.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/extended.rs"
+        "native/src/extended.rs",
+        "native/vendor/mcap/src/shared_attachment_index.rs"
       ]
     },
     {
@@ -2035,7 +2038,9 @@
         "src/McapIndexSnapshot.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/extended.rs"
+        "native/src/extended.rs",
+        "native/vendor/mcap/src/shared_metadata_index.rs",
+        "tests/Fizzy.McapSharp.Tests/SharedStatisticsTests.cs"
       ]
     },
     {
@@ -5204,6 +5209,455 @@
       "files": [
         "native/vendor/mcap/src/sans_io/indexed_reader.rs",
         "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef",
+      "kind": "type",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::AttachmentIndex",
+      "kind": "variant",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::Channel",
+      "kind": "variant",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::ChunkIndex",
+      "kind": "variant",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::MetadataIndex",
+      "kind": "variant",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::Schema",
+      "kind": "variant",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::Statistics",
+      "kind": "variant",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs",
+        "native/vendor/mcap/src/shared_statistics.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::opcode",
+      "kind": "method",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::SummaryRecordRef::write_body",
+      "kind": "method",
+      "managed": "Summary record cursor (private borrowed serialization; no new managed API)",
+      "native": "buffer_reader::BufferReader::summary_record",
+      "test": "summary_view_tests::summary_declaration_bodies_roundtrip_through_official_parser / memory_probe::summary_declaration_views_allocate_nothing",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/records.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::can_share_chunk_input",
+      "kind": "method",
+      "managed": "McapMemoryBudget / borrowed messages / McapMessageBatchLease",
+      "native": "Private vendored storage extension: sans_io/indexed_reader.rs::IndexedReader::can_share_chunk_input",
+      "test": "BatchTests / LeaseTests / BatchSeekTests",
+      "files": [
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs",
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+      ]
+    },
+    {
+      "rust": "sans_io/linear_reader.rs::LinearReader::new_with_options_and_budget",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateLinear",
+      "native": "sans_io/linear_reader::LinearReader::new_with_options_and_budget",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / memory_probe::explicit_parser_domains_do_not_allocate_discarded_defaults",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs",
+        "native/src/memory_probe.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/summary_reader.rs::SummaryReader::new_with_options_and_budget",
+      "kind": "method",
+      "managed": "McapSansIoReader.CreateSummary",
+      "native": "sans_io/summary_reader::SummaryReader::new_with_options_and_budget",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / memory_probe::explicit_parser_domains_do_not_allocate_discarded_defaults",
+      "files": [
+        "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
+        "src/SansIo.cs",
+        "src/ReaderOptions.cs",
+        "src/Models.cs",
+        "native/src/extended.rs",
+        "native/src/memory_probe.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::add_channel_borrowed",
+      "kind": "method",
+      "managed": "McapWriter / McapPreparedChannel budget overload",
+      "native": "writer_control / fm_writer_full_message borrowed declarations",
+      "test": "borrowed_channel_tests / PreparedChannelBudgetTests / memory_probe::controlled_allocation_identities_match_independent_allocator",
+      "files": [
+        "native/vendor/mcap/src/write.rs",
+        "native/src/lib.rs",
+        "native/src/extended.rs",
+        "src/PreparedChannel.cs",
+        "tests/Fizzy.McapSharp.Tests/PreparedChannelBudgetTests.cs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::add_channel_with_id_borrowed",
+      "kind": "method",
+      "managed": "McapWriter / McapPreparedChannel budget overload",
+      "native": "writer_control / fm_writer_full_message borrowed declarations",
+      "test": "borrowed_channel_tests / PreparedChannelBudgetTests / memory_probe::controlled_allocation_identities_match_independent_allocator",
+      "files": [
+        "native/vendor/mcap/src/write.rs",
+        "native/src/lib.rs",
+        "native/src/extended.rs",
+        "src/PreparedChannel.cs",
+        "tests/Fizzy.McapSharp.Tests/PreparedChannelBudgetTests.cs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::attach_borrowed",
+      "kind": "method",
+      "managed": "McapWriter.WriteAttachment",
+      "native": "writer_control borrowed attachment header and final shared index storage",
+      "test": "shared_attachment_index::tests / memory_probe::controlled_allocation_identities_match_independent_allocator / SharedStatisticsTests.AttachmentHeaderStorageSurvivesPagedSummaryAndSequentialScan",
+      "files": [
+        "native/vendor/mcap/src/write.rs",
+        "native/vendor/mcap/src/shared_attachment_index.rs",
+        "native/src/lib.rs",
+        "native/src/memory_probe.rs",
+        "tests/Fizzy.McapSharp.Tests/SharedStatisticsTests.cs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::start_attachment_borrowed",
+      "kind": "method",
+      "managed": "McapWriter.StartAttachment",
+      "native": "writer_control borrowed attachment header and final shared index storage",
+      "test": "shared_attachment_index::tests / memory_probe::controlled_allocation_identities_match_independent_allocator / SharedStatisticsTests.AttachmentHeaderStorageSurvivesPagedSummaryAndSequentialScan",
+      "files": [
+        "native/vendor/mcap/src/write.rs",
+        "native/vendor/mcap/src/shared_attachment_index.rs",
+        "native/src/lib.rs",
+        "native/src/memory_probe.rs",
+        "tests/Fizzy.McapSharp.Tests/SharedStatisticsTests.cs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::write_borrowed",
+      "kind": "method",
+      "managed": "McapWriter / McapPreparedChannel budget overload",
+      "native": "writer_control / fm_writer_full_message borrowed declarations",
+      "test": "borrowed_channel_tests / PreparedChannelBudgetTests / memory_probe::controlled_allocation_identities_match_independent_allocator",
+      "files": [
+        "native/vendor/mcap/src/write.rs",
+        "native/src/lib.rs",
+        "native/src/extended.rs",
+        "src/PreparedChannel.cs",
+        "tests/Fizzy.McapSharp.Tests/PreparedChannelBudgetTests.cs"
+      ]
+    },
+    {
+      "rust": "write.rs::Writer::write_metadata_borrowed",
+      "kind": "method",
+      "managed": "McapWriter.WritePrepared metadata operation",
+      "native": "writer_control borrowed metadata field iteration",
+      "test": "metadata_view_tests::metadata_pairs_match_owned_wire_and_parse / memory_probe::borrowed_metadata_serialization_allocates_nothing_without_retained_indexes",
+      "files": [
+        "native/vendor/mcap/src/records.rs",
+        "native/vendor/mcap/src/write.rs",
+        "native/src/budget_json.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/shared_metadata_index.rs",
+        "tests/Fizzy.McapSharp.Tests/SharedStatisticsTests.cs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::Storage",
+      "kind": "variant",
+      "managed": "McapException.Details; existing Binding/DecompressionError/Io kinds",
+      "native": "errors::encode_fixed",
+      "test": "memory_probe::decoder_failure_transport_has_no_unattributed_allocations",
+      "files": [
+        "native/src/errors.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/codec_memory.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::StaticDecompressionError",
+      "kind": "variant",
+      "managed": "McapException.Details; existing Binding/DecompressionError/Io kinds",
+      "native": "errors::encode_fixed",
+      "test": "memory_probe::decoder_failure_transport_has_no_unattributed_allocations",
+      "files": [
+        "native/src/errors.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/codec_memory.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::Lz4Error",
+      "kind": "variant",
+      "managed": "McapException.Details; existing Binding/DecompressionError/Io kinds",
+      "native": "errors::encode_fixed",
+      "test": "memory_probe::decoder_failure_transport_has_no_unattributed_allocations",
+      "files": [
+        "native/src/errors.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/codec_memory.rs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::StaticIoError",
+      "kind": "variant",
+      "managed": "McapException.Details; existing Binding/DecompressionError/Io kinds",
+      "native": "errors::encode_fixed",
+      "test": "memory_probe::encoder_failure_transport_has_no_unattributed_allocations",
+      "files": [
+        "native/src/errors.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/codec_memory.rs"
+      ]
+    },
+    {
+      "rust": "read.rs::validate_borrowed_record",
+      "kind": "function",
+      "managed": "McapRecordView validation / McapErrorKind.Parse",
+      "native": "record_input::validate / errors::encode_into",
+      "test": "record_input::tests::charged_record_validation_preserves_official_acceptance / memory_probe::borrowed_record_validation_has_no_heap_allocations",
+      "files": [
+        "native/src/record_input.rs",
+        "native/src/errors.rs",
+        "native/src/memory_probe.rs",
+        "src/McapRecordView.cs"
+      ]
+    },
+    {
+      "rust": "read.rs::validate_metadata_record",
+      "kind": "function",
+      "managed": "McapRecordView validation / McapErrorKind.Parse",
+      "native": "record_input::validate / errors::encode_into",
+      "test": "record_input::tests::charged_record_validation_preserves_official_acceptance / memory_probe::string_map_validation_has_exact_allocation_identities",
+      "files": [
+        "native/src/record_input.rs",
+        "native/src/errors.rs",
+        "native/src/memory_probe.rs",
+        "src/McapRecordView.cs"
+      ]
+    },
+    {
+      "rust": "lib.rs::McapError::StaticParseError",
+      "kind": "variant",
+      "managed": "McapRecordView validation / McapErrorKind.Parse",
+      "native": "record_input::validate / errors::encode_into",
+      "test": "memory_probe::metadata_duplicate_error_has_no_unaccounted_allocations",
+      "files": [
+        "native/src/record_input.rs",
+        "native/src/errors.rs",
+        "native/src/memory_probe.rs",
+        "src/McapRecordView.cs"
+      ]
+    },
+    {
+      "rust": "read.rs::validate_channel_record",
+      "kind": "function",
+      "managed": "McapRecordView validation / McapErrorKind.Parse",
+      "native": "record_input::validate",
+      "test": "record_input::tests::charged_record_validation_preserves_official_acceptance / memory_probe::string_map_validation_has_exact_allocation_identities",
+      "files": [
+        "native/src/record_input.rs",
+        "native/src/memory_probe.rs",
+        "src/McapRecordView.cs"
+      ]
+    },
+    {
+      "rust": "read.rs::parse_borrowed_chunk",
+      "kind": "function",
+      "managed": "chunk readers and indexed cache (private native adaptation)",
+      "native": "buffer_reader::chunk_parser / chunk_cache::ChunkCache",
+      "test": "memory_probe::borrowed_chunk_headers_have_no_heap_allocations / record_input::tests::charged_record_validation_preserves_official_acceptance",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/chunk_cache.rs",
+        "native/src/memory_probe.rs",
+        "native/src/record_input.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::BorrowedChunkHeader",
+      "kind": "type",
+      "managed": "chunk readers and indexed cache (private native adaptation)",
+      "native": "buffer_reader::chunk_parser / chunk_cache::ChunkCache",
+      "test": "memory_probe::borrowed_chunk_headers_have_no_heap_allocations / record_input::tests::charged_record_validation_preserves_official_acceptance",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/chunk_cache.rs",
+        "native/src/memory_probe.rs",
+        "native/src/record_input.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::BorrowedChunkHeader::uncompressed_size",
+      "kind": "field",
+      "managed": "chunk readers and indexed cache (private native adaptation)",
+      "native": "buffer_reader::chunk_parser / chunk_cache::ChunkCache",
+      "test": "memory_probe::borrowed_chunk_headers_have_no_heap_allocations / record_input::tests::charged_record_validation_preserves_official_acceptance",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/chunk_cache.rs",
+        "native/src/memory_probe.rs",
+        "native/src/record_input.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::BorrowedChunkHeader::uncompressed_crc",
+      "kind": "field",
+      "managed": "chunk readers and indexed cache (private native adaptation)",
+      "native": "buffer_reader::chunk_parser / chunk_cache::ChunkCache",
+      "test": "memory_probe::borrowed_chunk_headers_have_no_heap_allocations / record_input::tests::charged_record_validation_preserves_official_acceptance",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/chunk_cache.rs",
+        "native/src/memory_probe.rs",
+        "native/src/record_input.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::BorrowedChunkHeader::compression",
+      "kind": "field",
+      "managed": "chunk readers and indexed cache (private native adaptation)",
+      "native": "buffer_reader::chunk_parser / chunk_cache::ChunkCache",
+      "test": "memory_probe::borrowed_chunk_headers_have_no_heap_allocations / record_input::tests::charged_record_validation_preserves_official_acceptance",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/chunk_cache.rs",
+        "native/src/memory_probe.rs",
+        "native/src/record_input.rs"
+      ]
+    },
+    {
+      "rust": "records.rs::BorrowedChunkHeader::compressed_size",
+      "kind": "field",
+      "managed": "chunk readers and indexed cache (private native adaptation)",
+      "native": "buffer_reader::chunk_parser / chunk_cache::ChunkCache",
+      "test": "memory_probe::borrowed_chunk_headers_have_no_heap_allocations / record_input::tests::charged_record_validation_preserves_official_acceptance",
+      "files": [
+        "native/src/buffer_reader.rs",
+        "native/src/chunk_cache.rs",
+        "native/src/memory_probe.rs",
+        "native/src/record_input.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::try_profile",
+      "kind": "method",
+      "managed": "McapWriterOptions.Profile / Library (native retained storage)",
+      "native": "options_control / option_text::Text",
+      "test": "charged_option_tests::charged_text_clones_share_storage_and_preserve_headers / memory_probe::writer_option_text_has_exact_shared_allocation_identity",
+      "files": [
+        "native/src/lib.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/write.rs",
+        "native/vendor/mcap/src/option_text.rs"
+      ]
+    },
+    {
+      "rust": "write.rs::WriteOptions::try_library",
+      "kind": "method",
+      "managed": "McapWriterOptions.Profile / Library (native retained storage)",
+      "native": "options_control / option_text::Text",
+      "test": "charged_option_tests::charged_text_clones_share_storage_and_preserve_headers / memory_probe::writer_option_text_has_exact_shared_allocation_identity",
+      "files": [
+        "native/src/lib.rs",
+        "native/src/memory_probe.rs",
+        "native/vendor/mcap/src/write.rs",
+        "native/vendor/mcap/src/option_text.rs"
+      ]
+    },
+    {
+      "rust": "sans_io/indexed_reader.rs::IndexedReader::new_with_topic_filter",
+      "kind": "method",
+      "managed": "McapReader topic filtering (private native adaptation)",
+      "native": "Reader::try_indexed",
+      "test": "indexed_reader::tests::borrowed_topic_filter_matches_owned_options",
+      "files": [
+        "native/src/lib.rs",
+        "native/vendor/mcap/src/sans_io/indexed_reader.rs"
       ]
     }
   ]

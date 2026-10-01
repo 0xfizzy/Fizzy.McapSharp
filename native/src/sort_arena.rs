@@ -45,10 +45,10 @@ impl Arena {
             .checked_mul(size)
             .and_then(|n| (stats.current as usize).checked_add(n))
             .ok_or("Sort capacity overflow")?;
-        memory::check("BufferedSort", limit, requested)?;
+        memory::check(&Default::default(), "BufferedSort", limit, requested)?;
         v.try_reserve_exact(target - v.len())?;
         stats.capacity(old, v.capacity() * size);
-        memory::check("BufferedSort", limit, stats.current as usize)
+        memory::check(&Default::default(), "BufferedSort", limit, stats.current as usize)
     }
     #[cfg(test)]
     pub fn push(&mut self, header: MessageHeader, data: &[u8], limit: Option<u64>) -> Outcome<()> {
@@ -68,11 +68,11 @@ impl Arena {
                 let total = (self.stats.current as usize)
                     .checked_add(capacity)
                     .ok_or("Sort capacity overflow")?;
-                memory::check("BufferedSort", limit, total)?;
+                memory::check(&Default::default(), "BufferedSort", limit, total)?;
                 let mut v = Vec::new();
                 v.try_reserve_exact(capacity)?;
                 self.stats.capacity(0, v.capacity());
-                memory::check("BufferedSort", limit, self.stats.current as usize)?;
+                memory::check(&Default::default(), "BufferedSort", limit, self.stats.current as usize)?;
                 self.blocks.push(Block { data: std::sync::Arc::new(v), remaining: 0 });
                 if !large { self.small_block = Some(self.blocks.len() - 1); }
             }
@@ -97,10 +97,10 @@ impl Arena {
         let length=data.as_ref().len();
         let entries=self.shared_entries.get_or_insert_with(||mcap::segmented::BudgetedSegmentedVec::new(options.domain.clone(),mcap::storage::ResourceCategory::Descriptor));
         let logical=self.shared_bytes.checked_add(length).and_then(|n|n.checked_add(entries.allocated_bytes())).ok_or("Sort overflow")?;
-        memory::check("BufferedSort",options.sort,logical)?;
+        memory::check(&options.domain, "BufferedSort",options.sort,logical)?;
         entries.push(Entry {shared:Some(data),header,block:usize::MAX,offset:0,length,ordinal:entries.len() as u64})?;
         self.shared_bytes+=length;
-        memory::check("BufferedSort",options.sort,self.shared_bytes+entries.allocated_bytes())?;
+        memory::check(&options.domain, "BufferedSort",options.sort,self.shared_bytes+entries.allocated_bytes())?;
         self.stats.capacity(self.stats.current as usize,entries.allocated_bytes());
         Ok(())
     }

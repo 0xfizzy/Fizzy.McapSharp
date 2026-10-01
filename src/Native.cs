@@ -8,13 +8,15 @@ internal static partial class Native
 {
     const string Library = "fizzy_mcap_native";
     [StructLayout(LayoutKind.Sequential)]
-    internal struct Result
+    internal unsafe struct Result
     {
         public IntPtr Json;
         public nuint JsonLength;
         public IntPtr Data;
         public nuint DataLength;
         public ulong Value;
+        public nuint ErrorLength;
+        public fixed byte ErrorBytes[4096];
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -73,22 +75,28 @@ internal static partial class Native
     {
         if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
             throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
-        if (fm_abi_version() != 10)
+        if (fm_abi_version() != 11)
             throw new McapException("Incompatible native ABI.");
     }
 
-    internal static McapException ConsumeError(Result r, bool canContinueWriting = false)
+    internal static unsafe McapException ConsumeError(Result r, bool canContinueWriting = false)
     {
         try
         {
-            var b = Copy(r.Json, r.JsonLength);
-            return McapException.Decode(Encoding.UTF8.GetString(b), canContinueWriting);
+            return DecodeError(in r, canContinueWriting);
         }
         finally
         {
             fm_buffer_free(r.Json, r.JsonLength);
             fm_buffer_free(r.Data, r.DataLength);
         }
+    }
+
+    static unsafe McapException DecodeError(in Result r, bool canContinueWriting = false)
+    {
+        if (r.ErrorLength > 4096) return new McapException("Invalid native error length.");
+        fixed (byte* p = r.ErrorBytes)
+            return McapException.Decode(Encoding.UTF8.GetString(new ReadOnlySpan<byte>(p, (int)r.ErrorLength)), canContinueWriting);
     }
 
     internal static byte[] Copy(IntPtr p, nuint n)
@@ -104,9 +112,9 @@ internal static partial class Native
     {
         try
         {
-            var j = Copy(r.Json, r.JsonLength);
             if (status < 0)
-                throw McapException.Decode(Encoding.UTF8.GetString(j));
+                throw DecodeError(in r);
+            var j = Copy(r.Json, r.JsonLength);
             return (j.Length == 0 ? null : JsonDocument.Parse(j), Copy(r.Data, r.DataLength), r.Value);
         }
         finally

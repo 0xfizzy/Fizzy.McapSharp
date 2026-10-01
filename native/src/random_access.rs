@@ -165,7 +165,7 @@ impl ChunkCache {
         &mut self,
         input: &[u8],
         summary: &mcap::Summary,
-        index: &records::ChunkIndex,
+        index: &mcap::shared_chunk_index::SharedChunkIndex,
         key: &[u8],
         offset: u64,
         limit: u64,
@@ -180,7 +180,7 @@ impl ChunkCache {
         &mut self,
         input: &[u8],
         summary: &mcap::Summary,
-        index: &records::ChunkIndex,
+        index: &mcap::shared_chunk_index::SharedChunkIndex,
         key: &[u8],
         offset: u64,
         limit: u64,
@@ -214,11 +214,7 @@ impl ChunkCache {
                     .ok_or(mcap::McapError::BadIndex)?,
             )?;
             let body = input.get(start..end).ok_or(mcap::McapError::BadIndex)?;
-            let records::Record::Chunk { header, data } =
-                mcap::parse_record(records::op::CHUNK, body)?
-            else {
-                unreachable!()
-            };
+            let (header, data) = mcap::read::parse_borrowed_chunk(body)?;
             self.parser = Some(buffer_reader::chunk_parser(header, &data, body.len(), Default::default())?);
             self.input_position = start;
             self.input_end = end;
@@ -341,7 +337,7 @@ mod tests {
             let data = writer.into_inner().into_inner();
             let summary = mcap::Summary::read(&data).unwrap().unwrap();
             let index = &summary.chunk_indexes[0];
-            let key = buffer_reader::encode(records::Record::ChunkIndex(index.clone()))
+            let key = buffer_reader::encode_chunk(index)
                 .unwrap()
                 .1;
             let entries = summary.read_message_indexes(&data, index).unwrap();

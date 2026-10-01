@@ -160,6 +160,8 @@ Release 原生测试包含仅用于测试的线程局部 Rust 分配计数器，
 
 `DeliveryOptimizationTests` 覆盖预编译 Chunk 索引和同步自有结果交付。Release 便利读取门禁检查最终 payload 数组与结果对象开销，并要求 prepared 大索引调用为 0 B 托管分配。`prepared_index_cached_calls_allocate_nothing` 单独要求所有压缩模式下预热后的 prepared 缓存命中为零 Rust 分配，不包含描述符构造或外部库分配。重试测试检查保留容量与准确的输出复制增量。
 
+`SharedPendingTests` 检查精确交付复制增量、重复重试统计不变、含空 payload 的 record/message 切换、borrowed/owned/lease 转移、异步记录重试，以及短读 Stream 中重叠 chunk 的独立 payload 保留。它还验证 scratch 限制拒绝、截断失败与最终存储释放；原生所有权测试独立检查 Pending 标记及转移/拒绝清理。
+
 ## Vendor 存储补丁维护
 
 native/vendor/mcap 保存固定 mcap 0.25.0 源码及官方 MIT 许可证。Cargo patch 选择该源码，保留 Cargo.lock 并使用 --locked。UPSTREAM.json 记录原始文件 SHA-256 与许可证来源，PATCHES.json 记录核验后的本地修改／新增文件指纹。修改后审查差异再更新补丁指纹；不要重新生成原始清单掩盖变更。`python scripts/check_vendor.py` 在 native 构建前检查文件集合、指纹和许可证。跨平台构建源码指纹包含 vendor。
@@ -169,3 +171,5 @@ native/vendor/mcap 保存固定 mcap 0.25.0 源码及官方 MIT 许可证。Carg
 维护 codec 时须审计固定版本 C 自定义分配路径：Zstd 上下文／工作区、zstdmt 缓冲／上下文池、common/pool.c 的线程池堆分配，以及 Lz4 frame 上下文、临时输入／输出和 stream state。操作系统线程栈与运行时资源不经过这些回调。私有适配器使用公开 advanced 创建接口，不检查 codec 私有布局。保持 frame 参数，修改后验证 None/Lz4/Zstd 互操作。vendor 单元测试覆盖分配拒绝／溢出／回滚、分页目录排序、增长失败和百万描述符；托管测试验证 codec 释放和共享域淘汰。详细统计查询纳入 Release 零分配门禁。
 
 使用[原生分配清单](memory-accounting.zh-CN.md)审计分配覆盖范围及 codec 失败处理。
+
+vendored MCAP 集成测试支持通过 `MCAP_CONFORMANCE_ROOT` 指向 `tests/conformance-lock.json` 固定版本 corpus 的 `tests/conformance` 目录。该变量仅调整 fixture 路径，不跳过测试或替换预期记录。使用仓库工具链及已打补丁的 codec 源码，执行 `cargo test --release --locked --manifest-path native/vendor/mcap/Cargo.toml --tests`。

@@ -1,10 +1,65 @@
 use super::*;
 
 #[test]
+fn summary_control_refusal_after_complete_is_terminal_and_releases_storage() {
+    use mcap::storage::{BudgetLimits, BudgetRef};
+    fn writer(domain: &BudgetRef, path: &std::path::Path) -> Writer {
+        let inner = mcap::WriteOptions::new().compression(None).use_chunks(false)
+            .memory_budget(domain.clone()).create(Output::File(File::create(path).unwrap())).unwrap();
+        Writer { domain: domain.clone(), inner: Some(inner), completed_output: None,
+            failed: false, recoverable_errors: 31, attachment: None, native_summary: None }
+    }
+    let path = std::env::temp_dir().join(format!("mcap-summary-control-{}.mcap", std::process::id()));
+    let domain = BudgetRef::new(BudgetLimits {retained: 0, ..Default::default()}).unwrap();
+    let mut successful = writer(&domain, &path);
+    let before = domain.detailed_statistics().allocation_count;
+    unsafe { assert_eq!(fm_writer_call(&mut successful, 7, ptr::null(), 0, ptr::null(), 0, &mut Response::default()), 0); }
+    let count = domain.detailed_statistics().allocation_count - before;
+    assert!(count > 0);
+    assert!(successful.native_summary.is_some());
+    drop(successful);
+    assert_eq!(domain.workload_statistics().current, 0);
+    for fail in 0..count {
+        let domain = BudgetRef::new(BudgetLimits {retained: 0, ..Default::default()}).unwrap();
+        let mut rejected = writer(&domain, &path);
+        domain.fail_allocation_at(fail as usize);
+        let mut response = Response::default();
+        unsafe {
+            assert_eq!(fm_writer_call(&mut rejected, 7, ptr::null(), 0, ptr::null(), 0, &mut response), -1, "allocation {fail}");
+            assert!(rejected.failed);
+            assert!(rejected.native_summary.is_none());
+            assert_eq!(fm_writer_call(&mut rejected, 7, ptr::null(), 0, ptr::null(), 0, &mut response), -1);
+        }
+        drop(rejected);
+        assert_eq!(domain.workload_statistics().current, 0, "allocation {fail}");
+        assert_eq!(domain.ownership_statistics(), Default::default());
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn error_formatting_panic_cannot_cross_ffi_guard() {
+    #[derive(Debug)]
+    struct FailingDisplay;
+    impl std::fmt::Display for FailingDisplay {
+        fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            panic!("injected error formatting failure");
+        }
+    }
+    impl std::error::Error for FailingDisplay {}
+    let mut response = Response::default();
+    assert_eq!(guard(&mut response, |_| Err(Error::test(&FailingDisplay))), -1);
+    assert_eq!(response.error.as_bytes(), b"Native MCAP panic; operation failed");
+    assert!(response.json.is_null() && response.data.is_null());
+}
+
+#[test]
 fn private_abi_layout_matches_managed_contract() {
     use std::mem::{offset_of, size_of};
-    assert_eq!(size_of::<Response>(), 40);
+    assert_eq!(size_of::<Response>(), 4144);
     assert_eq!([offset_of!(Response, json), offset_of!(Response, json_len), offset_of!(Response, data), offset_of!(Response, data_len), offset_of!(Response, value)], [0, 8, 16, 24, 32]);
+    assert_eq!(offset_of!(Response, error), 40);
+    assert_eq!(offset_of!(errors::FixedError, bytes), 8);
     assert_eq!(size_of::<MessageHeader>(), 24);
     assert_eq!([offset_of!(MessageHeader, channel_id), offset_of!(MessageHeader, reserved), offset_of!(MessageHeader, sequence), offset_of!(MessageHeader, log_time), offset_of!(MessageHeader, publish_time)], [0, 2, 4, 8, 16]);
     assert_eq!(size_of::<Callbacks>(), 48);
@@ -107,7 +162,8 @@ fn caller_indexes_match_official_helpers() {
     ] {
         let data = fixture(mcap::WriteOptions::new().compression(compression));
         let summary = mcap::Summary::read(&data).unwrap().unwrap();
-        let mut index = summary.chunk_indexes[0].clone();
+        let (_, wire) = buffer_reader::encode_chunk(&summary.chunk_indexes[0]).unwrap();
+        let records::Record::ChunkIndex(mut index) = mcap::parse_record(records::op::CHUNK_INDEX, &wire).unwrap() else { unreachable!() };
         unsafe {
             let mut snapshot = ptr::null_mut();
             let mut response = Response::default();
@@ -166,7 +222,7 @@ fn caller_indexes_match_official_helpers() {
                 -1
             );
             assert_eq!(
-                bytes(response.json, response.json_len).unwrap(),
+                response.error.as_bytes(),
                 errors::encode(&expected_error)
             );
             fm_buffer_free(response.json, response.json_len);
@@ -266,14 +322,14 @@ fn recovered_registration_matches_official_output() {
         let mut wrapper = Writer {
             domain:Default::default(),
             inner: Some(options(&config, true).unwrap().create(Output::File(File::create(&path).unwrap())).unwrap()),
-            completed_output: None, failed: false, recoverable_errors: 31, attachment: None, summary: None, native_summary: None,
+            completed_output: None, failed: false, recoverable_errors: 31, attachment: None, native_summary: None,
         };
         let mut out = Response::default();
         upstream.add_schema_with_id(1, "s", "raw", &[]).unwrap();
         upstream.add_channel_with_id(1, 1, "t", "raw", &BTreeMap::new()).unwrap();
         unsafe {
-            writer_control(&mut wrapper, 1, &json!({"id":1,"name":"s","encoding":"raw"}), &[], &mut out).unwrap();
-            writer_control(&mut wrapper, 2, &json!({"id":1,"schema_id":1,"topic":"t","encoding":"raw","metadata":{}}), &[], &mut out).unwrap();
+            writer_control(&mut wrapper, 1, budget_json::Control::Existing(&json!({"id":1,"name":"s","encoding":"raw"})), &[], &mut out).unwrap();
+            writer_control(&mut wrapper, 2, budget_json::Control::Existing(&json!({"id":1,"schema_id":1,"topic":"t","encoding":"raw","metadata":{}})), &[], &mut out).unwrap();
         }
         let header = records::MessageHeader { channel_id: 2, sequence: 99, log_time: 999, publish_time: 999 };
         let error = match bit {
@@ -301,14 +357,14 @@ fn recovered_registration_matches_official_output() {
         assert_eq!(status, -2);
         assert!(!wrapper.failed);
         unsafe {
-            assert_eq!(slice::from_raw_parts(out.json, out.json_len), errors::encode(&error));
+            assert_eq!(out.error.as_bytes(), errors::encode(&error));
             fm_buffer_free(out.json, out.json_len);
         }
         let header = records::MessageHeader { channel_id: 1, sequence: 1, log_time: 10, publish_time: 10 };
         upstream.write_to_known_channel(&header, &[42]).unwrap();
         wrapper.inner.as_mut().unwrap().write_to_known_channel(&header, &[42]).unwrap();
         upstream.finish().unwrap();
-        unsafe { writer_control(&mut wrapper, 7, &Value::Null, &[], &mut Response::default()).unwrap(); }
+        unsafe { writer_control(&mut wrapper, 7, budget_json::Control::Existing(&Value::Null), &[], &mut Response::default()).unwrap(); }
         drop(wrapper);
         assert_eq!(std::fs::read(&path).unwrap(), upstream.into_inner().into_inner());
         std::fs::remove_file(path).unwrap();
@@ -337,7 +393,7 @@ fn completion_does_not_sync_and_sync_failure_is_terminal() {
         domain:Default::default(),
         inner: Some(options(&config, true).unwrap().create(Output::File(File::create(&path).unwrap())).unwrap()),
         completed_output: None, failed: false, recoverable_errors: 31,
-        attachment: None, summary: None, native_summary: None,
+        attachment: None, native_summary: None,
     };
     io::SYNC_TEST.with(|s| s.set((0, false)));
     unsafe {
@@ -354,7 +410,7 @@ fn completion_does_not_sync_and_sync_failure_is_terminal() {
         io::SYNC_TEST.with(|s| { assert_eq!(s.get().0, 2); s.set((2, true)); });
         assert_eq!(fm_writer_call(&mut writer, 13, ptr::null(), 0, ptr::null(), 0, &mut out), -1);
         assert!(writer.failed);
-        assert!(String::from_utf8_lossy(bytes(out.json, out.json_len).unwrap()).contains("Injected sync failure"));
+        assert!(String::from_utf8_lossy(out.error.as_bytes()).contains("Injected sync failure"));
         fm_buffer_free(out.json, out.json_len);
         for op in [7, 12, 13] {
             let mut out = Response::default();

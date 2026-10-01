@@ -1,5 +1,4 @@
 use super::*;
-use std::sync::Arc;
 
 pub(super) fn linear_options(v: &Value) -> Outcome<sans_io::LinearReaderOptions> {
     let mut o = sans_io::LinearReaderOptions::default();
@@ -69,16 +68,17 @@ pub unsafe extern "C" fn fm_engine_index_control(
     status
 }
 pub struct EngineHandle {
-    lease_batch: Option<lease::Batch>,
-    schemas: BTreeMap<u16, Arc<mcap::Schema<'static>>>,
-    channels: BTreeMap<u16, Arc<mcap::Channel<'static>>>,
+    capacity_ticket: Option<mcap::storage::CapacityWaitTicket>,
+    lease_batch: Option<mcap::charged::ChargedBox<lease::Batch>>,
+    schemas: buffer_reader::SchemaTable,
+    channels: buffer_reader::ChannelTable,
     engine: Engine,
     event: Event,
     pub delivery: memory::Delivery,
     waiting: bool,
     failed: bool,
     ended: bool,
-    summary: Option<Arc<mcap::Summary>>,
+    summary: Option<SharedSummary>,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -111,7 +111,7 @@ pub unsafe extern "C" fn fm_engine_open(
             summary.as_ref().ok_or("Missing summary")?.delivery.options.clone()
         } else {memory::Options::parse(&v["Memory"])?};
         let mut engine = match kind {
-            0 => Engine::Linear(sans_io::LinearReader::new_with_options(linear_options(&v)?)),
+            0 => Engine::Linear(sans_io::LinearReader::new_with_options_and_budget(linear_options(&v)?, options.domain.clone())),
             1 => {
                 let mut opts = sans_io::SummaryReaderOptions::default();
                 if let Some(n) = v["FileSize"].as_u64() {
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn fm_engine_open(
                 if let Some(n) = v["RecordLengthLimit"].as_u64() {
                     opts = opts.with_record_length_limit(n.try_into()?);
                 }
-                Engine::Summary(Some(sans_io::SummaryReader::new_with_options(opts)))
+                Engine::Summary(Some(sans_io::SummaryReader::new_with_options_and_budget(opts, options.domain.clone())))
             }
             2 => {
                 let s = summary
@@ -157,24 +157,27 @@ pub unsafe extern "C" fn fm_engine_open(
             _ => return Err("Unknown engine".into()),
         };
         match &mut engine {
-            Engine::Linear(r)=>r.set_memory_budget(options.domain.clone()),
+            Engine::Linear(r)=>r.set_memory_budget(options.domain.clone())?,
             Engine::Indexed(r)=>r.set_memory_budget(options.domain.clone())?,
-            Engine::Summary(Some(r))=>r.set_memory_budget(options.domain.clone()),
+            Engine::Summary(Some(r))=>r.set_memory_budget(options.domain.clone())?,
             _=>{},
         }
-        *handle = Box::into_raw(Box::new(EngineHandle {
-            lease_batch:None, schemas:Default::default(), channels:Default::default(),
+        let domain=options.domain.clone();
+        let root=mcap::charged::ChargedBox::new_fixed(EngineHandle {
+            capacity_ticket:None,
+            lease_batch:None,
+            schemas:buffer_reader::SchemaTable::new_owned(options.domain.clone(),mcap::storage::ResourceCategory::Declaration,mcap::storage::OwnerKind::Parser),
+            channels:buffer_reader::ChannelTable::new_owned(options.domain.clone(),mcap::storage::ResourceCategory::Declaration,mcap::storage::OwnerKind::Parser),
             engine,
             event: Event::default(),
-            delivery: memory::Delivery {
-                options,
-                ..Default::default()
-            },
+            delivery: memory::Delivery::new(options),
             waiting: false,
             failed: false,
             ended: false,
             summary: None,
-        }));
+        },&domain,mcap::storage::ResourceCategory::Scratch)?;
+        root.charge_owner(mcap::storage::OwnerKind::Parser,true);
+        *handle=root.into_raw_value();
         Ok(0)
     })
 }
@@ -196,7 +199,7 @@ pub unsafe extern "C" fn fm_engine_next(
             return Err("Engine failed".into());
         }
         match &mut h.engine {
-            Engine::Linear(r) => r.set_memory_budget(h.delivery.options.domain.clone()),
+            Engine::Linear(r) => r.set_memory_budget(h.delivery.options.domain.clone())?,
             Engine::Indexed(r) => r.set_memory_budget(h.delivery.options.domain.clone())?,
             _ => {}
         }
@@ -205,19 +208,20 @@ pub unsafe extern "C" fn fm_engine_next(
             h.delivery.data.clear();
             match &mut h.engine {
                 Engine::Inactive => return Err("Engine failed".into()),
-                Engine::Linear(r) => match r.next_event().transpose()? {
+                Engine::Linear(r) => match r.next_shared_event().transpose()? {
                     None => h.ended = true,
-                    Some(sans_io::LinearReadEvent::ReadRequest(n)) => {
+                    Some(sans_io::linear_reader::SharedReadEvent::ReadRequest(n)) => {
                         h.event.kind = 1;
                         h.event.length = n as u64;
                     }
-                    Some(sans_io::LinearReadEvent::Record { opcode, data }) => {
+                    Some(sans_io::linear_reader::SharedReadEvent::Record { opcode, data }) => {
                         h.event.kind = 3;
                         h.event.opcode = opcode as u32;
 
-                        h.event.length = data.len() as u64;
+                        h.event.length = data.as_ref().len() as u64;
                         *event = h.event;
-                        let status = h.delivery.deliver(data, dest, capacity)?;
+                        h.delivery.shared = Some(data.clone());
+                        let status = h.delivery.deliver(data.as_ref(), dest, capacity)?;
                         h.waiting = status == 2;
                         return Ok(status);
                     }
@@ -229,7 +233,7 @@ pub unsafe extern "C" fn fm_engine_next(
                     .transpose()?
                 {
                     None => {
-                        h.summary = r.take().unwrap().finish().map(Arc::new);
+                        h.summary = r.take().unwrap().finish().map(|s| retain_summary(s, &h.delivery.options.domain, mcap::storage::OwnerKind::Parser)).transpose()?;
                         h.ended = true;
                     }
                     Some(sans_io::SummaryReadEvent::ReadRequest(n)) => {
@@ -245,16 +249,16 @@ pub unsafe extern "C" fn fm_engine_next(
                         };
                     }
                 },
-                Engine::Indexed(r) => match r.next_event().transpose()? {
+                Engine::Indexed(r) => match r.next_shared_event().transpose()? {
                     None => h.ended = true,
-                    Some(sans_io::IndexedReadEvent::ReadChunkRequest { offset, length }) => {
+                    Some(sans_io::indexed_reader::SharedIndexedReadEvent::ReadChunkRequest { offset, length }) => {
                         h.event.kind = 5;
                         h.event.offset = offset;
                         h.event.length = length as u64;
                     }
-                    Some(sans_io::IndexedReadEvent::Message { header, data }) => {
+                    Some(sans_io::indexed_reader::SharedIndexedReadEvent::Message { header, data }) => {
                         h.event.kind = 4;
-                        h.event.length = data.len() as u64;
+                        h.event.length = data.as_ref().len() as u64;
 
                         h.event.header = MessageHeader {
                             channel_id: header.channel_id,
@@ -264,7 +268,8 @@ pub unsafe extern "C" fn fm_engine_next(
                             reserved: 0,
                         };
                         *event = h.event;
-                        let status = h.delivery.deliver(data, dest, capacity)?;
+                        h.delivery.shared = Some(data.clone());
+                        let status = h.delivery.deliver(data.as_ref(), dest, capacity)?;
                         h.waiting = status == 2;
                         return Ok(status);
                     }
@@ -352,7 +357,7 @@ pub unsafe extern "C" fn fm_engine_summary(p: *const EngineHandle, out: *mut Res
             return Err("Summary scan incomplete".into());
         }
         if let Some(s) = &h.summary {
-            respond(out, serde_json::to_vec(&summary_json(s))?, vec![], 0);
+            summary_response::respond(out, &h.delivery.options.domain, s)?;
         }
         Ok(0)
     })
@@ -361,15 +366,62 @@ pub unsafe extern "C" fn fm_engine_summary(p: *const EngineHandle, out: *mut Res
 #[no_mangle]
 pub unsafe extern "C" fn fm_engine_free(p: *mut EngineHandle) {
     if !p.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p))));
+        let _ = catch_unwind(AssertUnwindSafe(|| drop(mcap::charged::ChargedBox::<EngineHandle>::from_raw_value(p))));
     }
 }
 
-pub struct PreparedChannel(Arc<mcap::Channel<'static>>);
+pub struct PreparedChannel {
+    args: budget_json::Document,
+    data: Vec<u8>,
+    _charge: mcap::storage::Reservation,
+    id: u16,
+    schema_id: Option<u16>,
+}
+impl PreparedChannel {
+    pub(super) fn new(input: &[u8], payload: &[u8], domain: &mcap::storage::BudgetRef) -> Outcome<mcap::charged::ChargedBox<Self>> {
+        let args = budget_json::Document::parse(input, domain)?;
+        let v = budget_json::Control::Charged(args.view());
+        let id = v.number("id")?.try_into()?;
+        v.string("topic")?;
+        v.string("encoding")?;
+        v.get("metadata").strings()?;
+        let schema = v.get("schema");
+        let schema_id = if schema.is_null() { None } else {
+            schema.string("name")?;
+            schema.string("encoding")?;
+            Some(schema.number("id")?.try_into()?)
+        };
+        let payload = if schema_id.is_some() { payload } else { &[] };
+        memory::check(&domain, "StorageBlock", Some(domain.limits().block as u64), payload.len())?;
+        let (mut data, charge) = mcap::charged::vector_fixed(domain, mcap::storage::ResourceCategory::Declaration, payload.len())?;
+        charge.owner_reference(mcap::storage::OwnerKind::Operation, true);
+        data.extend_from_slice(payload);
+        domain.copy_bytes(mcap::storage::CopyKind::Other, payload.len());
+        let root = mcap::charged::ChargedBox::new_fixed(Self { args, data, _charge: charge, id, schema_id }, domain, mcap::storage::ResourceCategory::Declaration)?;
+        root.charge_owner(mcap::storage::OwnerKind::Operation, true);
+        Ok(root)
+    }
+}
 pub struct PreparedOperation {
     op: u32,
-    args: Value,
+    args: Option<budget_json::Document>,
     data: Vec<u8>,
+    _data_charge: mcap::storage::Reservation,
+}
+impl PreparedOperation {
+    pub(super) fn new(op:u32,args:&[u8],input:&[u8],domain:&mcap::storage::BudgetRef) -> Outcome<mcap::charged::ChargedBox<Self>> {
+        memory::check(&domain, "StorageBlock",Some(domain.limits().block as u64),input.len())?;
+        let (mut data,charge)=mcap::charged::vector_fixed(domain,mcap::storage::ResourceCategory::Declaration,input.len())?;
+        data.extend_from_slice(input);
+        domain.copy_bytes(mcap::storage::CopyKind::Other,input.len());
+        let root=mcap::charged::ChargedBox::new_fixed(PreparedOperation {
+            op,args:None,data,_data_charge:charge,
+        },domain,mcap::storage::ResourceCategory::Declaration)?;
+        root.charge_owner(mcap::storage::OwnerKind::Operation,true);
+        let mut root=root;
+        root.args=Some(budget_json::Document::parse(args,domain)?);
+        Ok(root)
+    }
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_operation_prepare(
@@ -381,6 +433,13 @@ pub unsafe extern "C" fn fm_operation_prepare(
     handle: *mut *mut PreparedOperation,
     out: *mut Response,
 ) -> i32 {
+    fm_operation_prepare_budget(op,p,n,data,len,0,handle,out)
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_operation_prepare_budget(
+    op:u32,p:*const u8,n:usize,data:*const u8,len:usize,budget_id:u64,
+    handle:*mut *mut PreparedOperation,out:*mut Response,
+) -> i32 {
     guard(out, |_| {
         if handle.is_null() {
             return Err("Null output".into());
@@ -389,18 +448,16 @@ pub unsafe extern "C" fn fm_operation_prepare(
         if !matches!(op, 1 | 2 | 4 | 5 | 8) {
             return Err("Unsupported prepared operation".into());
         }
-        *handle = Box::into_raw(Box::new(PreparedOperation {
-            op,
-            args: request(p, n)?,
-            data: bytes(data, len)?.to_vec(),
-        }));
+        let domain = budget::resolve(budget_id)?;
+        let root=PreparedOperation::new(op,bytes(p,n)?,bytes(data,len)?,&domain)?;
+        *handle=root.into_raw_value();
         Ok(0)
     })
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_operation_free(p: *mut PreparedOperation) {
     if !p.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p))));
+        let _ = catch_unwind(AssertUnwindSafe(|| drop(mcap::charged::ChargedBox::<PreparedOperation>::from_raw_value(p))));
     }
 }
 #[no_mangle]
@@ -416,7 +473,7 @@ pub unsafe extern "C" fn fm_writer_prepared(
         writer_control(
             p,
             op.op,
-            &op.args,
+            budget_json::Control::Charged(op.args.as_ref().unwrap().view()),
             if op.op == 1 {
                 &op.data
             } else {
@@ -432,16 +489,16 @@ pub struct Snapshot {
     pub memory_peak: u64,
     pub cache: chunk_cache::ChunkCache,
     pub stats: memory::Statistics,
-    pub data: Arc<memory::Backing>,
+    pub data: memory::Source,
     pub options: memory::Options,
-    summary: Option<Arc<mcap::Summary>>,
+    summary: Option<SharedSummary>,
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_summary(p: *const Snapshot, out: *mut Response) -> i32 {
     guard(out, |out| {
         let h = p.as_ref().ok_or("Null snapshot")?;
         if let Some(s) = &h.summary {
-            respond(out, serde_json::to_vec(&summary_json(s))?, vec![], 0);
+            summary_response::respond(out, &h.options.domain, s)?;
         }
         Ok(0)
     })
@@ -470,20 +527,23 @@ pub unsafe extern "C" fn fm_snapshot_bytes_options(
         }
         *handle = ptr::null_mut();
         let options = if config_len == 0 {
-            memory::Options::default()
+            memory::Options::try_default()?
         } else {
-            memory::Options::parse(&request(config, config_len)?)?
+            memory::Options::parse_config(bytes(config, config_len)?)?
         };
         let data = memory::Backing::copy(bytes(data, n)?, options.clone())?;
         let summary = mcap::Summary::read_with_memory_budget(&data, options.domain.clone())?;
-        *handle = Box::into_raw(Box::new(Snapshot {
+        let domain=options.domain.clone();
+        let root=mcap::charged::ChargedBox::new_fixed(Snapshot {
             memory_peak: 0,
             cache: chunk_cache::ChunkCache::new(options.domain.clone()),
             stats: memory::Statistics::default(),
-            data: Arc::new(data),
+            data: memory::Source::new(data, &options.domain)?,
             options,
-            summary: summary.map(Arc::new),
-        }));
+            summary: summary.map(|s| retain_summary(s, &domain, mcap::storage::OwnerKind::Parser)).transpose()?,
+        },&domain,mcap::storage::ResourceCategory::Scratch)?;
+        root.charge_owner(mcap::storage::OwnerKind::Parser,true);
+        *handle=root.into_raw_value();
         Ok(0)
     })
 }
@@ -508,18 +568,8 @@ pub unsafe extern "C" fn fm_chunk_offset(
     out: *mut Response,
 ) -> i32 {
     guard(out, |out| {
-        let index = records::ChunkIndex {
-            message_start_time: 0,
-            message_end_time: 0,
-            chunk_start_offset: offset,
-            chunk_length: 0,
-            message_index_offsets: BTreeMap::new(),
-            message_index_length: 0,
-            compression: std::str::from_utf8(bytes(compression, n)?)?.into(),
-            compressed_size: 0,
-            uncompressed_size: 0,
-        };
-        out.value = index.compressed_data_offset()?;
+        let compression = std::str::from_utf8(bytes(compression, n)?)?;
+        out.value = mcap::shared_chunk_index::compressed_data_offset(offset, compression.len())?;
         Ok(0)
     })
 }
@@ -541,14 +591,13 @@ pub unsafe extern "C" fn fm_summary_records(
             2 => (*(p as *const Writer)).native_summary.as_ref(),
             _ => return Err("Unknown summary source".into()),
         };
-        let mut cursor =
-            buffer_reader::summary_records(summary.ok_or("No summary available")?.clone())?;
-        cursor.delivery.options = match kind {
+        let options = match kind {
             0 => (*(p as *const Snapshot)).options.clone(),
             1 => (*(p as *const EngineHandle)).delivery.options.clone(),
-            _ => memory::Options {domain:(*(p as *const Writer)).domain.clone(),..Default::default()},
+            _ => memory::Options::with_domain((*(p as *const Writer)).domain.clone()),
         };
-        *handle = Box::into_raw(Box::new(cursor));
+        let cursor = buffer_reader::summary_records(summary.ok_or("No summary available")?.clone_with_owner(mcap::storage::OwnerKind::Parser), options)?;
+        *handle = cursor.into_handle()?;
         Ok(0)
     })
 }
@@ -561,11 +610,11 @@ pub unsafe extern "C" fn fm_snapshot_channel(
     guard(out, |out| {
         let h = p.as_ref().ok_or("Null snapshot")?;
         let s = h.summary.as_ref().ok_or("No summary")?;
-        buffer_reader::describe_channel(
+        buffer_reader::describe_shared_channel(
             s.channels
                 .get(&id)
                 .ok_or(mcap::McapError::UnknownChannel(0, id))?,
-            out,
+            out, &h.options.domain,
         )
     })
 }
@@ -597,35 +646,38 @@ pub unsafe extern "C" fn fm_snapshot_open_options(
         let options = if config_len == 0 {
             r.delivery.options.clone()
         } else {
-            memory::Options::parse(&request(config, config_len)?)?
+            memory::Options::parse_config(bytes(config, config_len)?)?
         };
         let pos = r.input.stream_position()?;
         let result = (|| -> Outcome<memory::Backing> {
             r.input.seek(SeekFrom::Start(0))?;
             let length = usize::try_from(r.input.seek(SeekFrom::End(0))?)?;
-            memory::check("OwnedInput", options.owned, length)?;
-            memory::check("StorageBlock",Some(options.domain.limits().block as u64),length)?;
+            memory::check(&options.domain, "OwnedInput", options.owned, length)?;
+            memory::check(&options.domain, "StorageBlock",Some(options.domain.limits().block as u64),length)?;
             let mut charge=options.domain.reserve(length)?;
             r.input.seek(SeekFrom::Start(0))?;
             let mut data = Vec::new();
             data.try_reserve_exact(length)?;
-            memory::check("OwnedInput", options.owned, data.capacity())?;
+            memory::check(&options.domain, "OwnedInput", options.owned, data.capacity())?;
             charge.resize(data.capacity())?;
             data.resize(length, 0);
             r.input.read_exact(&mut data)?;
-            Ok(memory::Backing::Owned {data,_charge:charge})
+            Ok(memory::Backing::owned(data, charge))
         })();
         r.input.seek(SeekFrom::Start(pos))?;
         let data = result?;
         let summary = mcap::Summary::read_with_memory_budget(&data, options.domain.clone())?;
-        *handle = Box::into_raw(Box::new(Snapshot {
+        let domain=options.domain.clone();
+        let root=mcap::charged::ChargedBox::new_fixed(Snapshot {
             memory_peak: 0,
             cache: chunk_cache::ChunkCache::new(options.domain.clone()),
             stats: memory::Statistics::default(),
-            data: Arc::new(data),
+            data: memory::Source::new(data, &options.domain)?,
             options,
-            summary: summary.map(Arc::new),
-        }));
+            summary: summary.map(|s| retain_summary(s, &domain, mcap::storage::OwnerKind::Parser)).transpose()?,
+        },&domain,mcap::storage::ResourceCategory::Scratch)?;
+        root.charge_owner(mcap::storage::OwnerKind::Parser,true);
+        *handle=root.into_raw_value();
         Ok(0)
     })
 }
@@ -713,7 +765,7 @@ unsafe fn snapshot_call(
             2 | 5 | 8 => {
                 let parsed;
                 let index = if let Some(prepared) = prepared { &prepared.index } else {
-                    parsed = parse_chunk_index(bytes(index_data, index_length)?)?;
+                    parsed = parse_chunk_index(bytes(index_data, index_length)?, &h.options.domain)?;
                     &parsed
                 };
                 if op == 8 {
@@ -745,38 +797,24 @@ unsafe fn snapshot_call(
                 packed.copy_to(dest,capacity,out)
             }
             3 => {
-                let records::Record::MetadataIndex(index) = mcap::parse_record(
-                    records::op::METADATA_INDEX,
-                    bytes(index_data, index_length)?,
-                )?
-                else {
-                    unreachable!()
-                };
-                check_index_range(&h.data, index.offset, index.length, 0)?;
-                mcap::read::metadata(&h.data, &index)?;
-                copy_body(
-                    record_body(&h.data, index.offset, records::op::METADATA)?,
-                    dest,
-                    capacity,
-                    out,
-                )
+                let index = mcap::shared_metadata_index::SharedMetadataIndex::read(
+                    bytes(index_data, index_length)?, &h.options.domain,
+                    mcap::storage::OwnerKind::Operation)?;
+                let body = record_input::indexed_body(&h.data, index.offset, index.length,
+                    records::op::METADATA, &h.options.domain)?;
+                let status = copy_body(body.as_ref(), dest, capacity, out)?;
+                if status == 0 {h.options.domain.copy_bytes(mcap::storage::CopyKind::Delivery, body.as_ref().len());}
+                Ok(status)
             }
             4 => {
-                let records::Record::AttachmentIndex(index) = mcap::parse_record(
-                    records::op::ATTACHMENT_INDEX,
-                    bytes(index_data, index_length)?,
-                )?
-                else {
-                    unreachable!()
-                };
-                check_index_range(&h.data, index.offset, index.length, 0)?;
-                mcap::read::attachment(&h.data, &index)?;
-                copy_body(
-                    record_body(&h.data, index.offset, records::op::ATTACHMENT)?,
-                    dest,
-                    capacity,
-                    out,
-                )
+                let index = mcap::shared_attachment_index::SharedAttachmentIndex::read(
+                    bytes(index_data, index_length)?, &h.options.domain,
+                    mcap::storage::OwnerKind::Operation)?;
+                let body = record_input::indexed_body(&h.data, index.offset, index.length,
+                    records::op::ATTACHMENT, &h.options.domain)?;
+                let status = copy_body(body.as_ref(), dest, capacity, out)?;
+                if status == 0 {h.options.domain.copy_bytes(mcap::storage::CopyKind::Delivery, body.as_ref().len());}
+                Ok(status)
             }
             _ => Err("Unknown snapshot operation".into()),
         }
@@ -805,7 +843,7 @@ fn check_index_range(data: &[u8], offset: u64, length: u64, minimum: u64) -> Out
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_free(p: *mut Snapshot) {
     if !p.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p))));
+        let _ = catch_unwind(AssertUnwindSafe(|| drop(mcap::charged::ChargedBox::<Snapshot>::from_raw_value(p))));
     }
 }
 
@@ -817,7 +855,11 @@ pub unsafe extern "C" fn fm_parse_record(
     out: *mut Response,
 ) -> i32 {
     guard(out, |_| {
-        mcap::parse_record(op, bytes(p, n)?)?;
+        let data=bytes(p,n)?;
+        if !mcap::read::validate_borrowed_record(op,data)? {
+            let domain=mcap::storage::BudgetRef::try_default()?;
+            record_input::validate(op,data,&domain)?;
+        }
         Ok(0)
     })
 }
@@ -849,7 +891,7 @@ pub unsafe extern "C" fn fm_reader_record_into(
             let status = if let Input::Map { mapping, .. } = &r.input {
                 let start = usize::try_from(start)?;
                 let data = &mapping[start..start + n];
-                mcap::parse_record(h[0], data)?;
+                record_input::validate(h[0], data, &r.delivery.options.domain)?;
                 copy_body(data, dest, capacity, out)?
             } else {
                 r.input.seek(SeekFrom::Start(start))?;
@@ -859,7 +901,7 @@ pub unsafe extern "C" fn fm_reader_record_into(
                 r.scratch.data.resize(n, 0);
                 r.input.read_exact(&mut r.scratch.data)?;
                 r.scratch.stats.copied += n as u64;
-                mcap::parse_record(h[0], &r.scratch.data)?;
+                record_input::validate(h[0], &r.scratch.data, &r.delivery.options.domain)?;
                 copy_body(&r.scratch.data, dest, capacity, out)?
             };
             if status == 0 { r.scratch.stats.copied += n as u64; }
@@ -881,37 +923,19 @@ pub unsafe extern "C" fn fm_reader_record_into(
 
 #[no_mangle]
 pub unsafe extern "C" fn fm_channel_prepare(
-    p: *const u8,
-    n: usize,
-    data: *const u8,
-    len: usize,
-    handle: *mut *mut PreparedChannel,
-    out: *mut Response,
+    p: *const u8, n: usize, data: *const u8, len: usize,
+    handle: *mut *mut PreparedChannel, out: *mut Response,
+) -> i32 { fm_channel_prepare_budget(p, n, data, len, 0, handle, out) }
+#[no_mangle]
+pub unsafe extern "C" fn fm_channel_prepare_budget(
+    p: *const u8, n: usize, data: *const u8, len: usize, budget_id: u64,
+    handle: *mut *mut PreparedChannel, out: *mut Response,
 ) -> i32 {
     guard(out, |_| {
-        if handle.is_null() {
-            return Err("Null output".into());
-        }
+        let handle = handle.as_mut().ok_or("Null output")?;
         *handle = ptr::null_mut();
-        let v = request(p, n)?;
-        let schema = if v["schema"].is_null() {
-            None
-        } else {
-            let s = &v["schema"];
-            Some(Arc::new(mcap::Schema {
-                id: number(s, "id")?.try_into()?,
-                name: string(s, "name")?.into(),
-                encoding: string(s, "encoding")?.into(),
-                data: Cow::Owned(bytes(data, len)?.to_vec()),
-            }))
-        };
-        *handle = Box::into_raw(Box::new(PreparedChannel(Arc::new(mcap::Channel {
-            id: number(&v, "id")?.try_into()?,
-            topic: string(&v, "topic")?.into(),
-            message_encoding: string(&v, "encoding")?.into(),
-            schema,
-            metadata: map(&v["metadata"])?,
-        }))));
+        let domain = budget::resolve(budget_id)?;
+        *handle = PreparedChannel::new(bytes(p,n)?, bytes(data,len)?, &domain)?.into_raw_value();
         Ok(0)
     })
 }
@@ -919,7 +943,7 @@ pub unsafe extern "C" fn fm_channel_prepare(
 #[no_mangle]
 pub unsafe extern "C" fn fm_channel_free(p: *mut PreparedChannel) {
     if !p.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p))));
+        let _ = catch_unwind(AssertUnwindSafe(|| drop(mcap::charged::ChargedBox::<PreparedChannel>::from_raw_value(p))));
     }
 }
 
@@ -939,16 +963,15 @@ pub unsafe extern "C" fn fm_writer_full_message(
         }
         let c = channel.as_ref().ok_or("Null channel")?;
         let h = h.as_ref().ok_or("Null header")?;
-        w.inner
-            .as_mut()
-            .ok_or("Writer completed")?
-            .write(&mcap::Message {
-                channel: c.0.clone(),
-                sequence: h.sequence,
-                log_time: h.log_time,
-                publish_time: h.publish_time,
-                data: Cow::Borrowed(bytes(p, n)?),
-            })?;
+        let v = budget_json::Control::Charged(c.args.view());
+        let schema = match c.schema_id {
+            None => None,
+            Some(id) => Some((id, v.get("schema").string("name")?, v.get("schema").string("encoding")?, c.data.as_slice())),
+        };
+        w.inner.as_mut().ok_or("Writer completed")?.write_borrowed(
+            c.id, v.string("topic")?, v.string("encoding")?, v.get("metadata").strings()?, schema,
+            &records::MessageHeader { channel_id: h.channel_id, sequence: h.sequence, log_time: h.log_time, publish_time: h.publish_time }, bytes(p,n)?,
+        )?;
         Ok(0)
     });
     writer_result(handle, status)
@@ -999,15 +1022,10 @@ pub unsafe extern "C" fn fm_snapshot_chunk_reader(
         }
         *handle = ptr::null_mut();
         let h = p.as_ref().ok_or("Null snapshot")?;
-        let records::Record::ChunkIndex(index) =
-            mcap::parse_record(records::op::CHUNK_INDEX, bytes(index_data, index_length)?)?
-        else {
-            unreachable!()
-        };
+        let index = parse_chunk_index(bytes(index_data, index_length)?, &h.options.domain)?;
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
-        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index, h.options.clone())?;
-        cursor.delivery.options = h.options.clone();
-        *handle = Box::into_raw(Box::new(cursor));
+        let cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone_with_owner(mcap::storage::OwnerKind::Parser), &index, h.options.clone())?;
+        *handle = cursor.into_handle()?;
         Ok(0)
     })
 }
@@ -1024,31 +1042,50 @@ pub unsafe extern "C" fn fm_snapshot_mapped(
             return Err("Null output".into());
         }
         *handle = ptr::null_mut();
-        let v = request(config, n)?;
-        let options = memory::Options::parse(&v["options"])?;
-        let data = memory::Backing::open(string(&v, "path")?)?;
-        let summary = mcap::Summary::read_with_memory_budget(&data, options.domain.clone())?.map(Arc::new);
-        *handle = Box::into_raw(Box::new(Snapshot {
+        let (document,domain)=budget_json::Document::configured(bytes(config,n)?, &["options","Budget","id"])?;
+        let v=document.view();
+        let options = memory::Options::parse_view(v.get("options"),domain)?;
+        let data = memory::Backing::open(v.get("path").as_str().ok_or("Missing string: path")?, &options.domain)?;
+        let summary = mcap::Summary::read_with_memory_budget(&data, options.domain.clone())?.map(|s| retain_summary(s, &options.domain, mcap::storage::OwnerKind::Parser)).transpose()?;
+        let domain=options.domain.clone();
+        let root=mcap::charged::ChargedBox::new_fixed(Snapshot {
             memory_peak: 0,
             cache: chunk_cache::ChunkCache::new(options.domain.clone()),
             stats: memory::Statistics::default(),
-            data: Arc::new(data),
+            data: memory::Source::new(data, &options.domain)?,
             options,
             summary,
-        }));
+        },&domain,mcap::storage::ResourceCategory::Scratch)?;
+        root.charge_owner(mcap::storage::OwnerKind::Parser,true);
+        *handle=root.into_raw_value();
         Ok(0)
     })
 }
 
 // Immutable owned index: no managed dictionaries or borrowed record memory survive preparation.
 pub struct PreparedChunkIndex {
-    _charge:mcap::storage::Reservation,
-    index: records::ChunkIndex,
+    // Drop actual storage before its reservations.
+    index: mcap::shared_chunk_index::SharedChunkIndex,
     key: Vec<u8>,
+    _key_charge:mcap::storage::Reservation,
 }
-fn parse_chunk_index(data: &[u8]) -> Outcome<records::ChunkIndex> {
-    let records::Record::ChunkIndex(index) = mcap::parse_record(records::op::CHUNK_INDEX, data)? else { unreachable!() };
-    Ok(index)
+impl PreparedChunkIndex {
+    pub(super) fn new(bytes: &[u8], domain: &mcap::storage::BudgetRef) -> Outcome<mcap::charged::ChargedBox<Self>> {
+        let n = bytes.len();
+        let index = parse_chunk_index(bytes, domain)?;
+        let (mut key,key_charge)=mcap::charged::vector_fixed(domain,mcap::storage::ResourceCategory::Index,n)?;
+        key.extend_from_slice(bytes);
+        domain.copy_bytes(mcap::storage::CopyKind::Other,n);
+        key_charge.owner_reference(mcap::storage::OwnerKind::Operation,true);
+        let root=mcap::charged::ChargedBox::new_fixed(PreparedChunkIndex {
+            index,key,_key_charge:key_charge,
+        },domain,mcap::storage::ResourceCategory::Index)?;
+        root.charge_owner(mcap::storage::OwnerKind::Operation,true);
+        Ok(root)
+    }
+}
+fn parse_chunk_index(data: &[u8], domain: &mcap::storage::BudgetRef) -> Outcome<mcap::shared_chunk_index::SharedChunkIndex> {
+    Ok(mcap::shared_chunk_index::SharedChunkIndex::read(data, domain, mcap::storage::OwnerKind::Operation)?)
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_chunk_index_prepare(data: *const u8, n: usize, handle: *mut *mut PreparedChunkIndex, out: *mut Response) -> i32 {
@@ -1059,17 +1096,15 @@ pub unsafe extern "C" fn fm_chunk_index_prepare_budget(data:*const u8,n:usize,bu
     guard(out, |_| {
         if handle.is_null() { return Err("Null output".into()); }
         *handle = ptr::null_mut();
-        let domain=if budget_id==0 {Default::default()} else {budget::parse(&json!({"id":budget_id}))?};
-        let charge=domain.reserve(n.checked_mul(16).and_then(|n|n.checked_add(1024)).ok_or("Index capacity overflow")?)?;
-        let bytes = bytes(data, n)?;
-        let index = parse_chunk_index(bytes)?;
-        *handle = Box::into_raw(Box::new(PreparedChunkIndex { _charge:charge,index, key: bytes.to_vec() }));
+        let domain=budget::resolve(budget_id)?;
+        let root = PreparedChunkIndex::new(bytes(data,n)?, &domain)?;
+        *handle=root.into_raw_value();
         Ok(0)
     })
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_chunk_index_free(p: *mut PreparedChunkIndex) {
-    if !p.is_null() { let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p)))); }
+    if !p.is_null() { let _ = catch_unwind(AssertUnwindSafe(|| drop(mcap::charged::ChargedBox::<PreparedChunkIndex>::from_raw_value(p)))); }
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_prepared_call(
@@ -1089,9 +1124,8 @@ pub unsafe extern "C" fn fm_snapshot_prepared_chunk_reader(
         let h = p.as_ref().ok_or("Null snapshot")?;
         let index = index.as_ref().ok_or("Null prepared index")?;
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
-        let mut cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index.index, h.options.clone())?;
-        cursor.delivery.options = h.options.clone();
-        *handle = Box::into_raw(Box::new(cursor));
+        let cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone_with_owner(mcap::storage::OwnerKind::Parser), &index.index, h.options.clone())?;
+        *handle = cursor.into_handle()?;
         Ok(0)
     })
 }
@@ -1104,7 +1138,7 @@ pub unsafe extern "C" fn fm_snapshot_message_owned(
         let h = p.as_mut().ok_or("Null snapshot")?;
         let parsed;
         let (index, key) = if let Some(prepared) = prepared.as_ref() { (&prepared.index, prepared.key.as_slice()) }
-        else { let key = bytes(data, n)?; parsed = parse_chunk_index(key)?; (&parsed, key) };
+        else { let key = bytes(data, n)?; parsed = parse_chunk_index(key, &h.options.domain)?; (&parsed, key) };
         check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
         let result = h.cache.read_with(&h.data, summary, index, key, offset, h.options.random,
@@ -1120,6 +1154,37 @@ pub unsafe extern "C" fn fm_snapshot_message_owned(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn fm_engine_wait_prepare(p:*mut EngineHandle,out:*mut Response)->i32 {
+    guard(out, |_| {
+        let h=p.as_mut().ok_or("Null engine")?;
+        if h.failed {return Err("Engine failed".into());}
+        if h.capacity_ticket.is_none() {
+            h.capacity_ticket=Some(mcap::storage::CapacityWaitTicket::new(&h.delivery.options.domain)?);
+        }
+        Ok(0)
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_engine_wait_status(p:*mut EngineHandle,cancel:bool,out:*mut Response)->i32 {
+    guard(out, |_| {
+        let h=p.as_mut().ok_or("Null engine")?;
+        let ticket=h.capacity_ticket.as_mut().ok_or("Wait ticket was not prepared")?;
+        if cancel {ticket.cancel();return Ok(0);}
+        Ok(match ticket.checked_status()? {
+            mcap::storage::CapacityWaitStatus::Idle=>0,
+            mcap::storage::CapacityWaitStatus::Waiting=>1,
+            mcap::storage::CapacityWaitStatus::Ready=>2,
+            mcap::storage::CapacityWaitStatus::Unavailable=>unreachable!(),
+        })
+    })
+}
+fn arm_engine_wait(ticket:&mut Option<mcap::storage::CapacityWaitTicket>,domain:&mcap::storage::BudgetRef,requested:usize)->Outcome<()> {
+    if let Some(ticket)=ticket {ticket.arm_for_external_release(requested)?;}
+    else {domain.retry_status(requested)?;}
+    Ok(())
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn fm_engine_input_buffer(p:*mut EngineHandle,n:usize,data:*mut *mut u8,out:*mut Response)->i32 {
     guard(out, |_| {
         let h=p.as_mut().ok_or("Null engine")?;
@@ -1128,7 +1193,18 @@ pub unsafe extern "C" fn fm_engine_input_buffer(p:*mut EngineHandle,n:usize,data
         let target=data.as_mut().ok_or("Null output")?; *target=ptr::null_mut();
         // Reserve the parser's complete request before a short asynchronous read.
         // Reserving only the managed read quantum would repeatedly relocate large records.
-        match r.try_insert(usize::try_from(h.event.length)?) { Ok(b)=>*target=b.as_mut_ptr(),Err(e)=>{let e:Error=Box::new(e);if budget::unavailable(&e) && h.delivery.options.domain.has_leases(){return Ok(4);}return Err(e);} }
+        match r.try_insert(usize::try_from(h.event.length)?) {
+            Ok(b)=>*target=b.as_mut_ptr(),
+            Err(e)=>{
+                let e:Error=e.into();
+                if budget::unavailable(&e) {
+                    let requested=budget::requested_capacity(&e).ok_or("Missing retry capacity")?;
+                    arm_engine_wait(&mut h.capacity_ticket,&h.delivery.options.domain,requested)?;
+                    return Ok(4);
+                }
+                return Err(e);
+            }
+        }
         Ok(0)
     })
 }
@@ -1144,7 +1220,7 @@ pub unsafe extern "C" fn fm_engine_input_complete(p:*mut EngineHandle,n:usize,ou
 
 #[no_mangle]
 pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,target:usize,
-    output:*mut *mut lease::Batch,event:*mut Event,out:*mut Response)->i32 {
+    output:*mut *mut lease::Handle,event:*mut Event,out:*mut Response)->i32 {
     if !output.is_null() { *output=ptr::null_mut(); }
     let status=guard(out, |out| {
         let h=p.as_mut().ok_or("Null engine")?;
@@ -1156,11 +1232,14 @@ pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,ta
             *event=h.event; return Ok(0);
         }
         let Engine::Linear(r)=&mut h.engine else {return Err("Linear engine required".into());};
-        r.set_memory_budget(h.delivery.options.domain.clone());
+        r.set_memory_budget(h.delivery.options.domain.clone())?;
         if h.lease_batch.is_none() {
             match lease::Batch::new(h.delivery.options.domain.clone(),count) {
                 Ok(b)=>h.lease_batch=Some(b),
-                Err(ref e) if budget::unavailable(e) && h.delivery.options.domain.has_leases()=>return Ok(4),
+                Err(ref e) if budget::unavailable(e)=>{
+                    arm_engine_wait(&mut h.capacity_ticket,&h.delivery.options.domain,lease::Batch::reservation_bytes(count)?)?;
+                    return Ok(4);
+                },
                 Err(e)=>return Err(e),
             }
         }
@@ -1169,11 +1248,14 @@ pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,ta
             let next=match r.next_shared_event().transpose() {
                 Ok(e)=>e,
                 Err(e)=>{
-                    let e:Error=Box::new(e);
+                    let e:Error=e.into();
                     if budget::unavailable(&e) {
                         if h.lease_batch.as_ref().unwrap().messages.is_empty() {
-                            h.lease_batch=None;
-                            if !h.delivery.options.domain.has_leases() {return Err("Native budget cannot advance this reader without increasing its finite budget".into());}
+                            let batch=h.lease_batch.take().unwrap();
+                            let rollback=batch.allocation_bytes().checked_add(batch.messages.allocated_bytes()).ok_or("Retry capacity overflow")?;
+                            let requested=budget::requested_capacity(&e).and_then(|n|n.checked_add(rollback)).ok_or("Missing retry capacity")?;
+                            drop(batch);
+                            arm_engine_wait(&mut h.capacity_ticket,&h.delivery.options.domain,requested)?;
                             return Ok(4);
                         }
                         break;
@@ -1189,6 +1271,10 @@ pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,ta
                     break;
                 }
                 Some(sans_io::linear_reader::SharedReadEvent::Record {opcode,data})=>{
+                    if opcode != records::op::MESSAGE {
+                        buffer_reader::BufferReader::observe(&mut h.schemas, &mut h.channels, opcode, data.as_ref(), &h.delivery)?;
+                        continue;
+                    }
                     match mcap::parse_record(opcode,data.as_ref())? {
                         records::Record::Message {header,..}=>{
                             if !h.channels.contains_key(&header.channel_id) {return Err(mcap::McapError::UnknownChannel(header.sequence,header.channel_id).into());}
@@ -1196,9 +1282,10 @@ pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,ta
                             let payload=data.slice(22..data.as_ref().len()); used+=payload.as_ref().len();
                             let batch=h.lease_batch.as_mut().unwrap();
                             batch.messages.push(lease::Message {header,data:payload})?;
-                            if batch.messages.len()>=count || used>=target {break;}
+                            // A batch retained across an input request keeps its original preallocated limit.
+                            if batch.messages.len()>=count.min(batch.message_limit) || used>=target {break;}
                         }
-                        record=>buffer_reader::BufferReader::observe(&mut h.schemas,&mut h.channels,record,&mut h.delivery)?,
+                        _=>unreachable!(),
                     }
                 }
             }
@@ -1216,7 +1303,7 @@ pub unsafe extern "C" fn fm_engine_lease_step(p:*mut EngineHandle,count:usize,ta
 pub struct SeekRequest { index:*const PreparedChunkIndex, time:u64, offset:u64 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_seek_batch(p:*mut Snapshot,requests:*const SeekRequest,count:usize,
-    output:*mut *mut lease::Batch,out:*mut Response)->i32 {
+    output:*mut *mut lease::Handle,out:*mut Response)->i32 {
     guard(out, |_| {
         let result=output.as_mut().ok_or("Null output")?; *result=ptr::null_mut();
         let h=p.as_mut().ok_or("Null snapshot")?;
@@ -1225,16 +1312,22 @@ pub unsafe extern "C" fn fm_snapshot_seek_batch(p:*mut Snapshot,requests:*const 
         let summary=h.summary.as_ref().ok_or("File has no summary")?;
         // Validate all descriptor handles before loading anything.
         for req in requests { if req.index.is_null() {return Err("Null prepared index".into());} }
-        let _group_charge=h.options.domain.reserve(count*std::mem::size_of::<usize>())?;
-        let mut order:Vec<usize>=(0..count).collect();
-        order.sort_unstable_by(|a,b|(*requests[*a].index).key.cmp(&(*requests[*b].index).key));
+        let mut order=mcap::segmented::BudgetedSegmentedVec::with_page_capacity(
+            h.options.domain.clone(),mcap::storage::ResourceCategory::Scratch,count);
+        order.reserve(count)?;
+        order.owner_reference(mcap::storage::OwnerKind::Operation,true);
+        for i in 0..count { order.push(i)?; }
+        order.sort_by_key(|i|((*requests[*i].index).key.as_slice(),*i));
         let mut batch=lease::Batch::new(h.options.domain.clone(),count)?;
         let mut previous:Option<&[u8]>=None;
         let mut chunk=None;
         // Output slots are filled in request order after sorting compact descriptors.
-        let _slots_charge=h.options.domain.reserve(count*std::mem::size_of::<Option<lease::Message>>())?;
-        let mut slots:Vec<Option<lease::Message>>=std::iter::repeat_with(||None).take(count).collect();
-        for i in order {
+        let mut slots=mcap::segmented::BudgetedSegmentedVec::with_page_capacity(
+            h.options.domain.clone(),mcap::storage::ResourceCategory::Descriptor,count);
+        slots.reserve(count)?;
+        slots.owner_reference(mcap::storage::OwnerKind::Operation,true);
+        for _ in 0..count { slots.push(None)?; }
+        for &i in &order {
             let req=&requests[i];let index=&*req.index;
             if previous!=Some(index.key.as_slice()) {
                 chunk=Some(h.cache.load(&h.data,&index.index,&index.key,h.options.random)?);
@@ -1242,11 +1335,104 @@ pub unsafe extern "C" fn fm_snapshot_seek_batch(p:*mut Snapshot,requests:*const 
             }
             slots[i]=Some(chunk.as_ref().unwrap().message(summary,req.offset)?);
         }
-        for message in slots.into_iter().map(Option::unwrap) {batch.messages.push(message)?;}
+        for i in 0..count {batch.messages.push(slots[i].take().unwrap())?;}
         *result=lease::publish(batch);Ok(0)
     })
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_snapshot_cache_statistics(p:*const Snapshot,hits:*mut u64,loads:*mut u64,out:*mut Response)->i32 {
     guard(out, |_| {let h=p.as_ref().ok_or("Null snapshot")?;*hits.as_mut().ok_or("Null hits")?=h.cache.hits;*loads.as_mut().ok_or("Null loads")?=h.cache.loads;Ok(0)})
+}
+
+#[cfg(test)]
+mod root_tests {
+    use super::*;
+    #[test]
+    fn summary_publication_refusal_after_parser_eof_is_terminal() {
+        let mut writer = mcap::WriteOptions::new().use_chunks(false)
+            .create(std::io::Cursor::new(Vec::new())).unwrap();
+        writer.finish().unwrap();
+        let data = writer.into_inner().into_inner();
+        let domain = mcap::storage::BudgetRef::new(mcap::storage::BudgetLimits {retained:0,..Default::default()}).unwrap();
+        let mut parser = sans_io::SummaryReader::new_with_options_and_budget(
+            sans_io::SummaryReaderOptions::default().with_file_size(data.len() as u64), domain.clone());
+        let mut input = std::io::Cursor::new(&data);
+        while let Some(event) = parser.next_event() {
+            match event.unwrap() {
+                sans_io::SummaryReadEvent::ReadRequest(n) => {
+                    let count = input.read(parser.try_insert(n).unwrap()).unwrap();
+                    parser.notify_read(count);
+                }
+                sans_io::SummaryReadEvent::SeekRequest(to) => {
+                    let position = input.seek(to).unwrap();
+                    parser.notify_seeked(position);
+                }
+            }
+        }
+        let mut engine = EngineHandle {
+            capacity_ticket:None,lease_batch:None,
+            schemas:buffer_reader::SchemaTable::new_owned(domain.clone(),mcap::storage::ResourceCategory::Declaration,mcap::storage::OwnerKind::Parser),
+            channels:buffer_reader::ChannelTable::new_owned(domain.clone(),mcap::storage::ResourceCategory::Declaration,mcap::storage::OwnerKind::Parser),
+            engine:Engine::Summary(Some(parser)), event:Event::default(),
+            delivery:memory::Delivery::new(memory::Options::with_domain(domain.clone())),
+            waiting:false,failed:false,ended:false,summary:None,
+        };
+        domain.fail_allocation_at(0);
+        unsafe {
+            assert_eq!(fm_engine_next(&mut engine,ptr::null_mut(),0,&mut Event::default(),&mut Response::default()),-1);
+            assert!(engine.failed);
+            assert!(engine.summary.is_none());
+            assert!(matches!(engine.engine,Engine::Inactive));
+            assert_eq!(fm_engine_next(&mut engine,ptr::null_mut(),0,&mut Event::default(),&mut Response::default()),-1);
+        }
+        drop(engine);
+        assert_eq!(domain.workload_statistics().current,0);
+        assert_eq!(domain.ownership_statistics(),Default::default());
+    }
+    #[test]
+    fn prepared_operation_parse_failure_releases_root_payload_and_pins() {
+        let domain=mcap::storage::BudgetRef::new(Default::default()).unwrap();
+        assert!(PreparedOperation::new(1,b"{",&[42;4096],&domain).is_err());
+        assert_eq!(domain.workload_statistics().current,0);
+        assert_eq!(domain.ownership_statistics(),Default::default());
+        assert_eq!(domain.workload_detailed_statistics().allocation_count,3);
+    }
+    #[test]
+    fn snapshot_root_remains_charged_until_matching_free() {
+        let domain=mcap::storage::BudgetRef::new(Default::default()).unwrap();
+        let root=mcap::charged::ChargedBox::new_fixed(Snapshot {
+            memory_peak:0,cache:chunk_cache::ChunkCache::new(domain.clone()),
+            stats:Default::default(),data:memory::Source::empty(),
+            options:memory::Options { domain:domain.clone(), ..Default::default() },summary:None,
+        },&domain,mcap::storage::ResourceCategory::Scratch).unwrap();
+        root.charge_owner(mcap::storage::OwnerKind::Parser,true);
+        assert_eq!(domain.workload_statistics().current,root.allocation_bytes() as u64);
+        unsafe { fm_snapshot_free(root.into_raw_value()); }
+        assert_eq!(domain.workload_statistics().current,0);
+        assert_eq!(domain.ownership_statistics(),Default::default());
+    }
+}
+
+#[cfg(test)]
+mod prepared_channel_tests {
+    use super::*;
+    #[test]
+    fn every_prepared_channel_allocation_refusal_rolls_back() {
+        let input = br#"{"id":1,"topic":"topic","encoding":"raw","metadata":{"a":"one","z":"two"},"schema":{"id":2,"name":"schema","encoding":"raw"}}"#;
+        let domain = mcap::storage::BudgetRef::new(Default::default()).unwrap();
+        let root = PreparedChannel::new(input, &[42;4096], &domain).unwrap();
+        let allocations = domain.workload_detailed_statistics().allocation_count;
+        drop(root);
+        assert_eq!(domain.workload_statistics().current, 0);
+        for index in 0..allocations {
+            let domain = mcap::storage::BudgetRef::new(Default::default()).unwrap();
+            domain.fail_allocation_at(index as usize);
+            assert!(PreparedChannel::new(input, &[42;4096], &domain).is_err());
+            assert_eq!(domain.workload_statistics().current, 0);
+            assert_eq!(domain.ownership_statistics(), Default::default());
+        }
+        let invalid = br#"{"id":1,"topic":"topic","encoding":"raw","metadata":{"a":1},"schema":null}"#;
+        assert!(PreparedChannel::new(invalid, &[], &domain).is_err());
+        assert_eq!(domain.workload_statistics().current, 0);
+    }
 }

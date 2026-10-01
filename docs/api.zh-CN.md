@@ -77,7 +77,7 @@ writer.FlushToDisk();
 | `CalculateChunkCrcs`、`CalculateDataSectionCrc`、`CalculateSummarySectionCrc`、`CalculateAttachmentCrcs` | true，独立控制各区段 CRC。 |
 | `CompressionLevel`、`CompressionThreads` | null，采用上游默认和算法支持范围。 |
 
-可空开关为 null 时采用上游行为。先应用 `EmitSummaryRecords` 总开关，再应用显式指定的单项开关。`DisableSeeking` 对可定位输出默认 false、不可定位输出默认 true；后者显式指定 false 会失败。省略摘要记录时关闭统计、Chunk/附件/元数据索引和重复声明；Summary offsets 另行关闭。不使用 Chunk 时不会产生 Chunk 压缩和 Chunk 消息索引，不受相关请求值影响。Memory 选项指定有限共享存储预算；codec 工作区及下文列出的计费排除项仍在该预算之外。
+可空开关为 null 时采用上游行为。先应用 `EmitSummaryRecords` 总开关，再应用显式指定的单项开关。`DisableSeeking` 对可定位输出默认 false、不可定位输出默认 true；后者显式指定 false 会失败。省略摘要记录时关闭统计、Chunk/附件/元数据索引和重复声明；Summary offsets 另行关闭。不使用 Chunk 时不会产生 Chunk 压缩和 Chunk 消息索引，不受相关请求值影响。Memory 选项指定有限共享存储预算，包含 codec 堆工作区；未完成路径及受控堆之外的资源见下文计费边界。
 
 ## 使用可复用缓冲读取消息
 
@@ -158,9 +158,9 @@ while (true)
 
 ## 完整消息与预准备写入
 
-`WriteMessage(McapMessage)` 直接调用官方 `Writer::write`，按传入 ID 自动声明。零分配重载接收 `McapPreparedChannel`、匹配的 Header 和 payload Span。预准备对象保存 Schema 字节与元数据的不可变快照，但不注册声明；便利重载每次读取当前对象内容。
+`WriteMessage(McapMessage)` 通过借用声明字段复用官方 `Writer::write` 逻辑，按传入 ID 自动声明。零分配重载接收 `McapPreparedChannel`、匹配的 Header 和 payload Span。预准备对象保存 Schema 字节与元数据的不可变快照，但不注册声明。`McapPreparedChannel(channel, budget)` 使用指定资源域，原构造签名使用独立默认域。计费 JSON 字段、Schema 字节及私有根对象跨 writer 调用时保持原域，释放描述符时归还；便利重载每次读取当前对象内容。
 
-`McapPreparedOperation` 提供 Schema、Channel、Metadata 和附件描述；`WritePrepared` 零托管分配执行并返回注册 ID，payload 单独通过 Span 传入。附件续写、私有记录及 Flush 也提供零分配路径。`Complete()` 显式完成写入，随后通过 `GetSummary()` 获取自有摘要；`Complete()` 后的 `OpenSummaryRecords()` 提供缓冲区摘要游标。`IntoInner()` 释放原生状态并交还 Stream 所有权，不隐式完成文件。
+`McapPreparedOperation` 提供 Schema、Channel、Metadata 和附件描述。预算重载接受共享的 `McapMemoryBudget`：Schema 和 Channel 将其放在首参数，Metadata 和附件工厂将其放在末参数。旧签名创建独立默认域；跨 writer 复用时，已存在存储保留原域。描述根对象、schema 载荷及解析后的 JSON 控制存储已精确计费。JSON 字符串使用计费存储，对象字段使用分页平衡索引。普通 writer 控制调用将临时 JSON 存储计入 writer 域，返回时释放；输入单块或总预算拒绝会终止 writer。Metadata 和 Channel 写入直接遍历字段，不再创建临时 map。摘要嵌套物化仍是[分配清单](memory-accounting.zh-CN.md)中的未完成项。`WritePrepared` 零托管分配执行并返回注册 ID，payload 单独通过 Span 传入。附件续写、私有记录及 Flush 也提供零分配路径。`Complete()` 显式完成写入，随后通过 `GetSummary()` 获取自有摘要；`Complete()` 后的 `OpenSummaryRecords()` 提供缓冲区摘要游标。`IntoInner()` 释放原生状态并交还 Stream 所有权，不隐式完成文件。
 
 ## 官方读取器直接适配
 
@@ -184,7 +184,7 @@ prepared 索引可跨 snapshot 复用。每次操作仍执行原有文件范围�
 
 复用完成源和 continuation，在预热后的实际 I/O 挂起路径也提供 0 B 托管分配。门禁同时计量调用线程和专用 I/O 线程，包含直接 await 循环。完成通知可在 I/O 线程内联恢复调用方，库不强制派发 ThreadPool。第三方 Stream、调用方 await 机制、初始化、错误、扩容及自有结果不在保证内；原生分配不受此保证约束。
 
-`McapException.Kind` 对应全部上游错误变体，`Details` 保留结构化字段；封装层错误使用 `Binding`，原始 Stream 异常仍保留。
+`McapException.Kind` 对应全部上游错误变体，`Details` 保留结构化字段；封装层错误使用 `Binding`，原始 Stream 异常仍保留。 原生错误文本有界：消息最多保留 256 个 UTF-8 字节，详情文本值最多保留 128 字节，均在字符边界截断。缩短的文本带 `[truncated]`，对象详情同时设置 `truncated: true`；数值字段保持精确。原生 OS 错误通过 `osCode` 和固定格式消息报告，不分配本地化 OS 文本。 Parse 错误保留根因文本，不序列化 parser 的装饰性回溯。
 
 ### 可恢复的 writer 错误
 
@@ -219,19 +219,29 @@ Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 own
 
 McapMemoryOptions.Budget 可共享 McapMemoryBudget，否则独立 reader/writer 各建资源域。快照子游标继承域，writer options 提供 Memory，prepared Chunk index 构造可传预算。默认 **256 MiB 已计费容量、64 MiB 单块、域内 64 MiB 空闲池保留**。有限默认值属于行为变化；需要时显式提高。复制构造保留隔离语义，超大输入拒绝；大文件使用 OpenMapped 或增量 Stream。块包括记录头，因此恰好等于块上限的 payload 可能需要更大的块。
 
+存活的 `McapMemoryBudget` 会保留域根与句柄两部分已计费的 Scratch 控制存储，因此仅释放 reader／writer 不会使仍存活预算对象的域占用归零。总预算小于必要控制存储时，构造立即拒绝。最后强引用清空空闲存储并打破弱注册环，域根账本保留至最后弱引用释放。域查找与通知链接共用句柄分配；通知登记和分发不分配原生堆。
+
+调用方缓冲区不足时，重试在可用情况下保留已有不可变存储范围，不再将 payload 复制到第二个 pending 缓冲。`MaxPendingBufferBytes` 仍限制保留的逻辑长度：消息会话按 payload 长度，buffer reader 的 record/message 重试及异步记录读取按完整 record body 长度检查。重复缓冲不足调用不写目标、不消费 pending 记录；buffer reader 的 pending Message 记录可切换 record/message 交付方式。借用与 lease 复用存储所有者，owned 与调用方缓冲交付只复制一次。小 pending 范围可能保留较大的输入或解压块。`MaxRetainedBufferBytes` 只控制可复用自有交付缓冲，不控制共享所有者；`MaxBlockBytes` 限制实际存储分配，不对映射切片新增分配限制。
+
 附加限制 MaxOwnedInputBytes、MaxPendingBufferBytes、MaxScratchBufferBytes、MaxBufferedSortBytes 默认 null，仅表示没有附加限制，不能绕过域上限。MaxRetainedBufferBytes 保持逐交付缓冲 8 MiB。MaxRandomAccessCacheBytes 默认零关闭，可设为 64 MiB 等有限值启用。
 
 输入／解压块、pending／scratch、lease／排序描述符、prepared Chunk 索引及保留的摘要／writer 元数据在扩容前计费。元数据采用保守预留。同一 payload 同时被多个 lease 和缓存引用只计一次，空闲池仍计费。排序引用共享载荷，超限报错，不改变顺序或溢写。长期 writer 保留索引，可提高有限预算、显式关闭不需要的索引，或由消费者分段录制。
 
-Zstd/Lz4 编码及解码上下文使用固定 codec 版本的自定义分配接口。codec 堆请求、分配头及输出缓冲在分配前预留容量；拒绝通过正常错误返回，不跨 C 展开。codec 工作区受总预算限制，不套用载荷块上限。CompressionThreads 保持原有行为。推进后的 codec 失败是终止失败，不作为可重试预算压力。
+Zstd/Lz4 编码及解码上下文使用固定 codec 版本的自定义分配接口。codec 堆请求、分配头及输出缓冲在分配前预留容量；拒绝通过正常错误返回，不跨 C 展开。codec 工作区受总预算限制，不套用载荷块上限。CompressionThreads 保持原有行为。推进后的 codec 失败是终止失败，不作为可重试预算压力。解码分配失败在 McapException.Details 中提供 resource、limit、domainLimit、requested、current、phase，并附带 failureKind（permanent、temporary、system、overflow 或 codec-panic）和 terminal。即使容量分类为 temporary，terminal=true 仍表示解码器不能继续使用。`limit` 是触发拒绝的适用上限，`domainLimit` 始终是资源域总上限；单块和局部资源限额可能更低。绑定层资源检查同样报告两者及检查时的域占用。
+
+这些诊断采用固定原生存储；损坏帧诊断使用 codec 静态错误名。
 
 GetDetailedStatistics() 返回无托管分配的固定值类型快照：九类资源（输入、解压、writer、codec 编码／解码、索引、描述符、声明、scratch）的当前／峰值计费、实际存活及未使用预留，以及分配活动、受测复制／codec 流量、解压开始／完成和缓存事件。CurrentBytes、PeakBytes、IdleBytes 来自同一快照。各分类 CurrentBytes 之和等于域 CurrentBytes；不可累加分类峰值。ActiveLeasePayloadBytes 与 CachedPayloadBytes 在各自拥有权维度中对共享堆载荷块去重，与资源分类及彼此重叠，不含映射载荷页和描述符页。
+
+公开预算统计是固定值类型快照。其构造与解构签名独立于私有 ABI，公开类型不承诺 native 内存布局。读取及转换统计快照不产生托管分配。
+
+`ReallocationCount` 记录已接入路径成功替换存储的扩容次数。`ImmediatelyReclaimableBytes` 包含已登记的空闲存储及仅由缓存持有的存储；`MappedLogicalBytes` 按映射所有者去重，与堆容量独立。`Flow.ReclaimedBytes` 当前记录空闲池物理释放；直接缓存释放归因仍待完成。这些字段不表示[分配清单](memory-accounting.zh-CN.md)中的未完成路径已实现完整计费。
 
 GetStatistics 保留五字段接口。AllocationCount 包含预留增长次数；StorageCopyBytes 不含最终交付复制。详细统计 AllocationCount 计受测已提交分配。Flow 在已接入的操作处累计，不等于完整分配器轨迹。GetMemoryStatistics 仍为逐句柄视图，不累加关联句柄；不注册 GC 内存压力估算。
 
 消息和 chunk 索引、长期 writer 索引列表、不可变摘要索引列表、批次描述符、缓存消息范围和排序描述符采用有界页面及分页目录。共享摘要保留页面，不克隆完整索引数组。writer 消息索引直接从页面序列化。
 
-**计费边界：**这不是进程工作集或完整分配器硬上限。操作系统工作线程栈／运行时资源、分配器碎片、剩余未接入控制块、冷路径 JSON／记录解析临时对象及旧 prepared-control 存储在计费之外。嵌套声明／索引 map 仍使用保守预留。详细统计尚不提供精确立即可回收字节和按域去重的映射长度。原生 Rust 分配探针包含经过新 codec 回调的分配，进程级计数包含工作线程；线程局部计数不含其他线程。未经过这些回调的直接外部分配仍不在探针范围内。
+**计费边界：**这不是进程工作集或完整分配器硬上限。操作系统工作线程栈／运行时资源和分配器碎片在受控堆之外。剩余未接入控制块、冷路径 JSON／记录解析临时对象及错误载荷属于未完成计费工作，不是获准排除项；当前范围见分配清单。可回收和映射长度字段覆盖已登记存储，不代表所有未关闭路径均已计费。原生 Rust 分配探针包含经过新 codec 回调的分配，进程级计数包含工作线程；线程局部计数不含其他线程。未经过这些回调的直接外部分配仍不在探针范围内。
 
 ### 完整 chunk 随机访问
 

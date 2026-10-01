@@ -2,9 +2,9 @@ use crate::sans_io::decompressor::{DecompressResult, Decompressor};
 use crate::McapResult;
 use crate::{
     codec_memory::{self, CodecMemory},
-    storage::{MemoryBudget, ResourceCategory},
+    storage::ResourceCategory,
 };
-use std::{ffi::c_void, ptr, sync::Arc};
+use std::{ffi::c_void, ptr};
 #[repr(C)]
 pub(crate) struct CustomMem {
     pub alloc: Option<unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void>,
@@ -20,7 +20,7 @@ extern "C" {
 }
 
 use lz4::liblz4::{
-    check_error, LZ4FDecompressionContext, LZ4F_decompress, LZ4F_freeDecompressionContext,
+    LZ4F_isError, LZ4F_getErrorName, LZ4FDecompressionContext, LZ4F_decompress, LZ4F_freeDecompressionContext,
     LZ4F_resetDecompressionContext, LZ4F_VERSION,
 };
 
@@ -33,8 +33,8 @@ pub struct Lz4Decoder {
 }
 
 impl Lz4Decoder {
-    pub(crate) fn with_budget(budget: Arc<MemoryBudget>) -> McapResult<Self> {
-        let memory = CodecMemory::new(budget, ResourceCategory::CodecDecoder)?;
+    pub(crate) fn with_budget(budget: crate::storage::BudgetRef) -> McapResult<Self> {
+        let memory = CodecMemory::new_fixed(budget, ResourceCategory::CodecDecoder)?;
         let context = unsafe {
             LZ4F_createDecompressionContext_advanced(
                 CustomMem {
@@ -47,7 +47,7 @@ impl Lz4Decoder {
             )
         };
         if context.0.is_null() {
-            return Err(memory.error().into());
+            return Err(memory.fixed_error().into());
         }
         Ok(Lz4Decoder {
             c: context,
@@ -87,10 +87,17 @@ impl Decompressor for Lz4Decoder {
             )
         };
         self.memory.progress(src_size, dst_size);
-        if let Some(error) = self.memory.take_error() {
+        if let Some(error) = self.memory.take_failure() {
             return Err(error.into());
         }
-        let need = check_error(code)?;
+        if unsafe { LZ4F_isError(code) } != 0 {
+            // The pinned public LZ4F API returns a string from its static error
+            // table. No context memory or private codec layout is borrowed.
+            let name: &'static str = unsafe { std::ffi::CStr::from_ptr(LZ4F_getErrorName(code)) }
+                .to_str().unwrap_or("invalid LZ4 error name");
+            return Err(crate::McapError::Lz4Error(name));
+        }
+        let need = code;
         self.next_read_size = need;
         if need == 0 {
             self.memory.decode_event(true);

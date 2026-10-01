@@ -3,6 +3,43 @@ namespace Fizzy.McapSharp.Tests;
 public class LeaseTests
 {
     [Fact]
+    public async Task UnrelatedSmallLeaseCannotMakeAnImpossibleReaderWaitForever()
+    {
+        static byte[] Recording(int size)
+        {
+            using var output=new MemoryStream();
+            using(var writer=new McapWriter(output,new(){UseChunks=false,Compression=McapCompression.None},true))
+            {
+                var channel=writer.RegisterChannel("t","raw");
+                writer.WriteMessage(new(channel,0,0,0),new byte[size]);
+                writer.Complete();
+            }
+            return output.ToArray();
+        }
+        var data=Recording(70000);
+        var probeBudget=new McapMemoryBudget(maxBlockBytes:80000,maxRetainedBytes:0);
+        using(var source=new MemoryStream(data))
+        using(var probe=new McapAsyncReader(source,new(){Memory=new(){Budget=probeBudget}},true))
+        using(var batch=await probe.ReadBatchLeaseAsync()) Assert.Single(Enumerable.Range(0,batch!.Count));
+        ulong limit=probeBudget.GetStatistics().PeakBytes-8192;
+        Assert.True(limit>80000);
+        var budget=new McapMemoryBudget(limit,80000,0);
+        McapMessageBatchLease small;
+        using(var reader=new McapBufferReader(Recording(1),McapBufferReadMode.Messages,false,new(){Budget=budget}))
+            small=reader.ReadBatchLease(1)!;
+        using(small)
+        {
+            Assert.InRange(budget.GetStatistics().CurrentBytes,1UL,8191UL);
+            using var source=new MemoryStream(data);
+            using var reader=new McapAsyncReader(source,new(){Memory=new(){Budget=budget}},true);
+            using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            await Assert.ThrowsAsync<McapException>(async()=>await reader.ReadBatchLeaseAsync(cancellationToken:deadline.Token));
+            Assert.Equal(1,small.GetPayload(0).Length);
+        }
+        BudgetAssertions.Idle(budget);
+    }
+
+    [Fact]
     public void IndependentRetainsReleaseConcurrentlyWithoutInvalidatingOwner()
     {
         var budget = new McapMemoryBudget(maxRetainedBytes: 0);
@@ -21,7 +58,7 @@ public class LeaseTests
         Assert.Equal(70000, batch.GetPayload(0).Length);
         batch.Dispose();
         batch.Dispose();
-        Assert.Equal(0UL, budget.GetStatistics().CurrentBytes);
+        BudgetAssertions.Idle(budget);
     }
 
     [Fact]
@@ -29,14 +66,14 @@ public class LeaseTests
     {
         var budget = new McapMemoryBudget(maxRetainedBytes: 0);
         var abandoned = CreateAbandonedLease(budget);
-        for (int attempt = 0; attempt < 5 && budget.GetStatistics().CurrentBytes != 0; attempt++)
+        for (int attempt = 0; attempt < 5 && budget.GetStatistics().CurrentBytes != BudgetAssertions.ControlBytes; attempt++)
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
         }
         Assert.False(abandoned.IsAlive);
-        Assert.Equal(0UL, budget.GetStatistics().CurrentBytes);
+        BudgetAssertions.Idle(budget);
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -55,7 +92,13 @@ public class LeaseTests
     [Fact]
     public void WriterDeclarationsUseTheSharedFiniteDomain()
     {
-        var budget=new McapMemoryBudget(8192,4096,0);
+        // Include the charged constructor document peak before testing later declaration pressure.
+        var probeBudget=new McapMemoryBudget(maxRetainedBytes:0);
+        using var probeStream=new MemoryStream();
+        ulong initializationPeak;
+        using(var probe=new McapWriter(probeStream,new(){UseChunks=false,Memory=new(){Budget=probeBudget}},true))
+            initializationPeak=probeBudget.GetStatistics().PeakBytes;
+        var budget=new McapMemoryBudget(initializationPeak+8192,4096,0);
         using var stream=new MemoryStream();
         using(var writer=new McapWriter(stream,new(){UseChunks=false,Memory=new(){Budget=budget}},true)) {
             var error=Assert.Throws<McapException>(()=> {for(int i=0;i<1000;i++) writer.RegisterChannel("channel-"+i,"raw");});
@@ -63,7 +106,7 @@ public class LeaseTests
             Assert.InRange(budget.GetStatistics().PeakBytes,1UL,budget.MaxBytes);
             Assert.Throws<InvalidOperationException>(()=>writer.Complete());
         }
-        Assert.Equal(0UL,budget.GetStatistics().CurrentBytes);
+        BudgetAssertions.Idle(budget);
     }
 
     [Theory]
@@ -94,7 +137,11 @@ public class LeaseTests
             var c=writer.RegisterChannel("t","raw");writer.WriteMessage(new(c,1,1,0),new byte[8000]);writer.Complete();
         }
         stream.Position=0;
-        using var reader=new McapAsyncReader(stream,new(){Memory=new(){Budget=new(8500,8400,0)}},true);
+        var probeBudget=new McapMemoryBudget(maxRetainedBytes:0);
+        ulong fixedBytes;
+        using(var probe=new McapAsyncReader(stream,new(){Memory=new(){Budget=probeBudget}},true))
+            fixedBytes=probeBudget.GetStatistics().CurrentBytes;
+        using var reader=new McapAsyncReader(stream,new(){Memory=new(){Budget=new(fixedBytes+8500,8400,0)}},true);
         await Assert.ThrowsAsync<McapException>(()=>reader.ReadBatchLeaseAsync(1).AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
     }
 
@@ -240,7 +287,13 @@ public class LeaseTests
             using var batch=reader.ReadBatchLease()!;
             Assert.Equal(2,batch.Count);
             Assert.Equal(0UL,reader.GetMemoryStatistics().CopiedBytes);
-            Assert.Equal(0UL,budget.GetStatistics().StorageCopyBytes);
+            var flow = budget.GetDetailedStatistics().Flow;
+            Assert.Equal(0UL, flow.InputCopyBytes);
+            Assert.Equal(0UL, flow.CompactionCopyBytes);
+            Assert.Equal(0UL, flow.DeliveryCopyBytes);
+            // Schema (s/raw/one byte) and channel (t0/raw/k/v), repeated in summary.
+            Assert.Equal(2UL * (1 + 3 + 1 + 2 + 3 + 1 + 1), flow.OtherCopyBytes);
+            Assert.Equal(flow.OtherCopyBytes, budget.GetStatistics().StorageCopyBytes);
             reader.Dispose();
             Assert.Equal(70000,batch.GetPayload(0).Length);
         }

@@ -45,6 +45,7 @@ public sealed partial class McapAsyncReader
             if (active) throw new InvalidOperationException("Consume the outstanding operation first.");
             if (consumptionMode == 1) throw new InvalidOperationException("Record and message-lease consumption cannot be mixed on an async reader.");
             memoryBudget.EnableNotifications();
+            parser.PrepareCapacityWait();
             consumptionMode = 2; active = true; leaseCompletion.Reset();
         }
         CompleteLease(maxMessages, targetPayloadBytes, cancellationToken);
@@ -65,7 +66,7 @@ public sealed partial class McapAsyncReader
     ValueTaskSourceStatus IValueTaskSource<McapMessageBatchLease?>.GetStatus(short token)=>leaseCompletion.GetStatus(token);
     void IValueTaskSource<McapMessageBatchLease?>.OnCompleted(Action<object?> continuation,object? state,short token,ValueTaskSourceOnCompletedFlags flags)
         =>leaseCompletion.OnCompleted(continuation,state,token,flags);
-    async ValueTask<McapMessageBatchLease?> ReadLeaseCore(int count, int target, CancellationToken token)
+    async ValueTask WaitForCapacity(CancellationToken token)
     {
         try
         {
@@ -73,15 +74,30 @@ public sealed partial class McapAsyncReader
             {
                 token.ThrowIfCancellationRequested();
                 var changed = memoryBudget.Signal.Observe();
+                int status = parser.CapacityWaitStatus();
+                if (status == 2) return;
+                if (status != 1) throw new InvalidOperationException("Native capacity ticket is not registered.");
+                await changed.WaitAsync(token).ConfigureAwait(false);
+            }
+        }
+        finally { parser.CancelCapacityWait(); }
+    }
+    async ValueTask<McapMessageBatchLease?> ReadLeaseCore(int count, int target, CancellationToken token)
+    {
+        try
+        {
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
                 var (status, batch, needed) = parser.LeaseStep(count, target);
                 if (batch is not null) return batch;
                 if (status == 1) return null;
-                if (status == 4) { await changed.WaitAsync(token).ConfigureAwait(false); continue; }
+                if (status == 4) { await WaitForCapacity(token).ConfigureAwait(false); continue; }
                 int size = checked((int)Math.Min((ulong)inputBufferSize, needed));
                 if (size == 0) throw new InvalidOperationException("Parser did not request input.");
                 Memory<byte> memory;
                 try { memory=input.Prepare(size); }
-                catch(McapMemoryBudgetUnavailableException) { await changed.WaitAsync(token).ConfigureAwait(false); continue; }
+                catch(McapMemoryBudgetUnavailableException) { await WaitForCapacity(token).ConfigureAwait(false); continue; }
                 int read = await stream.ReadAsync(memory, token).ConfigureAwait(false);
                 // Consume completion before cancellation, preserving native-buffer lifetime.
                 token.ThrowIfCancellationRequested();
@@ -94,6 +110,22 @@ public sealed partial class McapAsyncReader
 }
 public sealed partial class McapSansIoReader
 {
+    internal void PrepareCapacityWait()
+    {
+        int status = Native.fm_engine_wait_prepare(handle, out var result);
+        if (status < 0) throw Native.ConsumeError(result);
+    }
+    internal int CapacityWaitStatus()
+    {
+        int status = Native.fm_engine_wait_status(handle, false, out var result);
+        if (status < 0) throw Native.ConsumeError(result);
+        return status;
+    }
+    internal void CancelCapacityWait()
+    {
+        int status = Native.fm_engine_wait_status(handle, true, out var result);
+        if (status < 0) throw Native.ConsumeError(result);
+    }
     internal (int Status, McapMessageBatchLease? Batch, ulong Needed) LeaseStep(int count, int target)
     {
         int status = Native.fm_engine_lease_step(handle, (nuint)count, (nuint)target, out var p, out var e, out var result);
@@ -103,6 +135,10 @@ public sealed partial class McapSansIoReader
 }
 internal static partial class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int fm_engine_wait_prepare(EngineHandle engine, out Result result);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int fm_engine_wait_status(EngineHandle engine, [MarshalAs(UnmanagedType.I1)] bool cancel, out Result result);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int fm_engine_lease_step(EngineHandle engine, nuint count, nuint target, out IntPtr batch, out ReadEvent e, out Result result);
 }

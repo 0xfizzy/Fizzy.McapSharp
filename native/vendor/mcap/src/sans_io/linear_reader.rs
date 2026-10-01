@@ -1,6 +1,5 @@
 //! Contains a [sans-io](https://sans-io.readthedocs.io/) MCAP reader struct, [`LinearReader`].
 //! This can be used to read MCAP data from any source of bytes.
-use std::collections::HashMap;
 
 use super::decompressor::Decompressor;
 use crate::{
@@ -39,9 +38,49 @@ enum CurrentlyReading {
 }
 use CurrentlyReading::*;
 
+// Only the two supported codecs can occupy these inline cache slots. Keeping
+// adapters inline removes the uncharged Box, hash table and per-chunk string key.
+enum Decoder {
+    #[cfg(feature = "lz4")]
+    Lz4(lz4::Lz4Decoder),
+    #[cfg(feature = "zstd")]
+    Zstd(zstd::ZstdDecoder),
+}
+impl std::ops::Deref for Decoder {
+    type Target = dyn Decompressor;
+    fn deref(&self) -> &Self::Target {
+        #[cfg(not(any(feature = "lz4", feature = "zstd")))]
+        {
+            match *self {}
+        }
+        #[cfg(any(feature = "lz4", feature = "zstd"))]
+        match self {
+            #[cfg(feature = "lz4")]
+            Self::Lz4(decoder) => decoder,
+            #[cfg(feature = "zstd")]
+            Self::Zstd(decoder) => decoder,
+        }
+    }
+}
+impl std::ops::DerefMut for Decoder {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        #[cfg(not(any(feature = "lz4", feature = "zstd")))]
+        {
+            match *self {}
+        }
+        #[cfg(any(feature = "lz4", feature = "zstd"))]
+        match self {
+            #[cfg(feature = "lz4")]
+            Self::Lz4(decoder) => decoder,
+            #[cfg(feature = "zstd")]
+            Self::Zstd(decoder) => decoder,
+        }
+    }
+}
+
 struct ChunkState {
     // The decompressor to use for loading records for this chunk. None if not compressed.
-    decompressor: Option<Box<dyn Decompressor>>,
+    decompressor: Option<Decoder>,
     // For uncompressed chunks, records are sliced directly out of `file_data`.  Therefore we can't
     // use `decompressed_content.hasher` to calculate a CRC, so we maintain a separate hasher for
     // this purpose.
@@ -62,8 +101,8 @@ struct ChunkState {
 const OPCODE_LEN_SIZE: usize = 1 + 8;
 
 mod rw_buf {
-    use crate::storage::{MemoryBudget, SharedBytes, WriteBuffer};
-    use std::sync::Arc;
+    use crate::storage::{SharedBytes, WriteBuffer};
+
     #[derive(Default)]
     pub struct RwBuf {
         data: WriteBuffer,
@@ -73,19 +112,20 @@ mod rw_buf {
         hasher: Option<crc32fast::Hasher>,
     }
     impl RwBuf {
-        pub fn new(hash: bool) -> Self {
+        pub fn with_budget(hash: bool, budget: crate::storage::BudgetRef, category: crate::storage::ResourceCategory) -> Self {
             Self {
+                data: WriteBuffer::with_budget(budget, category),
+                start: 0, end: 0, writable_end: 0,
                 hasher: hash.then(crc32fast::Hasher::new),
-                ..Default::default()
             }
         }
         pub fn category(&mut self, category: crate::storage::ResourceCategory) {
             self.data.category = category;
         }
-        pub fn domain(&self) -> Arc<MemoryBudget> {
+        pub fn domain(&self) -> crate::storage::BudgetRef {
             self.data.budget.clone()
         }
-        pub fn budget(&mut self, budget: Arc<MemoryBudget>) {
+        pub fn budget(&mut self, budget: crate::storage::BudgetRef) {
             self.data.budget = budget;
         }
         pub fn shared_input(&mut self, data: SharedBytes) {
@@ -134,7 +174,11 @@ mod rw_buf {
             self.data.reserve(n, 0..self.end)
         }
         pub fn tail_with_size(&mut self, n: usize) -> std::io::Result<&mut [u8]> {
-            if self.start > 4096 && self.start > self.len() {
+            // No unread bytes require a parser pin. Release it before trying to
+            // allocate, so an external lease can actually unblock a retry.
+            if self.len() == 0 {
+                self.clear();
+            } else if self.start > 4096 && self.start > self.len() {
                 if self.data.exclusive() {
                     let end = self.end;
                     unsafe {
@@ -152,8 +196,6 @@ mod rw_buf {
                 }
                 self.end -= self.start;
                 self.start = 0;
-            } else if self.len() == 0 {
-                self.clear();
             }
             self.reserve_exact(n)?;
             Ok(self.unwritten_mut())
@@ -322,11 +364,12 @@ pub struct LinearReader {
     // data decompressed from compressed chunks
     decompressed_content: RwBuf,
     // decompressor that can be re-used between chunks.
-    decompressors: HashMap<String, Box<dyn Decompressor>>,
+    decompressors: [Option<Decoder>; 2],
     // Stores the number of bytes written into this reader since the last `next_event()` call.
     options: LinearReaderOptions,
     at_eof: bool,
     pending_capacity: Option<usize>,
+    budget_locked: bool,
 }
 
 impl Default for LinearReader {
@@ -341,39 +384,53 @@ impl LinearReader {
     }
 
     pub fn new_with_options(options: LinearReaderOptions) -> Self {
+        Self::new_with_options_and_budget(options, Default::default())
+    }
+
+    /// Construct directly in the selected resource domain without temporary domains.
+    pub fn new_with_options_and_budget(
+        options: LinearReaderOptions,
+        budget: crate::storage::BudgetRef,
+    ) -> Self {
         LinearReader {
             currently_reading: if options.skip_start_magic {
                 FileRecord
             } else {
                 StartMagic
             },
-            file_data: RwBuf::new(options.validate_data_section_crc),
-            decompressed_content: RwBuf::new(
+            file_data: RwBuf::with_budget(options.validate_data_section_crc, budget.clone(), crate::storage::ResourceCategory::Input),
+            decompressed_content: RwBuf::with_budget(
                 options.validate_chunk_crcs && !options.prevalidate_chunk_crcs,
+                budget, crate::storage::ResourceCategory::Decompressed,
             ),
             options,
             chunk_state: None,
             decompressors: Default::default(),
             at_eof: false,
             pending_capacity: None,
+            budget_locked: false,
         }
     }
 
     /// Constructs a linear reader that will iterate through all records in a chunk.
     pub(crate) fn for_chunk(header: ChunkHeader) -> McapResult<Self> {
-        let mut result = Self::new_with_options(
+        Self::for_chunk_with_budget(header, crate::storage::BudgetRef::try_default()?)
+    }
+    pub(crate) fn for_chunk_with_budget(
+        header: ChunkHeader,
+        budget: crate::storage::BudgetRef,
+    ) -> McapResult<Self> {
+        let mut result = Self::new_with_options_and_budget(
             LinearReaderOptions::default()
                 .with_skip_end_magic(true)
                 .with_skip_start_magic(true)
                 .with_validate_chunk_crcs(true),
+            budget.clone(),
         );
+        result.budget_locked = true;
         result.currently_reading = ChunkRecord;
         result.chunk_state = Some(ChunkState {
-            decompressor: get_decompressor(
-                &mut HashMap::new(),
-                &header.compression,
-                Default::default(),
-            )?,
+            decompressor: get_decompressor(&mut [None, None], &header.compression, budget)?,
             crc: header.uncompressed_crc,
             uncompressed_data_hasher: Some(crc32fast::Hasher::new()),
             uncompressed_len: header.uncompressed_size,
@@ -393,17 +450,33 @@ impl LinearReader {
 
     /// Fallible input allocation with the configured storage budget.
     pub fn try_insert(&mut self, size: usize) -> McapResult<&mut [u8]> {
-        Ok(self.file_data.tail_with_size(size)?)
+        let data = self.file_data.tail_with_size(size)?;
+        self.budget_locked = true;
+        Ok(data)
     }
     /// Select the resource domain before feeding input.
-    pub fn set_memory_budget(&mut self, budget: std::sync::Arc<crate::storage::MemoryBudget>) {
+    pub fn set_memory_budget(
+        &mut self,
+        budget: crate::storage::BudgetRef,
+    ) -> McapResult<()> {
+        if crate::storage::BudgetRef::ptr_eq(&self.file_data.domain(), &budget) {
+            return Ok(());
+        }
+        if self.budget_locked {
+            return Err(std::io::Error::other(
+                "Parser memory domain is immutable after allocation or advancement",
+            )
+            .into());
+        }
         self.file_data.budget(budget.clone());
         self.decompressed_content.budget(budget);
         self.decompressed_content
             .category(crate::storage::ResourceCategory::Decompressed);
+        Ok(())
     }
     /// Transfer immutable input without copying. Requires no unread input.
     pub fn supply_shared(&mut self, data: crate::storage::SharedBytes) {
+        self.budget_locked = true;
         if data.as_ref().is_empty() {
             self.at_eof = true;
         }
@@ -431,6 +504,7 @@ impl LinearReader {
     ///
     /// Panics if `read` is greater than the last `to_write` provided to [`Self::insert`].
     pub fn notify_read(&mut self, written: usize) {
+        self.budget_locked = true;
         if written == 0 {
             self.at_eof = true;
         }
@@ -442,6 +516,7 @@ impl LinearReader {
 
     /// Yields the next event the caller should take to progress through the file.
     pub fn next_event(&mut self) -> Option<McapResult<LinearReadEvent<'_>>> {
+        self.budget_locked = true;
         if self.at_eof {
             // At EOF. If the reader is not expecting end magic or has already seen it, and it isn't
             // in the middle of a record or chunk, this is OK.
@@ -627,13 +702,14 @@ impl LinearReader {
                     let compression_len =
                         u32::from_le_bytes(min_header_buf[28..32].try_into().unwrap());
                     let header_len = MIN_CHUNK_HEADER_SIZE + compression_len as usize;
+                    let domain = self.file_data.domain();
                     let header_buf = consume!(header_len);
-                    let header: ChunkHeader = check!(std::io::Cursor::new(header_buf).read_le());
+                    let header = check!(crate::records::BorrowedChunkHeader::read(header_buf));
                     // Re-use or construct a compressor
                     let decompressor = check!(get_decompressor(
                         &mut self.decompressors,
-                        &header.compression,
-                        self.file_data.domain()
+                        header.compression,
+                        domain
                     ));
 
                     let chunk_data_len = check!(len
@@ -803,8 +879,8 @@ impl LinearReader {
                     let _ = consume!(state.padding_after_compressed_data);
                     if let Some(mut decompressor) = state.decompressor.take() {
                         check!(decompressor.reset());
-                        self.decompressors
-                            .insert(decompressor.name().into(), decompressor);
+                        let slot = if decompressor.name() == "lz4" { 0 } else { 1 };
+                        self.decompressors[slot] = Some(decompressor);
                         if let Some(hasher) = self.decompressed_content.hasher_mut().take() {
                             let calculated = hasher.finalize();
                             let saved = state.crc;
@@ -870,19 +946,24 @@ fn clamp_to_usize(len: u64) -> usize {
 }
 
 fn get_decompressor(
-    decompressors: &mut HashMap<String, Box<dyn Decompressor>>,
+    decompressors: &mut [Option<Decoder>; 2],
     name: &str,
-    budget: std::sync::Arc<crate::storage::MemoryBudget>,
-) -> McapResult<Option<Box<dyn Decompressor>>> {
-    if let Some(decompressor) = decompressors.remove(name) {
+    budget: crate::storage::BudgetRef,
+) -> McapResult<Option<Decoder>> {
+    let slot = match name {
+        "lz4" => 0,
+        "zstd" => 1,
+        "" => return Ok(None),
+        _ => return Err(McapError::UnsupportedCompression(name.into())),
+    };
+    if let Some(decompressor) = decompressors[slot].take() {
         return Ok(Some(decompressor));
     }
     match name {
         #[cfg(feature = "zstd")]
-        "zstd" => Ok(Some(Box::new(zstd::ZstdDecoder::with_budget(budget)?))),
+        "zstd" => Ok(Some(Decoder::Zstd(zstd::ZstdDecoder::with_budget(budget)?))),
         #[cfg(feature = "lz4")]
-        "lz4" => Ok(Some(Box::new(lz4::Lz4Decoder::with_budget(budget)?))),
-        "" => Ok(None),
+        "lz4" => Ok(Some(Decoder::Lz4(lz4::Lz4Decoder::with_budget(budget)?))),
         _ => Err(McapError::UnsupportedCompression(name.into())),
     }
 }
@@ -891,7 +972,7 @@ fn get_decompressor(
 // either the input is exhausted or enough data has been written. Returns None if all required
 // data has been decompressed, or Some(need) if more bytes need to be read from the input.
 fn decompress_inner(
-    decompressor: &mut Box<dyn Decompressor>,
+    decompressor: &mut Decoder,
     n: usize,
     src_buf: &mut RwBuf,
     dest_buf: &mut RwBuf,
@@ -965,6 +1046,80 @@ mod tests {
             writer.finish()?;
         }
         Ok(buf.into_inner())
+    }
+
+    #[test]
+    fn consumed_leased_input_releases_parser_pin_before_capacity_retry() {
+        use crate::storage::{BudgetLimits, OwnerKind, ResourceCategory};
+        let domain=crate::storage::BudgetRef::new(BudgetLimits {total:(12000) + crate::storage::BudgetRef::allocation_size(),block:8192,retained:0}).unwrap();
+        let mut buffer=rw_buf::RwBuf::with_budget(false,domain.clone(),ResourceCategory::Input);
+        let data=buffer.tail_with_size(8192).unwrap();
+        data.fill(7);
+        let pointer=data.as_ptr();
+        buffer.mark_written(8192);
+        let mut lease=buffer.share(pointer,8192).unwrap();
+        lease.set_owner(OwnerKind::Lease);
+        buffer.mark_read(8192);
+        assert!(buffer.tail_with_size(4096).is_err());
+        assert_eq!(domain.ownership_statistics().bytes[OwnerKind::Parser as usize],0);
+        assert!(domain.ownership_statistics().externally_releasable>8192);
+        assert_eq!(lease.as_ref(), &[7;8192]);
+        drop(lease);
+        assert_eq!(domain.workload_statistics().current,0);
+        assert_eq!(buffer.tail_with_size(4096).unwrap().len(),4096);
+        drop(buffer);
+        assert_eq!(domain.workload_statistics().current,0);
+    }
+    #[test]
+    fn memory_domain_freezes_after_allocation_or_progress() {
+
+
+        let original = crate::storage::BudgetRef::new(crate::storage::BudgetLimits {
+            retained: 0,
+            ..Default::default()
+        }).unwrap();
+        let replacement = crate::storage::BudgetRef::new(Default::default()).unwrap();
+        let mut reader = LinearReader::new();
+        reader.set_memory_budget(original.clone()).unwrap();
+        reader.try_insert(128).unwrap();
+        let charged = original.workload_statistics().current;
+        assert!(charged > 0);
+        assert!(reader.set_memory_budget(replacement.clone()).is_err());
+        reader.set_memory_budget(original.clone()).unwrap();
+        assert_eq!(original.workload_statistics().current, charged);
+        assert_eq!(replacement.workload_statistics().current, 0);
+        drop(reader);
+        assert_eq!(original.workload_statistics().current, 0);
+        let mut reader = LinearReader::new();
+        reader.set_memory_budget(original.clone()).unwrap();
+        let _ = reader.next_event();
+        assert!(reader.set_memory_budget(replacement).is_err());
+        reader.set_memory_budget(original).unwrap();
+    }
+
+    #[test]
+    fn chunk_codec_uses_selected_domain_from_construction() {
+
+
+        for compression in ["lz4", "zstd"] {
+            let domain = crate::storage::BudgetRef::new(Default::default()).unwrap();
+            let header = ChunkHeader {
+                message_start_time: 0,
+                message_end_time: 0,
+                uncompressed_size: 0,
+                uncompressed_crc: 0,
+                compression: compression.into(),
+                compressed_size: 0,
+            };
+            let mut reader = LinearReader::for_chunk_with_budget(header, domain.clone()).unwrap();
+            assert!(domain.workload_statistics().current > 0);
+            reader.set_memory_budget(domain.clone()).unwrap();
+            assert!(reader
+                .set_memory_budget(crate::storage::BudgetRef::new(Default::default()).unwrap())
+                .is_err());
+            drop(reader);
+            assert_eq!(domain.workload_statistics().current, 0);
+        }
     }
 
     #[test]

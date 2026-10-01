@@ -4,6 +4,25 @@ using System.Runtime.InteropServices;
 namespace Fizzy.McapSharp.Tests;
 public sealed class NativeInteropTests
 {
+    [Fact]
+    public void FixedErrorResponsePreservesSafeRejectionAndMarksLongUnicodeText()
+    {
+        using var storage = new MemoryStream();
+        using var writer = new McapWriter(storage, leaveOpen: true);
+        var name = string.Concat(Enumerable.Repeat("\"\\\n中文😀", 1024));
+        writer.RegisterSchema(1, name, "raw", [1]);
+        var error = Assert.Throws<McapException>(() => writer.RegisterSchema(1, name, "raw", [2]));
+        Assert.Equal(McapErrorKind.ConflictingSchemas, error.Kind);
+        Assert.True(error.CanContinueWriting);
+        Assert.True(error.Details.GetProperty("truncated").GetBoolean());
+        Assert.EndsWith("[truncated]", error.Message);
+        Assert.EndsWith("[truncated]", error.Details.GetProperty("name").GetString());
+        Assert.DoesNotContain("\uFFFD", error.Message);
+        var channel = writer.RegisterChannel("topic", "raw", 1);
+        writer.WriteMessage(new McapMessageHeader(channel, 0, 1, 1), [3]);
+        writer.Complete();
+    }
+
     [Theory]
     [InlineData(McapCompression.None, false)]
     [InlineData(McapCompression.Lz4, false)]
@@ -343,16 +362,16 @@ public sealed class NativeInteropTests
     [Fact]
     public void AbiLayouts()
     {
-        Assert.Equal(10u, Native.fm_abi_version());
+        Assert.Equal(11u, Native.fm_abi_version());
         Assert.Equal(56, Marshal.SizeOf<Native.ReadEvent>());
         Assert.Equal(32, Marshal.OffsetOf<Native.ReadEvent>(nameof(Native.ReadEvent.Header)).ToInt32());
         Assert.Equal(24, Marshal.SizeOf<Native.NativeHeader>());
         Assert.Equal(8, Marshal.OffsetOf<Native.NativeHeader>(nameof(Native.NativeHeader.LogTime)).ToInt32());
-        Assert.Equal(40, Marshal.SizeOf<Native.Result>());
+        Assert.Equal(4144, Marshal.SizeOf<Native.Result>());
         Assert.Equal(48, Marshal.SizeOf<Native.Callbacks>());
         void Offsets<T>(string[] fields, int[] expected) where T : struct =>
             Assert.Equal(expected, fields.Select(name => Marshal.OffsetOf<T>(name).ToInt32()));
-        Offsets<Native.Result>(["Json", "JsonLength", "Data", "DataLength", "Value"], [0, 8, 16, 24, 32]);
+        Offsets<Native.Result>(["Json", "JsonLength", "Data", "DataLength", "Value", "ErrorLength", "ErrorBytes"], [0, 8, 16, 24, 32, 40, 48]);
         Offsets<Native.NativeHeader>(["ChannelId", "Reserved", "Sequence", "LogTime", "PublishTime"], [0, 2, 4, 8, 16]);
         Offsets<Native.Callbacks>(["Context", "Read", "Write", "Seek", "Flush", "Seekable"], [0, 8, 16, 24, 32, 40]);
         Offsets<Native.ReadEvent>(["Kind", "Opcode", "Length", "Offset", "Origin", "Reserved", "Header"], [0, 4, 8, 16, 24, 28, 32]);
