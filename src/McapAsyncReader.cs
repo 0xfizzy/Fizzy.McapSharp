@@ -39,6 +39,7 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
         // Inline completion avoids allocating a ThreadPool work item for every await.
         // A consumer may resume on the completing I/O thread; no context is imposed.
         completion.RunContinuationsAsynchronously = false;
+        leaseCompletion.RunContinuationsAsynchronously = false;
     }
     public ValueTask<McapRecordReadResult> ReadNextRecordAsync(Memory<byte> destination, CancellationToken cancellationToken = default)
     {
@@ -57,7 +58,14 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
             return new(this, completion.Version);
         }
     }
-    void Resume() { lock (gate) Drive(true); }
+    void Resume()
+    {
+        lock (gate)
+        {
+            if (consumptionMode == 2) DriveLease(true);
+            else Drive(true);
+        }
+    }
     void Drive(bool resumed)
     {
         try

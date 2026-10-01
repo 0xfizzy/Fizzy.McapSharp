@@ -152,6 +152,18 @@ python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stres
 
 Release 原生测试以指针一致性、释放后的租约有效性及测试专用线程局部分配计数检查交付路径。计数器不进入生产构建，也不代表原生总内存上限或 codec 分配统计。
 
+输入预留测试使用 1/8/32 MiB 记录比较完整需求预留与 64 KiB 增量预留；托管测试覆盖所有压缩模式下的短读、重试及严格验证。Lease 存储诊断推进 512 批，固定保留 1/4/16 批在途窗口，按地址去重底层分配并比较中段与尾段保留容量。复制输入容量与映射地址空间分别报告。这是固定夹具的保留检查，不是进程 RSS 上限；分配计数覆盖被测线程的 Rust 分配，不包含 codec 通过其他分配器申请的内存。指针测试覆盖 reader/snapshot 释放及实际缓存驱逐后的保留消息。Lease 批量写入另验证无压缩输出收到原有 payload 地址，以及两种 header 重载在预热后均为托管 0 B。
+
+默认分配 runner 包含异步 lease 门禁。专项运行：
+
+```powershell
+dotnet run --project tests/Allocations -c Release -- lease-gate
+dotnet run --project tests/Allocations -c Release -- lease-profile
+cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- --nocapture
+```
+
+`lease-gate` 固定每批一条消息和批次数，比较同步完成与 64 KiB、4 KiB、512 字节 I/O 下的真实挂起；汇总调用线程与工作线程分配，要求与同步完成的结果对象基线相等。另以直接 await 检查 I/O 线程上的 continuation 重入。`lease-profile` 输出相同测量而不强制分配相等，包含吞吐及批次延迟中位数/p95。原生诊断另报告分配次数、字节数和可识别的保留存储。报告放在忽略的 artifacts 下；诊断计时包含观测开销，不设性能通过阈值。
+
 `python scripts/test_upstream.py` 分别编译未修改的 registry mcap 和本地补丁版本，以独立进程比较写入字节、顺序与索引读取、截断及损坏输入。两者使用相同固定依赖版本；未修改参考工程有独立 Cargo.lock，不继承本地补丁。相同补丁源码之间的测试只证明内部一致性。
 
 `python scripts/check_vendor.py` 检查原始文件清单与本地补丁哈希。更新补丁时保持 UPSTREAM.json 不变，审阅差异后更新 PATCHES.json。允许范围、替代方案及验证要求见[本地补丁](patches.zh-CN.md)；不向上游提交。

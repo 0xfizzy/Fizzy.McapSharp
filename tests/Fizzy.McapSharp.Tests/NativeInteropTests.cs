@@ -360,7 +360,7 @@ public sealed class NativeInteropTests
     [Fact]
     public void AbiLayouts()
     {
-        Assert.Equal(12u, Native.fm_abi_version());
+        Assert.Equal(13u, Native.fm_abi_version());
         Assert.Equal(56, Marshal.SizeOf<Native.ReadEvent>());
         Assert.Equal(32, Marshal.OffsetOf<Native.ReadEvent>(nameof(Native.ReadEvent.Header)).ToInt32());
         Assert.Equal(24, Marshal.SizeOf<Native.NativeHeader>());

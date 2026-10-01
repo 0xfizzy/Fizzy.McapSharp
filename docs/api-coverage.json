@@ -1551,10 +1551,14 @@
     {
       "rust": "write.rs::Writer::write_to_known_channel",
       "kind": "method",
-      "managed": "McapWriter.WriteMessage(header, span)",
+      "managed": "McapWriter.WriteMessage(header, span) / WriteBatch(batchLease[, headers])",
       "native": "write::Writer::write_to_known_channel",
-      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / coverage_tests",
+      "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / LeaseWriteTests / BatchGate / coverage_tests",
       "files": [
+        "tests/Fizzy.McapSharp.Tests/LeaseWriteTests.cs",
+        "tests/Allocations/BatchGate.cs",
+        "src/Batch.cs",
+        "native/src/batch.rs",
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",

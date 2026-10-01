@@ -6,6 +6,7 @@ namespace Fizzy.McapSharp;
 public sealed partial class McapAsyncReader
 {
     int consumptionMode;
+    int leaseCount, leaseTarget;
     ManualResetValueTaskSourceCore<McapMessageBatchLease?> leaseCompletion;
     /// <summary>Reads stable messages directly from native parser storage. Cancellation terminates this reader.</summary>
     public ValueTask<McapMessageBatchLease?> ReadBatchLeaseAsync(int maxMessages = 256,
@@ -19,15 +20,15 @@ public sealed partial class McapAsyncReader
             if (failed) throw new InvalidOperationException("Reader failed; open a new reader.");
             if (active) throw new InvalidOperationException("Consume the outstanding operation first.");
             if (consumptionMode == 1) throw new InvalidOperationException("Record and message-lease consumption cannot be mixed on an async reader.");
-            consumptionMode = 2; active = true; leaseCompletion.Reset();
+            consumptionMode = 2;
+            active = true;
+            leaseCount = maxMessages;
+            leaseTarget = targetPayloadBytes;
+            cancellation = cancellationToken;
+            leaseCompletion.Reset();
+            DriveLease(false);
+            return new(this, leaseCompletion.Version);
         }
-        CompleteLease(maxMessages, targetPayloadBytes, cancellationToken);
-        return new(this, leaseCompletion.Version);
-    }
-    async void CompleteLease(int count, int target, CancellationToken token)
-    {
-        try { var batch=await ReadLeaseCore(count,target,token).ConfigureAwait(false); lock(gate) leaseCompletion.SetResult(batch); }
-        catch(Exception e) { lock(gate) { failed=true; leaseCompletion.SetException(e); } }
     }
     McapMessageBatchLease? IValueTaskSource<McapMessageBatchLease?>.GetResult(short token)
     {
@@ -39,27 +40,36 @@ public sealed partial class McapAsyncReader
     ValueTaskSourceStatus IValueTaskSource<McapMessageBatchLease?>.GetStatus(short token)=>leaseCompletion.GetStatus(token);
     void IValueTaskSource<McapMessageBatchLease?>.OnCompleted(Action<object?> continuation,object? state,short token,ValueTaskSourceOnCompletedFlags flags)
         =>leaseCompletion.OnCompleted(continuation,state,token,flags);
-    async ValueTask<McapMessageBatchLease?> ReadLeaseCore(int count, int target, CancellationToken token)
+    void DriveLease(bool resumed)
     {
         try
         {
+            if (resumed)
+            {
+                // Consume I/O completion before checking cancellation or releasing parser storage.
+                int read = awaiter.GetResult();
+                cancellation.ThrowIfCancellationRequested();
+                input.Complete(read);
+            }
             while (true)
             {
-                token.ThrowIfCancellationRequested();
-                var (status, batch, needed) = parser.LeaseStep(count, target);
-                if (batch is not null) return batch;
-                if (status == 1) return null;
+                cancellation.ThrowIfCancellationRequested();
+                var (status, batch, needed) = parser.LeaseStep(leaseCount, leaseTarget);
+                if (batch is not null || status == 1)
+                {
+                    leaseCompletion.SetResult(batch);
+                    return;
+                }
                 int size = checked((int)Math.Min((ulong)inputBufferSize, needed));
                 if (size == 0) throw new InvalidOperationException("Parser did not request input.");
-                Memory<byte> memory = input.Prepare(size);
-                int read = await stream.ReadAsync(memory, token).ConfigureAwait(false);
-                // Consume completion before cancellation, preserving native-buffer lifetime.
-                token.ThrowIfCancellationRequested();
+                awaiter = stream.ReadAsync(input.Prepare(size), cancellation).ConfigureAwait(false).GetAwaiter();
+                if (!awaiter.IsCompleted) { awaiter.UnsafeOnCompleted(resume); return; }
+                int read = awaiter.GetResult();
+                cancellation.ThrowIfCancellationRequested();
                 input.Complete(read);
             }
         }
-        catch { lock (gate) failed = true; throw; }
-
+        catch (Exception error) { failed = true; leaseCompletion.SetException(error); }
     }
 }
 public sealed partial class McapSansIoReader

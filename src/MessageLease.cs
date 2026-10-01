@@ -8,6 +8,7 @@ namespace Fizzy.McapSharp;
 public sealed class McapMessageBatchLease : IDisposable
 {
     readonly MessageLeaseHandle handle;
+    internal MessageLeaseHandle Handle => handle;
     public int Count { get; }
     internal McapMessageBatchLease(IntPtr p, int count) { handle = new(p); Count = count; }
     unsafe ReadOnlySpan<byte> Get(int index, out McapMessageHeader header)

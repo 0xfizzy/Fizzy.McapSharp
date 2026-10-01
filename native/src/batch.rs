@@ -91,6 +91,67 @@ pub unsafe extern "C" fn fm_writer_batch(
     writer_result(handle, status)
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn fm_writer_lease_batch(
+    handle: *mut Writer,
+    batch: *const lease::Batch,
+    headers: *const MessageHeader,
+    header_count: usize,
+    completed: *mut usize,
+    out: *mut Response,
+) -> i32 {
+    if !completed.is_null() {
+        *completed = 0;
+    }
+    let status = writer_guard(out, |_| {
+        let completed = completed.as_mut().ok_or("Null completion count")?;
+        let batch = batch.as_ref().ok_or("Null lease")?;
+        let w = handle.as_mut().ok_or("Null writer")?;
+        if w.failed || w.attachment.is_some() {
+            return Err("Writer unavailable".into());
+        }
+        let inner = w.inner.as_mut().ok_or("Writer completed")?;
+        let headers = if headers.is_null() && header_count == 0 {
+            None
+        } else {
+            if headers.is_null()
+                || header_count != batch.messages.len()
+                || header_count > isize::MAX as usize / std::mem::size_of::<MessageHeader>()
+            {
+                return Err("Invalid lease batch headers".into());
+            }
+            Some(slice::from_raw_parts(headers, header_count))
+        };
+        // Complete channel validation precedes all writes, including when using replacement headers.
+        for (i, message) in batch.messages.iter().enumerate() {
+            let header = headers.map_or(&message.header, |h| &h[i]);
+            if !inner.contains_channel(header.channel_id) {
+                let error = mcap::McapError::UnknownChannel(header.sequence, header.channel_id);
+                return Err(if w.recoverable_errors & 16 != 0 {
+                    Box::new(SafeRejection(error)) as Error
+                } else {
+                    Box::new(error) as Error
+                });
+            }
+        }
+        for (i, message) in batch.messages.iter().enumerate() {
+            let header = headers.map_or(&message.header, |h| &h[i]);
+            inner.write_to_known_channel(
+                &records::MessageHeader {
+                    channel_id: header.channel_id,
+                    sequence: header.sequence,
+                    log_time: header.log_time,
+                    publish_time: header.publish_time,
+                },
+                message.data.as_ref(),
+            )?;
+            *completed += 1;
+        }
+        Ok(0)
+    });
+    writer_result(handle, status)
+}
+
 unsafe fn next(
     kind: u32,
     handle: *mut std::ffi::c_void,

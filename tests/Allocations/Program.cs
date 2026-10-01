@@ -5,6 +5,8 @@ using System.Diagnostics;
 throw new InvalidOperationException("Run allocation acceptance in Release.");
 #endif
 if (args.Length > 0 && args[0] == "memory-profile") { MemoryProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 65536); return; }
+if (args.Contains("lease-profile")) { LeaseGate.Run(false); return; }
+if (args.Contains("lease-gate")) { LeaseGate.Run(true); return; }
 if (args.Contains("extended")) { Extended.Run(); MemoryGate.Run(); ConvenienceGate.Run(); return; }
 BatchGate.Run();
 const int count = 10000;
@@ -106,6 +108,7 @@ foreach (var compression in Enum.GetValues<McapCompression>())
 
 Extended.Run();
 MemoryGate.Run(); ConvenienceGate.Run();
+LeaseGate.Run(true);
 
 sealed class SpanStream(Stream inner, bool seekable) : Stream
 {

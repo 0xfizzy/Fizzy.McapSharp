@@ -154,6 +154,18 @@ Package jobs restore only the candidate nupkg into isolated caches. In addition 
 
 Release native tests check pointer identity, retained lease lifetime and delivery allocations with a test-only thread-local allocator counter. The counter is absent from production builds and is not a total native-memory limit or codec allocation statistic.
 
+Input reservation tests compare complete-request reservation with 64 KiB incremental reservation on 1/8/32 MiB records. Managed tests exercise short reads, retries and strict validation under all compression modes. Lease storage diagnostics advance 512 batches with fixed 1/4/16-batch retention windows, deduplicate backing allocations by address, and compare middle/tail retained capacities. Copied-input capacity and mapped address space are reported separately. These are fixture-specific retention checks, not a process RSS bound; allocator counters cover the measured thread's Rust allocations, excluding codec allocations through other allocators. Pointer tests cover retained messages after reader/snapshot disposal and actual cache eviction. Lease batch writing additionally verifies that uncompressed output receives the original payload addresses and that both header overloads allocate zero managed bytes after warm-up.
+
+The default allocation runner includes the async lease gate. For focused runs:
+
+```powershell
+dotnet run --project tests/Allocations -c Release -- lease-gate
+dotnet run --project tests/Allocations -c Release -- lease-profile
+cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- --nocapture
+```
+
+`lease-gate` compares fixed one-message batch counts with inline completion and forced suspension at 64 KiB, 4 KiB and 512-byte I/O quanta. It sums caller/worker allocations and requires the same allocation total as the inline result-object baseline. A separate direct-await exercise checks continuation reentry on the I/O thread. `lease-profile` reports the same measurements without enforcing allocation equality, including throughput and median/p95 batch latency. Native diagnostics also report allocation counts/bytes and known retained storage. Keep reports under ignored artifacts; diagnostic timing includes instrumentation and has no performance pass threshold.
+
 `python scripts/test_upstream.py` compiles unmodified registry mcap and the local patched version separately, comparing write bytes, sequential/indexed reads, truncations and corrupt input in independent processes. Both use the same pinned dependency versions; the reference project has its own Cargo.lock and does not inherit the patch. Tests using the same patched source establish internal consistency only.
 
 `python scripts/check_vendor.py` verifies the original file inventory and local patch hashes. Keep UPSTREAM.json unchanged; review differences before updating PATCHES.json. See [local patches](patches.md) for allowed scope, alternatives and validation requirements. Do not submit patches upstream.

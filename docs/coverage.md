@@ -31,4 +31,6 @@ Local shared-storage and channel-query declarations are marked `local-extension`
 
 `BatchTests`, `LeaseTests`, `BatchSeekTests` and the Release allocation gate cover binding batches, borrowing and leases. `scripts/test_upstream.py` checks bounded format scenarios against an independent unmodified upstream process. See [local patches](patches.md) for necessity, alternatives, ownership and validation boundaries.
 
+`LeaseWriteTests` verifies binding-provided lease batch forwarding and replacement headers through upstream known-channel writes, including pointer identity, preflight and completed-prefix failures. `InputReservationTests`, `LeaseStorageTests`, `AsyncLeaseStateTests`, native memory probes and `LeaseGate` cover input reservation, shared retention/eviction, cancellation and suspension costs. These are binding behaviors, not new official Rust APIs.
+
 Separate Complete/FlushToDisk, local caching and sort fallback are binding behavior. Caller-buffer reads perform a final copy; convenience APIs create independent copies. Performance contracts do not constrain upstream internal allocations or copies.

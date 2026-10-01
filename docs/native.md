@@ -6,7 +6,7 @@ English | [简体中文](native.zh-CN.md)
 
 ## ABI contract
 
-`fm_abi_version()` returns 12. Managed constructors reject mismatches. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 13. Managed constructors reject mismatches, including older native libraries without lease batch writing. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -68,10 +68,14 @@ The asynchronous reader drives the linear engine with .NET ReadAsync, retaining 
 
 `fm_writer_batch` receives 24-byte headers, 8-byte offset/length ranges, shared payload and a separate completed-prefix output. `fm_read_batch`/`fm_visit_messages` use a 40-byte Progress (four u64, two u32). Preflight precedes writes; advancement failures do not roll back.
 
+`fm_writer_lease_batch` receives writer and lease handles, an optional header pointer with usize count, a usize completed-prefix output, and the ordinary Response. Null headers with count zero select the lease's headers; otherwise the count must match the lease's messages. All destination Channels are checked before writing. Payload slices are read directly from the retained batch; no payload or descriptor array is constructed. Managed code holds an explicit SafeHandle reference to the lease across the call. Header layouts and batch error semantics are unchanged.
+
 `fm_reader_owned`, `fm_buffer_reader_owned` and `fm_snapshot_message_owned` use a two-pointer Sink (context, Cdecl callback). Visitor result 1 is normal stop, negative is failure; managed exceptions never unwind across FFI. Every exit clears the sink. Public borrowed spans expire when callbacks return; owned delivery creates independent copies.
 
 `fm_read_lease`, `fm_engine_lease_step` and `fm_lease_get/retain/free` use SharedBytes and ordinary batch descriptors. Storage ownership retains mappings and files after reader disposal; span access must not overlap disposal. `fm_engine_input_buffer/complete` lets Stream.ReadAsync fill parser storage directly through a MemoryManager, without concurrent engine advancement or destruction.
 
 Pending delivery retains shared bytes or a synthesized record body. Buffer readers retain the complete Message body and choose its payload range at delivery, supporting record/message retry switching. Indexed Stream input transfers buffer ownership into the parser, avoiding an extra uncompressed-chunk copy; short reads use read_exact. Cache and sort enforce only the local allowances documented in the API.
+
+Synchronous linear feeding reserves the complete current parser request through try_insert and reads at most 64 KiB into that storage per call. Sequential Stream reads, summary fallback scans and validation use the same helper. Async direct-fill similarly reserves the complete request while exposing only the selected I/O quantum. Async lease delivery uses a reusable explicit state machine and the cached I/O continuation; lease result/control allocations remain permitted. Nonempty batches still return at the next input request.
 
 The pinned mcap crate supplies official format state machines, codecs and default writing behavior. Shared storage, channel lookup for batch preflight, and disposal without implicit completion are [local patches](patches.md). SafeHandle, managed copies, local cache/sort and asynchronous I/O are binding behavior.

@@ -111,7 +111,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    12
+    13
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
@@ -724,8 +724,7 @@ impl Reader {
                             *position = mapping.len();
                         }
                     } else {
-                        let n = self.input.read(parser.try_insert(n.min(65536))?)?;
-                        parser.notify_read(n);
+                        io::feed_linear(&mut self.input, &mut parser, n)?;
                     }
                 }
                 Some(sans_io::linear_reader::SharedReadEvent::Record {
@@ -1168,8 +1167,7 @@ pub unsafe extern "C" fn fm_validate(p: *const u8, n: usize, out: *mut Response)
         while let Some(e) = parser.next_event() {
             match e? {
                 sans_io::LinearReadEvent::ReadRequest(n) => {
-                    let n = input.read(parser.insert(n.min(65536)))?;
-                    parser.notify_read(n);
+                    io::feed_linear(&mut input, &mut parser, n)?;
                 }
                 sans_io::LinearReadEvent::Record { opcode, data } => {
                     mcap::parse_record(opcode, data)?;
@@ -1313,8 +1311,7 @@ impl Reader {
             while let Some(e) = p.next_event() {
                 match e? {
                     sans_io::LinearReadEvent::ReadRequest(n) => {
-                        let n = self.input.read(p.try_insert(n.min(65536))?)?;
-                        p.notify_read(n);
+                        io::feed_linear(&mut self.input, &mut p, n)?;
                     }
                     sans_io::LinearReadEvent::Record { opcode, data } => {
                         self.observe(opcode, data)?

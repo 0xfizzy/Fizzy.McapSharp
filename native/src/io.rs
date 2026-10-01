@@ -110,6 +110,18 @@ pub enum Input {
     },
     Stream(Callbacks),
 }
+// Reserve the complete current record requirement, independently of the I/O quantum.
+// Short reads must not repeatedly relocate the bytes already supplied to the parser.
+pub fn feed_linear(
+    input: &mut impl Read,
+    parser: &mut mcap::sans_io::LinearReader,
+    requested: usize,
+) -> mcap::McapResult<()> {
+    let destination = parser.try_insert(requested)?;
+    let count = input.read(&mut destination[..requested.min(65536)])?;
+    parser.notify_read(count);
+    Ok(())
+}
 impl Read for Input {
     fn read(&mut self, data: &mut [u8]) -> io::Result<usize> {
         match self {

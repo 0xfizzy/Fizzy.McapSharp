@@ -207,6 +207,8 @@ Owned 结果保持独立：`McapMessage.Data` 仍为 `byte[]` 副本，可变声
 
 `WriteBatch(headers, payloadStorage, ranges)` 一次加锁、一次 ABI 调用，同步消费连续共享载荷。开始前检查数量、范围及全部 Channel。成功返回数量，`McapBatchWriteException.CompletedCount` 不包含可能部分落盘的失败记录。批次不原子；原有安全拒绝配置继续适用，I/O、压缩及推进后的失败终止 writer。返回后可复用输入缓冲。
 
+`WriteBatch(batchLease)` 写入 lease 原有的 header 和 payload；`WriteBatch(batchLease, headers)` 为每条消息替换完整 header，数量必须等于 `batchLease.Count`。先注册目标 schema/channel，需要重映射时提供替换后的 ChannelId；库不推断声明或映射。两个重载均一次 writer 加锁、一次 ABI 调用，直接引用不同存储 owner 的 payload 而不拼接，并在同步调用期间保持 lease 句柄有效。不转移所有权或修改 lease；不得与写入并发释放 lease。null、已释放 lease 和 header 数量不匹配在原生写入前拒绝，不使 writer 失败。Channel 预检查、安全拒绝及已完成前缀遵循上述批次契约。两个重载均有预热后的零托管分配门禁；创建输入 lease 的分配单独计算。
+
 `ReadBatch(headers, ranges, payloadStorage)` 将完整消息写入调用方缓冲，返回数量、使用字节、停止原因和下一条所需容量。空间不足时保留下一条。借用、调用方批量读取和批量写入都有预热后的 Release 零托管分配门禁。
 
 `ReadBatchLease` 返回 `McapMessageBatchLease`，默认最多 256 条、软目标 4 MiB，更大单条独立成批。通过 GetHeader、GetPayload、CopyTo、RetainMessage(index) 访问或保留消息，不产生逐消息载荷数组。批次可引用多个 chunk，不重新拼接。Lease 在 reader 释放后有效；Dispose 幂等，私有 SafeHandle 提供终结兜底。Retain 的消息 lease 单独释放。
@@ -215,9 +217,13 @@ Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 own
 
 `ReadBatchLease` 返回批次，EOF 返回 null。异步 `ReadBatchLeaseAsync` 等待 I/O 并支持取消；消费当前 ValueTask 后才能再次读取或释放。取消终止 reader，已交付 lease 仍有效。同一异步 reader 不可混用 record 与 lease 消费；消息 lease 拒绝 EmitChunks。不创建预取队列、溢写文件或自动分段。
 
+异步 lease 读取复用完成源和 continuation。每个交付批次允许分配 lease 与 SafeHandle 对象；I/O 挂起无需再创建逐操作 async 状态机。已有消息的批次在 parser 下一次请求输入时返回，即使尚未达到消息数或 payload 目标，避免仅为填满批次而等待额外 I/O。Stream 实现自身仍可能分配。取消释放 parser 资源前必须先消费输入完成结果。
+
 ## 绑定层性能与局部限制
 
 性能目标针对绑定层引入的分配与 payload 复制，不限制官方解析器、writer 或 codec 的内部分配。借用回调和 lease 引用稳定存储；缓冲区读取复制到调用方，便利 API 创建独立自有结果。复制构造拥有输入副本；`OpenMapped` 共享映射，Stream 支持增量输入。初始化、描述符、lease 控制对象和错误路径可以分配。
+
+同步与异步输入按 parser 当前完整需求预留空间，I/O 传输大小单独控制，避免短读导致反复扩容。这不是整源预缓冲，也不是总内存上限。一个保留切片可能使整个 chunk 或映射继续存活；限制在途工作时，应同时考虑存储大小与批次数。缓存额度和批次 payload 目标不涵盖全部外部保留字节。
 
 `McapReaderOptions.MaxRandomAccessCacheBytes` 与 `McapIndexSnapshotOptions.MaxRandomAccessCacheBytes` 默认为 0，关闭缓存保留。reader 配置用于其创建的索引快照。设置正值启用按访问顺序淘汰的局部缓存，额度包含保留的 chunk 存储、消息描述符和索引字节，不包含分配器开销、临时解析内存或外部持有的 lease。映射 chunk 按逻辑解压大小保守计入缓存成本。超额条目可以临时加载但不保留；淘汰不影响已交付 lease。
 

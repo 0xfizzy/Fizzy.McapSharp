@@ -55,6 +55,18 @@ foreach (var compression in Enum.GetValues<McapCompression>())
         using var stream=new MemoryStream();using(var writer=new McapWriter(stream,new(){Compression=compression},leaveOpen:true)){var channel=writer.RegisterChannel("stream","raw");writer.WriteMessage(new McapMessageHeader(channel,0,1,1),[7]);writer.Complete();}
         stream.Position=0;using var streamed=McapReader.OpenMessages(stream,leaveOpen:true);
         if(streamed.ReadNext(buffer,out _,out _)!=McapReadStatus.Message||buffer[0]!=7)throw new Exception("Stream ABI mismatch");
+        using var leased=reader.OpenMessages();using var batch=leased.ReadBatchLease()!;
+        using var forwarded=new MemoryStream();
+        var original=batch.GetHeader(0);var replacement=new McapMessageHeader(65000,9,10,11);
+        using(var writer=new McapWriter(forwarded,new(){Compression=compression},true)) {
+            writer.RegisterChannel(original.ChannelId,"original","raw");writer.RegisterChannel(65000,"remapped","raw");
+            if(writer.WriteBatch(batch)!=1||writer.WriteBatch(batch,new[]{replacement})!=1)throw new Exception("Lease batch count mismatch");
+            writer.Complete();
+        }
+        using var copied=new McapBufferReader(forwarded.ToArray());using var roundtrip=copied.ReadBatchLease()!;
+        if(roundtrip.Count!=2||roundtrip.GetHeader(0)!=original||roundtrip.GetHeader(1)!=replacement ||
+            !roundtrip.GetPayload(0).SequenceEqual(batch.GetPayload(0))||!roundtrip.GetPayload(1).SequenceEqual(batch.GetPayload(0)))
+            throw new Exception("Lease forwarding ABI mismatch");
     } finally { File.Delete(path); }
 }
 Console.WriteLine("Isolated native load and all compression roundtrips passed.");

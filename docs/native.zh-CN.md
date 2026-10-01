@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 12，托管构造函数拒绝不匹配。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 13，托管构造函数拒绝不匹配，包括缺少 lease 批量写入的旧原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -68,10 +68,14 @@ Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验�
 
 `fm_writer_batch` 接收 24 字节 Header、8 字节 offset/length 范围、共享 payload 和独立的已完成前缀输出。`fm_read_batch`／`fm_visit_messages` 使用 40 字节 Progress（四个 u64、两个 u32）。预检先于写入；推进后的失败不回滚。
 
+`fm_writer_lease_batch` 接收 writer 与 lease 句柄、可选的 header 指针及 usize 数量、usize 已完成前缀输出和普通 Response。header 为 null 且数量为零时使用 lease 原有 header；否则数量必须匹配 lease 的消息数。写入前检查全部目标 Channel，直接读取保留批次的 payload 切片，不构造 payload 或描述符数组。托管端在整个调用期间显式持有 lease 的 SafeHandle 引用。Header 布局和批次错误语义不变。
+
 `fm_reader_owned`、`fm_buffer_reader_owned`、`fm_snapshot_message_owned` 使用两个指针的 Sink（context、Cdecl 回调）。visitor 返回 1 表示正常停止，负值失败；托管异常不跨 FFI 展开。每次退出清除 sink。公开借用 Span 在回调返回时失效，自有交付创建独立副本。
 
 `fm_read_lease`、`fm_engine_lease_step` 与 `fm_lease_get/retain/free` 使用 SharedBytes 和普通批次描述符。存储所有权使映射及文件在 reader 释放后仍有效；Span 使用不得与释放并发。`fm_engine_input_buffer/complete` 让 Stream.ReadAsync 通过 MemoryManager 直接填充解析器存储，期间不得推进或销毁引擎。
 
 pending 保存共享字节或合成记录体。Buffer reader 保留完整 Message body，交付时才选择 payload 范围，支持 record/message 重试切换。indexed Stream 将读入缓冲的所有权转入解析器，避免对未压缩 chunk 再复制一次；短读使用 read_exact。缓存和排序仅执行 API 描述的局部限制。
+
+同步线性 feeding 通过 try_insert 预留 parser 当前完整需求，每次最多向该存储读取 64 KiB。顺序 Stream 读取、摘要回退扫描及验证复用同一 helper。异步直接填充也预留完整需求，只暴露所选 I/O 传输区间。异步 lease 交付采用可复用的显式状态机和缓存的 I/O continuation；仍允许 lease 结果及控制对象分配。非空批次仍在下一次输入请求时返回。
 
 官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于[本地补丁](patches.zh-CN.md)。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。

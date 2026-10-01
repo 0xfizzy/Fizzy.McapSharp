@@ -135,11 +135,12 @@ sealed class SuspendingStream : Stream, IValueTaskSource<int>
     ManualResetValueTaskSourceCore<int> completion;
     Memory<byte> destination;
     int position;
+    readonly int maxRead;
     volatile bool stopped;
     public long Allocated;
     public int Suspensions;
     public void ResetAllocated() => Interlocked.Exchange(ref Allocated, 0);
-    public SuspendingStream(byte[] data) { this.data = data; worker = new(Work); worker.Start(); }
+    public SuspendingStream(byte[] data, int maxRead = int.MaxValue) { this.data = data; this.maxRead = maxRead; worker = new(Work); worker.Start(); }
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token = default)
     {
         completion.Reset(); destination = buffer; idle.Reset();
@@ -152,7 +153,7 @@ sealed class SuspendingStream : Stream, IValueTaskSource<int>
         {
             request.WaitOne(); if (stopped) return;
             long before = GC.GetAllocatedBytesForCurrentThread();
-            int n = Math.Min(destination.Length, data.Length - position);
+            int n = Math.Min(maxRead, Math.Min(destination.Length, data.Length - position));
             data.AsMemory(position, n).CopyTo(destination); position += n;
             completion.SetResult(n);
             Interlocked.Add(ref Allocated, GC.GetAllocatedBytesForCurrentThread() - before);
