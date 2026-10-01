@@ -160,6 +160,7 @@ pub unsafe extern "C" fn fm_engine_open(
             }
             _ => return Err("Unknown engine".into()),
         };
+        drop(document);
         match &mut engine {
             Engine::Linear(r)=>r.set_memory_budget(options.domain.clone())?,
             Engine::Indexed(r)=>r.set_memory_budget(options.domain.clone())?,

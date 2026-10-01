@@ -12,12 +12,12 @@ public class MemoryTests
     public void ResourceErrorsDistinguishApplicableAndDomainLimits(bool blockLimit)
     {
         var data = Recording(McapCompression.None);
-        var budget = new McapMemoryBudget(1024 * 1024, blockLimit ? 64UL : 65536UL, 0);
+        var budget = new McapMemoryBudget(1024 * 1024, blockLimit ? 1024UL : 65536UL, 0);
         var before = budget.GetStatistics().CurrentBytes;
         var options = new McapMemoryOptions { Budget = budget, MaxOwnedInputBytes = blockLimit ? null : 32UL };
         var error = Assert.Throws<McapException>(() => new McapBufferReader(data, McapBufferReadMode.Messages, false, options));
         Assert.Equal(blockLimit ? "StorageBlock" : "OwnedInput", error.Details.GetProperty("resource").GetString());
-        Assert.Equal(blockLimit ? 64UL : 32UL, error.Details.GetProperty("limit").GetUInt64());
+        Assert.Equal(blockLimit ? 1024UL : 32UL, error.Details.GetProperty("limit").GetUInt64());
         Assert.Equal(budget.MaxBytes, error.Details.GetProperty("domainLimit").GetUInt64());
         Assert.Equal((ulong)data.Length, error.Details.GetProperty("requested").GetUInt64());
         Assert.True(error.Details.GetProperty("current").GetUInt64() <= budget.MaxBytes);
@@ -94,16 +94,16 @@ public class MemoryTests
     public void DecoderAllocationErrorsKeepDetailsAndTerminateReader(McapCompression compression)
     {
         var data = Recording(compression, count: 1, size: 1024);
-        var budget = new McapMemoryBudget(65536, 65536, 0);
+        var budget = new McapMemoryBudget(98304, 98304, 0);
         using (var reader = new McapBufferReader(data, McapBufferReadMode.Messages, false, new() { Budget = budget }))
         {
             var error = Assert.Throws<McapException>(() => reader.ReadNext([], out _, out _));
             Assert.Equal(McapErrorKind.Binding, error.Kind);
             Assert.Equal("CodecDecoder", error.Details.GetProperty("resource").GetString());
-            Assert.Equal(65536UL, error.Details.GetProperty("limit").GetUInt64());
+            Assert.Equal(98304UL, error.Details.GetProperty("limit").GetUInt64());
             Assert.Equal(budget.MaxBytes, error.Details.GetProperty("domainLimit").GetUInt64());
             Assert.True(error.Details.GetProperty("requested").GetUInt64() > 0);
-            Assert.True(error.Details.GetProperty("current").GetUInt64() <= 65536);
+            Assert.True(error.Details.GetProperty("current").GetUInt64() <= 98304);
             Assert.True(error.Details.GetProperty("terminal").GetBoolean());
             Assert.Contains(error.Details.GetProperty("failureKind").GetString(), new[] { "permanent", "temporary" });
             Assert.Throws<McapException>(() => reader.ReadNext([], out _, out _));

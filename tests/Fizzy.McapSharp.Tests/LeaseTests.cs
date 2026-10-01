@@ -284,6 +284,7 @@ public class LeaseTests
         {
             var budget=new McapMemoryBudget();
             using var reader=McapBufferReader.OpenMapped(path,options:new(){Budget=budget});
+            var configurationCopies = budget.GetDetailedStatistics().Flow.OtherCopyBytes;
             using var batch=reader.ReadBatchLease()!;
             Assert.Equal(2,batch.Count);
             Assert.Equal(0UL,reader.GetMemoryStatistics().CopiedBytes);
@@ -292,7 +293,7 @@ public class LeaseTests
             Assert.Equal(0UL, flow.CompactionCopyBytes);
             Assert.Equal(0UL, flow.DeliveryCopyBytes);
             // Schema (s/raw/one byte) and channel (t0/raw/k/v), repeated in summary.
-            Assert.Equal(2UL * (1 + 3 + 1 + 2 + 3 + 1 + 1), flow.OtherCopyBytes);
+            Assert.Equal(2UL * (1 + 3 + 1 + 2 + 3 + 1 + 1), flow.OtherCopyBytes - configurationCopies);
             Assert.Equal(flow.OtherCopyBytes, budget.GetStatistics().StorageCopyBytes);
             reader.Dispose();
             Assert.Equal(70000,batch.GetPayload(0).Length);

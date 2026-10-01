@@ -94,4 +94,4 @@ codec 内部分配失败是终止错误。回调不等待消费者、不调用�
 
 线性 parser 的输入扩容、共享输入搬移和解压存储预留直接传递固定存储错误；只有分配成功后才更新可写边界。测试覆盖真实容量拒绝、溢出、已有输入及可写范围保留、释放容量后重试，以及经 ABI 错误编码的独立分配身份对账。其余 codec／I/O 兼容适配器和冷路径诊断仍需审计。
 
-Reader 创建先选择预算域，再解析配置；保留的 topic 字符串按实际字节容量计费并登记 Parser 所有权，topic 查询使用排序分页描述符。Engine 创建同样使用计费配置；indexed engine 的 Memory 缺省或为 null 时继承 summary 域，包含重复键及转义键情况。Indexed engine 同步求值借用过滤条件，只保留选中的 Channel ID，不保留 topic 名称树。初始化预算须覆盖临时配置页及常驻状态。Buffer reader 控制入口和数值 JSON 错误构造仍需审计。
+Reader 创建先选择预算域，再解析配置；保留的 topic 字符串按实际字节容量计费并登记 Parser 所有权，topic 查询使用排序分页描述符。Engine 创建同样使用计费配置；indexed engine 的 Memory 缺省或为 null 时继承 summary 域，包含重复键及转义键情况。Indexed engine 同步求值借用过滤条件，只保留选中的 Channel ID，不保留 topic 名称树。初始化预算须覆盖临时配置页及常驻状态。复制及 mapped buffer reader 配置也在计费解析前选择预算域；复制入口构造有独立分配身份及逐次分配拒绝验证。Reader 临时配置在准备索引或缓冲排序前释放，mapped 配置在构造 parser 前释放。数值 JSON 错误构造仍待完成。

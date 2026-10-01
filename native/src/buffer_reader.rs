@@ -396,7 +396,7 @@ pub unsafe extern "C" fn fm_buffer_reader_open_options(
         let memory_options = if config_len == 0 {
             memory::Options::try_default()?
         } else {
-            memory::Options::parse(&request(config, config_len)?)?
+            memory::Options::parse_config(bytes(config, config_len)?)?
         };
         let input = memory::Backing::copy(bytes(p, n)?, memory_options.clone())?;
         *handle = open_backing(input, mode, ignore_end, memory_options)?.into_handle()?;
@@ -446,12 +446,14 @@ pub unsafe extern "C" fn fm_buffer_reader_mapped(config: *const u8, n: usize,
     guard(out, |_| {
         if handle.is_null() { return Err("Null output".into()); }
         *handle = ptr::null_mut();
-        let v = request(config, n)?;
-        let mode = u32::try_from(v["mode"].as_u64().ok_or("Invalid mode")?)?;
-        let options = memory::Options::parse(&v["options"])?;
-        let input = memory::Backing::open(string(&v, "path")?, &options.domain)?;
-        *handle = open_backing(input, mode,
-            v["ignoreEndMagic"].as_bool().unwrap_or(false), options)?.into_handle()?;
+        let (document, domain) = budget_json::Document::configured(bytes(config,n)?, &["options","Budget","id"])?;
+        let v = document.view();
+        let mode = u32::try_from(v.get("mode").as_u64().ok_or("Invalid mode")?)?;
+        let options = memory::Options::parse_view(v.get("options"),domain)?;
+        let input = memory::Backing::open(budget_json::Control::Charged(v).string("path")?, &options.domain)?;
+        let ignore_end = v.get("ignoreEndMagic").as_bool().unwrap_or(false);
+        drop(document);
+        *handle = open_backing(input, mode, ignore_end, options)?.into_handle()?;
         Ok(0)
     })
 }

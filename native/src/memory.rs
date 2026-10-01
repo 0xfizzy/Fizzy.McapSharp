@@ -50,24 +50,7 @@ impl Options {
             retained:field(v,"MaxRetainedBufferBytes")?.unwrap_or(8*1024*1024),
         })
     }
-    pub fn parse(v: &Value) -> Outcome<Self> {
-        fn field(v: &Value, key: &str) -> Outcome<Option<u64>> {
-            if v[key].is_null() {
-                Ok(None)
-            } else {
-                Ok(Some(v[key].as_u64().ok_or("Invalid memory limit")?))
-            }
-        }
-        Ok(Self {
-            domain: budget::parse(&v["Budget"] )?,
-            random: field(v, "MaxRandomAccessCacheBytes")?.unwrap_or(0),
-            scratch: field(v, "MaxScratchBufferBytes")?,
-            owned: field(v, "MaxOwnedInputBytes")?,
-            pending: field(v, "MaxPendingBufferBytes")?,
-            sort: field(v, "MaxBufferedSortBytes")?,
-            retained: field(v, "MaxRetainedBufferBytes")?.unwrap_or(8 * 1024 * 1024),
-        })
-    }
+
 }
 #[derive(Debug)]
 pub struct Limit {

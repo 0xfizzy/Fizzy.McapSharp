@@ -85,9 +85,6 @@ unsafe fn bytes<'a>(p: *const u8, n: usize) -> Outcome<&'a [u8]> {
     }
     Ok(slice::from_raw_parts(p, n))
 }
-unsafe fn request(p: *const u8, n: usize) -> Outcome<Value> {
-    Ok(serde_json::from_slice(bytes(p, n)?)?)
-}
 fn string<'a>(v: &'a Value, k: &str) -> Outcome<&'a str> {
     v[k].as_str()
         .ok_or_else(|| Error::message(format_args!("Missing string: {k}")))
@@ -828,7 +825,10 @@ pub unsafe extern "C" fn fm_reader_open(
         let mut reader=mcap::charged::ChargedBox::new_fixed(reader,&memory_options.domain,mcap::storage::ResourceCategory::Scratch)?;
         reader.charge_owner(mcap::storage::OwnerKind::Parser,true);
         let linear_settings = v.get("options").any_true_member();
-        if v.get("indexedOnly").as_bool().unwrap_or(false) && linear_settings {
+        let indexed_only = v.get("indexedOnly").as_bool().unwrap_or(false);
+        let allow_buffered_sort = v.get("allowBufferedSort").as_bool() != Some(false);
+        drop(document);
+        if indexed_only && linear_settings {
             return Err("Linear parser options cannot be applied to indexed reading".into());
         }
         if reader.messages
@@ -842,11 +842,11 @@ pub unsafe extern "C" fn fm_reader_open(
         {
             reader.try_indexed()?;
         }
-        if v.get("indexedOnly").as_bool().unwrap_or(false) && reader.indexed.is_none() {
+        if indexed_only && reader.indexed.is_none() {
             return Err("Indexed reading requires a complete indexed summary".into());
         }
         if reader.messages && reader.order != 2 && reader.indexed.is_none() {
-            if v.get("allowBufferedSort").as_bool() == Some(false) {
+            if !allow_buffered_sort {
                 return Ok(3);
             }
             while reader.next_with(|r, _op, data, h| {

@@ -351,6 +351,7 @@ fn controlled_allocation_identities_match_independent_allocator() {
     fixed_reservation_errors_preserve_classification_without_allocations();
     linear_input_capacity_errors_have_exact_allocation_identities();
     retained_topic_filters_have_exact_allocation_identities();
+    copied_buffer_constructor_has_exact_allocation_identities();
     codec_callback_failures_do_not_allocate_error_payloads();
     summary_control_has_exact_identity_and_shared_purpose_pins();
     domain_root_bootstrap_has_exact_allocation_identity();
@@ -2398,4 +2399,33 @@ fn retained_topic_filters_have_exact_allocation_identities() {
         assert_eq!(domain.ownership_statistics().bytes[mcap::storage::OwnerKind::Parser as usize],0);
         drop(audit);
     }
+}
+
+fn copied_buffer_constructor_has_exact_allocation_identities() {
+    let mut response=Response::default(); let mut handle=ptr::null_mut(); let mut id=0;
+    unsafe { assert_eq!(budget::fm_budget_open(1024*1024,1024*1024,0,&mut handle,&mut id,&mut response),0); }
+    let domain=budget::resolve(id).unwrap();
+    let config=format!(r#"{{"Budget":{{"id":{id}}}}}"#);
+    let baseline=domain.statistics().current;
+    domain.observe_allocations(identity::claimed);
+    let mut allocations=0;
+    for iteration in 0..64 {
+        if iteration>0 && iteration>allocations { break; }
+        domain.fail_allocation_at(if iteration==0 {usize::MAX} else {iteration-1});
+        let mut reader=ptr::null_mut();
+        let audit=identity::start(domain.as_ptr() as usize);
+        COUNTS.with(|c|c.set(Some((0,0))));
+        let status=unsafe { buffer_reader::fm_buffer_reader_open_options(0,false,b"buffer".as_ptr(),6,
+            config.as_ptr(),config.len(),&mut reader,&mut response) };
+        unsafe { buffer_reader::fm_buffer_reader_free(reader); }
+        let calls=COUNTS.with(|c|c.replace(None).unwrap()); let actual=identity::snapshot();
+        assert_eq!(calls,(actual.bound,actual.bound_bytes),"failure={iteration}");
+        assert_eq!(actual.errors,0); assert_eq!(actual.live,[0;9]);
+        assert_eq!(domain.statistics().current,baseline);
+        if iteration==0 { assert_eq!(status,0); allocations=actual.bound as usize; assert!(allocations>4 && allocations<64); }
+        else { assert_eq!(status,-1); assert!(reader.is_null()); }
+        drop(audit);
+    }
+    unsafe { budget::fm_budget_free(handle); }
+    assert_eq!(domain.workload_statistics().current,0);
 }
