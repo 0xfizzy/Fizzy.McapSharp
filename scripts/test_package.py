@@ -38,6 +38,7 @@ def main():
     project = smoke / "Smoke.csproj"
     project.write_text(f'''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>
 <TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><NuGetAudit>false</NuGetAudit><UseAppHost>false</UseAppHost>
+<SelfContained>false</SelfContained><EnableRuntimePackDownload>false</EnableRuntimePackDownload>
 </PropertyGroup><ItemGroup><PackageReference Include="Fizzy.McapSharp" Version="{version()}" /></ItemGroup></Project>''')
     (smoke / "Program.cs").write_text('''using Fizzy.McapSharp;
 foreach (var compression in Enum.GetValues<McapCompression>())
