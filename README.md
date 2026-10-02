@@ -9,6 +9,8 @@ English | [简体中文](README.zh-CN.md)
 
 .NET bindings to the official Rust `mcap` implementation. Read and write messages, schemas, channels, metadata, and attachments, with compression, time filtering, and integrity validation.
 
+All code authored for this project is AI-generated. Third-party dependencies and vendored upstream code retain their original authorship and licenses.
+
 ## Quick start
 
 Add the package to a .NET 8 application. Supported processes: Windows x64 and glibc Linux x64/ARM64 (Ubuntu 22.04 or newer validation baseline):
@@ -38,7 +40,7 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
 
 Call `Complete()` explicitly to finish the format, then optionally `FlushToDisk()` to request file persistence; `Dispose()` only releases resources. `ReadMessages()` does not replace full-file validation.
 
-Large-payload pipelines can use borrowed callbacks, batch reads/writes and stable storage leases; see the [API guide](docs/api.md) for lifetimes and local cache/sort limits.
+Large-payload pipelines can use borrowed callbacks, batch reads/writes and stable storage leases; start with [choosing message ownership](docs/api.md#choose-message-ownership), then review lifetimes and local cache/sort allowances.
 
 ## Documentation
 

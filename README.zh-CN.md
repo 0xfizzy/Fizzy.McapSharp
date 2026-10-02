@@ -9,6 +9,8 @@
 
 基于官方 Rust `mcap` 实现的 .NET 8 文件读写库，支持消息、Schema、Channel、元数据、附件、压缩、时间过滤和完整性校验。
 
+本项目自身的所有代码均由 AI 生成。第三方依赖及随仓库分发的上游代码保留其原作者归属和许可证。
+
 ## 快速开始
 
 在 .NET 8 应用中添加依赖。支持 Windows x64 和 glibc Linux x64/ARM64 进程，Linux 验证基线为 Ubuntu 22.04 及以上：
@@ -38,7 +40,7 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
 
 必须显式调用 `Complete()` 完成格式，再按需调用 `FlushToDisk()` 请求文件持久化；`Dispose()` 只释放资源。`ReadMessages()` 不替代完整文件校验。
 
-大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；生命周期与局部缓存／排序限制见 [API 指南](docs/api.zh-CN.md)。
+大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；先[选择消息所有权](docs/api.zh-CN.md#选择消息所有权)，再了解生命周期与局部缓存／排序额度。
 
 ## 文档入口
 

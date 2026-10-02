@@ -2,37 +2,106 @@
 
 [English](coverage.md) | 简体中文
 
-本文供选择官方 Rust 等价入口的 API 使用者参考，基线是 `native/Cargo.toml` 锁定的 `mcap` 版本。[声明清单](api-coverage.json) 记录 344 项公共声明，包括方法、字段、错误变体和常量，以及托管/原生映射与验证引用。`python scripts/check_api_coverage.py` 对照锁定的 Cargo 源码检查清单；清单完整性不等同于行为测试。
+本文用于查找官方 Rust 能力的 .NET 入口并理解适配差异。基线是 [Cargo.toml](../native/Cargo.toml) 锁定的 `mcap` 依赖。所有权、分配和使用方式的选择见 [API 指南](api.zh-CN.md#选择消息所有权)。
 
-| 官方能力 | 托管入口 | 验证 |
+## 如何阅读覆盖关系
+
+下表按能力组织，不逐条展开声明。一个托管入口可以覆盖多个 Rust 构造函数、builder 方法或迭代操作。**适配**表示通过托管类型或组合操作提供官方能力，不承诺签名、所有权或全部行为相同。**替代**表示通过另一官方能力提供相近的托管功能。**未暴露**属于明确排除，不能算作已实现。
+
+| 来源 | 职责 |
+| --- | --- |
+| [upstream-api.json](upstream-api.json) | 未修改上游的固定声明基线；不得为接纳本地扩展而修改 |
+| [api-coverage.json](api-coverage.json) | 符号级映射、能力分组、映射类别、来源、实现／测试引用及排除原因 |
+| 本文 | 能力导航和重要适配差异；详细用法由 API 指南维护 |
+
+审查清单包含 344 项官方声明和 18 项本地扩展声明，涵盖类型、方法、字段、常量和错误变体；这些数量不是已实现操作数或通过测试数。可选 Tokio 声明也在清单内，但绑定不调用 Tokio。
+
+## 写入（`writing`）
+
+托管入口位于 [McapWriter](../src/McapWriter.cs) 及其 partial 实现。
+
+| 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
+| --- | --- | --- | --- |
+| `WriteOptions`、`Writer::new/with_options` | `McapWriterOptions`、`McapWriter` 构造函数 | 适配 | Builder 配置转为属性；摘要总开关先于显式单项覆盖 |
+| `Writer::add_schema/add_schema_with_id`、`add_channel/add_channel_with_id` | `RegisterSchema`、`RegisterChannel` 重载 | 适配 | ID 与二进制载荷分离；prepared 描述符属于绑定扩展 |
+| `Writer::write` | `WriteMessage(McapMessage)`、prepared channel 重载 | 适配 | 调用上游自动声明；准备操作快照化可变描述 |
+| `Writer::write_to_known_channel` | `WriteMessage(in header, span)` | 适配 | 同步消费借用载荷，无托管 payload 副本 |
+| `Writer::attach`、`start_attachment/put_attachment_bytes/finish_attachment` | `WriteAttachment`、`StartAttachment/WriteAttachmentBytes/FinishAttachment` | 适配 | 分段附件必须满足声明的精确长度 |
+| `Writer::write_metadata`、`write_private_record`、`PrivateRecordOptions` | `WriteMetadata`、`WritePrivateRecord` | 适配 | 私有记录位置选项转为 `includeInChunks` |
+| `Writer::flush`、`finish`、`into_inner` | `Flush`、`Complete/GetSummary`、`IntoInner` | 适配 | 完成和摘要获取分离；释放不隐式完成。`FlushToDisk` 属于绑定扩展 |
+
+默认值遵循上游 writer，包括 Zstd、1 MiB 目标 chunk 和上游 library 标识。路径创建保护、配置的安全拒绝白名单以外的终止性失败属于托管契约。完整规则见[写入录制](api.zh-CN.md#写入录制)。
+
+## 顺序读取（`sequential-reading`）
+
+| 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
+| --- | --- | --- | --- |
+| `read::LinearReader`、`Options`、`sans_magic` | `McapBufferReader` 的 Linear/SansMagic 模式 | 适配 | 官方 Sans-I/O 配置匹配切片读取器；输入复制或显式映射 |
+| `read::ChunkReader` | `McapBufferReader` 的 Chunk 模式 | 适配 | 接收 Chunk 记录体并惰性推进 |
+| `read::ChunkFlattener` | FlattenChunks 模式 | 适配 | 将 chunk 展开为记录 |
+| `read::RawMessageStream`、`RawMessage`、`get_channel` | RawMessages 模式、header/payload 读取、`GetChannel` | 适配 | 保留已遇到的声明；借用 Rust 迭代器不跨越 ABI |
+| `read::MessageStream` | Messages 模式和自有消息枚举 | 适配 | 自有结果复制 payload 及可变声明；其他交付方式的所有权不同 |
+
+[McapBufferReader](../src/McapBufferReader.cs) 将这些切片接口统一为模式。`McapReader.OpenMessages/OpenRecords` 另外提供由官方解析驱动的文件／Stream 会话。顺序文件读取、输入所有权和交付所有权分别选择，详见 [API 指南](api.zh-CN.md)。
+
+## 摘要与随机访问（`random-access`）
+
+| 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
+| --- | --- | --- | --- |
+| `Summary`、`Summary::read` 及摘要字段 | `McapIndexSnapshot`、`GetSummary`、`OpenSummaryRecords` | 适配 | Snapshot 拥有输入副本或映射；托管摘要和记录游标是不同表示形式 |
+| `Summary::stream_chunk` | `OpenChunkReader`、`ReadChunkMessages` | 适配 | 独立惰性游标共享输入和摘要，在 snapshot 释放后仍有效 |
+| `Summary::seek_message` | `SeekMessage` 重载 | 适配 | 绑定加载／校验完整 chunk，可能比上游前缀定位更早报告尾部损坏 |
+| `Summary::read_message_indexes` | `ReadMessageIndexes` | 适配 | 调用方缓冲形式使用 18 字节打包行 |
+| `read::attachment`、`read::metadata` | `ReadAttachment`、`ReadMetadata` | 适配 | 使用调用方提供的索引并验证源范围 |
+
+入口见 [McapIndexSnapshot](../src/McapIndexSnapshot.cs)。Prepared index、分组 seek 和缓存保留属于绑定扩展，不是新增官方方法；复用范围见[随机访问](api.zh-CN.md#完整-chunk-随机访问)。索引读取成功不代表完整文件校验。
+
+## Sans-I/O（`sans-io`）
+
+| 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
+| --- | --- | --- | --- |
+| `sans_io::LinearReader`、`LinearReaderOptions`、`LinearReadEvent` | `McapSansIoReader.CreateLinear`、`McapReaderOptions`、`NextEvent/SupplyInput` | 适配 | 值事件和调用方缓冲替代 Rust 事件借用及可写输入切片 |
+| `sans_io::SummaryReader`、选项及事件 | `CreateSummary`、`McapSummaryReaderOptions`、输入／定位通知及摘要访问 | 适配 | 调用方驱动 I/O；完成后摘要可用于索引读取 |
+| `sans_io::IndexedReader`、选项、事件及 `ReadOrder` | `CreateIndexed`、`McapQuery`、`McapReadOrder`、索引控制操作 | 适配 | 直接索引引擎要求索引，不进行扫描排序回退 |
+
+具体事件与控制项见 [SansIo.cs](../src/SansIo.cs) 及符号清单。可选 CRC 检查默认遵循上游配置。共享事件和直接填充所有权扩展在下文单列。
+
+## 记录、工具与错误（`records-and-errors`）
+
+| 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
+| --- | --- | --- | --- |
+| `Schema`、`Channel`、`Message`、`Attachment`、`Compression` | 对应 `Mcap*` 模型与 `McapCompression` | 适配 | 托管所有权替代 `Cow`、`Arc` 和 Rust 生命周期 |
+| `records::*`、操作码及格式常量 | 自有记录模型、`McapRecordView.Fields`、`McapOpcode`、`McapFormat` | 适配 | 字段和变体可通过视图或自有模型访问，不一定有独立方法 |
+| `read::parse_record`、`read::footer`、chunk 数据偏移辅助方法 | `McapRecords.Parse`、`McapRecordView.Parse`、`ReadFooter`、`GetCompressedDataOffset` | 适配 | 自有解析复制数据；视图遵循调用方内存生命周期 |
+| `McapError`、`McapResult` | `McapErrorKind`、`McapException.Kind/Details`、返回值和异常 | 适配 | 结构化错误转换替代 Rust result；.NET 参数／释放／Stream 异常保留各自契约 |
+
+## 异步与未暴露接口
+
+| 官方 Rust API | .NET 入口 | 映射 | 原因或约束 |
+| --- | --- | --- | --- |
+| 可选 `tokio::LinearReader`（`async`） | `McapAsyncReader.ReadNextRecordAsync` | 替代 | .NET 异步 I/O 驱动官方 Sans-I/O，不调用 Tokio 本身；取消和挂起遵循托管契约 |
+| `sans_io::Decompressor`、`DecompressResult`（`unexposed`） | 无 | 未暴露 | 上游没有自定义解压器注册入口；未实现该 trait 的托管版本 |
+
+功能替代不代表移植特定运行时接口。实现见[异步 reader](../src/McapAsyncReader.cs)。
+
+## 本地扩展与绑定能力
+
+清单中 `origin: local-extension`、分组为 `local-extensions` 的条目表示本地补丁声明，不计入官方数量。纯绑定层托管能力不一定增加 Rust 公共声明，也不加入官方基线。
+
+| 层次 | 能力 | 契约与证据 |
 | --- | --- | --- |
-| `Writer::write` | 完整消息和预准备通道的 `WriteMessage` 重载，均直接调用上游 write | 自动声明、不可变快照、分配门禁 |
-| 其他 Writer 方法 | 注册、已知通道消息、附件、Metadata、私有记录、Flush、Complete/GetSummary、IntoInner | 往返、所有权、互操作、分配测试 |
-| `WriteOptions` | `McapWriterOptions`，先总开关后显式单项覆盖 | 原生默认值/配置差分测试 |
-| 官方切片读取器 | `McapBufferReader` 各模式，使用配置匹配切片入口的官方 Sans-I/O | 切片、记录模型、分配测试 |
-| Summary 读取、Chunk 消息、消息定位与索引 | `McapIndexSnapshot` 对应操作 | 随机读取及重试测试 |
-| 附件、Metadata、Footer、记录解析 | 索引快照、`McapRecords`、`McapRecordView` | 记录模型、Footer、CRC、分配测试 |
-| 所有标准记录、操作码、常量 | 自有记录模型、调用方内存字段视图、`McapOpcode`、`McapFormat` | 标准记录模型及未知记录保留 |
-| Sans-I/O 线性、摘要、索引读取及选项/事件 | `McapSansIoReader`、选项与值类型事件 | 输入/定位事件、多 Topic 排序、限制、重试 |
-| 公共解压器 trait | 未暴露：上游没有自定义解压器注册入口 | 仅源码审查，无托管实现 |
-| 可选 Tokio 线性读取 | .NET 异步 I/O 驱动官方 Sans-I/O 的 `McapAsyncReader` | 取消、所有权、强制挂起分配门禁 |
-| 全部错误变体与结果类型 | `McapException.Kind/Details`、返回值和异常 | 原生穷尽匹配及字段测试 |
+| 原生本地补丁 | 共享存储／事件、直接填充所有权、`shares_backing` | 发布范围不可变及保留所有权；指针、推进、释放和淘汰检查 |
+| 原生本地补丁 | `Writer::contains_channel`；输出取出后的释放 | 批次预检及释放不隐式完成；writer／lease 测试 |
+| 托管／原生绑定 | Prepared 描述符、借用交付、批次、lease 及转写 | 显式所有权与已完成前缀失败规则；`BatchTests`、`LeaseTests`、`LeaseWriteTests`、分配门禁 |
+| 托管／原生绑定 | 缓存、分组 seek、回退排序及自适应存储 | 局部额度、复用范围及保留；`BatchSeekTests`、`SortStorageTests`、原生诊断 |
+| 托管／原生绑定 | 异步调度、输入预留、`Complete`／`FlushToDisk` 分离 | 托管挂起／生命周期及持久化契约；异步、预留和 writer 完成测试 |
 
-Rust 生命周期、`Cow`、`Arc`、迭代器及 builder 映射为自有结果、调用方内存视图、可释放会话和 .NET 选项属性，不公开 Rust 布局或句柄。缓冲区适配器复制或显式映射输入并惰性解析，索引快照复制或显式映射数据源并与独立惰性 Chunk 游标共享；排序回退收集选中消息，可用 AllowBufferedSort=false 禁止；这些所有权选择需要与输入/结果成比例的原生内存，需要流式读取时应选用增量会话。
+补丁动机和允许范围由 [patches.zh-CN.md](patches.zh-CN.md) 维护，ABI 所有权由 [native.zh-CN.md](native.zh-CN.md) 维护，公共用法与性能保证由 [api.zh-CN.md](api.zh-CN.md) 维护。
 
-默认值遵循对应上游 API：Writer 使用 Zstd、1 MiB Chunk 和上游 Library；顺序消息采用文件顺序，索引查询采用 LogTime；Sans-I/O 可选 CRC 默认关闭。直接切片读取器保留各自上游默认值。路径创建保护、可配置安全拒绝白名单以外的终止性失败、显式完成及释放不自动完成保留为安全差异。
+## 核验与维护
 
-零托管分配请选预准备写入、调用方缓冲区读取、记录视图、摘要游标或可复用异步读取器；自有对象便利接口允许分配。入口选择参见 [API 契约](api.zh-CN.md)、[ABI](native.zh-CN.md) 和[验证](development.zh-CN.md)。
+修改映射后运行 `python scripts/check_api_coverage.py`。脚本对照所用原生源码检查符号集合和种类，通过固定基线区分官方／本地来源，并检查映射类别、分组、必要原因和引用文件。它不验证每条映射描述的语义正确性，也不证明两种实现行为相同；这些需要审查及行为测试。
 
-行为 CI 另使用固定的官方 conformance 数据：416 个顺序读取用例、32 个索引读取用例和 208 个逐字节写入用例。不支持变体遵循固定官方 Rust runner 的规则，单独统计，不计为通过。固定种子差分比较 .NET/Python 写入端，确定性测试覆盖截断、I/O 失败、重试及资源契约；每周原生变异/Valgrind 和大文件检查进一步扩展覆盖。这不代表已移植上游所有语言专属测试。命令、限制及失败报告参见[外部套件和深度检查](development.zh-CN.md#外部契约测试套件)。
+行为证据单独评估：固定 conformance 用例、.NET／Python 互操作、独立未修改上游对比、生命周期／重试测试及分配门禁分别验证不同性质。仅对补丁源码测试不构成独立上游证据；绑定诊断不证明总内存上限，也不约束 codec 分配。命令、夹具数量和限制集中维护在 [development.zh-CN.md](development.zh-CN.md#外部契约测试套件)。
 
-
-本地共享存储及 channel 查询扩展在声明清单中标记为 `local-extension`，官方声明标记为 `upstream`。固定官方声明基线见 [upstream-api.json](upstream-api.json)，来自未修改的 mcap crate；本地扩展不计入官方覆盖数量。清单检查不能证明行为等价。
-
-`BatchTests`、`LeaseTests`、`BatchSeekTests` 与 Release 分配门禁覆盖绑定层批次、借用与 lease。`scripts/test_upstream.py` 使用独立未修改上游进程检查有限样本的格式行为。补丁必要性、替代方案、所有权与验证边界见[本地补丁](patches.zh-CN.md)。
-
-`LeaseWriteTests` 验证绑定层通过上游已知 channel 写入转发 lease 批次与替换 header，包括指针一致性、预检和已完成前缀失败。`InputReservationTests`、`LeaseStorageTests`、`AsyncLeaseStateTests`、原生内存探针与 `LeaseGate` 覆盖输入预留、共享保留/驱逐、取消及挂起成本。这些属于绑定层行为，不是新增官方 Rust API。
-
-`Complete`／`FlushToDisk` 的分离、局部缓存和排序回退属于绑定层行为；调用方缓冲读取有最终复制，便利 API 创建独立副本。性能目标不约束上游内部的分配或复制。
-
-`SortStorageTests` 与原生排序诊断覆盖绑定层自适应回退存储。本地 `shares_backing` 查询提供所有权身份，不增加官方上游能力。
+审查某项能力时，先定位上述分组，再到审查清单查找精确 `rust` 符号，最后检查所映射源码及证据。新增本地能力时保持官方基线不变；明确记录替代和排除项，不将其计作直接实现。

@@ -75,12 +75,24 @@ def main():
     if not set(official) <= set(actual):
         raise AssertionError("Local patch removed an upstream declaration")
     expected = {item["rust"]: item for item in manifest["items"]}
+    if len(expected) != len(manifest["items"]):
+        raise AssertionError("Duplicate reviewed API declaration")
+    groups = set(manifest["groups"])
+    mappings = set(manifest["mapping_categories"])
     if set(actual) != set(expected):
         raise AssertionError(f"Unreviewed API changes: missing={set(actual)-set(expected)}, stale={set(expected)-set(actual)}")
     for symbol, item in expected.items():
         origin = "upstream" if symbol in official else "local-extension"
         if item.get("origin") != origin or item["kind"] != actual[symbol]:
             raise AssertionError(f"Incorrect API origin/kind: {symbol}")
+        if item.get("group") not in groups or item.get("mapping") not in mappings:
+            raise AssertionError(f"Unknown API group/mapping: {symbol}")
+        if (item["mapping"] == "local-extension") != (origin == "local-extension"):
+            raise AssertionError(f"Incorrect extension mapping: {symbol}")
+        if (item["group"] == "local-extensions") != (origin == "local-extension"):
+            raise AssertionError(f"Incorrect extension group: {symbol}")
+        if item["mapping"] in ("alternative", "not-exposed") and not item.get("reason"):
+            raise AssertionError(f"Missing adaptation reason: {symbol}")
         for key in ["managed", "native", "test"]:
             if not item.get(key):
                 raise AssertionError(f"Unmapped {symbol}: {key}")

@@ -239,6 +239,8 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Returns independent mutable results, copying payloads and mutable declarations.
+    /// Use caller-buffer, visitor or lease delivery when independent result objects are not needed.</summary>
     public IEnumerable<McapMessage> ReadMessages()
     {
         if (!messages) throw new InvalidOperationException("This is a record session.");

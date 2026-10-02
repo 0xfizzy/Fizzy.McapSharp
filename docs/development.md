@@ -158,6 +158,13 @@ Package jobs restore only the candidate nupkg into isolated caches. In addition 
 
 ### Native storage and patch validation
 
+| Contract under review | Evidence | What it does not establish |
+| --- | --- | --- |
+| Warmed managed allocation | Release allocation gates; async lease gate compares inline and suspended result-object baselines | Zero native allocation, zero payload copying or an RSS bound |
+| Shared storage lifetime and delivery | Pointer identity, retry, disposal and eviction tests | Small retained backing merely because the payload is small |
+| Local collection/cache allowances | Limit boundary tests and deduplicated backing diagnostics | A process-wide heap limit; diagnostic thresholds are workload-specific |
+| Random-access reuse | Chunk-load/hit counts for batch, cache and cursor paths | No repeated decompression for arbitrary requests across cache misses |
+
 Release native tests check pointer identity, retained lease lifetime and delivery allocations with a test-only thread-local allocator counter. The counter is absent from production builds and is not a total native-memory limit or codec allocation statistic.
 
 Input reservation tests compare complete-request reservation with 64 KiB incremental reservation on 1/8/32 MiB records. Managed tests exercise short reads, retries and strict validation under all compression modes. Lease storage diagnostics advance 512 batches with fixed 1/4/16-batch retention windows, deduplicate backing allocations by address, and compare middle/tail retained capacities. Copied-input capacity and mapped address space are reported separately. These are fixture-specific retention checks, not a process RSS bound; allocator counters cover the measured thread's Rust allocations, excluding codec allocations through other allocators. Pointer tests cover retained messages after reader/snapshot disposal and actual cache eviction. Lease batch writing additionally verifies that uncompressed output receives the original payload addresses and that both header overloads allocate zero managed bytes after warm-up.

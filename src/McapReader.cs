@@ -14,6 +14,8 @@ public sealed partial class McapReader
     public McapReadSession OpenRecords(McapRecordMode mode = McapRecordMode.ExpandChunks, McapReaderOptions? options = null) => new(path, null, null, false, mode, false, options);
     public static McapReadSession OpenMessages(Stream stream, McapQuery? query = null, bool leaveOpen = false, McapReaderOptions? options = null) => new(null, stream ?? throw new ArgumentNullException(nameof(stream)), query, true, McapRecordMode.ExpandChunks, leaveOpen, options);
     public static McapReadSession OpenRecords(Stream stream, McapRecordMode mode = McapRecordMode.ExpandChunks, bool leaveOpen = false, McapReaderOptions? options = null) => new(null, stream ?? throw new ArgumentNullException(nameof(stream)), null, false, mode, leaveOpen, options);
+    /// <summary>Returns independent mutable results, copying payloads and mutable declarations.
+    /// Use caller-buffer, visitor or lease delivery when independent result objects are not needed.</summary>
     public IEnumerable<McapMessage> ReadMessages(McapQuery? query = null)
     {
         using var session = OpenMessages(query);

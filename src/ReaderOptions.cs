@@ -2,7 +2,7 @@ namespace Fizzy.McapSharp;
 
 public sealed record McapReaderOptions
 {
-    /// <summary>Cache allowance for snapshots opened from this session. Zero disables retention; does not limit leases or upstream memory.</summary>
+    /// <summary>Local cache allowance for snapshots opened from this session: chunk storage, descriptors, keys and index bytes. Zero disables retention; oversized entries load without retention. Excludes input storage, parsing temporaries and external leases.</summary>
     public ulong MaxRandomAccessCacheBytes { get; init; }
     public bool SkipStartMagic { get; init; }
     public bool SkipEndMagic { get; init; }

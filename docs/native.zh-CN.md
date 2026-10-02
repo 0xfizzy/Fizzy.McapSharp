@@ -68,6 +68,8 @@ Writer 完成时在上游 `finish` 后立即提取输出，释放上游 writer �
 
 ## 稳定存储与批次
 
+公共交付方式及调用方责任见 [API 指南](api.zh-CN.md#选择消息所有权)。内部共享范围持有引用计数 backing；释放 reader 或淘汰缓存条目只释放该 owner 的引用。Backing 的最终释放取决于所有引用它的 parser、游标、snapshot 和 lease。这些生命周期保证不构成保留容量上限。
+
 `fm_writer_batch` 接收 24 字节 Header、8 字节 offset/length 范围、共享 payload 和独立的已完成前缀输出。`fm_read_batch`／`fm_visit_messages` 使用 40 字节 Progress（四个 u64、两个 u32）。预检先于写入；推进后的失败不回滚。
 
 `fm_writer_lease_batch` 接收 writer 与 lease 句柄、可选的 header 指针及 usize 数量、usize 已完成前缀输出和普通 Response。header 为 null 且数量为零时使用 lease 原有 header；否则数量必须匹配 lease 的消息数。写入前检查全部目标 Channel，直接读取保留批次的 payload 切片，不构造 payload 或描述符数组。托管端在整个调用期间显式持有 lease 的 SafeHandle 引用。Header 布局和批次错误语义不变。

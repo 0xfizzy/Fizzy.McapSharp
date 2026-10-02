@@ -67,7 +67,7 @@ public sealed record McapAttachment(string Name, string MediaType, ulong LogTime
 public enum McapReadOrder { LogTime, ReverseLogTime, File }
 public sealed record McapQuery
 {
-    /// <summary>Optional fallback-sort allowance for logical payload bytes plus descriptor capacity, not total native memory.</summary>
+    /// <summary>Optional fallback collection allowance: selected payload lengths plus descriptor-array capacity in bytes. Null disables the allowance. Shared ranges count separately; retained backing, compaction overlap and parser/codec memory are excluded. Does not apply to indexed reading.</summary>
     public ulong? MaxBufferedSortBytes { get; init; }
     /// <summary>Allows scanning and buffering all selected messages when time ordering cannot use indexes.</summary>
     public bool AllowBufferedSort { get; init; } = true;

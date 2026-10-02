@@ -17,7 +17,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
         var config = Native.Request(options ?? new());
         fixed (byte* p = data) { var status = Native.fm_snapshot_bytes_options(p, (nuint)data.Length, config, (nuint)config.Length, out var h, out var r); Native.Consume(status, r).Json?.Dispose(); handle = new(h); }
     }
-    /// <summary>Maps a file without an owned input copy. Keep the file unchanged until this snapshot and all child cursors are disposed.</summary>
+    /// <summary>Maps a file without an owned input copy. Keep the file unchanged until this snapshot, all child cursors and all leases retaining its mapping are disposed.</summary>
     public static McapIndexSnapshot OpenMapped(string path, McapIndexSnapshotOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -57,7 +57,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
         using var reader = OpenChunkReader(chunk);
         foreach (var message in reader.ReadMessages()) yield return message;
     }
-    /// <summary>Opens an independent lazy cursor that remains valid after this snapshot is disposed.</summary>
+    /// <summary>Opens an independent lazy cursor that remains valid after this snapshot is disposed. Traverse one cursor to reuse chunk parsing across messages; reopening starts a new traversal.</summary>
     public unsafe McapBufferReader OpenChunkReader(McapChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);

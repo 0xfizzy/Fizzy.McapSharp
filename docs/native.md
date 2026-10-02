@@ -68,6 +68,8 @@ The asynchronous reader drives the linear engine with .NET ReadAsync, retaining 
 
 ## Stable storage and batching
 
+Public delivery choices and caller responsibilities are defined in the [API guide](api.md#choose-message-ownership). Internally, shared ranges retain reference-counted backing; freeing a reader or evicting a cache entry releases only that owner's references. Final backing release depends on every parser, cursor, snapshot and lease using it. These lifetime guarantees do not imply a bound on retained capacity.
+
 `fm_writer_batch` receives 24-byte headers, 8-byte offset/length ranges, shared payload and a separate completed-prefix output. `fm_read_batch`/`fm_visit_messages` use a 40-byte Progress (four u64, two u32). Preflight precedes writes; advancement failures do not roll back.
 
 `fm_writer_lease_batch` receives writer and lease handles, an optional header pointer with usize count, a usize completed-prefix output, and the ordinary Response. Null headers with count zero select the lease's headers; otherwise the count must match the lease's messages. All destination Channels are checked before writing. Payload slices are read directly from the retained batch; no payload or descriptor array is constructed. Managed code holds an explicit SafeHandle reference to the lease across the call. Header layouts and batch error semantics are unchanged.

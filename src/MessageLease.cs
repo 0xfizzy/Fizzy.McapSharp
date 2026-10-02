@@ -4,7 +4,8 @@ using Microsoft.Win32.SafeHandles;
 namespace Fizzy.McapSharp;
 
 /// <summary>Owns stable native message storage. Keep this lease alive until all payload access
-/// has finished. Access and disposal must not overlap. Payload spans expire on disposal.</summary>
+/// has finished. Access and disposal must not overlap. Payload spans expire on disposal.
+/// A payload slice can retain an entire chunk, copied input or mapping; payload length is not retained capacity.</summary>
 public sealed class McapMessageBatchLease : IDisposable
 {
     readonly MessageLeaseHandle handle;
@@ -24,6 +25,8 @@ public sealed class McapMessageBatchLease : IDisposable
     public McapMessageHeader GetHeader(int index) { Get(index, out var header); return header; }
     public ReadOnlySpan<byte> GetPayload(int index) => Get(index, out _);
     public void CopyTo(int index, Span<byte> destination) { Get(index, out _).CopyTo(destination); GC.KeepAlive(this); }
+    /// <summary>Shares the selected message's backing with an independent lease; does not copy or trim storage.
+    /// Dispose the returned lease separately. Other owners may continue retaining the same backing.</summary>
     public McapMessageLease RetainMessage(int index)
     {
         ObjectDisposedException.ThrowIf(handle.IsClosed, this);
@@ -49,7 +52,7 @@ public sealed class McapMessageLease : IDisposable
 
 public sealed partial class McapReadSession
 {
-    /// <summary>Returns null at EOF. Target bytes are a soft batch boundary; messages are never split.</summary>
+    /// <summary>Returns null at EOF. Checks the soft payload target after each whole message, so a batch may exceed it. The target does not bound backing capacity or outstanding leases.</summary>
     public McapMessageBatchLease? ReadBatchLease(int maxMessages = 256, int targetPayloadBytes = 4 * 1024 * 1024)
     {
         Native.CheckLeaseRequest(maxMessages, targetPayloadBytes);

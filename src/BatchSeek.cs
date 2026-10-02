@@ -10,7 +10,7 @@ public sealed partial class McapIndexSnapshot
 {
     readonly BorrowedReadSink borrowed = new();
     void Check() { borrowed.CheckReentry(); ObjectDisposedException.ThrowIf(handle.IsClosed, this); }
-    /// <summary>Loads each distinct chunk once and returns messages in request order.</summary>
+    /// <summary>Within this call, loads each distinct chunk once and returns a shared batch in request order. Cross-call reuse depends on the snapshot cache; returned leases may retain whole chunks or input storage.</summary>
     public unsafe McapMessageBatchLease SeekMessages(ReadOnlySpan<McapSeekRequest> requests)
     {
         Native.CheckLeaseRequest(requests.Length, 1);
