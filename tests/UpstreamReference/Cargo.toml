@@ -3,6 +3,11 @@ name = "mcap_upstream_reference"
 version = "0.0.0"
 edition = "2021"
 publish = false
+default-run = "mcap_upstream_reference"
 [dependencies]
 mcap = "=0.25.0"
 crc32fast = "=1.5.0"
+
+[[bin]]
+name = "timeout_probe"
+path = "timeout_probe.rs"

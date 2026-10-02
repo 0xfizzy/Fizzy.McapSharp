@@ -3,6 +3,11 @@
 Native dependency versions are pinned in native/Cargo.lock. Local mcap extensions provide stable shared storage, a channel membership query and explicit output-extraction disposal semantics. Original source and patch provenance are recorded in native/vendor/mcap/UPSTREAM.json and PATCHES.json. Compression dependencies use unmodified registry releases under the licenses below.
 
 
+## MCAP package icon
+
+The package icon uses the official MCAP website artwork from Foxglove Technologies Inc., distributed under the upstream MIT license included as MCAP-LICENSE.txt in the package. The transparent exterior of the 960x720 source is cropped, then the complete artwork is scaled proportionally to fit a transparent 256x256 PNG canvas without stretching or cropping the artwork. Source commit, URL, conversion and SHA-256 hashes are recorded in assets/icon-source.json. The icon does not imply that this binding is an official Foxglove product.
+
+
 ## array-init 2.1.0
 License: MIT OR Apache-2.0
 Repository: https://github.com/Manishearth/array-init/

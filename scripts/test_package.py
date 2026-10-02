@@ -7,6 +7,7 @@ import zipfile
 import shutil
 import json
 import traceback
+import xml.etree.ElementTree as ET
 from build import ROOT, TARGETS, check_binary, host_rid, run, version
 
 
@@ -20,6 +21,17 @@ def main():
     smoke = ROOT / "artifacts" / ("smoke-" + uuid.uuid4().hex)
     smoke.mkdir(parents=True)
     with zipfile.ZipFile(package) as archive:
+        metadata = ET.fromstring(archive.read('Fizzy.McapSharp.nuspec'))
+        icon_name = metadata.findtext('{*}metadata/{*}icon')
+        if icon_name != 'icon.png':
+            raise RuntimeError('Missing package icon metadata')
+        icon = archive.read(icon_name)
+        if not icon.startswith(b'\x89PNG\r\n\x1a\n') or len(icon) > 1024 * 1024:
+            raise RuntimeError('Invalid NuGet PNG icon')
+        origin = json.loads((ROOT / 'assets/icon-source.json').read_text(encoding='utf-8'))
+        if hashlib.sha256(icon).hexdigest() != origin['sha256']:
+            raise RuntimeError('Package icon differs from the official MCAP asset')
+        archive.read('MCAP-LICENSE.txt')
         expected_assets = {f"runtimes/{asset_rid}/native/{filename}" for asset_rid, (_, filename) in TARGETS.items()}
         actual_assets = {name for name in archive.namelist() if name.startswith("runtimes/")}
         if actual_assets != expected_assets:

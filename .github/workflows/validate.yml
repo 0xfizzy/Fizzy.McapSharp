@@ -196,6 +196,7 @@ jobs:
           path: |
             artifacts/deep/*.json
             artifacts/deep/*.log
+            artifacts/deep/upstream-lz4-timeout-*.mcap
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()

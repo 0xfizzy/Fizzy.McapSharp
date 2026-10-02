@@ -1,5 +1,6 @@
 """Linux x64 native FFI mutation, Valgrind and managed stress orchestration."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,30 @@ import time
 import traceback
 from build import ROOT, host_rid, output
 from test_suites import DLL, generate, run
+
+
+def probe_mutation(driver, reference, path, source, limits, report, directory):
+    try:
+        return subprocess.run([str(driver), str(path)], capture_output=True, text=True,
+                              timeout=30, preexec_fn=limits)
+    except subprocess.TimeoutExpired:
+        if source != 'Lz4.mcap':
+            raise
+        # Only waive a timeout independently reproduced by the unmodified upstream
+        # parser on the exact same bytes. A return, error, panic or crash is not a waiver.
+        try:
+            subprocess.run([str(reference), str(path)], capture_output=True, text=True,
+                           timeout=30, preexec_fn=limits)
+        except subprocess.TimeoutExpired:
+            data = path.read_bytes()
+            digest = hashlib.sha256(data).hexdigest()
+            saved = directory / f'upstream-lz4-timeout-{digest}.mcap'
+            saved.write_bytes(data)
+            report['accepted_upstream_timeouts'].append(dict(
+                **report['current'], sha256=digest, retained_input=str(saved),
+                reason='Lz4 mutation also times out in unmodified registry mcap'))
+            return None
+        raise
 
 
 def main():
@@ -23,7 +48,8 @@ def main():
     a.output = a.output.resolve(); a.output.mkdir(parents=True, exist_ok=False)
     report = dict(commit=output('git', 'rev-parse', 'HEAD'), rid=host_rid(), seed=a.seed,
                   rust=output('rustc', '--version'), dotnet=output('dotnet', '--version'),
-                  config={k: str(v) for k, v in vars(a).items()}, status='running', mutations=0, valgrind=0)
+                  config={k: str(v) for k, v in vars(a).items()}, status='running', mutations=0,
+                  accepted_upstream_timeouts=[], valgrind=0)
     (a.output / 'report.json').write_text(json.dumps(report, indent=2))
     try:
         run('dotnet', 'build', ROOT / 'tests/ContractRunner', '-c', 'Release', timeout=180)
@@ -32,6 +58,11 @@ def main():
         run('rustc', '--edition=2021', '-C', 'opt-level=1', '-g', ROOT / 'tests/native_probe.rs', '-L', native,
             '-l', 'dylib=fizzy_mcap_native', '-o', driver, timeout=180)
         os.environ['LD_LIBRARY_PATH'] = str(native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
+        reference_target = ROOT / 'native/target/deep-reference'
+        run('cargo', 'build', '--release', '--locked', '--manifest-path',
+            ROOT / 'tests/UpstreamReference/Cargo.toml', '--bin', 'timeout_probe',
+            '--target-dir', reference_target, timeout=180)
+        reference = reference_target / 'release/timeout_probe'
         for regression in sorted((ROOT / 'tests/corpus').glob('*.mcap')):
             run(driver, regression)
         inputs = []
@@ -57,7 +88,10 @@ def main():
                 resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
             def probe(path):
                 return subprocess.run([str(driver), str(path)], capture_output=True, text=True, timeout=30, preexec_fn=limits)
-            result = probe(current)
+            result = probe_mutation(driver, reference, current, source.name, limits, report, a.output)
+            if result is None:
+                i += 1
+                continue
             if result.returncode:
                 (a.output / 'native-failure.log').write_text(result.stdout + result.stderr)
                 # Bounded delta reduction, preserving the original failing input and exit class.

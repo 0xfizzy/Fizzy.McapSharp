@@ -10,6 +10,7 @@
     <Authors>Fizzy</Authors>
     <Description>File-based .NET bindings to the official Rust MCAP implementation.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
@@ -17,6 +18,8 @@
   <ItemGroup>
     <Compile Include="src/**/*.cs" Exclude="src/**/bin/**;src/**/obj/**" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="assets/icon.png" Pack="true" PackagePath="/" />
+    <None Include="assets/MCAP-LICENSE.txt" Pack="true" PackagePath="/" />
     <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
     <InternalsVisibleTo Include="Fizzy.McapSharp.Tests" />
     <NativeAsset Include="$(MSBuildThisFileDirectory)artifacts/native/win-x64/fizzy_mcap_native.dll" Rid="win-x64" PackagePath="runtimes/win-x64/native" />

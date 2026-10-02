@@ -76,7 +76,7 @@ Keep this order: .NET writes files, Python validates them and generates files, t
 
 ## Package contents
 
-The package ID is `Fizzy.McapSharp`, targeting net8.0. One package includes the managed assembly, README, third-party notices, and these assets:
+The package ID is `Fizzy.McapSharp`, targeting net8.0. One package includes the managed assembly, README, official MCAP icon with its MIT license, third-party notices, and these assets:
 
 ```text
 runtimes/win-x64/native/fizzy_mcap_native.dll
@@ -146,6 +146,8 @@ On Linux x64 with the pinned Rust toolchain, built native asset, .NET and Valgri
 ```sh
 python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stress-budget 600 --output artifacts/deep-check
 ```
+
+Lz4 mutation timeouts are an accepted upstream limitation only when the exact same input also exceeds the 30-second timeout in a separately compiled, unmodified registry `mcap` sans-I/O parser. Reports list these exceptions separately and retain each input by SHA-256. Other compression modes, upstream probes that return or fail, crashes and all other gates still fail normally. The exception does not change runtime parsing or make malformed Lz4 input safe; process isolation is needed when a hard deadline is required.
 
 The standalone Rust driver links the real private C ABI, checks layouts, and exercises record/chunk parsing, pending buffer reads, snapshots and indexed operations with valid handles. Native mutations run in bounded child processes with a 1 GiB address-space limit and 30-second timeout. Crashes preserve the original input and attempt bounded delta reduction; the reduced input is not guaranteed globally minimal. Valgrind rejects illegal accesses and definite/indirect leaks. This is mutation-based testing, not coverage-guided fuzzing or proof of memory safety.
 

@@ -76,7 +76,7 @@ dotnet run --project tests/Interop -c Release -- read $interopDirectory
 
 ## 包内容
 
-包 ID 为 `Fizzy.McapSharp`，目标框架为 net8.0。同一包包含托管程序集、README、第三方声明及以下资产：
+包 ID 为 `Fizzy.McapSharp`，目标框架为 net8.0。同一包包含托管程序集、README、官方 MCAP 图标及其 MIT 许可证、第三方声明及以下资产：
 
 ```text
 runtimes/win-x64/native/fizzy_mcap_native.dll
@@ -144,6 +144,8 @@ Linux x64 已安装固定 Rust 工具链、.NET、Valgrind 并完成原生库构
 ```sh
 python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stress-budget 600 --output artifacts/deep-check
 ```
+
+Lz4 变异输入超时仅在相同字节也使独立编译、未修改的官方 registry `mcap` sans-I/O 解析器超过 30 秒时，作为已接受的上游限制处理。报告单列这些例外，并按 SHA-256 保留输入。其他压缩模式、上游探针返回或失败、崩溃以及其余门禁仍正常阻断。此例外不改变运行时解析行为，也不使损坏的 Lz4 输入变得安全；需要硬性截止时间时应使用进程隔离。
 
 独立 Rust 驱动链接真实私有 C ABI，检查布局，并以有效句柄覆盖记录/chunk 解析、待交付缓冲读取、快照和索引操作。原生变异子进程限制 1 GiB 地址空间及 30 秒执行时间。崩溃时保留原输入并尝试有预算的差分缩减，不保证获得全局最小样本。Valgrind 拒绝非法内存访问及确定/间接泄漏。这是变异测试，不是覆盖率引导的 fuzz，也不构成内存安全证明。
 
