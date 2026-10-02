@@ -29,5 +29,5 @@ jobs:
     uses: ./.github/workflows/validate.yml
     with:
       deep: ${{ github.event_name == 'schedule' || inputs.deep == true }}
-      seed: ${{ fromJSON(github.event_name == 'schedule' && github.run_number || github.event_name == 'workflow_dispatch' && toJSON(inputs.seed) || '1') }}
-      budget: ${{ fromJSON(github.event_name == 'workflow_dispatch' && toJSON(inputs.budget) || '1200') }}
+      seed: ${{ fromJSON(format('{0}', github.event_name == 'schedule' && github.run_number || inputs.seed || 1)) }}
+      budget: ${{ fromJSON(format('{0}', inputs.budget || 1200)) }}
