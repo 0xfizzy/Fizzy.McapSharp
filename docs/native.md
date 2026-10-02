@@ -46,6 +46,8 @@ Callbacks run synchronously on the initiating thread. Managed callback exception
 
 Writer operations are serialized. Writer status -2 is a configured, audited pre-mutation rejection; -1 is terminal. Other native errors are terminal. `Complete` calls upstream finish and ordinary output flush, retaining output until release. Operation 13 requires successful completion and a native File output, then calls sync_all. FileStream persistence uses managed Flush(true) under the writer lock and reentry guard; callback layouts are unchanged. Synchronization failures are terminal. Drop uses upstream `into_inner`, preventing implicit completion. Free operations catch destructor panics. No callback pointers remain usable after release.
 
+Writer completion extracts the output immediately after upstream `finish`, releasing the upstream writer's cached summary and declarations. The binding retains only `Arc<Summary>`; operation 12 encodes fields and index entries into the final UTF-8 response on demand, with at most the current record/statistics JSON value as intermediate storage. No complete JSON tree is retained. Summary cursors share the Arc independently of the writer. The upstream finish-time summary clone and file-level index accumulation are unchanged; this is a binding ownership optimization, not an upstream memory bound or ABI change.
+
 ## Error boundary and validation
 
 Fallible native exports catch panics and convert them into error responses. Allocation aborts and invalid externally supplied pointers cannot be converted into managed exceptions; callers must pass valid buffers and handles created by this ABI. Rust compile-time assertions and managed tests check supported layout sizes and offsets.

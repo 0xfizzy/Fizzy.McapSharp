@@ -126,7 +126,6 @@ pub struct Writer {
     failed: bool,
     recoverable_errors: u32,
     attachment: Option<u64>,
-    summary: Option<Value>,
     native_summary: Option<std::sync::Arc<mcap::Summary>>,
 }
 impl Drop for Writer {
@@ -220,7 +219,6 @@ pub unsafe extern "C" fn fm_writer_open(
             failed: false,
             recoverable_errors,
             attachment: None,
-            summary: None,
             native_summary: None,
         }));
         Ok(0)
@@ -349,8 +347,8 @@ unsafe fn writer_control(
         return Ok(0);
     }
     if op == 12 {
-        if let Some(s) = &holder.summary {
-            respond(out, serde_json::to_vec(s)?, vec![], 0);
+        if let Some(s) = &holder.native_summary {
+            respond(out, writer_summary_bytes(s)?, vec![], 0);
             return Ok(0);
         }
         return Err("Complete must succeed first".into());
@@ -438,9 +436,10 @@ unsafe fn writer_control(
         }
         7 => {
             let s = w.finish()?;
-            holder.summary = Some(summary_json(&s));
-            holder.native_summary = Some(std::sync::Arc::new(s));
+            // Release upstream's cached summary and declaration tables before any
+            // binding-owned summary work. Keep the output for explicit persistence.
             holder.completed_output = Some(holder.inner.take().unwrap().into_inner());
+            holder.native_summary = Some(std::sync::Arc::new(s));
             holder.completed_output.as_mut().unwrap().flush()?;
             0
         }
@@ -524,6 +523,39 @@ fn metadata_index_json(a: &records::MetadataIndex) -> Value {
 }
 fn summary_json(s: &mcap::Summary) -> Value {
     json!({"statistics":s.stats.as_ref().map(stats_json),"chunkIndexes":s.chunk_indexes.iter().map(chunk_json).collect::<Vec<_>>(),"attachmentIndexes":s.attachment_indexes.iter().map(attachment_index_json).collect::<Vec<_>>(),"metadataIndexes":s.metadata_indexes.iter().map(metadata_index_json).collect::<Vec<_>>(),"schemaIds":s.schemas.keys().collect::<Vec<_>>(),"channelIds":s.channels.keys().collect::<Vec<_>>()})
+}
+// Cold writer response: only the final UTF-8 buffer and the current record's
+// JSON value coexist. Never retain a file-wide JSON tree alongside the summary.
+fn writer_summary_bytes(s: &mcap::Summary) -> Outcome<Vec<u8>> {
+    fn array(out: &mut Vec<u8>, values: impl Iterator<Item = Value>) -> Outcome<()> {
+        out.push(b'[');
+        for (i, value) in values.enumerate() {
+            if i != 0 {
+                out.push(b',');
+            }
+            serde_json::to_writer(&mut *out, &value)?;
+        }
+        out.push(b']');
+        Ok(())
+    }
+    let mut out = Vec::new();
+    out.extend_from_slice(b"{\"statistics\":");
+    serde_json::to_writer(&mut out, &s.stats.as_ref().map(stats_json))?;
+    out.extend_from_slice(b",\"chunkIndexes\":");
+    array(&mut out, s.chunk_indexes.iter().map(chunk_json))?;
+    out.extend_from_slice(b",\"attachmentIndexes\":");
+    array(
+        &mut out,
+        s.attachment_indexes.iter().map(attachment_index_json),
+    )?;
+    out.extend_from_slice(b",\"metadataIndexes\":");
+    array(&mut out, s.metadata_indexes.iter().map(metadata_index_json))?;
+    out.extend_from_slice(b",\"schemaIds\":");
+    array(&mut out, s.schemas.keys().map(|id| json!(id)))?;
+    out.extend_from_slice(b",\"channelIds\":");
+    array(&mut out, s.channels.keys().map(|id| json!(id)))?;
+    out.push(b'}');
+    Ok(out)
 }
 fn empty_summary() -> Value {
     json!({"statistics":null,"chunkIndexes":[],"attachmentIndexes":[],"metadataIndexes":[],"schemaIds":[],"channelIds":[]})

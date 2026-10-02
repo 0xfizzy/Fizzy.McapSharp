@@ -79,6 +79,14 @@ writer.FlushToDisk();
 
 可空开关为 null 时采用上游行为。先应用 `EmitSummaryRecords` 总开关，再应用显式指定的单项开关。`DisableSeeking` 对可定位输出默认 false、不可定位输出默认 true；后者显式指定 false 会失败。省略摘要记录时关闭统计、Chunk/附件/元数据索引和重复声明；Summary offsets 另行关闭。不使用 Chunk 时不会产生 Chunk 压缩和 Chunk 消息索引，不受相关请求值影响。
 
+### 单文件长期录制
+
+单一文件可以保留压缩和完整索引，而不保留全部消息载荷。Writer 内存包含活动 chunk／编解码器存储、声明和文件级索引。上游每完成一个 chunk 都积累一个 ChunkIndex，即使 `EmitChunkIndexes=false` 也是如此；该选项控制输出，不控制积累。`EmitMessageIndexes=false` 省略 chunk 内消息索引，`EmitAttachmentIndexes=false` 和 `EmitMetadataIndexes=false` 则停止保留对应索引。关闭索引会减少索引查询能力。应复用声明，避免持续增加不同 schema／channel。
+
+根据录制时长、吞吐和随机读取延迟选择 `ChunkSize`。较大的 chunk 减少 chunk 索引数量，但可能增加活动存储和单次读取／解压成本；该大小是目标值，不是内存上限。避免不必要的 `Flush()`：它会结束活动 chunk，可能增加索引数量。使用文件或持续排出数据的 Stream，并约束调用方待写队列；持续增长的 MemoryStream 会保留录制内容本身。库不自动分段，也不将索引溢写到磁盘。
+
+`Complete()` 完成格式后释放上游 writer，保留一个共享原生 summary 及输出，不构建持久 JSON summary。`GetSummary()` 按需编码响应并返回独立托管结果；请求整个 summary 仍需要与其内容成比例的响应和结果内存。`OpenSummaryRecords()` 共享原生 summary，不进行完整 JSON 编码；独立游标可以在 writer 释放后继续保留它。上游完成时克隆 summary 的临时成本仍然存在。结束 summary／持久化／Stream 转移操作后应释放 writer；单文件录制仍有文件级索引增长，不是恒定内存操作。
+
 ## 使用可复用缓冲读取消息
 
 文件 `McapReader` 是工厂，构造时不打开文件；每次 `OpenMessages` 或 `OpenRecords` 创建独立的可释放 `McapReadSession` 和原生句柄。会话必须释放，建议使用 using。
@@ -115,7 +123,7 @@ while (true)
 
 回退是高层封装增加的能力，不是官方 MessageStream 提供的排序。文件顺序不一定按 LogTime 递增：读到时间 30 后，后续仍可能出现时间 10。缺少充分索引或顺序保证时，必须完成扫描才能确定全局时间顺序，因此增加首条结果延迟，并消耗与选中 payload 和排序数据成比例的内存；不会自动溢写磁盘。
 
-`AllowBufferedSort` 默认 true，非定位源同样允许回退。设为 false 后在收集前抛出 NotSupportedException 拒绝回退，但仍允许索引探测、受支持的索引查询及文件顺序扫描；用 `OpenIndexedMessages()` 明确要求索引可用。`McapQuery.MaxBufferedSortBytes` 限制回退受控分配，不限制全部原生内存，也不限制官方索引读取的重叠 Chunk 缓冲。索引查询成功仍不代表全文件已验证。
+`AllowBufferedSort` 默认 true，非定位源同样允许回退。设为 false 后在收集前抛出 NotSupportedException 拒绝回退，但仍允许索引探测、受支持的索引查询及文件顺序扫描；用 `OpenIndexedMessages()` 明确要求索引可用。`McapQuery.MaxBufferedSortBytes` 限制选中消息的逻辑 payload 长度总和与回退排序描述符数组已分配容量（字节数）之和。即使多个 payload 范围共享同一 backing，也分别计入各自的逻辑长度。这是结果收集额度，不是保留 backing 容量、压缩存储时的临时空间、解析器／编解码器内存或进程 RSS 上限，也不适用于官方索引读取的重叠 Chunk 缓冲。索引查询成功仍不代表全文件已验证。
 
 `GetChannel(id)` 和 `GetSchema(id)` 复制已遇到或从 Summary 加载的描述。文件中途新增声明不会在消息循环创建托管对象，热路径只返回 ID。描述查询与 Summary 操作允许分配。
 

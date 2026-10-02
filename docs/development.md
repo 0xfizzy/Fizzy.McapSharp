@@ -54,6 +54,12 @@ Classification enumeration acceptance compares 32 and 4096 unrelated fixed-size 
 
 Completion tests distinguish ordinary flushing from explicit file synchronization, cover retained handle ownership and terminal synchronization failures, and use test-only native fault injection and FileStream overrides. These tests verify dispatch and failure contracts, not power-loss durability. ABI changes require rebuilding all three native assets from the same source before complete-package validation.
 
+### Single-file writer memory diagnostics
+
+Run `dotnet run --project tests/Allocations -c Release -- memory-profile 65536` and `cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture`, redirecting reports under ignored `artifacts/`. The managed profile uses a counting Stream rather than retaining output, compares None/Lz4/Zstd, seekable/non-seekable output, 1/4/16 MiB chunk targets and frequent Flush, and disables each index family separately. It samples writing, completion, a held GetSummary result, result collection and disposal; it reports private bytes, working set, managed heap, output length, elapsed time and final chunk count. Increase the message count to study longer recordings. Sampling and forced GC affect timing; process samples across configurations are not isolated allocator measurements.
+
+The native fixture compares identical 64-chunk recordings with eager summary JSON and the production on-demand path. It samples tracked live Rust bytes at 16/32/48/64 chunks, asserts lower completion retention and peak, checks response equivalence and reclamation, and reports cumulative allocations. Peak means tracked live requested allocation sizes on the test thread, not process RSS or allocator-internal realloc overlap. Codec allocations outside the Rust allocator and allocator caches are excluded. The fixture enforces storage properties, not fixed byte counts or throughput thresholds. Managed temporary-file tests verify format, indexes and summary cursor lifetime. Upstream chunk-index growth remains; these diagnostics do not establish constant-memory recording.
+
 ### Python interoperability
 
 Run in an environment with Python available; CI uses Python 3.12:

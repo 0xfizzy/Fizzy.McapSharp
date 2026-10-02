@@ -54,6 +54,12 @@ Linux 构建检查 ELF 架构、动态依赖和 GLIBC 符号版本（不得高�
 
 完成测试区分普通刷新与显式文件同步，覆盖保留句柄的所有权及同步失败后的终止状态，使用仅测试启用的原生故障注入和 FileStream 重写。测试验证调用路径与失败契约，不证明断电持久性。ABI 变化后须从相同源码重建三个平台的原生资产，再验证完整包。
 
+### 单文件 writer 内存诊断
+
+运行 `dotnet run --project tests/Allocations -c Release -- memory-profile 65536` 和 `cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture`，将报告重定向到已忽略的 `artifacts/`。托管诊断使用计数 Stream，不保留输出；比较 None／Lz4／Zstd、可定位／不可定位输出、1／4／16 MiB chunk 目标和频繁 Flush，并分别关闭各类索引。采样阶段包含写入、完成、持有 GetSummary 结果、回收结果和释放 writer，报告私有字节、工作集、托管堆、输出长度、耗时及最终 chunk 数。增加消息数可观察更长录制。采样和强制 GC 会影响计时；各配置的进程采样不是隔离的分配器测量。
+
+原生 fixture 对相同的 64-chunk 录制比较提前构建 summary JSON 与生产按需路径，在 16／32／48／64 个 chunk 时采样 Rust 存活字节，断言完成后的保留量和峰值降低，检查响应等价与内存释放，并报告累计分配。峰值指测试线程跟踪到的存活分配请求大小，不是进程 RSS，也不包含分配器内部 realloc 重叠。Rust 分配器之外的 codec 分配及分配器缓存不计入。测试约束存储性质，不设置固定字节数或吞吐门槛。托管临时文件测试验证格式、索引及 summary 游标生命周期。上游 chunk 索引仍会增长；这些诊断不证明录制具有恒定内存。
+
 ### Python 双向互操作
 
 在准备好 Python 的环境中执行（CI 使用 Python 3.12）：

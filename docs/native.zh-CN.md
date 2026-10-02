@@ -46,6 +46,8 @@ Writer 创建选项包含不可变位掩码 `recoverableErrors`：1 表示显式
 
 Writer 操作串行化，Writer 状态 -2 表示按配置放行的、经核验的修改前拒绝；-1 及其他原生错误为终止失败。Complete 调用上游 finish 后普通刷新输出，并保留输出至释放。操作码 13 要求完成成功且输出为原生 File，然后调用 sync_all。FileStream 持久化在托管 Writer 锁和重入保护下调用 Flush(true)，不改变 callback 布局。同步失败终止 Writer。Drop 使用上游 into_inner，避免隐式完成；free 捕获析构 panic，释放后回调指针不再可用。
 
+Writer 完成时在上游 `finish` 后立即提取输出，释放上游 writer 缓存的 summary 和声明。绑定层只保留 `Arc<Summary>`；操作 12 按需将字段和索引条目编码到最终 UTF-8 响应，中间 JSON 存储最多覆盖当前记录／统计对象，不保留完整 JSON 树。Summary 游标通过 Arc 独立于 writer 保留数据。上游完成时的 summary 克隆和文件级索引积累不变；这是绑定层所有权优化，不是上游内存上限或 ABI 变更。
+
 ## 错误边界与验证
 
 可失败原生入口捕获 panic 并转换成错误响应。分配器 abort 和外部非法指针无法转换成托管异常；调用方必须传入有效缓冲及本 ABI 创建的句柄。Rust 编译期断言和托管测试验证支持平台上的布局大小及偏移。

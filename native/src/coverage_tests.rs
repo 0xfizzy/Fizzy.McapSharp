@@ -317,7 +317,6 @@ fn recovered_registration_matches_official_output() {
             failed: false,
             recoverable_errors: 31,
             attachment: None,
-            summary: None,
             native_summary: None,
         };
         let mut out = Response::default();
@@ -464,7 +463,6 @@ fn completion_does_not_sync_and_sync_failure_is_terminal() {
         failed: false,
         recoverable_errors: 31,
         attachment: None,
-        summary: None,
         native_summary: None,
     };
     io::SYNC_TEST.with(|s| s.set((0, false)));
