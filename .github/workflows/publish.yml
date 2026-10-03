@@ -30,7 +30,12 @@ jobs:
         id: login
         with:
           user: ${{ vars.NUGET_USER }}
-      - run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$env:NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+      - name: Publish verified package
+        run: |
+          $packages = @(Get-ChildItem -LiteralPath artifacts/packages -Filter '*.nupkg' -File)
+          if ($packages.Count -ne 1) { throw "Expected exactly one verified package, found $($packages.Count)" }
+          dotnet nuget push $packages[0].FullName --api-key "$env:NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+          if ($LASTEXITCODE -ne 0) { throw "NuGet push failed with exit code $LASTEXITCODE" }
         shell: pwsh
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}

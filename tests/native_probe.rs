@@ -1,5 +1,7 @@
 //! Standalone FFI driver: rustc uses the repository's pinned toolchain, no extra crates.
 use std::{env, ffi::c_void, fs, mem, ptr, slice};
+mod probe_protocol;
+use probe_protocol as trace;
 #[repr(C)]
 struct Response { json: *mut u8, json_len: usize, data: *mut u8, data_len: usize, value: u64 }
 impl Default for Response { fn default() -> Self { unsafe { mem::zeroed() } } }
@@ -22,9 +24,19 @@ unsafe fn release(r: &mut Response) {
     let panic = r.json_len > 0 && String::from_utf8_lossy(slice::from_raw_parts(r.json, r.json_len)).contains("Native MCAP panic");
     fm_buffer_free(r.json, r.json_len); fm_buffer_free(r.data, r.data_len);
     *r = Response::default();
-    assert!(!panic, "FFI caught a panic");
+    if panic {
+        // The ABI caught the panic. Preserve its original diagnostic for attribution;
+        // driver assertions are a separate, unconditional binding-contract failure.
+        eprintln!("MCAP_PROBE caught-panic");
+        std::process::exit(86);
+    }
 }
 fn main() {
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        eprintln!("MCAP_PROBE binding-contract-failure");
+        hook(info);
+    }));
     assert_eq!(mem::size_of::<Response>(), 40);
     assert_eq!(mem::size_of::<Header>(), 24);
     assert_eq!(mem::offset_of!(Header, log_time), 8);
@@ -36,22 +48,31 @@ fn main() {
         for _ in 0..repeats {
             let mut indexes = Vec::new();
             for mode in [0, 2, 4, 5] {
+                trace::start(mode, data.len());
+                trace::emit("strict open");
                 let mut h = ptr::null_mut(); let mut r = Response::default();
                 let status = fm_buffer_reader_open(mode, false, data.as_ptr(), data.len(), &mut h, &mut r);
                 release(&mut r);
                 if status < 0 { assert!(h.is_null()); continue; }
-                let mut b = vec![0; 8 * 1024 * 1024]; let mut op = 0;
+                let mut b = vec![0; trace::CAPACITY]; let mut op = 0;
+                let mut ordinal = 0; let mut hash = trace::INITIAL_HASH;
                 loop {
+                    trace::next(mode, ordinal, hash);
                     let status = fm_buffer_reader_next(h, b.as_mut_ptr(), b.len(), &mut op, &mut r);
                     let length = r.value as usize; release(&mut r);
+                    trace::emit("strict delivery");
                     if status != 0 { break; }
                     assert!(length <= b.len());
                     if mode == 0 && [8, 10, 13].contains(&op) { indexes.push((op, b[..length].to_vec())); }
                     let parsed = fm_parse_record(op, b.as_ptr(), length, &mut r); release(&mut r);
                     assert_eq!(parsed, 0, "Reader emitted an invalid record");
+                    trace::observe(&mut hash, op, &b[..length]);
+                    ordinal += 1;
                 }
+                trace::emit("strict free");
                 fm_buffer_reader_free(h);
             }
+            trace::emit("strict snapshot");
             let mut h = ptr::null_mut(); let mut r = Response::default();
             let status = fm_snapshot_bytes(data.as_ptr(), data.len(), &mut h, &mut r); release(&mut r);
             if status == 0 {
