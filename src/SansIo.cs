@@ -108,7 +108,7 @@ public sealed partial class McapSansIoReader : IDisposable
         lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); int status = Native.fm_engine_index_control(handle, limit.HasValue ? Protocol.IndexedControl.SetRecordLengthLimit : Protocol.IndexedControl.ClearRecordLengthLimit, limit ?? 0, null, 0, out var r); if (status < Protocol.Status.Success) throw Native.ConsumeError(r); }
     }
     /// <summary>Opens an independent record-only cursor over a completed summary, retaining it after parser disposal.</summary>
-    public McapBufferReader OpenSummaryRecords() { lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return Native.SummaryRecords(Protocol.SummarySource.Engine, handle); } }
+    public McapReadCursor OpenSummaryRecords() { lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return Native.SummaryRecords(Protocol.SummarySource.Engine, handle); } }
     /// <summary>Copies the completed summary into independent managed objects, or returns null when the input has no summary.</summary>
     public McapSummary? GetSummary()
     {

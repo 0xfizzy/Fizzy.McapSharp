@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapBufferReader
+public sealed partial class McapReadCursor
 {
     readonly Dictionary<ushort, McapChannelDescription> descriptions = new();
     readonly Dictionary<ushort, McapSchemaDescription> schemaDescriptions = new();

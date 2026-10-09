@@ -23,7 +23,7 @@ public class ReaderBoundaryTests
     public void CompositeRandomAccessValidationFailureTerminatesSession(int invalid)
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = McapFileReader.OpenRecords(stream);
+        using var reader = McapReaderFactory.OpenRecords(stream);
         var chunk = Assert.Single(reader.GetSummary()!.ChunkIndexes);
         if (invalid == 0)
             Assert.Throws<McapException>(() => reader.ReadChunk(chunk with { ChunkLength = chunk.ChunkLength + 1 }));
@@ -42,7 +42,7 @@ public class ReaderBoundaryTests
     public void RandomAccessArgumentRejectionDoesNotFailSession()
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = McapFileReader.OpenRecords(stream);
+        using var reader = McapReaderFactory.OpenRecords(stream);
         Assert.Throws<ArgumentNullException>(() => reader.ReadChunk(null!));
         Assert.Throws<ArgumentNullException>(() => reader.ReadMessageIndexes(null!));
         Assert.Equal(McapReadStatus.Success, reader.ReadNextRecord(new byte[4096], out var opcode, out _));
@@ -50,29 +50,29 @@ public class ReaderBoundaryTests
     }
 
     [Theory]
-    [InlineData(McapBufferReadMode.Linear)]
-    [InlineData(McapBufferReadMode.SansMagic)]
-    [InlineData(McapBufferReadMode.FlattenChunks)]
-    [InlineData(McapBufferReadMode.Chunk)]
-    public void RecordOnlyModeRejectsAllMessageDeliveryWithoutAdvancing(McapBufferReadMode mode)
+    [InlineData(McapCursorMode.TopLevelRecords)]
+    [InlineData(McapCursorMode.ExpandedRecordsWithoutMagic)]
+    [InlineData(McapCursorMode.ExpandedRecords)]
+    [InlineData(McapCursorMode.ChunkRecords)]
+    public void RecordOnlyModeRejectsAllMessageDeliveryWithoutAdvancing(McapCursorMode mode)
     {
         var input = Recording();
-        if (mode == McapBufferReadMode.SansMagic) input = input[8..^8];
-        if (mode == McapBufferReadMode.Chunk)
+        if (mode == McapCursorMode.ExpandedRecordsWithoutMagic) input = input[8..^8];
+        if (mode == McapCursorMode.ChunkRecords)
         {
-            using var top = new McapBufferReader(input, McapBufferReadMode.Linear);
+            using var top = new McapReadCursor(input, McapCursorMode.TopLevelRecords);
             input = top.ReadRecords().First(r => r.Opcode == 6).Data;
         }
-        using var reader = new McapBufferReader(input, mode);
+        using var reader = new McapReadCursor(input, mode);
         AssertMessageMethodsRejected(reader);
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNextRecord([], out var opcode, out var length));
         AssertMessageMethodsRejected(reader);
         Assert.Equal(McapReadStatus.Success, reader.ReadNextRecord(new byte[checked((int)length)], out var retryOpcode, out _));
         Assert.Equal(opcode, retryOpcode);
-        Assert.Equal(mode == McapBufferReadMode.Chunk ? 3 : 1, opcode);
+        Assert.Equal(mode == McapCursorMode.ChunkRecords ? 3 : 1, opcode);
     }
 
-    static void AssertMessageMethodsRejected(McapBufferReader reader)
+    static void AssertMessageMethodsRejected(McapReadCursor reader)
     {
         Assert.Throws<InvalidOperationException>(() => reader.ReadNext(new byte[100], out _, out _));
         Assert.Throws<InvalidOperationException>(() => reader.ReadNext((in McapMessageHeader _, ReadOnlySpan<byte> _) => true));
@@ -85,7 +85,7 @@ public class ReaderBoundaryTests
     public void InternalSummaryAndChunkCursorsHaveDistinctCapabilities()
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = McapFileReader.OpenRecords(stream);
+        using var reader = McapReaderFactory.OpenRecords(stream);
         using var snapshot = reader.OpenIndexSnapshot();
         using var summary = snapshot.OpenSummaryRecords();
         AssertMessageMethodsRejected(summary);
@@ -101,7 +101,7 @@ public class ReaderBoundaryTests
     public void RecoveryRetainsStructuredParseError()
     {
         using var stream = new MemoryStream(Recording(complete: false));
-        using var reader = McapFileReader.OpenMessages(stream, options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessages(stream, options: McapReaderOptions.Strict);
         var result = reader.RecoverMessages(_ => { });
         Assert.Equal(1ul, result.RecoveredMessageCount);
         Assert.False(result.IsFullyValidated);

@@ -23,7 +23,7 @@ public class PreparedOwnershipTests
                 writer.WriteMessage(prepared, new(9, 2, 3, 4), "again"u8);
                 writer.Complete();
             }
-            using var reader = McapFileReader.OpenMessages(new MemoryStream(output.ToArray()), options: McapReaderOptions.Strict);
+            using var reader = McapReaderFactory.OpenMessages(new MemoryStream(output.ToArray()), options: McapReaderOptions.Strict);
             var messages = reader.ReadMessages().ToArray();
             Assert.Equal(2, messages.Length);
             var message = messages[0];
@@ -49,7 +49,7 @@ public class PreparedOwnershipTests
             writer.Complete();
         }
         output.Position = 0;
-        using var reader = McapFileReader.OpenMessages(output, leaveOpen: true, options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessages(output, leaveOpen: true, options: McapReaderOptions.Strict);
         var messages = reader.ReadMessages().ToArray();
         Assert.Equal(2, messages.Length);
         Assert.All(messages, message => {
@@ -74,7 +74,7 @@ public class PreparedOwnershipTests
             writer.Complete();
         }
         stream.Position = 0;
-        using (var reader = McapFileReader.OpenRecords(stream, leaveOpen: true, options: new()
+        using (var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true, options: new()
         {
             RecordLengthLimit = 128 * 1024
         }))
@@ -85,7 +85,7 @@ public class PreparedOwnershipTests
             Assert.Equal(position, stream.Position);
         }
         stream.Position = 0;
-        using var unrestricted = McapFileReader.OpenRecords(stream, leaveOpen: true);
+        using var unrestricted = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
         Assert.Empty(unrestricted.GetSummary()!.SchemaIds);
     }
 
@@ -105,7 +105,7 @@ public class PreparedOwnershipTests
                 Assert.Equal(2, writer.GetSummary().MetadataIndexes.Count);
             }
             stream.Position = 0;
-            using var reader = McapFileReader.OpenRecords(stream, leaveOpen: true);
+            using var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
             var metadata = reader.ReadMetadata().ToArray();
             Assert.Equal(2, metadata.Length);
             foreach (var item in metadata)

@@ -10,6 +10,8 @@
 | --- | --- |
 | `Fizzy.McapSharp.csproj` | 库项目与包元数据；仅编译 `src/` 下的源码 |
 | `src/` | 公共 .NET API；能力 partial 按所属类型命名，Native 互操作声明独立组织 |
+| `src/McapWriterOptions.cs`、`McapQuery.cs`、`McapReadContracts.cs` | 写入配置、消息筛选与读取结果／模式 |
+| `src/McapDeclarations.cs`、`McapMessageModels.cs`、`McapDataRecords.cs`、`McapSummaryModels.cs` | 声明、消息、数据记录与摘要／索引模型；不依赖具体 reader 实现 |
 | `native/src/lib.rs`、`protocol.rs` | 共享 ABI／错误边界及具名协议数值 |
 | `native/src/reader.rs`、`writer.rs`、`summary.rs`、`io.rs` | 文件／Stream 读取会话与查询、writer 状态、摘要序列化及源／回调 I/O |
 | `native/src/engine.rs`、`snapshot.rs`、`prepared_write.rs`、`record_access.rs` | Sans-I/O 引擎、独立索引快照、预准备写入和原始记录工具 |

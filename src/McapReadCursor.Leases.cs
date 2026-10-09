@@ -3,7 +3,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapBufferReader
+public sealed partial class McapReadCursor
 {
     /// <summary>Returns a stable shared batch, or null at EOF. Failure publishes no partial lease and terminates the read. Retain the lease throughout access, including after reader disposal; do not dispose concurrently.</summary>
     public McapMessageBatchLease? ReadBatchLease(int maxMessages = 256, int targetPayloadBytes = 4 * 1024 * 1024)

@@ -31,7 +31,7 @@ public class QueryTieContractTests
         foreach (bool indexed in new[] { false, true })
         {
             using Stream input = indexed ? new MemoryStream(bytes) : new NonSeekable(bytes);
-            using var reader = McapFileReader.OpenMessages(input,
+            using var reader = McapReaderFactory.OpenMessages(input,
                 new() { Order = order, AllowBufferedSort = !indexed });
             var messages = reader.ReadMessages().ToArray();
             Assert.Equal(new uint[] { 0, 1, 2 }, messages.Select(m => m.Sequence).Order());

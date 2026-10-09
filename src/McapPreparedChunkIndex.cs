@@ -8,6 +8,15 @@ public sealed class McapPreparedChunkIndex : IDisposable
 {
     internal readonly PreparedChunkIndexHandle Handle;
     internal readonly object Gate = new();
+    static long nextLockOrder;
+    internal readonly long LockOrder = Interlocked.Increment(ref nextLockOrder);
+    [ThreadStatic] static bool inSnapshotCallback;
+    internal static void CheckCallbackReentry()
+    {
+        if (inSnapshotCallback) throw new InvalidOperationException("Cannot use or dispose a prepared chunk index from a snapshot message callback.");
+    }
+    internal static void EnterCallback() => inSnapshotCallback = true;
+    internal static void ExitCallback() => inSnapshotCallback = false;
     internal readonly ushort[] ChannelIds;
     /// <summary>Copies and freezes the complete descriptor, including the current channel-offset map, for repeated calls across snapshots. Does not validate any file.</summary>
     public unsafe McapPreparedChunkIndex(McapChunkIndex index)
@@ -28,5 +37,5 @@ public sealed class McapPreparedChunkIndex : IDisposable
     }
     internal void Check() => ObjectDisposedException.ThrowIf(Handle.IsClosed, this);
     /// <summary>Releases this owner once. Independently retained cursors and leases remain valid; repeated disposal does not replay release.</summary>
-    public void Dispose() { lock (Gate) Handle.Dispose(); }
+    public void Dispose() { CheckCallbackReentry(); lock (Gate) Handle.Dispose(); }
 }

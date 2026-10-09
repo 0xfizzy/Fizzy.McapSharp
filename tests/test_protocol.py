@@ -44,7 +44,7 @@ class ProtocolContracts(unittest.TestCase):
 
     def test_public_discriminants_match_private_protocol(self):
         for path, public, domain in [
-            ("McapBufferReader.cs", "McapBufferReadMode", "buffer_mode"),
+            ("McapReadCursor.cs", "McapCursorMode", "buffer_mode"),
             ("SansIo.cs", "McapReadEventKind", "engine_event"),
         ]:
             with self.subTest(public=public):
@@ -60,7 +60,13 @@ class ProtocolContracts(unittest.TestCase):
                     if "=" in member:
                         member, explicit = member.split("=")
                         value = int(explicit.strip())
-                    values[snake(member.strip()).upper()] = ("u32", value)
+                    wire_name = {
+                        "TopLevelRecords": "Linear",
+                        "ExpandedRecordsWithoutMagic": "SansMagic",
+                        "ExpandedRecords": "FlattenChunks",
+                        "ChunkRecords": "Chunk",
+                    }.get(member.strip(), member.strip()) if domain == "buffer_mode" else member.strip()
+                    values[snake(wire_name).upper()] = ("u32", value)
                     value += 1
                 self.assertEqual(managed_protocol()[domain], values)
 

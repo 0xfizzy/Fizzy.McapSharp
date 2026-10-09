@@ -56,11 +56,11 @@ public sealed partial class McapIndexSnapshot : IDisposable
         return groups.OrderBy(g => g.Key).Select(g => new McapMessageIndex(g.Key, g.Value)).ToArray();
     }
     /// <summary>Opens an independent summary-record cursor that retains the summary after this snapshot is disposed. Requires an available summary.</summary>
-    public McapBufferReader OpenSummaryRecords() { lock (gate) { Check(); return Native.SummaryRecords(Protocol.SummarySource.Snapshot, handle); } }
+    public McapReadCursor OpenSummaryRecords() { lock (gate) { Check(); return Native.SummaryRecords(Protocol.SummarySource.Snapshot, handle); } }
     /// <summary>Returns an independent owned channel declaration from the summary, including schema and metadata.</summary>
     public McapChannel GetChannel(ushort id)
     {
-        lock (gate) { Check(); var status = Native.fm_snapshot_channel(handle, id, out var r); return McapBufferReader.DecodeChannel(Native.Consume(status, r)); }
+        lock (gate) { Check(); var status = Native.fm_snapshot_channel(handle, id, out var r); return DeclarationDecoder.Channel(Native.Consume(status, r)); }
     }
     /// <summary>Returns an independent owned message from its chunk-relative index entry. Requires a summary and a valid complete chunk descriptor.</summary>
     public McapMessage SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry entry) => SeekOwned(chunk, null, entry);
@@ -71,7 +71,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
         foreach (var message in reader.ReadMessages()) yield return message;
     }
     /// <summary>Opens an independent lazy cursor that remains valid after this snapshot is disposed. Traverse one cursor to reuse chunk parsing across messages; reopening starts a new traversal.</summary>
-    public unsafe McapBufferReader OpenChunkReader(McapChunkIndex index)
+    public unsafe McapReadCursor OpenChunkReader(McapChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
         lock (gate)
@@ -112,12 +112,32 @@ public sealed partial class McapIndexSnapshot : IDisposable
         return v.Footer;
     }
     /// <summary>Returns an independent owned record after validating its indexed range. No summary is required.</summary>
-    public McapMetadata ReadMetadata(McapMetadataIndex index) => RecordDecoder.Metadata(ReadOwned(Protocol.SnapshotOperation.Metadata, index));
-    /// <summary>Returns an independent owned record after validating its indexed range. No summary is required.</summary>
-    public McapAttachment ReadAttachment(McapAttachmentIndex index) => RecordDecoder.Attachment(ReadOwned(Protocol.SnapshotOperation.Attachment, index));
-    byte[] ReadOwned(uint op, object index)
+    public McapMetadata ReadMetadata(McapMetadataIndex index) => (McapMetadata)ReadOwned(Protocol.SnapshotOperation.Metadata, index, OwnedReadSink.Kind.Metadata);
+    /// <summary>Returns an independent owned record after validating its indexed range. Copies the payload directly into its final array; no summary is required.</summary>
+    public McapAttachment ReadAttachment(McapAttachmentIndex index) => (McapAttachment)ReadOwned(Protocol.SnapshotOperation.Attachment, index, OwnedReadSink.Kind.Attachment);
+    unsafe object ReadOwned(uint op, object index, OwnedReadSink.Kind kind)
     {
-        lock (gate) { Call(op, index, default, [], out _, out var n); var data = new byte[checked((int)n)]; Call(op, index, default, data, out _, out _); return data; }
+        ArgumentNullException.ThrowIfNull(index);
+        lock (gate)
+        {
+            Check();
+            using var sink = new OwnedReadSink(kind);
+            int size = IndexEncoding.Size(index);
+            byte* allocated = size > 1024 ? (byte*)NativeMemory.Alloc((nuint)size) : null;
+            Span<byte> encoded = size <= 1024 ? stackalloc byte[size] : new Span<byte>(allocated, size);
+            try
+            {
+                new IndexEncoding(encoded).Write(index);
+                using var lease = sink.Acquire();
+                fixed (byte* body = encoded)
+                {
+                    int status = Native.fm_snapshot_record_owned(handle, op, body, (nuint)size, sink.Sink, out var result);
+                    if (status < Protocol.Status.Success) { var error = Native.ConsumeError(result); sink.ThrowIfError(); throw error; }
+                }
+                return sink.Value!;
+            }
+            finally { NativeMemory.Free(allocated); }
+        }
     }
     unsafe McapReadStatus Call(uint op, object? index, McapMessageIndexEntry message, Span<byte> destination, out McapMessageHeader header, out ulong length)
     {

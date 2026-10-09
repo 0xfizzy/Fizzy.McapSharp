@@ -12,33 +12,77 @@ use mcap::{records, sans_io};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, io::{Read, Seek, SeekFrom}, ptr};
 
+/// Declaration validity belongs to the expanded scan, independently of delivery mode.
+#[derive(Default)]
+struct Declarations {
+    schemas: BTreeMap<u16, (records::SchemaHeader, Vec<u8>)>,
+    channels: BTreeMap<u16, records::Channel>,
+    scanned_schemas: std::collections::BTreeSet<u16>,
+    scanned_channels: std::collections::BTreeSet<u16>,
+}
+impl Declarations {
+    fn observe(&mut self, record: &records::Record<'_>, expanded: bool) -> Outcome<()> {
+        match record {
+            records::Record::Schema { header, data } => {
+                if header.id == 0 { return Err(mcap::McapError::InvalidSchemaId.into()); }
+                self.scanned_schemas.insert(header.id);
+                if let Some((old, bytes)) = self.schemas.get(&header.id) {
+                    if old != header || bytes.as_slice() != data.as_ref() {
+                        return Err(mcap::McapError::ConflictingSchemas(header.name.clone()).into());
+                    }
+                } else {
+                    self.schemas.insert(header.id, (header.clone(), data.to_vec()));
+                }
+            }
+            records::Record::Channel(c) => {
+                if expanded && c.schema_id != 0 && !self.scanned_schemas.contains(&c.schema_id) {
+                    return Err(mcap::McapError::UnknownSchema(c.topic.clone(), c.schema_id).into());
+                }
+                self.scanned_channels.insert(c.id);
+                if let Some(old) = self.channels.get(&c.id) {
+                    if old != c { return Err(mcap::McapError::ConflictingChannels(c.topic.clone()).into()); }
+                } else {
+                    self.channels.insert(c.id, c.clone());
+                }
+            }
+            records::Record::Message { header, .. } if expanded => {
+                if !self.scanned_channels.contains(&header.channel_id) {
+                    return Err(mcap::McapError::UnknownChannel(header.sequence, header.channel_id).into());
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
 pub struct Reader {
     pub(super) options: memory::Options,
     pub(super) delivery: memory::Delivery,
-    pub(super) scratch: memory::Delivery,
-    pub(super) indexed: Option<sans_io::IndexedReader>,
-    pub(super) sorted: bool,
-    pub(super) order: u64,
-    pub(super) topics: Option<std::collections::BTreeSet<String>>,
-    pub(super) limit: Option<usize>,
-    pub(super) arena: sort_arena::Arena,
-    pub(super) indexed_summary: Option<Value>,
-    pub(super) indexed_summary_owner: Option<std::sync::Arc<mcap::Summary>>,
-    pub(super) parser: Option<sans_io::LinearReader>,
-    pub(super) input: Input,
+    scratch: memory::Delivery,
+    indexed: Option<sans_io::IndexedReader>,
+    sorted: bool,
+    order: u64,
+    topics: Option<std::collections::BTreeSet<String>>,
+    limit: Option<usize>,
+    arena: sort_arena::Arena,
+    indexed_summary: Option<Value>,
+    indexed_summary_owner: Option<std::sync::Arc<mcap::Summary>>,
+    parser: Option<sans_io::LinearReader>,
+    input: Input,
 
-    pub(super) schemas: BTreeMap<u16, (records::SchemaHeader, Vec<u8>)>,
-    pub(super) channels: BTreeMap<u16, records::Channel>,
-    pub(super) summary: Value,
-    pub(super) summary_present: bool,
-    pub(super) in_summary: bool,
-    pub(super) ended: bool,
-    pub(super) failed: bool,
-    pub(super) count: u64,
-    pub(super) topic: Option<String>,
-    pub(super) start: Option<u64>,
-    pub(super) end: Option<u64>,
-    pub(super) messages: bool,
+    declarations: Declarations,
+    expanded: bool,
+    summary: Value,
+    summary_present: bool,
+    in_summary: bool,
+    ended: bool,
+    failed: bool,
+    count: u64,
+    topic: Option<String>,
+    start: Option<u64>,
+    end: Option<u64>,
+    messages: bool,
 }
 fn parser(top: bool, limit: Option<usize>) -> sans_io::LinearReader {
     let mut o = sans_io::LinearReaderOptions::default()
@@ -53,44 +97,80 @@ fn parser(top: bool, limit: Option<usize>) -> sans_io::LinearReader {
     sans_io::LinearReader::new_with_options(o)
 }
 impl Reader {
-    pub(super) fn observe(&mut self, op: u8, data: &[u8]) -> Outcome<()> {
-        self.count += 1;
-        match mcap::parse_record(op, data)? {
-            records::Record::Schema { header, data } => {
-                if header.id == 0 {
-                    return Err("Invalid schema ID".into());
+    /// Copies independent snapshot input while preserving the sequential cursor.
+    pub(super) fn copy_input(&mut self) -> Outcome<memory::Backing> {
+        if self.failed { return Err("Reader failed".into()); }
+        if !self.input.seekable() { return Err("Snapshot requires a seekable source".into()); }
+        let pos = self.input.stream_position()?;
+        let result = (|| -> Outcome<memory::Backing> {
+            let length = usize::try_from(self.input.seek(SeekFrom::End(0))?)?;
+            self.input.seek(SeekFrom::Start(0))?;
+            let mut data = Vec::new();
+            data.try_reserve_exact(length)?;
+            data.resize(length, 0);
+            self.input.read_exact(&mut data)?;
+            Ok(memory::Backing::Owned { data })
+        })();
+        restored(result, self.input.seek(SeekFrom::Start(pos)))
+    }
+
+    pub(super) unsafe fn record_into(&mut self, offset: u64, dest: *mut u8,
+        capacity: usize, opcode: *mut u8, out: &mut Response) -> Outcome<i32> {
+        if self.failed {
+            return Err("Reader failed".into());
+        }
+        let pos = self.input.stream_position()?;
+        let result = (|| {
+            self.input.seek(SeekFrom::Start(offset))?;
+            let mut h = [0u8; 9];
+            self.input.read_exact(&mut h)?;
+            let n = usize::try_from(u64::from_le_bytes(h[1..].try_into()?))?;
+            if self.limit.is_some_and(|limit| n > limit) {
+                return Err(mcap::McapError::RecordTooLarge {
+                    opcode: h[0],
+                    len: n as u64,
                 }
-                if let Some((old, bytes)) = self.schemas.get(&header.id) {
-                    if old != &header || bytes.as_slice() != data.as_ref() {
-                        return Err("Conflicting schema".into());
-                    }
-                }
-                if self.in_summary {
-                    self.summary["schemaIds"]
-                        .as_array_mut()
-                        .unwrap()
-                        .push(json!(header.id));
-                }
-                if !self.schemas.contains_key(&header.id) {
-                    self.schemas.insert(header.id, (header, data.into_owned()));
-                }
+                .into());
             }
-            records::Record::Channel(c) => {
-                if self.messages && c.schema_id != 0 && !self.schemas.contains_key(&c.schema_id) {
-                    return Err("Unknown schema".into());
-                }
-                if let Some(old) = self.channels.get(&c.id) {
-                    if old != &c {
-                        return Err("Conflicting channel".into());
-                    }
-                }
-                if self.in_summary {
-                    self.summary["channelIds"]
-                        .as_array_mut()
-                        .unwrap()
-                        .push(json!(c.id));
-                }
-                self.channels.entry(c.id).or_insert(c);
+            let start = self.input.stream_position()?;
+            let end = self.input.seek(SeekFrom::End(0))?;
+            if n as u64 > end.saturating_sub(start) {
+                return Err("Record exceeds source length".into());
+            }
+            let status = if let Input::Map { mapping, .. } = &self.input {
+                let start = usize::try_from(start)?;
+                let data = &mapping[start..start + n];
+                mcap::parse_record(h[0], data)?;
+                super::record_access::copy_body(data, dest, capacity, out)?
+            } else {
+                self.input.seek(SeekFrom::Start(start))?;
+                self.scratch.data.clear();
+                self.scratch.reserve_scratch(n)?;
+                self.scratch.data.resize(n, 0);
+                self.input.read_exact(&mut self.scratch.data)?;
+                mcap::parse_record(h[0], &self.scratch.data)?;
+                super::record_access::copy_body(&self.scratch.data, dest, capacity, out)?
+            };
+            if !opcode.is_null() {
+                *opcode = h[0];
+            }
+            Ok(status)
+        })();
+        let restored = self.input.seek(SeekFrom::Start(pos));
+        self.scratch.release();
+        super::restored(result, restored)
+    }
+
+    fn observe(&mut self, op: u8, data: &[u8]) -> Outcome<()> {
+        self.count += 1;
+        let record = mcap::parse_record(op, data)?;
+        self.declarations.observe(&record, self.expanded)?;
+        match record {
+            records::Record::Schema { header, .. } if self.in_summary => {
+                self.summary["schemaIds"].as_array_mut().unwrap().push(json!(header.id));
+            }
+            records::Record::Channel(c) if self.in_summary => {
+                self.summary["channelIds"].as_array_mut().unwrap().push(json!(c.id));
             }
             records::Record::DataEnd(_) => self.in_summary = true,
             records::Record::Footer(f) => self.summary_present = f.summary_start != 0,
@@ -114,17 +194,17 @@ impl Reader {
         }
         Ok(())
     }
-    pub(super) fn select(&self, h: &records::MessageHeader) -> Outcome<bool> {
+    fn select(&self, h: &records::MessageHeader) -> Outcome<bool> {
         let c = self
-            .channels
+            .declarations.channels
             .get(&h.channel_id)
-            .ok_or("Unknown message channel")?;
+            .ok_or(mcap::McapError::UnknownChannel(h.sequence, h.channel_id))?;
         Ok(!self.start.is_some_and(|n| h.log_time < n)
             && !self.end.is_some_and(|n| h.log_time >= n)
             && !self.topic.as_ref().is_some_and(|t| t != &c.topic)
             && !self.topics.as_ref().is_some_and(|t| !t.contains(&c.topic)))
     }
-    pub(super) fn next_with(
+    fn next_with(
         &mut self,
         mut sink: impl FnMut(&mut Self, u8, &[u8], MessageHeader) -> Outcome<i32>,
     ) -> Outcome<i32> {
@@ -247,7 +327,7 @@ impl Reader {
         result
     }
 
-    pub(super) unsafe fn read(&mut self, dest: *mut u8, capacity: usize, out: &mut Response) -> Outcome<i32> {
+    unsafe fn read(&mut self, dest: *mut u8, capacity: usize, out: &mut Response) -> Outcome<i32> {
         if self.sorted && self.delivery.capture {
             self.delivery.shared = self.arena.read_shared(&mut self.delivery.header, out);
             if self.delivery.shared.is_none() {
@@ -339,8 +419,8 @@ pub unsafe extern "C" fn fm_reader_open(
                     .with_emit_chunks(v["topLevel"].as_bool().unwrap_or(false)),
             )),
             input,
-            schemas: BTreeMap::new(),
-            channels: BTreeMap::new(),
+            declarations: Declarations::default(),
+            expanded: !v["topLevel"].as_bool().unwrap_or(false),
             summary: empty_summary(),
             summary_present: false,
             in_summary: false,
@@ -477,7 +557,7 @@ pub unsafe extern "C" fn fm_reader_describe(
         let r = handle.as_mut().ok_or("Null reader")?;
         match kind {
             crate::protocol::declaration_kind::SCHEMA => {
-                let (h, d) = r.schemas.get(&id).ok_or("Unknown schema")?;
+                let (h, d) = r.declarations.schemas.get(&id).ok_or_else(|| mcap::McapError::UnknownSchema(String::new(), id))?;
                 respond(
                     out,
                     serde_json::to_vec(&json!({"id":h.id,"name":h.name,"encoding":h.encoding}))?,
@@ -486,7 +566,7 @@ pub unsafe extern "C" fn fm_reader_describe(
                 );
             }
             crate::protocol::declaration_kind::CHANNEL => {
-                let c = r.channels.get(&id).ok_or("Unknown channel")?;
+                let c = r.declarations.channels.get(&id).ok_or(mcap::McapError::UnknownChannel(0, id))?;
                 respond(
                     out,
                     serde_json::to_vec(
@@ -511,7 +591,7 @@ pub unsafe extern "C" fn fm_reader_release(p: *mut Reader, out: *mut Response) -
 }
 
 impl Reader {
-    pub(super) fn read_summary(&mut self) -> Outcome<Option<mcap::Summary>> {
+    fn read_summary(&mut self) -> Outcome<Option<mcap::Summary>> {
         if !self.input.seekable() {
             return Err("Stream is not seekable".into());
         }
@@ -538,7 +618,7 @@ impl Reader {
         })();
         restored(result, self.input.seek(SeekFrom::Start(pos)))
     }
-    pub(super) fn record_at(&mut self, offset: u64) -> Outcome<(u8, Vec<u8>)> {
+    fn record_at(&mut self, offset: u64) -> Outcome<(u8, Vec<u8>)> {
         if !self.input.seekable() {
             return Err("Stream is not seekable".into());
         }
@@ -600,7 +680,7 @@ pub unsafe extern "C" fn fm_reader_summary(handle: *mut Reader, out: *mut Respon
         };
         if let Some(s) = summary {
             for (id, c) in &s.channels {
-                r.channels.entry(*id).or_insert(records::Channel {
+                r.declarations.channels.entry(*id).or_insert(records::Channel {
                     id: *id,
                     schema_id: c.schema.as_ref().map(|s| s.id).unwrap_or(0),
                     topic: c.topic.clone(),
@@ -609,7 +689,7 @@ pub unsafe extern "C" fn fm_reader_summary(handle: *mut Reader, out: *mut Respon
                 });
             }
             for (id, schema) in &s.schemas {
-                r.schemas.entry(*id).or_insert((
+                r.declarations.schemas.entry(*id).or_insert((
                     records::SchemaHeader {
                         id: *id,
                         name: schema.name.clone(),
@@ -647,13 +727,14 @@ pub unsafe extern "C" fn fm_validate(p: *const u8, n: usize, out: *mut Response)
             .transpose()?;
         let mut parser = parser(false, limit);
         let mut count = 0;
+        let mut declarations = Declarations::default();
         while let Some(e) = parser.next_event() {
             match e? {
                 sans_io::LinearReadEvent::ReadRequest(n) => {
                     io::feed_linear(&mut input, &mut parser, n)?;
                 }
                 sans_io::LinearReadEvent::Record { opcode, data } => {
-                    mcap::parse_record(opcode, data)?;
+                    declarations.observe(&mcap::parse_record(opcode, data)?, true)?;
                     count += 1;
                 }
             }
@@ -728,7 +809,7 @@ impl Reader {
             return Ok(());
         }
         for (id, s) in &summary.schemas {
-            self.schemas.insert(
+            self.declarations.schemas.insert(
                 *id,
                 (
                     records::SchemaHeader {
@@ -741,7 +822,7 @@ impl Reader {
             );
         }
         for (id, c) in &summary.channels {
-            self.channels.insert(
+            self.declarations.channels.insert(
                 *id,
                 records::Channel {
                     id: *id,
@@ -776,8 +857,12 @@ impl Reader {
 impl Reader {
     // A valid file may omit repeated schemas but retain repeated channels. Upstream's
     // SummaryReader cannot resolve those alone; scan declarations without moving our cursor.
-    pub(super) fn scan_summary(&mut self) -> Outcome<Option<Value>> {
+    fn scan_summary(&mut self) -> Outcome<Option<Value>> {
         let pos = self.input.stream_position()?;
+        // Summary fallback may populate lookup descriptions, but its traversal is not
+        // progress of the caller's sequential validation session.
+        let old_schemas = std::mem::take(&mut self.declarations.scanned_schemas);
+        let old_channels = std::mem::take(&mut self.declarations.scanned_channels);
         let old_summary = std::mem::replace(&mut self.summary, empty_summary());
         let (old_present, old_in, old_count) = (self.summary_present, self.in_summary, self.count);
         self.summary_present = false;
@@ -801,6 +886,8 @@ impl Reader {
                 None
             })
         })();
+        self.declarations.scanned_schemas = old_schemas;
+        self.declarations.scanned_channels = old_channels;
         self.summary = old_summary;
         self.summary_present = old_present;
         self.in_summary = old_in;
@@ -809,3 +896,40 @@ impl Reader {
     }
 }
 
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+
+    #[test]
+    fn summary_fallback_preserves_sequential_declaration_progress() {
+        let mut writer = mcap::WriteOptions::default().use_chunks(false).repeat_schemas(false)
+            .create(std::io::Cursor::new(Vec::new())).unwrap();
+        let schema = writer.add_schema("schema", "raw", &[1]).unwrap();
+        writer.add_channel(schema, "topic", "raw", &BTreeMap::new()).unwrap();
+        writer.finish().unwrap();
+        let data = writer.into_inner().into_inner();
+        let path = std::env::temp_dir().join(format!("mcap-summary-progress-{}.mcap", std::process::id()));
+        std::fs::write(&path, data).unwrap();
+        let config = serde_json::to_vec(&json!({"path":path,"messages":false,"options":{}})).unwrap();
+        let mut handle = ptr::null_mut();
+        let mut response = Response::default();
+        unsafe {
+            assert_eq!(fm_reader_open(config.as_ptr(), config.len(), ptr::null(), &mut handle, &mut response), 0);
+            let mut reader = Box::from_raw(handle);
+            // Exercise nonempty progress as well as the fresh-session case. These IDs
+            // are local bookkeeping only; the source remains immutable throughout.
+            reader.declarations.scanned_schemas.insert(123);
+            reader.declarations.scanned_channels.insert(456);
+            let position = reader.input.stream_position().unwrap();
+            let count = reader.count;
+            assert!(reader.scan_summary().unwrap().is_some());
+            assert_eq!(reader.declarations.scanned_schemas, [123].into_iter().collect());
+            assert_eq!(reader.declarations.scanned_channels, [456].into_iter().collect());
+            assert_eq!(reader.count, count);
+            assert_eq!(reader.input.stream_position().unwrap(), position);
+            assert!(reader.declarations.schemas.contains_key(&schema));
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+}

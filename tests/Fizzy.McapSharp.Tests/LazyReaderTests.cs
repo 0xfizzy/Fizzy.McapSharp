@@ -64,7 +64,7 @@ public class LazyReaderTests
             if (data[offset] == 5 && ++messages == 2) { BinaryPrimitives.WriteUInt64LittleEndian(data.AsSpan(offset + 1), ulong.MaxValue); break; }
             offset += length + 9;
         }
-        using var r = new McapBufferReader(data);
+        using var r = new McapReadCursor(data);
         Assert.Equal(McapErrorKind.UnknownChannel, Assert.Throws<McapException>(() => r.GetChannel(1)).Kind);
         byte[] output = new byte[16];
         Assert.Equal(McapReadStatus.Success, r.ReadNext(output, out var first, out _));
@@ -82,20 +82,20 @@ public class LazyReaderTests
         {
             var query = new McapQuery { Order = order, AllowBufferedSort = false };
             if (!chunks && order != McapReadOrder.File)
-                Assert.Throws<NotSupportedException>(() => McapFileReader.OpenMessages(new MemoryStream(bytes), query));
+                Assert.Throws<NotSupportedException>(() => McapReaderFactory.OpenMessages(new MemoryStream(bytes), query));
             else
             {
-                using var reader = McapFileReader.OpenMessages(new MemoryStream(bytes), query);
+                using var reader = McapReaderFactory.OpenMessages(new MemoryStream(bytes), query);
                 AssertQueryOrder(reader.ReadMessages().ToArray(), order);
             }
-            using var fallback = McapFileReader.OpenMessages(new NonSeekable(bytes), query with { AllowBufferedSort = true });
+            using var fallback = McapReaderFactory.OpenMessages(new NonSeekable(bytes), query with { AllowBufferedSort = true });
             AssertQueryOrder(fallback.ReadMessages().ToArray(), order);
         }
-        Assert.Throws<NotSupportedException>(() => McapFileReader.OpenMessages(new NonSeekable(bytes), new() { AllowBufferedSort = false }));
-        Assert.Throws<NotSupportedException>(() => McapFileReader.OpenMessages(new MemoryStream(bytes), new() { AllowBufferedSort = false }, options: McapReaderOptions.Strict));
-        using var empty = McapFileReader.OpenMessages(new MemoryStream(bytes), new() { Topics = [] });
+        Assert.Throws<NotSupportedException>(() => McapReaderFactory.OpenMessages(new NonSeekable(bytes), new() { AllowBufferedSort = false }));
+        Assert.Throws<NotSupportedException>(() => McapReaderFactory.OpenMessages(new MemoryStream(bytes), new() { AllowBufferedSort = false }, options: McapReaderOptions.Strict));
+        using var empty = McapReaderFactory.OpenMessages(new MemoryStream(bytes), new() { Topics = [] });
         Assert.Empty(empty.ReadMessages());
-        using var interval = McapFileReader.OpenMessages(new MemoryStream(bytes), new() { StartTime = 1, EndTime = 2 });
+        using var interval = McapReaderFactory.OpenMessages(new MemoryStream(bytes), new() { StartTime = 1, EndTime = 2 });
         Assert.Equal(new uint[] { 1, 3 }, interval.ReadMessages().Select(m => m.Sequence).Order());
     }
     static void AssertQueryOrder(McapMessage[] messages, McapReadOrder order)
@@ -122,7 +122,7 @@ public class LazyReaderTests
             offset += 9 + length;
         }
         // Summary CRC is optional for default readers; any parser/CRC rejection is also valid.
-        Assert.Throws<McapException>(() => McapFileReader.OpenMessages(new MemoryStream(data), new() { AllowBufferedSort = false }));
+        Assert.Throws<McapException>(() => McapReaderFactory.OpenMessages(new MemoryStream(data), new() { AllowBufferedSort = false }));
     }
     sealed class NonSeekable(byte[] bytes) : MemoryStream(bytes)
     { public override bool CanSeek => false; }

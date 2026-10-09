@@ -1,6 +1,6 @@
 namespace Fizzy.McapSharp;
 
-/// <summary>Parsing and integrity options for one read session. Defaults do not prove full-file integrity; use Strict and consume the complete expanded scan for validation.</summary>
+/// <summary>Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded McapReadSession scan provides full-file validation. Adapter-specific validation scopes are described by Strict.</summary>
 public sealed record McapReaderOptions
 {
     /// <summary>Local cache allowance only for snapshots opened from a McapReadSession. Ignored by asynchronous and direct Sans-I/O readers, which cannot create snapshots. Charges: chunk storage, descriptors, keys and index bytes. Zero disables retention; oversized entries load without retention. Excludes input storage, parsing temporaries and external leases.</summary>
@@ -23,7 +23,7 @@ public sealed record McapReaderOptions
     public bool ValidateSummarySectionCrc { get; init; }
     /// <summary>Maximum accepted record body length in bytes; null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</summary>
     public ulong? RecordLengthLimit { get; init; }
-    /// <summary>Validates chunk, data and summary CRCs, required magic, and the absence of trailing bytes. Indexed query success still does not establish full-file validation.</summary>
+    /// <summary>Validates chunk, data and summary CRCs, required magic, and trailing-byte absence. Expanded McapReadSession scans also validate record bodies and declaration references; McapAsyncReader record delivery validates bodies and attachment CRCs but not cross-record declaration references. Direct Sans-I/O exposes raw events without body parsing. Indexed query success does not establish full-file validation.</summary>
     public static McapReaderOptions Strict { get; } = new() { PrevalidateChunkCrcs = true, ValidateDataSectionCrc = true, ValidateSummarySectionCrc = true, CheckFinishesAfterEndMagic = true };
     internal bool IsStrict => !SkipStartMagic && !SkipEndMagic && !EmitChunks && (ValidateChunkCrcs || PrevalidateChunkCrcs) && ValidateDataSectionCrc && ValidateSummarySectionCrc && CheckFinishesAfterEndMagic;
 }

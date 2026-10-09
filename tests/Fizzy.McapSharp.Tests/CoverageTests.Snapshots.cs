@@ -20,7 +20,7 @@ public partial class CoverageTests
             writer.RegisterChannel(ushort.MaxValue, "unused-after", "raw", 7);
             writer.Complete();
         }
-        using var reader = new McapBufferReader(stream.ToArray(), McapBufferReadMode.RawMessages);
+        using var reader = new McapReadCursor(stream.ToArray(), McapCursorMode.RawMessages);
         Assert.Single(reader.ReadMessages());
         Assert.Equal("unused-before", reader.GetChannel(0).Topic);
         Assert.Equal("unused-after", reader.GetChannel(ushort.MaxValue).Topic);
@@ -34,7 +34,7 @@ public partial class CoverageTests
         using var stream = new MemoryStream();
         using (var writer = new McapWriter(stream, leaveOpen: true))
         { writer.RegisterChannel(7, "unused", "raw"); writer.Complete(); }
-        using var reader = new McapBufferReader(stream.ToArray(), McapBufferReadMode.RawMessages);
+        using var reader = new McapReadCursor(stream.ToArray(), McapCursorMode.RawMessages);
         Assert.Empty(reader.ReadMessages());
         Assert.Equal("unused", reader.GetChannel(7).Topic);
     }
@@ -50,7 +50,7 @@ public partial class CoverageTests
             writer.Complete();
         }
         var bytes = stream.ToArray();
-        using var records = new McapBufferReader(bytes, McapBufferReadMode.Linear);
+        using var records = new McapReadCursor(bytes, McapCursorMode.TopLevelRecords);
         McapMetadataIndex metadata = null!;
         McapAttachmentIndex attachment = null!;
         ulong offset = 8;

@@ -21,7 +21,7 @@ public class MemoryOptimizationTests
     [InlineData(McapCompression.None)] [InlineData(McapCompression.Lz4)] [InlineData(McapCompression.Zstd)]
     public void ConvenienceMessagesKeepIndependentMutableResults(McapCompression compression)
     {
-        using var reader = new McapBufferReader(Recording(compression));
+        using var reader = new McapReadCursor(Recording(compression));
         using var it = reader.ReadMessages().GetEnumerator();
         Assert.True(it.MoveNext()); var a = it.Current;
         a.Data[0] = 33; a.Channel.Schema!.Data[0] = 44;
@@ -38,21 +38,21 @@ public class MemoryOptimizationTests
     public void MappedReadersMatchCopiedModes(McapCompression compression)
     {
         var bytes = Recording(compression);
-        foreach (var mode in Enum.GetValues<McapBufferReadMode>())
+        foreach (var mode in Enum.GetValues<McapCursorMode>())
         {
             byte[] input = bytes;
-            if (mode == McapBufferReadMode.SansMagic) input = bytes[8..^8];
-            if (mode == McapBufferReadMode.Chunk)
+            if (mode == McapCursorMode.ExpandedRecordsWithoutMagic) input = bytes[8..^8];
+            if (mode == McapCursorMode.ChunkRecords)
             {
-                using var top = new McapBufferReader(bytes, McapBufferReadMode.Linear);
+                using var top = new McapReadCursor(bytes, McapCursorMode.TopLevelRecords);
                 input = top.ReadRecords().First(r => r.Opcode == 6).Data;
             }
             var path = Path.GetTempFileName();
             try
             {
                 File.WriteAllBytes(path, input);
-                using var mapped = McapBufferReader.OpenMapped(path, mode);
-                using var copied = new McapBufferReader(input, mode);
+                using var mapped = McapReadCursor.OpenMapped(path, mode);
+                using var copied = new McapReadCursor(input, mode);
                 var a = mapped.ReadRecords().ToArray(); var b = copied.ReadRecords().ToArray();
                 Assert.Equal(b.Length, a.Length);
                 for (int i = 0; i < a.Length; i++) { Assert.Equal(b[i].Opcode, a[i].Opcode); Assert.Equal(b[i].Data, a[i].Data); }

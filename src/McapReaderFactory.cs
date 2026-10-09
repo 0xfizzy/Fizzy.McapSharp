@@ -1,10 +1,10 @@
 namespace Fizzy.McapSharp;
-/// <summary>Reusable file-path factory; construction validates the path but does not open the file. This factory owns no disposable resources. Each opened session or enumeration owns an independent native reader and its input.</summary>
-public sealed partial class McapFileReader
+/// <summary>Reusable reader factory with instance methods for a file path and static methods for Streams; construction validates the path but does not open the file. This factory owns no disposable resources. Each opened session or enumeration owns an independent native reader and its input.</summary>
+public sealed partial class McapReaderFactory
 {
     readonly string path;
     /// <summary>Creates a reusable factory for an absolute-normalized path without opening the input file.</summary>
-    public McapFileReader(string path)
+    public McapReaderFactory(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         Native.EnsureAvailable();
@@ -60,7 +60,7 @@ public sealed partial class McapFileReader
             yield return item;
     }
 
-    /// <summary>Scans with strict validation, delivers the valid prefix and retains the original structured parse error in the result. Callback and I/O exceptions outside McapException propagate.</summary>
+    /// <summary>Scans with strict validation, delivers the valid prefix and retains the original structured parse error in the result. All callback and Stream exceptions propagate, including McapException.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
         using var s = OpenMessages(options: McapReaderOptions.Strict);
@@ -85,7 +85,7 @@ public sealed partial class McapFileReader
     }
 }
 
-public sealed partial class McapFileReader
+public sealed partial class McapReaderFactory
 {
     /// <summary>Opens an indexed-only message session. Never falls back to scanning or buffered sorting; query AllowBufferedSort and MaxBufferedSortBytes do not apply. A successful query is not full-file validation.</summary>
     public McapReadSession OpenIndexedMessages(McapQuery? query = null, McapReaderOptions? options = null) => new(path, null, query ?? new(), true, McapRecordMode.ExpandChunks, false, options, true);

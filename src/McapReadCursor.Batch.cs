@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapBufferReader
+public sealed partial class McapReadCursor
 {
     /// <summary>Visits one message synchronously on a message-capable cursor. The payload span expires on return; reader reentry is prohibited.</summary>
     public McapReadStatus ReadNext(McapMessageVisitor visitor)

@@ -44,5 +44,7 @@ internal static partial class Native
     internal static extern int fm_snapshot_prepared_chunk_reader(SnapshotHandle h, PreparedChunkIndexHandle index, out IntPtr reader, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_snapshot_message_owned(SnapshotHandle h, byte* data, nuint n, IntPtr prepared, ulong time, ulong offset, OwnedSink sink, out Result r);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern unsafe int fm_snapshot_record_owned(SnapshotHandle h, uint op, byte* data, nuint n, OwnedSink sink, out Result r);
 }
 

@@ -87,7 +87,7 @@ internal static partial class Native
     {
         if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
             throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
-        if (fm_abi_version() != 15)
+        if (fm_abi_version() != 16)
             throw new McapException("Incompatible native ABI.");
     }
 

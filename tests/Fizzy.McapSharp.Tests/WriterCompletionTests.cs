@@ -34,7 +34,7 @@ public sealed class WriterCompletionTests
             Write(writer);
             writer.Complete();
             var before = ReadShared(path);
-            using (var reader = McapFileReader.OpenMessages(new MemoryStream(before), options: McapReaderOptions.Strict))
+            using (var reader = McapReaderFactory.OpenMessages(new MemoryStream(before), options: McapReaderOptions.Strict))
                 Assert.True(reader.ValidateRemaining() > 0);
             writer.FlushToDisk();
             writer.FlushToDisk();
@@ -117,7 +117,7 @@ public sealed class WriterCompletionTests
             using var stream = new ObservedFileStream(path);
             using var writer = new McapWriter(stream, leaveOpen: true);
             Write(writer);
-            McapBufferReader? summary = null;
+            McapReadCursor? summary = null;
             if (durable) { writer.Complete(); summary = writer.OpenSummaryRecords(); }
             using var cursor = summary;
             var error = new IOException("injected flush failure");
@@ -174,7 +174,7 @@ public sealed class WriterCompletionTests
             Write(writer);
             if (transfer) Assert.Same(stream, writer.IntoInner()); else writer.Dispose();
             Assert.Equal(0, stream.DurableFlushes);
-            Assert.ThrowsAny<IOException>(() => new McapFileReader(path).Validate());
+            Assert.ThrowsAny<IOException>(() => new McapReaderFactory(path).Validate());
         }
         finally { File.Delete(path); }
     }

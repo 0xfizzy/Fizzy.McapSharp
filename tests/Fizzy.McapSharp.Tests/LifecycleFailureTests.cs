@@ -62,7 +62,7 @@ public sealed class LifecycleFailureTests
         IDisposable owner = kind switch
         {
             "writer" => new McapWriter(stream),
-            "reader" => McapFileReader.OpenRecords(stream),
+            "reader" => McapReaderFactory.OpenRecords(stream),
             _ => new McapAsyncReader(stream)
         };
         stream.OnDispose = () => Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
@@ -80,7 +80,7 @@ public sealed class LifecycleFailureTests
     public void AuxiliaryIoFailureIsTerminal(string operation)
     {
         using var stream = new FailingStream(Sample());
-        using var reader = McapFileReader.OpenRecords(stream, leaveOpen: true);
+        using var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
         stream.FailRead = true;
         Assert.Same(stream.ReadError, Assert.Throws<IOException>(() => Run(reader, operation)));
         stream.FailRead = false;
@@ -106,7 +106,7 @@ public sealed class LifecycleFailureTests
     public void OperationAndRestoreFailuresBothRemainObservable(string operation)
     {
         using var stream = new FailingStream(Sample());
-        using var reader = McapFileReader.OpenRecords(stream, leaveOpen: true);
+        using var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
         stream.FailRead = stream.FailRestore = true;
         var failure = Assert.Throws<AggregateException>(() => Run(reader, operation)).Flatten();
         Assert.Contains(stream.ReadError, failure.InnerExceptions);
@@ -122,7 +122,7 @@ public sealed class LifecycleFailureTests
         Stream transferred;
         if (kind == "reader")
         {
-            using var reader = McapFileReader.OpenRecords(stream);
+            using var reader = McapReaderFactory.OpenRecords(stream);
             transferred = reader.IntoInner();
         }
         else
@@ -141,7 +141,7 @@ public sealed class LifecycleFailureTests
     public void InitializationPreservesOperationAndDisposalFailure()
     {
         var stream = new FailingStream(Sample()) { FailRead = true, FailDispose = true };
-        var failure = Assert.Throws<AggregateException>(() => McapFileReader.OpenMessages(stream, new() { Order = McapReadOrder.LogTime })).Flatten();
+        var failure = Assert.Throws<AggregateException>(() => McapReaderFactory.OpenMessages(stream, new() { Order = McapReadOrder.LogTime })).Flatten();
         Assert.Contains(stream.ReadError, failure.InnerExceptions);
         Assert.Contains(stream.DisposeError, failure.InnerExceptions);
         Assert.Equal(1, stream.DisposeCalls);
@@ -154,7 +154,7 @@ public sealed class LifecycleFailureTests
         malformed[^1] ^= 0xff; // The summary reader rejects the trailing magic before reading the summary.
         using var stream = new FailingStream(malformed) { FailRestoreAfterRead = true };
         var failure = Assert.Throws<AggregateException>(() =>
-            McapFileReader.OpenMessages(stream, new() { Order = McapReadOrder.LogTime }, leaveOpen: true)).Flatten();
+            McapReaderFactory.OpenMessages(stream, new() { Order = McapReadOrder.LogTime }, leaveOpen: true)).Flatten();
         Assert.Contains(stream.SeekError, failure.InnerExceptions);
         var native = Assert.Single(failure.InnerExceptions.OfType<McapException>());
         Assert.Equal("operationRestore", native.Details.GetProperty("code").GetString());

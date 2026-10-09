@@ -23,12 +23,14 @@ public sealed partial class McapWriter : IDisposable
         Native.EnsureAvailable();
         options ??= new();
         ArgumentNullException.ThrowIfNull(options.Profile);
-        if (!Enum.IsDefined(options.Compression) || ((int)options.RecoverableErrors & ~31) != 0)
+        if (!Enum.IsDefined(options.Compression) || ((int)options.SafeRejections & ~31) != 0)
             throw new ArgumentOutOfRangeException(nameof(options));
         if (stream is null)
             ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var config = JsonSerializer.SerializeToElement(options, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(config)!;
+        dict["recoverableErrors"] = dict["safeRejections"];
+        dict.Remove("safeRejections");
         dict["compression"] = JsonSerializer.SerializeToElement(options.Compression.ToString().ToLowerInvariant());
         var req = Native.Request(new { path = path is null ? null : Path.GetFullPath(path), options = dict });
         StreamBridge? bridge = stream is null ? null : new(stream, true, leaveOpen);

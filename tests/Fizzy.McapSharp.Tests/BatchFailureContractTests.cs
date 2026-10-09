@@ -28,7 +28,7 @@ public class BatchFailureContractTests
     [Fact]
     public void CallerBuffersCanChangeBeforeBatchFailureAndSessionIsTerminal()
     {
-        using var reader = McapFileReader.OpenMessages(new MemoryStream(Prefix()));
+        using var reader = McapReaderFactory.OpenMessages(new MemoryStream(Prefix()));
         var headers = new McapMessageHeader[3];
         var ranges = new McapPayloadRange[3];
         var payload = new byte[3];
@@ -43,14 +43,14 @@ public class BatchFailureContractTests
     public void VisitorEffectsRemainButFailurePublishesNoLease()
     {
         int visited = 0;
-        using (var reader = McapFileReader.OpenMessages(new MemoryStream(Prefix())))
+        using (var reader = McapReaderFactory.OpenMessages(new MemoryStream(Prefix())))
         {
             bool Visit(in McapMessageHeader header, ReadOnlySpan<byte> data) { visited++; return true; }
             Assert.ThrowsAny<Exception>(() => reader.VisitMessages(Visit));
             Assert.Equal(1, visited);
             Assert.Throws<InvalidOperationException>(() => reader.ReadNext([], out _, out _));
         }
-        using var leaseReader = McapFileReader.OpenMessages(new MemoryStream(Prefix()));
+        using var leaseReader = McapReaderFactory.OpenMessages(new MemoryStream(Prefix()));
         McapMessageBatchLease? lease = null;
         Assert.ThrowsAny<Exception>(() => lease = leaseReader.ReadBatchLease());
         Assert.Null(lease);

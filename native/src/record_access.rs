@@ -1,9 +1,7 @@
-use super::io::Input;
 use super::reader::Reader;
 use super::{buffer_reader, bytes, guard, Outcome, Response};
 use mcap::records;
 use std::collections::BTreeMap;
-use std::io::{Read, Seek, SeekFrom};
 use std::ptr;
 
 #[no_mangle]
@@ -103,48 +101,6 @@ pub unsafe extern "C" fn fm_reader_record_into(
 ) -> i32 {
     guard(out, |out| {
         let r = p.as_mut().ok_or("Null reader")?;
-        if r.failed {
-            return Err("Reader failed".into());
-        }
-        let pos = r.input.stream_position()?;
-        let result = (|| {
-            r.input.seek(SeekFrom::Start(offset))?;
-            let mut h = [0u8; 9];
-            r.input.read_exact(&mut h)?;
-            let n = usize::try_from(u64::from_le_bytes(h[1..].try_into()?))?;
-            if r.limit.is_some_and(|limit| n > limit) {
-                return Err(mcap::McapError::RecordTooLarge {
-                    opcode: h[0],
-                    len: n as u64,
-                }
-                .into());
-            }
-            let start = r.input.stream_position()?;
-            let end = r.input.seek(SeekFrom::End(0))?;
-            if n as u64 > end.saturating_sub(start) {
-                return Err("Record exceeds source length".into());
-            }
-            let status = if let Input::Map { mapping, .. } = &r.input {
-                let start = usize::try_from(start)?;
-                let data = &mapping[start..start + n];
-                mcap::parse_record(h[0], data)?;
-                copy_body(data, dest, capacity, out)?
-            } else {
-                r.input.seek(SeekFrom::Start(start))?;
-                r.scratch.data.clear();
-                r.scratch.reserve_scratch(n)?;
-                r.scratch.data.resize(n, 0);
-                r.input.read_exact(&mut r.scratch.data)?;
-                mcap::parse_record(h[0], &r.scratch.data)?;
-                copy_body(&r.scratch.data, dest, capacity, out)?
-            };
-            if !opcode.is_null() {
-                *opcode = h[0];
-            }
-            Ok(status)
-        })();
-        let restored = r.input.seek(SeekFrom::Start(pos));
-        r.scratch.release();
-        super::restored(result, restored)
+        r.record_into(offset, dest, capacity, opcode, out)
     })
 }

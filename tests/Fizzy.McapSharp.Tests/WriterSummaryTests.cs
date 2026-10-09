@@ -52,13 +52,13 @@ public sealed class WriterSummaryTests
             writer.Dispose();
             Assert.NotEmpty(cursor.ReadRecords());
             Assert.Equal(expected, JsonSerializer.Serialize(independent));
-            new McapFileReader(path).Validate();
+            new McapReaderFactory(path).Validate();
             if (emitSummary)
             {
-                using var reader = new McapFileReader(path).OpenIndexedMessages();
+                using var reader = new McapReaderFactory(path).OpenIndexedMessages();
                 Assert.Equal(16, reader.ReadMessages().Count());
             }
-            else Assert.Equal(16, new McapFileReader(path).ReadMessages().Count());
+            else Assert.Equal(16, new McapReaderFactory(path).ReadMessages().Count());
         }
         finally { File.Delete(path); }
     }

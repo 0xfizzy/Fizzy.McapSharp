@@ -36,13 +36,13 @@
 
 | 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
 | --- | --- | --- | --- |
-| `read::LinearReader`、`Options`、`sans_magic` | `McapBufferReader` 的 Linear/SansMagic 模式 | 适配 | 官方 Sans-I/O 配置匹配切片读取器；输入复制或显式映射 |
-| `read::ChunkReader` | `McapBufferReader` 的 Chunk 模式 | 适配 | 接收 Chunk 记录体并惰性推进 |
-| `read::ChunkFlattener` | FlattenChunks 模式 | 适配 | 将 chunk 展开为记录 |
+| `read::LinearReader`、`Options`、`sans_magic` | `McapReadCursor` 的 TopLevelRecords/ExpandedRecordsWithoutMagic 模式 | 适配 | 官方 Sans-I/O 配置匹配切片读取器；输入复制或显式映射 |
+| `read::ChunkReader` | `McapReadCursor` 的 ChunkRecords 模式 | 适配 | 接收 Chunk 记录体并惰性推进 |
+| `read::ChunkFlattener` | ExpandedRecords 模式 | 适配 | 将 chunk 展开为记录 |
 | `read::RawMessageStream`、`RawMessage`、`get_channel` | RawMessages 模式、header/payload 读取、`GetChannel` | 适配 | 保留已遇到的声明；借用 Rust 迭代器不跨越 ABI |
 | `read::MessageStream` | Messages 模式和自有消息枚举 | 适配 | 自有结果复制 payload 及可变声明；其他交付方式的所有权不同 |
 
-[McapBufferReader](../src/McapBufferReader.cs) 将这些切片接口统一为模式。`McapFileReader.OpenMessages/OpenRecords` 另外提供由官方解析驱动的文件／Stream 会话。顺序文件读取、输入所有权和交付所有权分别选择，详见 [API 指南](api.zh-CN.md)。
+[McapReadCursor](../src/McapReadCursor.cs) 将这些切片接口统一为模式。`McapReaderFactory.OpenMessages/OpenRecords` 另外提供由官方解析驱动的文件／Stream 会话。顺序文件读取、输入所有权和交付所有权分别选择，详见 [API 指南](api.zh-CN.md)。
 
 ## 摘要与随机访问（`random-access`）
 

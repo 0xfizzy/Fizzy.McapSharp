@@ -28,7 +28,7 @@ else if (args[0] is "read" or "read-all")
         throw new Exception("Missing interoperability fixtures");
     foreach (var path in paths)
     {
-        var reader = new McapFileReader(path);
+        var reader = new McapReaderFactory(path);
         reader.Validate();
         var messages = reader.ReadMessages(new() { Topic = "/test", StartTime = 200, EndTime = 500 }).ToArray();
         if (messages.Length != 3 || messages[0].Sequence != 2 || messages[2].Sequence != 4)

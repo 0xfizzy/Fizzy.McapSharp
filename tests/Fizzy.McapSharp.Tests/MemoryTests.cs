@@ -25,9 +25,9 @@ public class MemoryTests
     public void DirectReadsMatchBufferAndStream(McapCompression compression)
     {
         var data = Recording(compression);
-        using var buffer = new McapBufferReader(data, McapBufferReadMode.Messages, false);
+        using var buffer = new McapReadCursor(data, McapCursorMode.Messages, false);
         using var stream = new MemoryStream(data);
-        using var session = McapFileReader.OpenMessages(stream, options: new());
+        using var session = McapReaderFactory.OpenMessages(stream, options: new());
         byte[] output = new byte[1024];
         for (int i = 0; i < 8; i++)
         {
@@ -48,7 +48,7 @@ public class MemoryTests
     public void PendingRetriesPreserveHeaderAndDestination()
     {
         var data = Recording(McapCompression.None, 3, 1024);
-        using var reader = new McapBufferReader(data, McapBufferReadMode.Messages, false);
+        using var reader = new McapReadCursor(data, McapCursorMode.Messages, false);
         byte[] small = Enumerable.Repeat((byte)19, 20).ToArray(), output = new byte[1024];
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext(small, out var h, out var n));
         Assert.All(small, x => Assert.Equal((byte)19, x));
@@ -57,7 +57,7 @@ public class MemoryTests
         Assert.Equal(McapReadStatus.Success, reader.ReadNext(output, out _, out _));
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out _, out _));
 
-        using var trimmed = new McapBufferReader(data, McapBufferReadMode.Messages, false);
+        using var trimmed = new McapReadCursor(data, McapCursorMode.Messages, false);
         Assert.Equal(McapReadStatus.BufferTooSmall, trimmed.ReadNext([], out _, out _));
 
         trimmed.ReadNext(output, out _, out _);
@@ -96,11 +96,11 @@ public class MemoryTests
         // A valid DataEnd body followed by extension bytes accepted by official parse_record.
         byte[] data = new byte[9 + 7]; data[0] = 15; BinaryPrimitives.WriteUInt64LittleEndian(data.AsSpan(1), 7);
         data[^3] = 21; data[^2] = 22; data[^1] = 23;
-        using var reader = new McapBufferReader(data, McapBufferReadMode.SansMagic);
+        using var reader = new McapReadCursor(data, McapCursorMode.ExpandedRecordsWithoutMagic);
         byte[] output = new byte[7];
         Assert.Equal(McapReadStatus.Success, reader.ReadNextRecord(output, out var opcode, out var n));
         Assert.Equal((byte)15, opcode); Assert.Equal(7ul, n); Assert.Equal(data[9..], output);
-        using var messages = new McapBufferReader(Recording(McapCompression.None));
+        using var messages = new McapReadCursor(Recording(McapCompression.None));
         Assert.Equal(McapReadStatus.BufferTooSmall, messages.ReadNext([], out var h, out _));
         byte[] body = new byte[1046];
         Assert.Equal(McapReadStatus.Success, messages.ReadNextRecord(body, out opcode, out n));
@@ -128,13 +128,13 @@ public class MemoryTests
     {
         var data = Recording(McapCompression.None, 6, size, false);
         using var source = new MemoryStream(data);
-        var error = Assert.Throws<McapException>(() => McapFileReader.OpenMessages(source,
+        var error = Assert.Throws<McapException>(() => McapReaderFactory.OpenMessages(source,
             new() { MaxBufferedSortBytes = 0  }, true));
         Assert.Equal("BufferedSort", error.Details.GetProperty("resource").GetString());
         foreach (var order in new[] { McapReadOrder.LogTime, McapReadOrder.ReverseLogTime })
         {
             using var input = new MemoryStream(data);
-            using var reader = McapFileReader.OpenMessages(input, new() { Order = order, MaxBufferedSortBytes = 16 * 1024 * 1024  });
+            using var reader = McapReaderFactory.OpenMessages(input, new() { Order = order, MaxBufferedSortBytes = 16 * 1024 * 1024  });
 
             uint[] expected = [0, 3, 1, 4, 2, 5]; if (order == McapReadOrder.ReverseLogTime) Array.Reverse(expected);
             byte[] buffer = new byte[size];
@@ -161,7 +161,7 @@ public class MemoryTests
     public void IndexedStreamReadsAllMessages()
     {
         using var stream = new MemoryStream(Recording(McapCompression.Zstd));
-        using var reader = McapFileReader.OpenMessages(stream, new(), options: new());
+        using var reader = McapReaderFactory.OpenMessages(stream, new(), options: new());
         byte[] buffer = new byte[1024]; int count = 0;
         while (reader.ReadNext(buffer, out _, out _) != McapReadStatus.EndOfStream) count++;
         Assert.Equal(8, count);
@@ -178,7 +178,7 @@ public class MemoryTests
         Assert.NotNull(snapshot.GetSummary());
         Assert.True(snapshot.ReadFooter().SummaryStart > 0);
         using var stream = new MemoryStream(Recording(McapCompression.None, chunks: false));
-        using var reader = McapFileReader.OpenMessages(stream,
+        using var reader = McapReaderFactory.OpenMessages(stream,
             new() { MaxBufferedSortBytes = 2 * 1024 * 1024 });
         Assert.Equal(8, reader.ReadMessages().Count());
     }

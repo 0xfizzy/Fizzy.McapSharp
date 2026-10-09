@@ -32,7 +32,7 @@ using (var writer = new McapWriter(path))
     writer.Complete();
 }
 
-var reader = new McapFileReader(path);
+var reader = new McapReaderFactory(path);
 reader.Validate();
 foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
     Console.WriteLine($"{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}");

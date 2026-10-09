@@ -26,7 +26,7 @@ static class Extended
                 w.Complete();
             }
             var bytes = storage.ToArray();
-            using (var r = new McapBufferReader(bytes, McapBufferReadMode.FlattenChunks))
+            using (var r = new McapReadCursor(bytes, McapCursorMode.ExpandedRecords))
             {
                 byte[] buffer = new byte[65536];
                 for (int i = 0; i < 100; i++) { r.ReadNextRecord(buffer, out var op, out var size); var v = McapRecordView.Parse(op, buffer.AsSpan(0, (int)size)); if (v.Opcode == 5) _ = v.MessageHeader; }
@@ -40,7 +40,7 @@ static class Extended
                 Check("buffer/record-view " + compression, allocated);
             }
             storage.Position = 0;
-            using (var r = McapFileReader.OpenMessages(storage, leaveOpen: true))
+            using (var r = McapReaderFactory.OpenMessages(storage, leaveOpen: true))
             using (var snapshot = r.OpenIndexSnapshot())
             {
                 var summary = r.GetSummary()!;

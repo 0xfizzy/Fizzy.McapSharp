@@ -233,8 +233,11 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
-    bool ReadOwned(OwnedReadSink sink, byte wanted = 0)
+    bool ReadOwned(OwnedReadSink sink, byte wanted = 0) => ReadOwned(sink, wanted, false, out _);
+
+    bool ReadOwned(OwnedReadSink sink, byte wanted, bool recover, out McapException? parseError)
     {
+        parseError = null;
         lock (gate)
         {
             Check();
@@ -248,6 +251,12 @@ public sealed partial class McapReadSession : IDisposable
                     var error = Native.ConsumeError(r);
                     sink.ThrowIfError();
                     handle.Bridge?.ThrowIfError();
+                    if (recover && error.Kind is not (McapErrorKind.Io or McapErrorKind.Binding))
+                    {
+                        failed = true;
+                        parseError = error;
+                        return false;
+                    }
                     throw error;
                 }
                 if (status != Protocol.Status.End) return true;
@@ -284,27 +293,23 @@ public sealed partial class McapReadSession : IDisposable
         while (ReadOwned(sink)) yield return (McapRawRecord)sink.Value!;
     }
 
-    /// <summary>Delivers the valid message prefix and returns the original structured McapException that ends parsing, if any. The failed session remains terminal. Callback exceptions propagate rather than becoming recovery results.</summary>
+    /// <summary>Delivers the valid prefix from a strict message session and returns the original native parsing error, if any. Requires strict options; the failed session remains terminal. Stream and callback exceptions propagate, including McapException.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
         ArgumentNullException.ThrowIfNull(accept);
+        if (!strict) throw new InvalidOperationException("Open with McapReaderOptions.Strict to recover a validated prefix.");
+        if (!messages) throw new InvalidOperationException("This is a record session.");
         ulong count = 0;
-        using var iterator = ReadMessages().GetEnumerator();
+        var channels = new Dictionary<ushort, McapChannel>();
+        using var sink = new OwnedReadSink(OwnedReadSink.Kind.Message);
         while (true)
         {
-            McapMessage message;
-            try
-            {
-                if (!iterator.MoveNext())
-                    return new(count, IsFullyValidated, null);
-                message = iterator.Current;
-            }
-            catch (McapException e)
-            {
-                return new(count, false, e);
-            }
-
-            accept(message);
+            if (!ReadOwned(sink, 0, true, out var error))
+                return new(count, error is null && IsFullyValidated, error);
+            var h = sink.Header;
+            if (!channels.TryGetValue(h.ChannelId, out var channel))
+                channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
+            accept(new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!));
             count++;
         }
     }

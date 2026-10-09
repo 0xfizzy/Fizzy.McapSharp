@@ -6,13 +6,12 @@ use super::engine::EngineHandle;
 use super::fm_buffer_free;
 use super::record_access::{copy_body, record_body};
 use super::{
-    buffer_reader, bytes, chunk_cache, guard, lease, memory, request, respond, restored,
+    buffer_reader, bytes, chunk_cache, guard, lease, memory, request, respond,
     string, MessageHeader, Outcome, Response,
 };
 use mcap::records;
 use binrw::BinWrite;
 use std::borrow::Cow;
-use std::io::{Read, Seek, SeekFrom};
 use std::ptr;
 use std::slice;
 use std::sync::Arc;
@@ -142,26 +141,12 @@ pub unsafe extern "C" fn fm_snapshot_open_options(
         }
         *handle = ptr::null_mut();
         let r = reader.as_mut().ok_or("Null reader")?;
-        if !r.input.seekable() {
-            return Err("Snapshot requires a seekable source".into());
-        }
         let options = if config_len == 0 {
             r.options.clone()
         } else {
             memory::Options::parse(&request(config, config_len)?)?
         };
-        let pos = r.input.stream_position()?;
-        let result = (|| -> Outcome<memory::Backing> {
-            r.input.seek(SeekFrom::Start(0))?;
-            let length = usize::try_from(r.input.seek(SeekFrom::End(0))?)?;
-            r.input.seek(SeekFrom::Start(0))?;
-            let mut data = Vec::new();
-            data.try_reserve_exact(length)?;
-            data.resize(length, 0);
-            r.input.read_exact(&mut data)?;
-            Ok(memory::Backing::Owned { data })
-        })();
-        let data = restored(result, r.input.seek(SeekFrom::Start(pos)))?;
+        let data = r.copy_input()?;
         let summary = mcap::Summary::read(&data)?;
         *handle = Box::into_raw(Box::new(Snapshot {
             cache: chunk_cache::ChunkCache::new(),
@@ -285,44 +270,51 @@ unsafe fn snapshot_call(
                     .message_indexes(&h.data, s, index, key, h.options.random)?;
                 copy_body(&packed.data, dest, capacity, out)
             }
-            crate::protocol::snapshot_operation::METADATA => {
-                let records::Record::MetadataIndex(index) = mcap::parse_record(
-                    records::op::METADATA_INDEX,
-                    bytes(index_data, index_length)?,
-                )?
-                else {
-                    unreachable!()
-                };
-                check_index_range(&h.data, index.offset, index.length, 0)?;
-                mcap::read::metadata(&h.data, &index)?;
-                copy_body(
-                    record_body(&h.data, index.offset, records::op::METADATA)?,
-                    dest,
-                    capacity,
-                    out,
-                )
-            }
-            crate::protocol::snapshot_operation::ATTACHMENT => {
-                let records::Record::AttachmentIndex(index) = mcap::parse_record(
-                    records::op::ATTACHMENT_INDEX,
-                    bytes(index_data, index_length)?,
-                )?
-                else {
-                    unreachable!()
-                };
-                check_index_range(&h.data, index.offset, index.length, 0)?;
-                mcap::read::attachment(&h.data, &index)?;
-                copy_body(
-                    record_body(&h.data, index.offset, records::op::ATTACHMENT)?,
-                    dest,
-                    capacity,
-                    out,
-                )
+            crate::protocol::snapshot_operation::METADATA | crate::protocol::snapshot_operation::ATTACHMENT => {
+                let (_, body) = indexed_record_body(&h.data, op, bytes(index_data, index_length)?)?;
+                copy_body(body, dest, capacity, out)
             }
             _ => Err("Unknown snapshot operation".into()),
         }
     });
     status
+}
+
+// Validate with the same upstream random-access APIs for both owned and caller-buffer delivery.
+fn indexed_record_body<'a>(data: &'a [u8], op: u32, encoded: &[u8]) -> Outcome<(u8, &'a [u8])> {
+    let (opcode, offset) = match op {
+        crate::protocol::snapshot_operation::METADATA => {
+            let records::Record::MetadataIndex(index) = mcap::parse_record(records::op::METADATA_INDEX, encoded)? else { unreachable!() };
+            check_index_range(data, index.offset, index.length, 0)?;
+            mcap::read::metadata(data, &index)?;
+            (records::op::METADATA, index.offset)
+        }
+        crate::protocol::snapshot_operation::ATTACHMENT => {
+            let records::Record::AttachmentIndex(index) = mcap::parse_record(records::op::ATTACHMENT_INDEX, encoded)? else { unreachable!() };
+            check_index_range(data, index.offset, index.length, 0)?;
+            mcap::read::attachment(data, &index)?;
+            (records::op::ATTACHMENT, index.offset)
+        }
+        _ => return Err("Unknown indexed record operation".into()),
+    };
+    Ok((opcode, record_body(data, offset, opcode)?))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_snapshot_record_owned(
+    p: *mut Snapshot,
+    op: u32,
+    index_data: *const u8,
+    index_length: usize,
+    sink: memory::Sink,
+    out: *mut Response,
+) -> i32 {
+    guard(out, |out| {
+        let h = p.as_ref().ok_or("Null snapshot")?;
+        let (opcode, body) = indexed_record_body(&h.data, op, bytes(index_data, index_length)?)?;
+        out.value = sink.send(opcode, &MessageHeader::default(), body)?;
+        Ok(crate::protocol::status::SUCCESS)
+    })
 }
 
 // Reject overflowing/out-of-bounds caller indexes before upstream slice arithmetic.

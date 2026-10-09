@@ -44,8 +44,8 @@ public class SortStorageTests
                 foreach (bool reverse in new[] { false, true })
                 {
                     var query = new McapQuery { Topic = "selected", Order = reverse ? McapReadOrder.ReverseLogTime : McapReadOrder.LogTime };
-                    McapReadSession Open() => mapped ? new McapFileReader(path).OpenMessages(query)
-                        : McapFileReader.OpenMessages(new ShortStream(bytes), query);
+                    McapReadSession Open() => mapped ? new McapReaderFactory(path).OpenMessages(query)
+                        : McapReaderFactory.OpenMessages(new ShortStream(bytes), query);
                     uint[] expected = reverse ? [5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5];
                     int[] lengths = [0, 4096, 4096, 300000, 300000, 4096];
                     using (var reader = Open())
@@ -91,8 +91,8 @@ public class SortStorageTests
     public void CorruptFallbackAndSortLimitFailBeforePublishingResults()
     {
         var bytes = Recording(McapCompression.Zstd, true);
-        Assert.Throws<McapException>(() => McapFileReader.OpenMessages(new ShortStream(bytes), new() { MaxBufferedSortBytes = 1 }));
-        Assert.Throws<McapException>(() => McapFileReader.OpenMessages(new ShortStream(bytes[..^10]), new() { Topic = "selected" }));
+        Assert.Throws<McapException>(() => McapReaderFactory.OpenMessages(new ShortStream(bytes), new() { MaxBufferedSortBytes = 1 }));
+        Assert.Throws<McapException>(() => McapReaderFactory.OpenMessages(new ShortStream(bytes[..^10]), new() { Topic = "selected" }));
     }
 
     sealed class ShortStream(byte[] bytes) : MemoryStream(bytes, false)

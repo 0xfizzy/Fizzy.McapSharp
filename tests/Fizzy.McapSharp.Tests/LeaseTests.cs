@@ -6,7 +6,7 @@ public class LeaseTests
     [Fact]
     public void IndependentRetainsReleaseConcurrentlyWithoutInvalidatingOwner()
     {
-        using var reader = new McapBufferReader(DeliveryOptimizationTests.Recording(McapCompression.Lz4), McapBufferReadMode.Messages, false);
+        using var reader = new McapReadCursor(DeliveryOptimizationTests.Recording(McapCompression.Lz4), McapCursorMode.Messages, false);
         using var batch = reader.ReadBatchLease()!;
         reader.Dispose();
         Parallel.For(0, 1024, _ =>
@@ -37,7 +37,7 @@ public class LeaseTests
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     static WeakReference CreateAbandonedLease()
     {
-        using var reader = new McapBufferReader(DeliveryOptimizationTests.Recording(McapCompression.Lz4), McapBufferReadMode.Messages, false);
+        using var reader = new McapReadCursor(DeliveryOptimizationTests.Recording(McapCompression.Lz4), McapCursorMode.Messages, false);
         var batch = reader.ReadBatchLease()!;
         var retained = batch.RetainMessage(0);
         batch.Dispose();
@@ -78,7 +78,7 @@ public class LeaseTests
             writer.Complete();
         }
         stream.Position=0;
-        using var reader=McapFileReader.OpenMessages(stream,new(){Order=McapReadOrder.File},true,new(){});
+        using var reader=McapReaderFactory.OpenMessages(stream,new(){Order=McapReadOrder.File},true,new(){});
         var retained=new Queue<McapMessageLease>();
         for(uint i=0;i<10000;i++) {
             using var batch=reader.ReadBatchLease(1)!;
@@ -106,7 +106,7 @@ public class LeaseTests
         foreach(bool indexed in new[]{false,true})
         {
             stream.Position=0;
-            using var reader=McapFileReader.OpenMessages(stream,new(){Order=indexed?McapReadOrder.LogTime:McapReadOrder.File},true);
+            using var reader=McapReaderFactory.OpenMessages(stream,new(){Order=indexed?McapReadOrder.LogTime:McapReadOrder.File},true);
             var leases=new List<McapMessageBatchLease>();
             for(int i=0;i<20;i++) leases.Add(reader.ReadBatchLease(1)!);
             Assert.Null(reader.ReadBatchLease()); reader.Dispose();
@@ -131,7 +131,7 @@ public class LeaseTests
         File.WriteAllBytes(path,DeliveryOptimizationTests.Recording(compression));
         try
         {
-            using var reader=McapBufferReader.OpenMapped(path);
+            using var reader=McapReadCursor.OpenMapped(path);
             using var batch=reader.ReadBatchLease()!;
             Assert.Equal(2,batch.Count);
 

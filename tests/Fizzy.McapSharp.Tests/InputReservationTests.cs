@@ -21,7 +21,7 @@ public class InputReservationTests
             writer.Complete();
         }
         using var input = new ShortStream(storage.ToArray());
-        using var reader = McapFileReader.OpenMessages(input, leaveOpen: true, options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessages(input, leaveOpen: true, options: McapReaderOptions.Strict);
         Assert.Equal(McapReadStatus.Success, reader.ReadNext([], out _, out var empty)); Assert.Equal(0UL, empty);
         for (int i = 0; i < 3; i++)
         {

@@ -14,7 +14,7 @@ public partial class CoverageTests
         Assert.False(pending.IsCompleted);
         Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[256]));
         Assert.Throws<InvalidOperationException>(() => reader.Dispose());
-        Assert.Throws<InvalidOperationException>(() => McapFileReader.OpenMessages(stream));
+        Assert.Throws<InvalidOperationException>(() => McapReaderFactory.OpenMessages(stream));
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await pending);
         Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[256]));

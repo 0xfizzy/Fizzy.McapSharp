@@ -33,8 +33,8 @@ public sealed class SharedStatisticsTests
     public void SummarySurvivesSourceAndSiblingDisposal()
     {
         using var stream = new MemoryStream();
-        McapBufferReader first;
-        McapBufferReader second;
+        McapReadCursor first;
+        McapReadCursor second;
         using (var writer = new McapWriter(stream, new()
         {
             UseChunks = false, Compression = McapCompression.None, }, true))
@@ -83,14 +83,14 @@ public sealed class SharedStatisticsTests
         }
         if (buffer)
         {
-            using var reader = new McapBufferReader(stream.ToArray(), McapBufferReadMode.Messages, false);
+            using var reader = new McapReadCursor(stream.ToArray(), McapCursorMode.Messages, false);
             Assert.Single(reader.ReadMessages());
             Check(reader.GetChannel(channel), reader.GetChannel(channel));
         }
         else
         {
             stream.Position = 0;
-            using var reader = McapFileReader.OpenMessages(stream, new() { Order = McapReadOrder.File }, true,
+            using var reader = McapReaderFactory.OpenMessages(stream, new() { Order = McapReadOrder.File }, true,
                 new());
             // Shared summary declarations are then compared against raw sequential declarations.
             Assert.NotNull(reader.GetSummary());
@@ -115,7 +115,7 @@ public sealed class SharedStatisticsTests
     {
         var fields = Enumerable.Range(0, 2000).ToDictionary(i => $"key/{i:000000}", i => $"value/{i}");
         using var stream = new MemoryStream();
-        McapBufferReader cursor;
+        McapReadCursor cursor;
         ushort channel;
         using (var writer = new McapWriter(stream, new()
         {
@@ -183,7 +183,7 @@ public sealed class SharedStatisticsTests
             Check(writer.GetSummary());
         }
         storage.Position = 0;
-        using var reader = McapFileReader.OpenMessages(storage, leaveOpen: true);
+        using var reader = McapReaderFactory.OpenMessages(storage, leaveOpen: true);
         Check(reader.GetSummary()!);
         Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext(Span<byte>.Empty, out _, out _));
         Check(reader.GetSummary()!);
@@ -219,7 +219,7 @@ public sealed class SharedStatisticsTests
 
         }
         storage.Position = 0;
-        using var reader = McapFileReader.OpenMessages(storage, leaveOpen: true);
+        using var reader = McapReaderFactory.OpenMessages(storage, leaveOpen: true);
         Check(reader.GetSummary()!);
         Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext(Span<byte>.Empty, out _, out _));
         Check(reader.GetSummary()!);
@@ -256,7 +256,7 @@ public sealed class SharedStatisticsTests
                 Check(writer.GetSummary());
         }
         storage.Position = 0;
-        using (var reader = McapFileReader.OpenMessages(storage, leaveOpen: true))
+        using (var reader = McapReaderFactory.OpenMessages(storage, leaveOpen: true))
         {
             Check(reader.GetSummary()!);
             Span<byte> data = stackalloc byte[4];

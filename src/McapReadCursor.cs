@@ -5,26 +5,26 @@ using Microsoft.Win32.SafeHandles;
 namespace Fizzy.McapSharp;
 
 /// <summary>Selects slice-parser semantics. Every mode supports record delivery; only RawMessages and Messages support message delivery.</summary>
-public enum McapBufferReadMode
+public enum McapCursorMode
 {
     /// <summary>Reads top-level file records, leaving Chunk bodies compressed.</summary>
-    Linear,
+    TopLevelRecords,
     /// <summary>Reads expanded records from input without start or end magic.</summary>
-    SansMagic,
+    ExpandedRecordsWithoutMagic,
     /// <summary>Reads file records with Chunk contents expanded.</summary>
-    FlattenChunks,
+    ExpandedRecords,
     /// <summary>Reads records from a single encoded Chunk body, without the outer record header.</summary>
-    Chunk,
+    ChunkRecords,
     /// <summary>Reads only messages and collects encountered declarations without requiring each message's channel to be declared.</summary>
     RawMessages,
     /// <summary>Reads only messages and validates that their channels are declared.</summary>
     Messages
 }
 
-/// <summary>Lazy adapters for official slice-reader semantics. Construction copies input; advancement parses records.
+/// <summary>One disposable cursor over copied/mapped input, a summary, or a retained chunk. Adapts official slice-reader semantics. Construction copies input; advancement parses records.
 /// Unsupported message delivery is rejected without advancement or terminal failure. Summary cursors support records only;
 /// snapshot Chunk cursors support messages as well as records.</summary>
-public sealed partial class McapBufferReader : IDisposable
+public sealed partial class McapReadCursor : IDisposable
 {
     readonly BufferReaderHandle handle;
     readonly object gate = new();
@@ -36,12 +36,12 @@ public sealed partial class McapBufferReader : IDisposable
         Check();
         if (!supportsMessages) throw new InvalidOperationException("This cursor supports record delivery only.");
     }
-    internal McapBufferReader(IntPtr p, bool supportsMessages) { handle = new(p); this.supportsMessages = supportsMessages; }
+    internal McapReadCursor(IntPtr p, bool supportsMessages) { handle = new(p); this.supportsMessages = supportsMessages; }
     /// <summary>Copies input and opens one lazy cursor in the selected mode. ignoreEndMagic permits input without end magic where the mode reads a complete file.</summary>
-    public unsafe McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode = McapBufferReadMode.Messages, bool ignoreEndMagic = false)
+    public unsafe McapReadCursor(ReadOnlySpan<byte> data, McapCursorMode mode = McapCursorMode.Messages, bool ignoreEndMagic = false)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
-        supportsMessages = mode is McapBufferReadMode.RawMessages or McapBufferReadMode.Messages;
+        supportsMessages = mode is McapCursorMode.RawMessages or McapCursorMode.Messages;
         Native.EnsureAvailable();
         fixed (byte* p = data)
         {
@@ -50,7 +50,7 @@ public sealed partial class McapBufferReader : IDisposable
         }
     }
     /// <summary>Maps file contents without copying. Keep the file unchanged until this reader and every lease retaining the mapping are disposed.</summary>
-    public static McapBufferReader OpenMapped(string path, McapBufferReadMode mode = McapBufferReadMode.Messages,
+    public static McapReadCursor OpenMapped(string path, McapCursorMode mode = McapCursorMode.Messages,
         bool ignoreEndMagic = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -60,7 +60,7 @@ public sealed partial class McapBufferReader : IDisposable
         int status = Native.fm_buffer_reader_mapped(config, (nuint)config.Length, out var p, out var r);
         Native.Consume(status, r).Json?.Dispose();
 
-        return new(p, mode is McapBufferReadMode.RawMessages or McapBufferReadMode.Messages);
+        return new(p, mode is McapCursorMode.RawMessages or McapCursorMode.Messages);
     }
     /// <summary>Copies one raw record body into caller storage. BufferTooSmall retains the record and reports required capacity. The returned opcode identifies the body; length excludes the record header.</summary>
     public unsafe McapReadStatus ReadNextRecord(Span<byte> destination, out byte opcode, out ulong length)
@@ -99,15 +99,8 @@ public sealed partial class McapBufferReader : IDisposable
         {
             Check();
             var status = Native.fm_buffer_reader_channel(handle, id, out var r);
-            return DecodeChannel(Native.Consume(status, r));
+            return DeclarationDecoder.Channel(Native.Consume(status, r));
         }
-    }
-    internal static McapChannel DecodeChannel((JsonDocument? Json, byte[] Data, ulong Value) response)
-    {
-        using var j = response.Json!;
-        var c = j.RootElement; var s = c.GetProperty("schema");
-        McapSchema? schema = s.ValueKind == JsonValueKind.Null ? null : new(s.GetProperty("id").GetUInt16(), s.GetProperty("name").GetString()!, s.GetProperty("encoding").GetString()!, response.Data);
-        return new(c.GetProperty("id").GetUInt16(), c.GetProperty("topic").GetString()!, c.GetProperty("messageEncoding").GetString()!, schema, c.GetProperty("metadata").Deserialize<Dictionary<string, string>>()!);
     }
     bool ReadOwned(OwnedReadSink sink)
     {

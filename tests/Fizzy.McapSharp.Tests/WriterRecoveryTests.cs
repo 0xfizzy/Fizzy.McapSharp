@@ -19,7 +19,7 @@ public class WriterRecoveryTests
         using var stream = new ObservedStream();
         try
         {
-            var options = new McapWriterOptions { RecoverableErrors = (McapRecoverableWriterErrors)mask, UseChunks = chunks, Compression = compression, ChunkSize = 32 };
+            var options = new McapWriterOptions { SafeRejections = (McapWriterSafeRejections)mask, UseChunks = chunks, Compression = compression, ChunkSize = 32 };
             using (var w = file ? new McapWriter(path, options) : new McapWriter(stream, options, true))
             {
                 w.RegisterSchema(1, "s", "raw", []);
@@ -38,7 +38,7 @@ public class WriterRecoveryTests
                 Assert.Equal(2ul, w.GetSummary().Statistics!.MessageCount);
             }
             using Stream input = file ? File.OpenRead(path) : new MemoryStream(stream.ToArray());
-            using var reader = McapFileReader.OpenMessages(input, options: McapReaderOptions.Strict);
+            using var reader = McapReaderFactory.OpenMessages(input, options: McapReaderOptions.Strict);
             Assert.Equal(new ulong[] { 10, 20 }, reader.ReadMessages().Select(m => m.LogTime));
             Assert.True(reader.IsFullyValidated);
             Assert.Equal(2, reader.GetSummary()!.SchemaIds.Count);
@@ -68,9 +68,9 @@ public class WriterRecoveryTests
     [Fact]
     public void DefaultsAndInvalidFlags()
     {
-        Assert.Equal(31, (int)new McapWriterOptions().RecoverableErrors);
+        Assert.Equal(31, (int)new McapWriterOptions().SafeRejections);
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mcap");
-        var options = new McapWriterOptions { RecoverableErrors = (McapRecoverableWriterErrors)32 };
+        var options = new McapWriterOptions { SafeRejections = (McapWriterSafeRejections)32 };
         Assert.Throws<ArgumentOutOfRangeException>(() => new McapWriter(path, options));
         Assert.False(File.Exists(path));
         using var s = new MemoryStream();

@@ -5,10 +5,32 @@ namespace Fizzy.McapSharp.Tests;
 public class WriterArgumentBoundaryTests
 {
     [Fact]
+    public void PreparedResultsDistinguishChannelZeroFromOperationsWithoutIds()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new McapWriter(stream, leaveOpen: true);
+        using var schema = McapPreparedOperation.Schema("schema", "raw", [], id: 7);
+        using var channel = McapPreparedOperation.Channel("topic", "raw", schemaId: 7, id: 0);
+        using var metadata = McapPreparedOperation.Metadata("metadata", new Dictionary<string, string>());
+        using var attachment = McapPreparedOperation.Attachment("attachment", "raw", 0, 0);
+        using var start = McapPreparedOperation.StartAttachment("segmented", "raw", 0, 0, 0);
+        Assert.Equal((ushort?)7, writer.WritePrepared(schema));
+        Assert.Equal((ushort?)0, writer.WritePrepared(channel));
+        Assert.Null(writer.WritePrepared(metadata));
+        Assert.Null(writer.WritePrepared(attachment));
+        Assert.Null(writer.WritePrepared(start));
+        writer.FinishAttachment();
+        writer.WriteMessage(new McapMessageHeader(0, 0, 1, 1), [42]);
+        writer.Complete();
+        Assert.Equal(1ul, writer.GetSummary().Statistics!.MessageCount);
+        Assert.Equal(2u, writer.GetSummary().Statistics!.AttachmentCount);
+    }
+
+    [Fact]
     public void RequiredNullArgumentsDoNotFailWriter()
     {
         using var stream = new MemoryStream();
-        using var writer = new McapWriter(stream, new() { RecoverableErrors = McapRecoverableWriterErrors.None }, leaveOpen: true);
+        using var writer = new McapWriter(stream, new() { SafeRejections = McapWriterSafeRejections.None }, leaveOpen: true);
         Action[] invalid =
         [
             () => writer.RegisterSchema(null!, "raw", []),
@@ -33,14 +55,14 @@ public class WriterArgumentBoundaryTests
     public void NonAttachmentPreparedPayloadIsRejectedBeforeMutation()
     {
         using var stream = new MemoryStream();
-        using var writer = new McapWriter(stream, new() { RecoverableErrors = McapRecoverableWriterErrors.None }, leaveOpen: true);
+        using var writer = new McapWriter(stream, new() { SafeRejections = McapWriterSafeRejections.None }, leaveOpen: true);
         using var schema = McapPreparedOperation.Schema("schema", "raw", [1]);
         using var channel = McapPreparedOperation.Channel("topic", "raw");
         using var metadata = McapPreparedOperation.Metadata("metadata", new Dictionary<string, string>());
         using var start = McapPreparedOperation.StartAttachment("attachment", "raw", 0, 0, 0);
         foreach (var operation in new[] { schema, channel, metadata, start })
             Assert.Throws<ArgumentException>(() => writer.WritePrepared(operation, new byte[] { 9 }));
-        var id = checked((ushort)writer.WritePrepared(channel));
+        var id = writer.WritePrepared(channel)!.Value;
         writer.WriteMessage(new McapMessageHeader(id, 0, 1, 1), [42]);
         using var attachment = McapPreparedOperation.Attachment("attachment", "raw", 0, 0);
         writer.WritePrepared(attachment, [7]);

@@ -36,13 +36,13 @@ Defaults follow upstream writer settings, including Zstd, 1 MiB target chunks an
 
 | Official Rust API | .NET entry | Mapping | Key difference or constraint |
 | --- | --- | --- | --- |
-| `read::LinearReader`, `Options`, `sans_magic` | `McapBufferReader` Linear/SansMagic modes | Adapted | Official Sans-I/O with matching slice-reader configuration; copied or explicitly mapped input |
-| `read::ChunkReader` | `McapBufferReader` Chunk mode | Adapted | Takes a Chunk record body and advances lazily |
-| `read::ChunkFlattener` | `McapBufferReader` FlattenChunks mode | Adapted | Expands chunks into records |
+| `read::LinearReader`, `Options`, `sans_magic` | `McapReadCursor` TopLevelRecords/ExpandedRecordsWithoutMagic modes | Adapted | Official Sans-I/O with matching slice-reader configuration; copied or explicitly mapped input |
+| `read::ChunkReader` | `McapReadCursor` ChunkRecords mode | Adapted | Takes a Chunk record body and advances lazily |
+| `read::ChunkFlattener` | `McapReadCursor` ExpandedRecords mode | Adapted | Expands chunks into records |
 | `read::RawMessageStream`, `RawMessage`, `get_channel` | RawMessages mode, header/payload reads, `GetChannel` | Adapted | Retains encountered declarations; no borrowed Rust iterator crosses the ABI |
 | `read::MessageStream` | Messages mode and owned message enumeration | Adapted | Owned results copy payload and mutable declarations; other delivery forms have different ownership |
 
-[McapBufferReader](../src/McapBufferReader.cs) consolidates these slice-reader interfaces. `McapFileReader.OpenMessages/OpenRecords` additionally provides file/Stream sessions driven by official parsing. Sequential file order, input ownership and delivery ownership are separate choices; see [reading](api.md#read-messages-into-reusable-buffers).
+[McapReadCursor](../src/McapReadCursor.cs) consolidates these slice-reader interfaces. `McapReaderFactory.OpenMessages/OpenRecords` additionally provides file/Stream sessions driven by official parsing. Sequential file order, input ownership and delivery ownership are separate choices; see [reading](api.md#read-messages-into-reusable-buffers).
 
 ## Summary and random access (`random-access`)
 

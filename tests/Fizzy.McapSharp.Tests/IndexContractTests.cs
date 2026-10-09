@@ -25,7 +25,7 @@ public class IndexContractTests(ITestOutputHelper output)
         BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset + 11), 0);
         using var snapshot = new McapIndexSnapshot(bytes);
         using var prepared = new McapPreparedChunkIndex(chunk);
-        using var session = McapFileReader.OpenMessages(new MemoryStream(bytes));
+        using var session = McapReaderFactory.OpenMessages(new MemoryStream(bytes));
         var expected = session.ReadMessageIndexes(chunk).OrderBy(g => g.ChannelId).ToArray();
         foreach (var actual in new[] { snapshot.ReadMessageIndexes(chunk), snapshot.ReadMessageIndexes(prepared) })
         {

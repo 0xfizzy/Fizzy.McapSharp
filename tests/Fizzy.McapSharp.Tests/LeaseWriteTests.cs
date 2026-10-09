@@ -16,7 +16,7 @@ public class LeaseWriteTests
             writer.WriteMessage(new(7, 7, 8, 9), data);
             writer.Complete();
         }
-        using var reader = new McapBufferReader(output.ToArray());
+        using var reader = new McapReadCursor(output.ToArray());
         return reader.ReadBatchLease()!;
     }
 
@@ -35,7 +35,7 @@ public class LeaseWriteTests
             Assert.Equal(3, writer.WriteBatch(batch)); // No ownership transfer or mutation.
             writer.Complete();
         }
-        using var reader = new McapBufferReader(output.ToArray());
+        using var reader = new McapReadCursor(output.ToArray());
         using var actual = reader.ReadBatchLease()!;
         Assert.Equal(9, actual.Count);
         for (int i = 0; i < 9; i++)
@@ -65,7 +65,7 @@ public class LeaseWriteTests
     {
         using var batch = Source(McapCompression.None);
         using var output = new MemoryStream();
-        using var writer = new McapWriter(output, new() { UseChunks = false, RecoverableErrors = strict ? McapRecoverableWriterErrors.None : McapRecoverableWriterErrors.UnknownChannelOnMessageWrite }, true);
+        using var writer = new McapWriter(output, new() { UseChunks = false, SafeRejections = strict ? McapWriterSafeRejections.None : McapWriterSafeRejections.UnknownChannelOnMessageWrite }, true);
         writer.RegisterChannel(7, "a", "raw");
         McapMessageHeader[] headers = [new(7, 0, 0, 0), new(65000, 1, 1, 1), new(7, 2, 2, 2)];
         long before = output.Length;

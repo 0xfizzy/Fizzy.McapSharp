@@ -9,7 +9,7 @@ public class SharedPendingTests
     public void BufferRetryPreservesBodyAndCopiesOnlyTheChosenDelivery(McapCompression compression)
     {
         var bytes = DeliveryOptimizationTests.Recording(compression);
-        using var reader = new McapBufferReader(bytes, McapBufferReadMode.Messages, false);
+        using var reader = new McapReadCursor(bytes, McapCursorMode.Messages, false);
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out var header, out var length));
         Assert.Equal(70000UL, length);
 
@@ -38,7 +38,7 @@ public class SharedPendingTests
     public void PendingCanTransferToLeaseWithoutPayloadCopy(McapCompression compression, bool indexed)
     {
         var bytes = DeliveryOptimizationTests.Recording(compression);
-        using var reader = McapFileReader.OpenMessages(new MemoryStream(bytes), indexed ? new() : null,
+        using var reader = McapReaderFactory.OpenMessages(new MemoryStream(bytes), indexed ? new() : null,
             options: new());
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out var expected, out _));
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out _, out _));
@@ -60,7 +60,7 @@ public class SharedPendingTests
         var bytes = DeliveryOptimizationTests.Recording(compression);
         foreach (int mode in new[] { 0, 1, 2 })
         {
-            using var reader = new McapBufferReader(bytes, McapBufferReadMode.Messages, false);
+            using var reader = new McapReadCursor(bytes, McapCursorMode.Messages, false);
             Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNextRecord([], out _, out _));
             if (mode == 0)
             {
@@ -129,7 +129,7 @@ public class SharedPendingTests
         using var snapshot = new McapIndexSnapshot(bytes);
         var chunks = snapshot.GetSummary()!.ChunkIndexes;
         Assert.True(chunks.Count > 2);
-        using var reader = McapFileReader.OpenMessages(new ShortReadStream(bytes), new(),
+        using var reader = McapReaderFactory.OpenMessages(new ShortReadStream(bytes), new(),
             options: new());
         var leases = new List<McapMessageBatchLease>();
         try
@@ -158,7 +158,7 @@ public class SharedPendingTests
         using var snapshot = new McapIndexSnapshot(bytes);
         var first = snapshot.GetSummary()!.ChunkIndexes[0];
         long start = checked((long)snapshot.GetCompressedDataOffset(first));
-        using var truncated = McapFileReader.OpenMessages(new ShortReadStream(bytes, start + 19, start + (long)first.CompressedSize), new());
+        using var truncated = McapReaderFactory.OpenMessages(new ShortReadStream(bytes, start + 19, start + (long)first.CompressedSize), new());
         Assert.Throws<McapException>(() => truncated.ReadNext(new byte[256], out _, out _));
         Assert.Throws<InvalidOperationException>(() => truncated.ReadNext(new byte[256], out _, out _));
     }

@@ -6,7 +6,7 @@ public sealed partial class McapSansIoReader
     internal McapChannel DescribeChannel(ushort id)
     {
         int status = Native.fm_engine_describe(handle, Protocol.DeclarationKind.Channel, id, out var result);
-        return McapBufferReader.DecodeChannel(Native.Consume(status, result));
+        return DeclarationDecoder.Channel(Native.Consume(status, result));
     }
 
     internal McapSchema DescribeSchema(ushort id)

@@ -44,9 +44,9 @@ public class BatchTests
             Assert.Equal(3, writer.WriteBatch(headers, [1, 2, 3, 4, 5], [new(0, 2), new(2, 3), new(0, 0)]));
             writer.Complete();
         }
-        using var buffer = new McapBufferReader(storage.ToArray());
+        using var buffer = new McapReadCursor(storage.ToArray());
         storage.Position = 0;
-        using var session = McapFileReader.OpenMessages(storage, options: McapReaderOptions.Strict, leaveOpen: true);
+        using var session = McapReaderFactory.OpenMessages(storage, options: McapReaderOptions.Strict, leaveOpen: true);
         foreach (bool useSession in new[] { false, true })
         {
             var headers = new McapMessageHeader[4]; var ranges = new McapPayloadRange[4];
@@ -75,7 +75,7 @@ public class BatchTests
         Assert.True(error.CanContinueWriting);
         writer.WriteMessage(new(c, 9, 9, 0), [9]); writer.Complete(); writer.Dispose();
         storage.Position = 0;
-        using var reader = McapFileReader.OpenMessages(storage, leaveOpen: true);
+        using var reader = McapReaderFactory.OpenMessages(storage, leaveOpen: true);
         Assert.Equal(9U, Assert.Single(reader.ReadMessages()).Sequence);
     }
 
@@ -84,8 +84,8 @@ public class BatchTests
     public void BorrowedCallbackStopsAndRejectsReentry(bool useSession)
     {
         var data = DeliveryOptimizationTests.Recording(McapCompression.Zstd);
-        using var session = McapFileReader.OpenMessages(new MemoryStream(data));
-        using var buffer = new McapBufferReader(data);
+        using var session = McapReaderFactory.OpenMessages(new MemoryStream(data));
+        using var buffer = new McapReadCursor(data);
         int calls = 0;
         bool Accept(in McapMessageHeader h, ReadOnlySpan<byte> payload)
         {
@@ -113,7 +113,7 @@ public class BatchTests
     [Fact]
     public void CallbackExceptionIsRethrownAndTerminatesSession()
     {
-        using var reader = McapFileReader.OpenMessages(new MemoryStream(DeliveryOptimizationTests.Recording(McapCompression.None)));
+        using var reader = McapReaderFactory.OpenMessages(new MemoryStream(DeliveryOptimizationTests.Recording(McapCompression.None)));
         var expected = new ApplicationException("callback");
         bool Fail(in McapMessageHeader h, ReadOnlySpan<byte> p) => throw expected;
         Assert.Same(expected, Assert.Throws<ApplicationException>(() => reader.VisitMessages(Fail)));

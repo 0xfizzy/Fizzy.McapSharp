@@ -61,12 +61,12 @@ foreach (var compression in Enum.GetValues<McapCompression>())
             var channel = writer.RegisterChannel("smoke", "raw");
             writer.WriteMessage(new McapMessageHeader(channel, 1, 1, 1), [42]); writer.Complete();
         }
-        var reader = new McapFileReader(path); reader.Validate();
+        var reader = new McapReaderFactory(path); reader.Validate();
         if (reader.ReadMessages().Single().Data[0] != 42) throw new Exception("Payload mismatch");
         using var session=reader.OpenMessages();var buffer=new byte[1];
         if(session.ReadNext(buffer,out var header,out var length)!=McapReadStatus.Success || length!=1 || buffer[0]!=42 || header.Sequence!=1)throw new Exception("Buffered ABI mismatch");
         using var stream=new MemoryStream();using(var writer=new McapWriter(stream,new(){Compression=compression},leaveOpen:true)){var channel=writer.RegisterChannel("stream","raw");writer.WriteMessage(new McapMessageHeader(channel,0,1,1),[7]);writer.Complete();}
-        stream.Position=0;using var streamed=McapFileReader.OpenMessages(stream,leaveOpen:true);
+        stream.Position=0;using var streamed=McapReaderFactory.OpenMessages(stream,leaveOpen:true);
         if(streamed.ReadNext(buffer,out _,out _)!=McapReadStatus.Success||buffer[0]!=7)throw new Exception("Stream ABI mismatch");
         using var leased=reader.OpenMessages();using var batch=leased.ReadBatchLease()!;
         using var forwarded=new MemoryStream();
@@ -76,7 +76,7 @@ foreach (var compression in Enum.GetValues<McapCompression>())
             if(writer.WriteBatch(batch)!=1||writer.WriteBatch(batch,new[]{replacement})!=1)throw new Exception("Lease batch count mismatch");
             writer.Complete();
         }
-        using var copied=new McapBufferReader(forwarded.ToArray());using var roundtrip=copied.ReadBatchLease()!;
+        using var copied=new McapReadCursor(forwarded.ToArray());using var roundtrip=copied.ReadBatchLease()!;
         if(roundtrip.Count!=2||roundtrip.GetHeader(0)!=original||roundtrip.GetHeader(1)!=replacement ||
             !roundtrip.GetPayload(0).SequenceEqual(batch.GetPayload(0))||!roundtrip.GetPayload(1).SequenceEqual(batch.GetPayload(0)))
             throw new Exception("Lease forwarding ABI mismatch");

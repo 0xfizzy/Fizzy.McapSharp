@@ -5,10 +5,11 @@ namespace Fizzy.McapSharp;
 public sealed partial class McapIndexSnapshot
 {
     /// <summary>Opens an independent lazy message cursor that retains storage after the snapshot and prepared descriptor are disposed. The descriptor must identify a valid chunk.</summary>
-    public McapBufferReader OpenChunkReader(McapPreparedChunkIndex index)
+    public McapReadCursor OpenChunkReader(McapPreparedChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
-        lock (gate) lock (index.Gate)
+        McapPreparedChunkIndex.CheckCallbackReentry();
+        lock (index.Gate) lock (gate)
         {
             Check(); index.Check();
             int status = Native.fm_snapshot_prepared_chunk_reader(handle, index.Handle, out var h, out var r);
@@ -25,7 +26,9 @@ public sealed partial class McapIndexSnapshot
     /// <summary>Returns independent owned message-index groups for every requested channel, including valid empty groups. Requires a summary and valid message-index offsets.</summary>
     public IReadOnlyList<McapMessageIndex> ReadMessageIndexes(McapPreparedChunkIndex index)
     {
-        lock (gate)
+        ArgumentNullException.ThrowIfNull(index);
+        McapPreparedChunkIndex.CheckCallbackReentry();
+        lock (index.Gate) lock (gate)
         {
             ReadMessageIndexes(index, [], out var n); var b = new byte[checked((int)n)]; ReadMessageIndexes(index, b, out _);
             return DecodeMessageIndexes(b, index.ChannelIds);
@@ -42,7 +45,8 @@ public sealed partial class McapIndexSnapshot
     unsafe McapReadStatus CallPrepared(uint op, McapPreparedChunkIndex index, McapMessageIndexEntry entry, Span<byte> destination, out McapMessageHeader header, out ulong length)
     {
         ArgumentNullException.ThrowIfNull(index);
-        lock (gate) lock (index.Gate)
+        McapPreparedChunkIndex.CheckCallbackReentry();
+        lock (index.Gate) lock (gate)
         {
             Check(); index.Check();
             fixed (byte* p = destination)
@@ -57,7 +61,8 @@ public sealed partial class McapIndexSnapshot
     unsafe McapMessage SeekOwned(McapChunkIndex? index, McapPreparedChunkIndex? prepared, McapMessageIndexEntry entry)
     {
         if (prepared is null) ArgumentNullException.ThrowIfNull(index);
-        lock (gate) lock (prepared?.Gate ?? gate)
+        if (prepared is not null) McapPreparedChunkIndex.CheckCallbackReentry();
+        lock (prepared?.Gate ?? gate) lock (gate)
         {
             Check(); prepared?.Check();
             using var sink = new OwnedReadSink(OwnedReadSink.Kind.Message);
