@@ -96,15 +96,11 @@ PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧�
 
 ## 消费者集成
 
-默认使用 `PackageReference`。源码调试由消费者的 MSBuild 条件配置选择引用：
-
-- `UseFizzyMcapSharpSource=true` 时使用指向本仓库项目的 `ProjectReference`，根路径由 `FizzyMcapSharpRoot` 提供。
-- 关闭源码模式时使用 `PackageReference`，同一项目不得同时引用两者。
-- 这些属性是消费者集成约定，本库项目不会自行替消费者切换引用。
+默认使用 `PackageReference`。本地源码开发时，消费项目可以改用指向本仓库项目的 `ProjectReference`。同一项目只能选择一种引用类型。引用选择属性、路径和构建入口由消费项目定义，本库不配置这些内容。
 
 源码模式先运行本仓库 `./scripts/Build.ps1`，再 restore/build 消费者。托管项目优先使用显式 `RuntimeIdentifier`，否则使用 SDK 宿主 RID，只将对应的已有原生库传播到源码消费者输出；直接 `dotnet build` 不会编译 Rust。使用当前 checkout，不擅自拉取或切换分支；切换 Source/Package 模式后重新 restore，共享输出串行构建。本机路径和切换配置不提交。
 
-在联合工作区中，API 或行为变化还应验证 RobotController、Parallax 的 Source 构建及相关测试，具体入口以父工作区 README 为准；独立使用本仓库不要求这些消费者存在。报告需区分源码、本地包和已发布包的验证范围。
+报告需区分源码、本地包和已发布包的验证范围。测试已发布依赖不能验证当前源码。
 
 
 ### 官方 API 与扩展分配门禁

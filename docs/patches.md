@@ -2,7 +2,9 @@
 
 English | [简体中文](patches.zh-CN.md)
 
-Maintainers should prefer unmodified upstream APIs. A patch is permitted only when a documented binding ownership or performance contract cannot be met by upstream APIs or binding-only adaptation. Preserve format state machines and semantics; do not patch codec allocators, add total-memory accounting, or optimize upstream internals. Keep patches local; do not submit them upstream.
+Maintainers should prefer unmodified upstream APIs. A patch is permitted only when a documented binding ownership or performance contract cannot be met by upstream APIs or reasonable binding-only adaptation. Preserve format state machines and semantics; do not patch codec allocators, add total-memory accounting, or optimize upstream internals. Keep patches local; do not submit them upstream.
+
+When adaptation requires disproportionate duplicated state or lifetime machinery, compare it with the smallest necessary access or storage ownership extension. Document the contract, the rejected adaptation and its concrete complexity, and the correctness, maintenance and upstream-update costs of both options. Choose the simpler maintainable solution within these boundaries; complexity is not permission for convenience APIs or unrelated upstream changes. Independent behavior, lifetime and performance evidence remains required.
 
 ## Permitted extensions
 

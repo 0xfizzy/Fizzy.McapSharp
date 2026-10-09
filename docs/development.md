@@ -98,15 +98,11 @@ The manual publish workflow runs the same validation and passes the identical ve
 
 ## Consumer integration
 
-Use `PackageReference` by default. Consumer MSBuild conditions select source references for local development:
-
-- With `UseFizzyMcapSharpSource=true`, select a `ProjectReference` to this repository's project, using `FizzyMcapSharpRoot` as the root path.
-- Otherwise select `PackageReference`. Never select both for the same project.
-- These properties are consumer integration conventions; this library does not switch consumer references itself.
+Use `PackageReference` by default. For local source development, the consuming project can select a `ProjectReference` to this repository's project instead. Select exactly one reference type per project. Reference-selection properties, paths and build entry points belong to the consuming project; this library does not configure them.
 
 For source mode, run this repository's `./scripts/Build.ps1` before restoring and building consumers. The managed project uses an explicit `RuntimeIdentifier` when supplied, otherwise the SDK host RID, and propagates only that native library to source consumer outputs; `dotnet build` alone does not compile Rust. Use the current checkout without fetching or switching branches. Restore after switching Source/Package mode, and serialize builds sharing outputs. Do not commit local paths or mode configuration.
 
-In the combined workspace, API or behavior changes also require RobotController and Parallax Source builds and relevant tests; use the parent workspace README for entry points. Standalone use does not require those consumers. Distinguish source, local package, and published package validation in reports.
+Distinguish source, local package, and published package validation in reports. Testing a published dependency does not validate current source.
 
 
 ### Official API and extended allocation gates
