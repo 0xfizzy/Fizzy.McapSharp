@@ -1,5 +1,6 @@
 //! Complete, immutable chunks with a byte-limited LRU. Storage owners survive eviction.
-use super::*;
+use super::{buffer_reader, lease, memory, record_access, Outcome, Response, MessageHeader};
+use mcap::{records, sans_io};
 use std::cell::Cell;
 use std::sync::Arc;
 struct Entry {

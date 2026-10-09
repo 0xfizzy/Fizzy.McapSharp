@@ -13,7 +13,7 @@ pub struct Callbacks {
     pub seekable: u32,
 }
 fn check(status: i32) -> io::Result<()> {
-    if status == 0 {
+    if status == crate::protocol::callback_status::ACCEPTED {
         Ok(())
     } else {
         Err(io::Error::other("Managed Stream callback failed"))
@@ -172,4 +172,20 @@ impl Input {
             Self::Stream(c) => c.seekable != 0,
         }
     }
+}
+
+pub(super) fn open_input(path: &str) -> super::Outcome<Input> {
+    let mut o = File::options();
+    o.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        o.share_mode(1);
+    }
+    let f = o.open(path)?;
+    let mapping = unsafe { Mmap::map(&f)? };
+    Ok(Input::Map {
+        mapping: std::sync::Arc::new(MappedInput { mapping, _file: f }),
+        position: 0,
+    })
 }

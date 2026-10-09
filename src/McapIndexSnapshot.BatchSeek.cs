@@ -30,7 +30,7 @@ public sealed partial class McapIndexSnapshot
                 fixed (Native.SeekRequest* p = native)
                 {
                     int status = Native.fm_snapshot_seek_batch(handle, p, (nuint)requests.Length, out var batch, out var result);
-                    if (status < 0) throw Native.ConsumeError(result);
+                    if (status < Protocol.Status.Success) throw Native.ConsumeError(result);
                     return new(batch, requests.Length);
                 }
             }
@@ -41,6 +41,7 @@ public sealed partial class McapIndexSnapshot
             }
         }
     }
+    /// <summary>Synchronously visits the indexed message. The payload expires when the callback returns; callback re-entry into this snapshot is forbidden.</summary>
     public unsafe void SeekMessage(McapPreparedChunkIndex index, McapMessageIndexEntry entry, McapMessageVisitor visitor)
     {
         ArgumentNullException.ThrowIfNull(index);
@@ -52,18 +53,19 @@ public sealed partial class McapIndexSnapshot
             {
                 index.Handle.DangerousAddRef(ref added);
                 int status = Native.fm_snapshot_message_owned(handle, null, 0, index.Handle.DangerousGetHandle(), entry.LogTime, entry.Offset, borrowed.Acquire(visitor, true), out var result);
-                if (status < 0) { var error = Native.ConsumeError(result); borrowed.ThrowIfError(); throw error; }
+                if (status < Protocol.Status.Success) { var error = Native.ConsumeError(result); borrowed.ThrowIfError(); throw error; }
             }
             finally { borrowed.Release(); if (added) index.Handle.DangerousRelease(); }
         }
     }
+    /// <summary>Returns cumulative chunk-cache hits and loads for this snapshot. Counts do not measure bytes, resident memory or full-file validation.</summary>
     public McapCacheStatistics GetCacheStatistics()
     {
         lock (gate)
         {
             Check();
             int status = Native.fm_snapshot_cache_statistics(handle, out var hits, out var loads, out var result);
-            if (status < 0) throw Native.ConsumeError(result);
+            if (status < Protocol.Status.Success) throw Native.ConsumeError(result);
             return new(hits, loads);
         }
     }

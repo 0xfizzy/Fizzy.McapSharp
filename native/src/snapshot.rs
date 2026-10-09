@@ -1,12 +1,17 @@
+use super::reader::Reader;
+use super::writer::Writer;
+use super::summary::summary_json;
 use super::engine::EngineHandle;
 #[cfg(test)]
 use super::fm_buffer_free;
 use super::record_access::{copy_body, record_body};
 use super::{
-    buffer_reader, bytes, chunk_cache, guard, lease, memory, request, respond, restored, string,
-    summary_json, MessageHeader, Outcome, Reader, Response, Writer,
+    buffer_reader, bytes, chunk_cache, guard, lease, memory, request, respond, restored,
+    string, MessageHeader, Outcome, Response,
 };
 use mcap::records;
+use binrw::BinWrite;
+use std::borrow::Cow;
 use std::io::{Read, Seek, SeekFrom};
 use std::ptr;
 use std::slice;
@@ -26,7 +31,7 @@ pub unsafe extern "C" fn fm_snapshot_summary(p: *const Snapshot, out: *mut Respo
         if let Some(s) = &h.summary {
             respond(out, serde_json::to_vec(&summary_json(s))?, vec![], 0);
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -67,7 +72,7 @@ pub unsafe extern "C" fn fm_snapshot_bytes_options(
             options,
             summary: summary.map(Arc::new),
         }));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -84,15 +89,15 @@ pub unsafe extern "C" fn fm_summary_records(
         }
         *handle = ptr::null_mut();
         let summary = match kind {
-            0 => (*(p as *const Snapshot)).summary.as_ref(),
-            1 => (*(p as *const EngineHandle)).summary.as_ref(),
-            2 => (*(p as *const Writer)).native_summary.as_ref(),
+            crate::protocol::summary_source::SNAPSHOT => (*(p as *const Snapshot)).summary.as_ref(),
+            crate::protocol::summary_source::ENGINE => (*(p as *const EngineHandle)).summary.as_ref(),
+            crate::protocol::summary_source::WRITER => (*(p as *const Writer)).native_summary.as_ref(),
             _ => return Err("Unknown summary source".into()),
         };
         let cursor =
             buffer_reader::summary_records(summary.ok_or("No summary available")?.clone())?;
         *handle = Box::into_raw(Box::new(cursor));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -164,7 +169,7 @@ pub unsafe extern "C" fn fm_snapshot_open_options(
             options,
             summary: summary.map(Arc::new),
         }));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -215,7 +220,7 @@ unsafe fn snapshot_call(
             *header = MessageHeader::default();
         }
         let key = bytes(index_data, index_length)?;
-        if op == 6 {
+        if op == crate::protocol::snapshot_operation::FOOTER {
             let f = mcap::read::footer(&h.data)?;
             let mut b = [0u8; 20];
             b[..8].copy_from_slice(&f.summary_start.to_le_bytes());
@@ -224,7 +229,7 @@ unsafe fn snapshot_call(
             return copy_body(&b, dest, capacity, out);
         }
         match op {
-            2 | 5 | 8 => {
+            crate::protocol::snapshot_operation::SEEK_MESSAGE | crate::protocol::snapshot_operation::MESSAGE_INDEXES | crate::protocol::snapshot_operation::COMPRESSED_DATA_OFFSET => {
                 let parsed;
                 let index = if let Some(prepared) = prepared {
                     &prepared.index
@@ -232,15 +237,21 @@ unsafe fn snapshot_call(
                     parsed = parse_chunk_index(bytes(index_data, index_length)?)?;
                     &parsed
                 };
-                if op == 8 {
+                if op == crate::protocol::snapshot_operation::COMPRESSED_DATA_OFFSET {
                     out.value = index.compressed_data_offset()?;
-                    return Ok(0);
+                    return Ok(crate::protocol::status::SUCCESS);
                 }
+                let canonical_key = if prepared.is_some() {
+                    Cow::Borrowed(key)
+                } else {
+                    canonical_chunk_key(key, index)?
+                };
+                let key = canonical_key.as_ref();
                 let s = h.summary.as_ref().ok_or("File has no summary")?;
-                if op == 2 {
+                if op == crate::protocol::snapshot_operation::SEEK_MESSAGE {
                     check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
                 }
-                if op == 2 {
+                if op == crate::protocol::snapshot_operation::SEEK_MESSAGE {
                     let cached = h.cache.read(
                         &h.data,
                         s,
@@ -274,7 +285,7 @@ unsafe fn snapshot_call(
                     .message_indexes(&h.data, s, index, key, h.options.random)?;
                 copy_body(&packed.data, dest, capacity, out)
             }
-            3 => {
+            crate::protocol::snapshot_operation::METADATA => {
                 let records::Record::MetadataIndex(index) = mcap::parse_record(
                     records::op::METADATA_INDEX,
                     bytes(index_data, index_length)?,
@@ -291,7 +302,7 @@ unsafe fn snapshot_call(
                     out,
                 )
             }
-            4 => {
+            crate::protocol::snapshot_operation::ATTACHMENT => {
                 let records::Record::AttachmentIndex(index) = mcap::parse_record(
                     records::op::ATTACHMENT_INDEX,
                     bytes(index_data, index_length)?,
@@ -340,7 +351,7 @@ pub unsafe extern "C" fn fm_snapshot_release(p: *mut Snapshot, out: *mut Respons
         if !p.is_null() {
             drop(Box::from_raw(p));
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -366,7 +377,7 @@ pub unsafe extern "C" fn fm_snapshot_chunk_reader(
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
         let cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index)?;
         *handle = Box::into_raw(Box::new(cursor));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -392,7 +403,7 @@ pub unsafe extern "C" fn fm_snapshot_mapped(
             options,
             summary,
         }));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -410,6 +421,23 @@ fn parse_chunk_index(data: &[u8]) -> Outcome<records::ChunkIndex> {
     Ok(index)
 }
 
+// Preserve the entire descriptor as the cache identity, but normalize map order.
+// Already canonical managed input borrows its bytes; only reordered maps need a copy.
+fn canonical_chunk_key<'a>(data: &'a [u8], index: &records::ChunkIndex) -> Outcome<Cow<'a, [u8]>> {
+    let map_size = index.message_index_offsets.len() * 10;
+    let canonical = data.get(36..36 + map_size).is_some_and(|map| {
+        map.chunks_exact(10).zip(&index.message_index_offsets).all(|(entry, (id, offset))| {
+            entry[..2] == id.to_le_bytes() && entry[2..] == offset.to_le_bytes()
+        })
+    });
+    if canonical {
+        return Ok(Cow::Borrowed(data));
+    }
+    let mut encoded = std::io::Cursor::new(Vec::with_capacity(data.len()));
+    index.write_le(&mut encoded)?;
+    Ok(Cow::Owned(encoded.into_inner()))
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn fm_chunk_index_prepare(
     data: *const u8,
@@ -425,10 +453,10 @@ pub unsafe extern "C" fn fm_chunk_index_prepare(
         let bytes = bytes(data, n)?;
         let index = parse_chunk_index(bytes)?;
         *handle = Box::into_raw(Box::new(PreparedChunkIndex {
+            key: canonical_chunk_key(bytes, &index)?.into_owned(),
             index,
-            key: bytes.to_vec(),
         }));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -441,7 +469,7 @@ pub unsafe extern "C" fn fm_chunk_index_release(
         if !p.is_null() {
             drop(Box::from_raw(p));
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -492,7 +520,7 @@ pub unsafe extern "C" fn fm_snapshot_prepared_chunk_reader(
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
         let cursor = buffer_reader::chunk_reader(h.data.clone(), summary.clone(), &index.index)?;
         *handle = Box::into_raw(Box::new(cursor));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -510,12 +538,14 @@ pub unsafe extern "C" fn fm_snapshot_message_owned(
     guard(out, |_| {
         let h = p.as_mut().ok_or("Null snapshot")?;
         let parsed;
+        let canonical_key;
         let (index, key) = if let Some(prepared) = prepared.as_ref() {
             (&prepared.index, prepared.key.as_slice())
         } else {
             let key = bytes(data, n)?;
             parsed = parse_chunk_index(key)?;
-            (&parsed, key)
+            canonical_key = canonical_chunk_key(key, &parsed)?;
+            (&parsed, canonical_key.as_ref())
         };
         check_index_range(&h.data, index.chunk_start_offset, index.chunk_length, 9)?;
         let summary = h.summary.as_ref().ok_or("File has no summary")?;
@@ -533,7 +563,7 @@ pub unsafe extern "C" fn fm_snapshot_message_owned(
             Some(sink),
         );
         match result {
-            Ok(Some(_)) => return Ok(0),
+            Ok(Some(_)) => return Ok(crate::protocol::status::SUCCESS),
             Err(e) => {
                 h.cache.clear();
                 return Err(e);
@@ -596,7 +626,7 @@ pub unsafe extern "C" fn fm_snapshot_seek_batch(
         }
         batch.messages.extend(slots.into_iter().map(Option::unwrap));
         *result = lease::publish(batch);
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -611,6 +641,6 @@ pub unsafe extern "C" fn fm_snapshot_cache_statistics(
         let h = p.as_ref().ok_or("Null snapshot")?;
         *hits.as_mut().ok_or("Null hits")? = h.cache.hits;
         *loads.as_mut().ok_or("Null loads")? = h.cache.loads;
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }

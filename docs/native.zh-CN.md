@@ -2,11 +2,11 @@
 
 [English](native.md) | 简体中文
 
-.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../native/src/lib.rs) 实现 MCAP 操作，[io.rs](../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../src/Native.cs)。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
+.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../native/src/lib.rs) 负责共享 ABI／错误边界，[reader.rs](../native/src/reader.rs) 和 [writer.rs](../native/src/writer.rs) 实现会话操作，[io.rs](../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../src/Native.cs) 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 14，托管构造函数拒绝不匹配，包括不支持可报告错误的一次性资源释放的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 15，托管构造函数拒绝不匹配，包括不支持可报告错误的一次性资源释放或异步声明查询的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -64,6 +64,8 @@ Writer 完成时在上游 `finish` 后立即提取输出，释放上游 writer �
 `fm_buffer_reader_*` 拥有输入副本和配置匹配官方切片入口的 Sans-I/O 解析器，推进时只保留一条待交付记录及已遇到声明，不跨调用保留借用迭代器。由于上游 for_chunk 私有，Chunk 适配器通过公开解析器输入合成记录前缀。`fm_snapshot_*` 保存输入副本或映射及官方摘要，随机消息读取通过私有句柄保留共享完整 chunk 存储。`fm_snapshot_call` 同步接收标准 MCAP 索引记录体的指针/长度，以及消息索引的 LogTime 和 offset 两个标量；解析传入索引，不在摘要中查找替代索引。托管桥接使用有界栈缓冲或临时非托管内存编码索引，包括 UTF-8 字符串和通道偏移映射。`fm_reader_record_into`、`fm_parse_record`、`fm_footer`、`fm_chunk_offset` 提供缓冲区或标量操作。`fm_snapshot_chunk_reader` 新增独立惰性 Chunk 游标，共享不可变原生输入与摘要，快照释放不影响已创建游标。Reader open 状态 3 表示禁止所需缓存排序，映射为 `NotSupportedException`。句柄均由私有 SafeHandle 管理，游标成功读取不分配响应缓冲。
 
 异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。
+
+`fm_engine_describe` 复制 lease 读取已遇到的 schema（kind 1）或已解析 channel（kind 2），不推进引擎，也不因查询未知 ID 而终止引擎。托管 async owner 将查询与读取串行协调，并要求先消费在途 ValueTask。不可变托管描述按需缓存，独立于 parser 的释放。
 
 
 ## 稳定存储与批次

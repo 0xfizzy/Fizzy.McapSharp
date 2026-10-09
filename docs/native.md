@@ -2,11 +2,11 @@
 
 English | [简体中文](native.zh-CN.md)
 
-.NET uses Cdecl P/Invoke and SafeHandle to call a private Rust `cdylib` backed by official `mcap` 0.25.0. There is no C++ layer. [lib.rs](../native/src/lib.rs) implements MCAP operations; [io.rs](../native/src/io.rs) implements file/Stream I/O. Managed declarations are in [Native.cs](../src/Native.cs). Windows x64 loads `fizzy_mcap_native.dll`; glibc Linux x64/ARM64 load `libfizzy_mcap_native.so` through the extensionless name `fizzy_mcap_native`.
+.NET uses Cdecl P/Invoke and SafeHandle to call a private Rust `cdylib` backed by official `mcap` 0.25.0. There is no C++ layer. [lib.rs](../native/src/lib.rs) owns shared ABI/error boundaries; [reader.rs](../native/src/reader.rs) and [writer.rs](../native/src/writer.rs) implement session operations, while [io.rs](../native/src/io.rs) implements file/Stream I/O. Managed declarations are in [Native.cs](../src/Native.cs) and its capability partials. Windows x64 loads `fizzy_mcap_native.dll`; glibc Linux x64/ARM64 load `libfizzy_mcap_native.so` through the extensionless name `fizzy_mcap_native`.
 
 ## ABI contract
 
-`fm_abi_version()` returns 14. Managed constructors reject mismatches, including native libraries without reportable one-shot resource release. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 15. Managed constructors reject mismatches, including native libraries without reportable one-shot resource release or asynchronous declaration lookup. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -65,6 +65,8 @@ The public [API contract](api.md) distinguishes complete validation, indexed que
 
 The asynchronous reader drives the linear engine with .NET ReadAsync, retaining only managed Memory between waits. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.
 
+
+`fm_engine_describe` copies a schema (kind 1) or resolved channel (kind 2) already observed by lease reading. It does not advance the engine or turn a missing-ID lookup into a terminal failure. The managed async owner serializes queries with reading and requires consumption of the outstanding ValueTask. Immutable managed descriptions are cached on demand and remain independent of parser disposal.
 
 ## Stable storage and batching
 

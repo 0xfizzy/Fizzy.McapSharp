@@ -1,5 +1,9 @@
 //! Batched ABI operations. Payloads are consumed synchronously.
-use super::*;
+use super::reader::{fm_reader_next, fm_reader_owned};
+use super::writer::{Writer, SafeRejection, writer_guard, writer_result};
+use super::{buffer_reader, lease, memory, bytes, guard, Error, Response, MessageHeader};
+use std::{ptr, slice};
+use mcap::records;
 
 #[repr(C)]
 #[derive(Default, Clone, Copy)]
@@ -86,7 +90,7 @@ pub unsafe extern "C" fn fm_writer_batch(
             )?;
             *completed += 1;
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
     writer_result(handle, status)
 }
@@ -147,7 +151,7 @@ pub unsafe extern "C" fn fm_writer_lease_batch(
             )?;
             *completed += 1;
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
     writer_result(handle, status)
 }
@@ -160,7 +164,7 @@ unsafe fn next(
     header: *mut MessageHeader,
     out: *mut Response,
 ) -> i32 {
-    if kind == 0 {
+    if kind == crate::protocol::reader_kind::SESSION {
         fm_reader_next(handle.cast(), dest, capacity, header, ptr::null_mut(), out)
     } else {
         buffer_reader::fm_buffer_reader_message(handle.cast(), dest, capacity, header, out)
@@ -180,11 +184,11 @@ pub unsafe extern "C" fn fm_read_batch(
     out: *mut Response,
 ) -> i32 {
     if progress.is_null() || out.is_null() {
-        return -1;
+        return crate::protocol::status::ERROR;
     }
     *progress = Progress::default();
     if handle.is_null()
-        || kind > 1
+        || kind > crate::protocol::reader_kind::BUFFER
         || count > isize::MAX as usize / std::mem::size_of::<MessageHeader>()
         || (capacity != 0 && dest.is_null())
         || (count != 0 && (headers.is_null() || ranges.is_null()))
@@ -198,12 +202,12 @@ pub unsafe extern "C" fn fm_read_batch(
         let used = (*progress).bytes as usize;
         let target = if dest.is_null() { dest } else { dest.add(used) };
         let status = next(kind, handle, target, capacity - used, &mut header, out);
-        if status != 0 {
-            if status == 1 {
+        if status != crate::protocol::status::SUCCESS {
+            if status == crate::protocol::status::END {
                 (*progress).scanned = (*out).value;
                 (*progress).partial_validation = header.reserved as u32;
             }
-            if status == 2 {
+            if status == crate::protocol::status::BUFFER_TOO_SMALL {
                 (*progress).required = (*out).value;
             }
             return status;
@@ -216,7 +220,7 @@ pub unsafe extern "C" fn fm_read_batch(
         (*progress).count += 1;
         (*progress).bytes += (*out).value;
     }
-    0
+    crate::protocol::status::SUCCESS
 }
 
 struct VisitContext {
@@ -233,9 +237,9 @@ unsafe extern "C" fn accept(
 ) -> i32 {
     let c = &mut *context.cast::<VisitContext>();
     let result = (c.sink.accept)(c.sink.context, opcode, header, data, length, copied);
-    if result == 1 {
+    if result == crate::protocol::callback_status::STOP {
         c.stopped = true;
-        0
+        crate::protocol::callback_status::ACCEPTED
     } else {
         result
     }
@@ -250,11 +254,11 @@ pub unsafe extern "C" fn fm_visit_messages(
     out: *mut Response,
 ) -> i32 {
     if progress.is_null() || out.is_null() {
-        return -1;
+        return crate::protocol::status::ERROR;
     }
     *progress = Progress::default();
     *out = Response::default();
-    if kind > 1 {
+    if kind > crate::protocol::reader_kind::BUFFER {
         return guard(out, |_| Err("Invalid reader kind".into()));
     }
     let mut context = VisitContext {
@@ -267,13 +271,13 @@ pub unsafe extern "C" fn fm_visit_messages(
     };
     for _ in 0..count {
         let mut header = MessageHeader::default();
-        let status = if kind == 0 {
+        let status = if kind == crate::protocol::reader_kind::SESSION {
             fm_reader_owned(handle.cast(), 5, sink, &mut header, out)
         } else {
             buffer_reader::fm_buffer_reader_owned(handle.cast(), true, sink, out)
         };
-        if status != 0 {
-            if status == 1 {
+        if status != crate::protocol::status::SUCCESS {
+            if status == crate::protocol::status::END {
                 (*progress).scanned = (*out).value;
                 (*progress).partial_validation = header.reserved as u32;
             }
@@ -281,8 +285,8 @@ pub unsafe extern "C" fn fm_visit_messages(
         }
         (*progress).count += 1;
         if context.stopped {
-            return 3;
+            return crate::protocol::batch_status::VISITOR_STOPPED;
         }
     }
-    0
+    crate::protocol::status::SUCCESS
 }

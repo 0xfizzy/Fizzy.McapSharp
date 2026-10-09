@@ -33,13 +33,13 @@ public sealed partial class McapSansIoReader
     internal unsafe byte* PrepareInput(int size)
     {
         int status = Native.fm_engine_input_buffer(handle, (nuint)size, out var pointer, out var result);
-        if (status < 0) throw Native.ConsumeError(result);
+        if (status < Protocol.Status.Success) throw Native.ConsumeError(result);
         return pointer;
     }
     internal void CompleteInput(int count)
     {
         int status = Native.fm_engine_input_complete(handle, (nuint)count, out var result);
-        if (status < 0) throw Native.ConsumeError(result);
+        if (status < Protocol.Status.Success) throw Native.ConsumeError(result);
     }
 }
 internal static partial class Native

@@ -13,8 +13,8 @@ internal static partial class Native
         internal readonly McapBatchReadResult Result(int status) => new(checked((int)Count), checked((int)Bytes), BatchReason(status), Required);
     }
     internal static McapBatchStopReason BatchReason(int status) => status switch {
-        1 => McapBatchStopReason.EndOfStream, 2 => McapBatchStopReason.BufferTooSmall,
-        3 => McapBatchStopReason.VisitorStopped, _ => McapBatchStopReason.Capacity };
+        Protocol.Status.End => McapBatchStopReason.EndOfStream, Protocol.Status.BufferTooSmall => McapBatchStopReason.BufferTooSmall,
+        Protocol.BatchStatus.VisitorStopped => McapBatchStopReason.VisitorStopped, _ => McapBatchStopReason.Capacity };
     internal static void CheckBatch(int headers, int ranges)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(headers);

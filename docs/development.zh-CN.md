@@ -10,7 +10,8 @@
 | --- | --- |
 | `Fizzy.McapSharp.csproj` | 库项目与包元数据；仅编译 `src/` 下的源码 |
 | `src/` | 公共 .NET API；能力 partial 按所属类型命名，Native 互操作声明独立组织 |
-| `native/src/lib.rs` | 文件／Stream 会话、写入操作、校验和共享 ABI 边界 |
+| `native/src/lib.rs`、`protocol.rs` | 共享 ABI／错误边界及具名协议数值 |
+| `native/src/reader.rs`、`writer.rs`、`summary.rs`、`io.rs` | 文件／Stream 读取会话与查询、writer 状态、摘要序列化及源／回调 I/O |
 | `native/src/engine.rs`、`snapshot.rs`、`prepared_write.rs`、`record_access.rs` | Sans-I/O 引擎、独立索引快照、预准备写入和原始记录工具 |
 | `tests/Fizzy.McapSharp.Tests/` | 托管功能与资源生命周期测试 |
 | `tests/Interop/`、`tests/interop.py` | .NET 与官方 Python MCAP 双向互操作 |
@@ -20,6 +21,8 @@
 `Build.ps1` 调用的 `build.py` 优先使用仓库 `.tools/cargo/bin/cargo.exe`，存在时设置对应 CARGO_HOME/RUSTUP_HOME；否则使用 PATH 中的 Cargo。脚本不安装工具。`.tools/` 为忽略目录，不提交本机工具。
 
 ## 构建与测试
+
+公开 API 的 XML 文档由 CS1591 编译门禁要求；在相关成员上说明单位、所有权、适用模式和失败行为。Python 测试同时核对 `src/Native.Protocol.cs` 与 `native/src/protocol.rs` 的私有协议常量；即使数值相同，也保持不同操作域和状态域独立。
 
 ```powershell
 ./scripts/Build.ps1 -Test

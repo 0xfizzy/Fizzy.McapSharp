@@ -10,7 +10,8 @@ Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Ru
 | --- | --- |
 | `Fizzy.McapSharp.csproj` | Library project and package metadata; compiles only `src/` |
 | `src/` | Public .NET API; capability partials are named after their owning type, with separate Native interop declarations |
-| `native/src/lib.rs` | File/Stream sessions, writer operations, validation and shared ABI boundaries |
+| `native/src/lib.rs`, `protocol.rs` | Shared ABI/error boundaries and named wire-protocol values |
+| `native/src/reader.rs`, `writer.rs`, `summary.rs`, `io.rs` | File/Stream read sessions and queries, writer state, summary serialization and source/callback I/O |
 | `native/src/engine.rs`, `snapshot.rs`, `prepared_write.rs`, `record_access.rs` | Sans-I/O engines, independent indexed snapshots, prepared writing and raw-record utilities |
 | `tests/Fizzy.McapSharp.Tests/` | Managed functionality and resource lifetime tests |
 | `tests/Interop/`, `tests/interop.py` | Bidirectional interoperability with official Python MCAP |
@@ -37,6 +38,8 @@ Linux uses `python scripts/build.py build --test`. Use `python scripts/build.py 
 | `linux-arm64` | `aarch64-unknown-linux-gnu` | `ubuntu-22.04-arm` |
 
 The build script runs `cargo build --release --locked --target <target>` before managed Release builds. Native outputs are isolated in `native/target/<target>/release/` and staged in `artifacts/native/<rid>/` with a manifest recording the commit, source fingerprint, target and binary hash. `-Test` runs build/packaging regression checks and xUnit; the default builds only the host platform. No script installs tools.
+
+Public API XML documentation is required by the CS1591 build gate. Keep units, ownership, supported modes and failure behavior on the relevant members. Private protocol constants in `src/Native.Protocol.cs` and `native/src/protocol.rs` are checked together by the Python test suite; keep operation and status domains separate even when numeric values coincide.
 
 Linux builds audit ELF architecture, dynamic dependencies and required GLIBC versions (at most 2.35), and reject external compression libraries and embedded search paths. CPU-specific Rust flags are rejected. Linux ARM64 builds and tests run on native ARM64 runners. macOS, musl, Ubuntu 20.04, Windows ARM64, 32-bit, NativeAOT and single-file publishing are outside the validation matrix.
 

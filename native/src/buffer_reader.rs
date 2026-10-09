@@ -1,4 +1,11 @@
-use super::*;
+#[cfg(test)]
+use super::{errors, fm_buffer_free};
+use super::{memory, bytes, request, string, guard, respond, Outcome, Response, MessageHeader};
+use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::{ptr, slice};
+use mcap::{records, sans_io};
+use serde_json::json;
 use binrw::BinWrite;
 use std::sync::Arc;
 
@@ -73,7 +80,7 @@ impl BufferReader {
             input: Arc::new(memory::Backing::empty()),
             position: 0,
             end: 0,
-            mode: 0,
+            mode: crate::protocol::buffer_mode::LINEAR,
             summary: None,
             schemas: BTreeMap::new(),
             channels: BTreeMap::new(),
@@ -180,7 +187,7 @@ impl BufferReader {
             self.delivery.shared = Some(self.delivery.take_shared(start)?);
             self.delivery.active = false;
             out.value = (n - start) as u64;
-            return Ok(0);
+            return Ok(crate::protocol::status::SUCCESS);
         }
         if self.delivery.active {
             let body = self.delivery.bytes();
@@ -198,12 +205,12 @@ impl BufferReader {
                 sink.send(self.delivery.opcode, &self.delivery.header, &payload)?;
             } else {
                 if capacity < payload.len() {
-                    return Ok(2);
+                    return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
                 }
                 memory::copy(&payload, dest)?;
             }
             self.delivery.release();
-            return Ok(0);
+            return Ok(crate::protocol::status::SUCCESS);
         }
         if self.summary_only {
             if message {
@@ -213,7 +220,7 @@ impl BufferReader {
             let Some(record) =
                 Self::summary_record(&summary, &self.summary_keys, self.summary_position)
             else {
-                return Ok(1);
+                return Ok(crate::protocol::status::END);
             };
             let mut measure = memory::Measure::default();
             write_record(&record, &mut measure)?;
@@ -232,7 +239,7 @@ impl BufferReader {
                 write_record(&record, &mut std::io::Cursor::new(output))?;
                 self.summary_position += 1;
                 self.delivery.release();
-                return Ok(0);
+                return Ok(crate::protocol::status::SUCCESS);
             }
             self.delivery.data.clear();
             self.delivery.reserve(n)?;
@@ -242,16 +249,16 @@ impl BufferReader {
             if self.delivery.sink.is_some() {
                 return self.delivery.retry(dest, capacity);
             }
-            return Ok(2);
+            return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
         }
         loop {
             let Some(parser) = self.parser.as_mut() else {
-                return Ok(1);
+                return Ok(crate::protocol::status::END);
             };
             match parser.next_shared_event().transpose()? {
                 None => {
                     self.parser = None;
-                    return Ok(1);
+                    return Ok(crate::protocol::status::END);
                 }
                 Some(sans_io::linear_reader::SharedReadEvent::ReadRequest(n)) => {
                     let _ = n;
@@ -271,7 +278,7 @@ impl BufferReader {
                 }) => {
                     let data = shared.as_ref();
                     let record = mcap::parse_record(opcode, data)?;
-                    if self.mode >= 4 {
+                    if self.mode >= crate::protocol::buffer_mode::RAW_MESSAGES {
                         if !matches!(record, records::Record::Message { .. }) {
                             if self.summary.is_none() {
                                 Self::observe(
@@ -286,7 +293,7 @@ impl BufferReader {
                         let records::Record::Message { header, .. } = &record else {
                             unreachable!()
                         };
-                        if self.mode != 4
+                        if self.mode != crate::protocol::buffer_mode::RAW_MESSAGES
                             && !self
                                 .summary
                                 .as_ref()
@@ -319,21 +326,21 @@ impl BufferReader {
                         if message {
                             self.delivery.shared = Some(shared.slice(22..data.len()));
                         }
-                        return Ok(0);
+                        return Ok(crate::protocol::status::SUCCESS);
                     }
                     if let Some(sink) = self.delivery.sink {
                         sink.send(opcode, &self.delivery.header, payload)?;
                         self.delivery.release();
-                        return Ok(0);
+                        return Ok(crate::protocol::status::SUCCESS);
                     }
                     if capacity < payload.len() {
                         // Keep the original body so record/message retries may be interchanged.
                         self.delivery.deliver(data, ptr::null_mut(), 0)?;
-                        return Ok(2);
+                        return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
                     }
                     memory::copy(payload, dest)?;
                     self.delivery.release();
-                    return Ok(0);
+                    return Ok(crate::protocol::status::SUCCESS);
                 }
             }
         }
@@ -452,7 +459,7 @@ pub(super) fn chunk_reader(
         end,
         parser: Some(parser),
         summary: Some(summary),
-        mode: 5,
+        mode: crate::protocol::buffer_mode::MESSAGES,
         ..BufferReader::empty()
     })
 }
@@ -480,15 +487,15 @@ pub unsafe extern "C" fn fm_buffer_reader_open(
         *handle = ptr::null_mut();
         let input = memory::Backing::copy(bytes(p, n)?)?;
         *handle = Box::into_raw(Box::new(open_backing(input, mode, ignore_end)?));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 fn open_backing(data: memory::Backing, mode: u32, ignore_end: bool) -> Outcome<BufferReader> {
-    if mode > 5 {
+    if !matches!(mode, crate::protocol::buffer_mode::LINEAR | crate::protocol::buffer_mode::SANS_MAGIC | crate::protocol::buffer_mode::FLATTEN_CHUNKS | crate::protocol::buffer_mode::CHUNK | crate::protocol::buffer_mode::RAW_MESSAGES | crate::protocol::buffer_mode::MESSAGES) {
         return Err("Unknown buffer reader mode".into());
     }
     let mut options = sans_io::LinearReaderOptions::default();
-    if mode == 1 {
+    if mode == crate::protocol::buffer_mode::SANS_MAGIC {
         options = options
             .with_record_length_limit(data.len())
             .with_skip_start_magic(true)
@@ -497,12 +504,12 @@ fn open_backing(data: memory::Backing, mode: u32, ignore_end: bool) -> Outcome<B
         options = options
             .with_skip_end_magic(ignore_end)
             .with_validate_chunk_crcs(true)
-            .with_emit_chunks(mode == 0);
-        if mode == 0 {
+            .with_emit_chunks(mode == crate::protocol::buffer_mode::LINEAR);
+        if mode == crate::protocol::buffer_mode::LINEAR {
             options = options.with_record_length_limit(data.len());
         }
     }
-    let (parser, position) = if mode == 3 {
+    let (parser, position) = if mode == crate::protocol::buffer_mode::CHUNK {
         let records::Record::Chunk { header, data: body } =
             mcap::parse_record(records::op::CHUNK, &data)?
         else {
@@ -544,7 +551,7 @@ pub unsafe extern "C" fn fm_buffer_reader_mapped(
             mode,
             v["ignoreEndMagic"].as_bool().unwrap_or(false),
         )?));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -564,7 +571,7 @@ pub(super) fn describe_channel(c: &mcap::Channel<'_>, out: &mut Response) -> Out
             .unwrap_or_default(),
         0,
     );
-    Ok(0)
+    Ok(crate::protocol::status::SUCCESS)
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_reader_channel(
@@ -602,11 +609,11 @@ pub unsafe extern "C" fn fm_buffer_reader_next(
         }
         let status = h.read(dest, capacity, false, out)?;
         if !opcode.is_null() {
-            *opcode = if status == 1 { 0 } else { h.delivery.opcode };
+            *opcode = if status == crate::protocol::status::END { 0 } else { h.delivery.opcode };
         }
         Ok(status)
     });
-    if status < 0 {
+    if status < crate::protocol::status::SUCCESS {
         if let Some(h) = p.as_mut() {
             h.failed = true;
             h.delivery.discard();
@@ -626,7 +633,7 @@ pub unsafe fn fm_buffer_reader_free(p: *mut BufferReader) {
 pub unsafe extern "C" fn fm_buffer_reader_release(p: *mut BufferReader, out: *mut Response) -> i32 {
     guard(out, |_| {
         if !p.is_null() { drop(Box::from_raw(p)); }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 #[no_mangle]
@@ -647,14 +654,14 @@ pub unsafe extern "C" fn fm_buffer_reader_message(
             return Err("Reader failed".into());
         }
         let status = h.read(dest, capacity, true, out)?;
-        *header = if status == 1 {
+        *header = if status == crate::protocol::status::END {
             MessageHeader::default()
         } else {
             h.delivery.header
         };
         Ok(status)
     });
-    if status < 0 {
+    if status < crate::protocol::status::SUCCESS {
         if let Some(h) = p.as_mut() {
             h.failed = true;
             h.delivery.discard();

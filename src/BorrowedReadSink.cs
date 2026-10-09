@@ -31,8 +31,8 @@ internal sealed unsafe class BorrowedReadSink
         {
             *copied = 0;
             var h = new McapMessageHeader(header->ChannelId, header->Sequence, header->LogTime, header->PublishTime);
-            return self.visitor!(in h, new ReadOnlySpan<byte>(data, checked((int)length))) || self.ignoreStop ? 0 : 1;
+            return self.visitor!(in h, new ReadOnlySpan<byte>(data, checked((int)length))) || self.ignoreStop ? Protocol.CallbackStatus.Accepted : Protocol.CallbackStatus.Stop;
         }
-        catch (Exception e) { self.error = ExceptionDispatchInfo.Capture(e); return -1; }
+        catch (Exception e) { self.error = ExceptionDispatchInfo.Capture(e); return Protocol.CallbackStatus.Error; }
     }
 }

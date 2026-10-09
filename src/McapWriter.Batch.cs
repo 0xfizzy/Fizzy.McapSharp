@@ -51,6 +51,7 @@ public sealed partial class McapWriter
         }
     }
 
+    /// <summary>Writes matching headers and byte ranges synchronously from caller storage. Channels must already be registered; ranges are relative to payloadStorage. Returns the completed count on success; McapBatchWriteException reports a completed prefix on failure. Inputs are not retained and the batch is not atomic.</summary>
     public unsafe int WriteBatch(ReadOnlySpan<McapMessageHeader> headers, ReadOnlySpan<byte> payloadStorage, ReadOnlySpan<McapPayloadRange> ranges)
     {
         if (headers.Length != ranges.Length) throw new ArgumentException("Headers and ranges must have the same length.");

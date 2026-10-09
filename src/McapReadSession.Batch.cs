@@ -5,6 +5,7 @@ namespace Fizzy.McapSharp;
 
 public sealed partial class McapReadSession
 {
+    /// <summary>Visits one message synchronously. The payload span expires on return; reader reentry is prohibited. Requires a message session.</summary>
     public McapReadStatus ReadNext(McapMessageVisitor visitor)
         => VisitMessages(visitor, 1).Count == 0 ? McapReadStatus.EndOfStream : McapReadStatus.Success;
     /// <summary>Invokes the visitor synchronously without reader reentry. On failure previously executed callback effects are not rolled back; no successful prefix count is returned and the failed read cannot continue.</summary>
@@ -19,8 +20,8 @@ public sealed partial class McapReadSession
             try
             {
                 var sink = borrowed.Acquire(visitor);
-                int status = Native.fm_visit_messages(0, handle, sink, (nuint)maxMessages, out var progress, out var result);
-                if (status < 0) { var error = Native.ConsumeError(result); borrowed.ThrowIfError(); handle.Bridge?.ThrowIfError(); throw error; }
+                int status = Native.fm_visit_messages(Protocol.ReaderKind.Session, handle, sink, (nuint)maxMessages, out var progress, out var result);
+                if (status < Protocol.Status.Success) { var error = Native.ConsumeError(result); borrowed.ThrowIfError(); handle.Bridge?.ThrowIfError(); throw error; }
                 CompleteBatch(status, progress);
                 return new(checked((int)progress.Count), Native.BatchReason(status));
             }
@@ -42,8 +43,8 @@ public sealed partial class McapReadSession
                 fixed (McapPayloadRange* r = ranges)
                 fixed (byte* p = payloadStorage)
                 {
-                    int status = Native.fm_read_batch(0, handle, h, r, (nuint)headers.Length, p, (nuint)payloadStorage.Length, out var progress, out var result);
-                    if (status < 0) { var error = Native.ConsumeError(result); handle.Bridge?.ThrowIfError(); throw error; }
+                    int status = Native.fm_read_batch(Protocol.ReaderKind.Session, handle, h, r, (nuint)headers.Length, p, (nuint)payloadStorage.Length, out var progress, out var result);
+                    if (status < Protocol.Status.Success) { var error = Native.ConsumeError(result); handle.Bridge?.ThrowIfError(); throw error; }
                     CompleteBatch(status, progress);
                     return progress.Result(status);
                 }
@@ -53,7 +54,7 @@ public sealed partial class McapReadSession
     }
     void CompleteBatch(int status, Native.BatchProgress progress)
     {
-        if (status != 1) return;
+        if (status != Protocol.Status.End) return;
         ended = true;
         fullyValidated = strict && progress.PartialValidation == 0 && !topLevel;
         ScannedRecordCount = progress.Scanned;

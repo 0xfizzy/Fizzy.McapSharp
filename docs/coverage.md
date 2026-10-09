@@ -84,6 +84,8 @@ See [SansIo.cs](../src/SansIo.cs) and the symbol inventory for individual events
 
 Functional alternatives do not imply a port of runtime-specific interfaces. See [asynchronous reader](../src/McapAsyncReader.cs).
 
+Async message leases are a binding capability over the linear engine. `GetChannelDescription` and `GetSchemaDescription` expose immutable declarations encountered in lease mode after the outstanding read has been consumed; this adds no upstream API or patch.
+
 ## Local extensions and binding capabilities
 
 Inventory entries with `origin: local-extension` and group `local-extensions` identify patched native declarations. They are excluded from official counts. Binding-only managed capabilities need not introduce a Rust public declaration and are not added to the official baseline.

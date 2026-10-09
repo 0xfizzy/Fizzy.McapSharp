@@ -16,8 +16,8 @@ public sealed partial class McapReadSession
             Check();
             try
             {
-                int status = Native.fm_read_lease(0, handle, (nuint)maxMessages, (nuint)targetPayloadBytes, out var p, out var progress, out var result);
-                if (status < 0) { var error = Native.ConsumeError(result); handle.Bridge?.ThrowIfError(); throw error; }
+                int status = Native.fm_read_lease(Protocol.ReaderKind.Session, handle, (nuint)maxMessages, (nuint)targetPayloadBytes, out var p, out var progress, out var result);
+                if (status < Protocol.Status.Success) { var error = Native.ConsumeError(result); handle.Bridge?.ThrowIfError(); throw error; }
                 CompleteBatch(status, progress);
                 return p == IntPtr.Zero ? null : new(p, checked((int)progress.Count));
             }

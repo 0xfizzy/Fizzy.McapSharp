@@ -1,4 +1,6 @@
-use super::{buffer_reader, bytes, guard, Input, Outcome, Reader, Response};
+use super::io::Input;
+use super::reader::Reader;
+use super::{buffer_reader, bytes, guard, Outcome, Response};
 use mcap::records;
 use std::collections::BTreeMap;
 use std::io::{Read, Seek, SeekFrom};
@@ -38,7 +40,7 @@ pub unsafe extern "C" fn fm_chunk_offset(
             uncompressed_size: 0,
         };
         out.value = index.compressed_data_offset()?;
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -50,7 +52,7 @@ pub(super) unsafe fn copy_body(
 ) -> Outcome<i32> {
     out.value = data.len() as u64;
     if capacity < data.len() {
-        return Ok(2);
+        return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
     }
     if !data.is_empty() {
         if dest.is_null() {
@@ -58,7 +60,7 @@ pub(super) unsafe fn copy_body(
         }
         ptr::copy_nonoverlapping(data.as_ptr(), dest, data.len());
     }
-    Ok(0)
+    Ok(crate::protocol::status::SUCCESS)
 }
 
 pub(super) fn record_body(data: &[u8], offset: u64, expected: u8) -> Outcome<&[u8]> {
@@ -86,7 +88,7 @@ pub unsafe extern "C" fn fm_parse_record(
 ) -> i32 {
     guard(out, |_| {
         mcap::parse_record(op, bytes(p, n)?)?;
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 

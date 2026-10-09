@@ -11,8 +11,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -29,8 +31,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -47,8 +51,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -65,8 +71,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -83,8 +91,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -101,8 +111,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -119,8 +131,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -137,8 +151,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -155,8 +171,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -173,8 +191,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -191,8 +211,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -209,8 +231,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -227,8 +251,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -245,8 +271,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -263,8 +291,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -281,8 +311,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -299,8 +331,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -317,8 +351,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -335,8 +371,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -353,8 +391,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -371,8 +411,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -389,8 +431,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -407,8 +451,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -425,8 +471,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -443,8 +491,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -461,8 +511,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -479,8 +531,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -497,8 +551,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -515,8 +571,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -533,8 +591,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -551,8 +611,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -569,8 +631,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -587,8 +651,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -605,8 +671,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -623,8 +691,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -645,8 +715,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -663,8 +735,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -681,8 +755,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -699,8 +775,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -717,8 +795,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -735,8 +815,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -753,8 +835,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -771,8 +855,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -789,8 +875,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs",
         "tests/Fizzy.McapSharp.Tests/WriterCompletionTests.cs",
         "native/src/coverage_tests.rs",
@@ -810,8 +898,10 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapWriter.cs",
         "src/PreparedChannel.cs",
+        "src/McapWriter.Prepared.cs",
+        "src/Native.Prepared.cs",
         "src/PreparedOperation.cs",
-        "native/src/lib.rs",
+        "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
       "origin": "upstream",
@@ -828,6 +918,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -846,6 +938,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -864,6 +958,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -882,6 +978,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -900,6 +998,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -918,6 +1018,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -936,6 +1038,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -954,6 +1058,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -972,6 +1078,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -990,6 +1098,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1008,6 +1118,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1026,6 +1138,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1044,6 +1158,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1062,6 +1178,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1080,6 +1198,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1098,6 +1218,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1116,6 +1238,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1134,6 +1258,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1152,6 +1278,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1170,6 +1298,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1188,6 +1318,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -1206,6 +1338,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1224,6 +1358,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1242,6 +1378,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1260,6 +1398,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1278,6 +1418,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1296,6 +1438,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1314,6 +1458,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs",
@@ -1333,6 +1479,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1351,10 +1499,13 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs",
         "src/McapPreparedChunkIndex.cs",
+        "src/McapIndexSnapshot.Prepared.cs",
         "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ],
       "origin": "upstream",
@@ -1371,11 +1522,14 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs",
         "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
         "src/McapPreparedChunkIndex.cs",
+        "src/McapIndexSnapshot.Prepared.cs",
         "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ],
       "origin": "upstream",
@@ -1392,11 +1546,14 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs",
         "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
         "src/McapPreparedChunkIndex.cs",
+        "src/McapIndexSnapshot.Prepared.cs",
         "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ],
       "origin": "upstream",
@@ -1413,6 +1570,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1431,6 +1590,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs"
@@ -1449,6 +1610,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1466,6 +1628,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1483,6 +1646,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1500,6 +1664,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1517,6 +1682,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1534,6 +1700,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1551,6 +1718,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1568,6 +1736,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1585,6 +1754,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1602,6 +1772,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1619,6 +1790,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1636,6 +1808,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1653,6 +1826,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1670,6 +1844,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1687,6 +1862,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1704,6 +1880,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1721,6 +1898,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1738,6 +1916,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1755,6 +1934,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1772,6 +1952,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1789,6 +1970,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1806,6 +1988,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1823,6 +2006,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1840,6 +2024,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1857,6 +2042,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1874,6 +2060,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1891,6 +2078,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1908,6 +2096,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1925,6 +2114,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1942,6 +2132,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1959,6 +2150,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1976,6 +2168,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -1993,6 +2186,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2010,6 +2204,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2027,6 +2222,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2044,6 +2240,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2061,6 +2258,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2078,6 +2276,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2095,6 +2294,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2112,6 +2312,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2129,6 +2330,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2146,6 +2348,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2163,6 +2366,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2180,6 +2384,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2197,6 +2402,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2214,6 +2420,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2231,6 +2438,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2248,6 +2456,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2265,6 +2474,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2282,6 +2492,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2299,6 +2510,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2316,6 +2528,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2333,6 +2546,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2350,6 +2564,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2367,6 +2582,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2384,6 +2600,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2401,6 +2618,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2418,6 +2636,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2435,6 +2654,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2452,6 +2672,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2469,6 +2690,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2486,6 +2708,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2503,6 +2726,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2520,6 +2744,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2537,6 +2762,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2554,6 +2780,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2571,6 +2798,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2588,6 +2816,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -2605,6 +2834,7 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/SansIo.cs",
         "src/ReaderOptions.cs",
+        "src/McapFileReader.cs",
         "src/Models.cs",
         "native/src/engine.rs"
       ],
@@ -3727,6 +3957,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -3745,6 +3977,8 @@
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
         "src/McapBufferReader.cs",
         "src/McapIndexSnapshot.cs",
+        "src/McapReadSession.Index.cs",
+        "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/record_access.rs"
@@ -4494,7 +4728,7 @@
     {
       "rust": "records.rs::SchemaHeader",
       "kind": "type",
-      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapSchema / McapRecordView.Fields",
       "native": "records::SchemaHeader",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4512,7 +4746,7 @@
     {
       "rust": "records.rs::SchemaHeader::id",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapSchema / McapRecordView.Fields",
       "native": "records::SchemaHeader::id",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4530,7 +4764,7 @@
     {
       "rust": "records.rs::SchemaHeader::name",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapSchema / McapRecordView.Fields",
       "native": "records::SchemaHeader::name",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4548,7 +4782,7 @@
     {
       "rust": "records.rs::SchemaHeader::encoding",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapSchemaHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapSchema / McapRecordView.Fields",
       "native": "records::SchemaHeader::encoding",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [

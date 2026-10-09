@@ -13,7 +13,7 @@
     <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);1591</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);1591</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="src/**/*.cs" Exclude="src/**/bin/**;src/**/obj/**" />

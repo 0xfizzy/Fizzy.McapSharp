@@ -150,7 +150,7 @@ writer.FlushToDisk();
 
 `WriteMessage(McapMessage)` 调用官方 `Writer::write`，按传入 ID 自动声明。预准备重载接收 `McapPreparedChannel`、匹配的 Header 和 payload Span，避免重复的托管序列化。准备时复制 Schema 与元数据，但不注册声明；描述符保持不可变，便利重载每次读取当前输入。
 
-`McapPreparedOperation` 提供可复用的 Schema、Channel、Metadata 和附件描述符。`WritePrepared` 零托管分配执行并返回适用的注册 ID，payload 单独通过 Span 传入。附件续写、私有记录及 Flush 也提供零分配路径。`Complete()` 显式完成格式，随后可用 `GetSummary()` 获取自有摘要，或用 `OpenSummaryRecords()` 获取缓冲区摘要游标。`IntoInner()` 释放原生状态并交还 Stream，不隐式完成。
+`McapPreparedOperation` 提供可复用的 Schema、Channel、Metadata 和附件描述符。`WritePrepared` 零托管分配执行并返回适用的注册 ID，payload 单独通过 Span 传入。只有 prepared Attachment 接受 payload；其他 prepared 操作在写入前拒绝非空 payload，不终止 writer。Prepared Schema 使用准备时捕获的字节。必需字符串、字典、自有 payload 数组以及 metadata 键和值在原生写入前检查 null；Channel 注册的 null metadata 表示空映射。附件续写、私有记录及 Flush 也提供零分配路径。`Complete()` 显式完成格式，随后可用 `GetSummary()` 获取自有摘要，或用 `OpenSummaryRecords()` 获取缓冲区摘要游标。`IntoInner()` 释放原生状态并交还 Stream，不隐式完成。
 
 
 ### 可恢复的 writer 错误
@@ -241,7 +241,7 @@ while (true)
 
 `McapReaderOptions` 对应官方 Sans-I/O 的 magic、尾随字节、Chunk 输出、CRC 校验/预校验及长度限制。可选 CRC 和尾随字节校验默认关闭。`IsScanComplete` 只表示游标到 EOF；`IsFullyValidated` 要求严格选项下完整顺序扫描成功。用 `McapReaderOptions.Strict` 打开展开记录/消息会话，再调用 `ValidateRemaining()`；非严格会话拒绝该调用，不会声称校验此前消费的数据。索引查询、排序回退和顶层原始扫描不声明全文件校验成功。
 
-`RecoverMessages(accept)` 交付有效消息前缀，遇到第一条损坏记录或 Chunk 停止；必须检查 IsFullyValidated 和 Error，收到消息不代表文件完整。回调异常直接传播，不转换成恢复结果。尚未写入底层流的缓冲内容无法恢复。
+`RecoverMessages(accept)` 交付有效消息前缀，遇到第一条损坏记录或 Chunk 停止；必须检查 IsFullyValidated 和 Error，收到消息不代表文件完整。`Error` 保留原始 `McapException`，包括 `Kind` 和结构化 `Details`；显示文本使用 `Error.Message`。回调异常直接传播，不转换成恢复结果。尚未写入底层流的缓冲内容无法恢复。
 
 初始化、注册和预热后，正常 WriteMessage 与缓冲区 ReadNext 必须严格产生 0 B 托管分配。这是热路径的硬性契约，覆盖跨 Chunk/压缩边界、中途声明、缓冲不足重试和 EOF。读取仍将原生数据复制到调用方内存，并非零拷贝；也不保证进程没有 GC 或 Rust 没有堆分配。调用方扩容、自有记录枚举、描述查询、启动和错误路径不在承诺内。用户 Stream 自身可能分配，本库只承诺桥接层的分配行为。
 
@@ -252,15 +252,17 @@ while (true)
 
 ## 官方读取器直接适配
 
-`McapBufferReader` 直接适配官方 `LinearReader`、`sans_magic`、`ChunkReader`、`ChunkFlattener`、`RawMessageStream` 和 `MessageStream`，通过 `McapBufferReadMode` 选择；Chunk 模式接收 Chunk 记录体。`ignoreEndMagic` 对应官方切片读取选项。构造时只复制输入，推进时驱动官方 Sans-I/O 解析器，仅保留一条待交付记录；GetChannel 只暴露已遇到的声明，记录错误在到达对应位置时抛出；需要增量输入时使用 Stream 或 Sans-I/O。`ReadNextRecord` 复制记录体，消息模式另有 Header/payload `ReadNext`。RawMessages 模式的 `GetChannel` 保留上游迭代器成功遇到的所有声明，包括没有消息的通道和延迟错误之前的声明。描述和自有对象枚举允许分配。
+`McapBufferReader` 直接适配官方 `LinearReader`、`sans_magic`、`ChunkReader`、`ChunkFlattener`、`RawMessageStream` 和 `MessageStream`，通过 `McapBufferReadMode` 选择；Chunk 模式接收 Chunk 记录体。`ignoreEndMagic` 对应官方切片读取选项。构造时只复制输入，推进时驱动官方 Sans-I/O 解析器，仅保留一条待交付记录；GetChannel 只暴露已遇到的声明，记录错误在到达对应位置时抛出；需要增量输入时使用 Stream 或 Sans-I/O。`ReadNextRecord` 复制记录体。RawMessages 和 Messages 模式还支持消息缓冲、visitor、批量、lease 和自有枚举。Linear、SansMagic、FlattenChunks、Chunk 记录体及摘要游标只支持记录交付；消息方法在推进前拒绝，保持待交付记录和游标可用。快照的 `OpenChunkReader` 游标另有摘要声明，因此支持消息交付。RawMessages 模式的 `GetChannel` 保留上游迭代器成功遇到的所有声明，包括没有消息的通道和延迟错误之前的声明。描述和自有对象枚举允许分配。
 
-`McapRecords.Parse` 返回 `IMcapParsedRecord`：标准记录为对应强类型自有模型，未知记录为 `McapRawRecord`。通过具体结果类型匹配访问字段；`McapRawRecord` 明确表示操作码及未解释的自有记录体。`McapRecordView.Parse` 使用官方 `parse_record` 校验，在调用方托管内存上提供视图；标量属性和 `Fields` 游标可零分配读取 UTF-8、映射、数组和二进制字段。`ToOwned` 显式复制；`ReadFooter` 和 `GetCompressedDataOffset` 直接调用上游辅助函数。
+`McapRecords.Parse` 返回 `IMcapRecord`：标准记录为对应强类型自有模型，未知记录为 `McapRawRecord`。通过具体结果类型匹配访问字段；仅实现该接口不代表记录属于已知类型或已经解释字段。`McapRawRecord` 明确表示操作码及未解释的自有记录体。`McapRecordView.Parse` 使用官方 `parse_record` 校验，在调用方托管内存上提供视图。校验只针对 Parse 时的字节；使用视图及字段游标期间必须保持底层内容不变，也不得通过其他可写别名修改。标量属性和 `Fields` 游标可零分配读取 UTF-8、映射、数组和二进制字段。`ToOwned` 显式复制；`ReadFooter` 和 `GetCompressedDataOffset` 直接调用上游辅助函数。
 
-`OpenIndexSnapshot()` 复制可定位源并读取官方摘要，不移动顺序游标；也可用 `new McapIndexSnapshot(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。`OpenChunkReader(index)` 返回独立、惰性、可释放的 McapBufferReader，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。`ReadChunkMessages` 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
+`OpenIndexSnapshot()` 复制可定位源并读取官方摘要，不移动顺序游标；也可用 `new McapIndexSnapshot(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。`OpenChunkReader(index)` 返回独立、惰性、可释放的 McapBufferReader，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。`ReadChunkMessages` 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。自有消息索引结果为每个已验证通道索引保留分组，包括空组；行缓冲只表达条目，需要区分空组身份时使用自有结果。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
 
 ### 预编译 Chunk 索引
 
-重复随机访问时，构造一次 `McapPreparedChunkIndex(index)`，使用结束后释放。构造复制索引字段和通道偏移映射，仅编码一次并由官方 Rust 实现解析一次。构造期间不要修改映射；后续修改不会影响 prepared 索引。`SeekMessage`、`OpenChunkReader`、`ReadChunkMessages`、`ReadMessageIndexes` 和 `GetCompressedDataOffset` 的 prepared 重载消除重复索引编码、临时原生 scratch 和索引解析。原有重载仍观察调用方当前字段。
+重复随机访问时，构造一次 `McapPreparedChunkIndex(index)`，使用结束后释放。构造复制索引字段和通道偏移映射，仅编码一次并由官方 Rust 实现解析一次。构造期间不要修改映射；后续修改不会影响 prepared 索引。`SeekMessage`、`OpenChunkReader`、`ReadChunkMessages`、`ReadMessageIndexes` 和 `GetCompressedDataOffset` 的 prepared 重载消除重复索引编码、临时原生 scratch 和索引解析。原有重载仍观察调用方当前字段。编码器对具体 `Dictionary` 使用无装箱枚举，对具体 `SortedList` 按键／值索引访问；两条路径都只访问现有条目。其他实现（包括 `ReadOnlyDictionary` 和 `SortedDictionary`）使用通用查找回退路径。对通用 `IReadOnlyDictionary` 实现中的稀疏高 ID 映射进行重复调用时，优先使用 prepared 索引：非 prepared 编码器可能遍历 ushort 键域，每次最多查找 65,536 次，以避免枚举器分配。准备操作只捕获一次映射，避免重复执行这部分工作。回退路径避免创建接口枚举器，但调用方映射或比较器本身仍可能在查找期间分配；这些分配不受库控制。
+
+每个 prepared 描述符保留一个托管通道 ID 数组，用于重建 owned 索引结果中的空组；每个通道占 2 字节，不含数组头。原生存储还保留完整已解析索引和编码缓存键。Dispose 释放原生所有权；托管 ID 数组仍随描述符保留，直到垃圾回收。
 
 prepared 索引可跨 snapshot 复用。每次操作仍执行原有文件范围及摘要要求；构造不验证某一具体文件。该描述符的调用与释放串行执行。子游标在 prepared 索引和 snapshot 释放后仍可用。消息索引上游 helper、缓存未命中和解压仍可能分配，不能据此保证总原生分配为零。
 
@@ -288,7 +290,7 @@ Owned 结果保持独立：`McapMessage.Data` 仍为 `byte[]` 副本，可变声
 
 Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 owner，但已有 Span 无法撤销。禁止访问与 Dispose 并发；可在调用者同步下跨线程转移。所有相关 reader、子游标和 lease 释放前，映射文件必须保持不变。
 
-`ReadBatchLease` 返回批次，EOF 返回 null。异步 `ReadBatchLeaseAsync` 等待 I/O 并支持取消；消费当前 ValueTask 后才能再次读取或释放。取消终止 reader，已交付 lease 仍有效。同一异步 reader 不可混用 record 与 lease 消费；消息 lease 拒绝 EmitChunks。不创建预取队列、溢写文件或文件自动分段。
+`ReadBatchLease` 返回批次，EOF 返回 null。异步 `ReadBatchLeaseAsync` 等待 I/O 并支持取消；消费当前 ValueTask 后才能再次读取或释放。取消终止 reader，已交付 lease 仍有效。同一异步 reader 不可混用 record 与 lease 消费。Lease 模式的 `GetChannelDescription(id)` 和 `GetSchemaDescription(id)` 返回已遇到的缓存不可变声明，包括编码、topic 和 schema 字节；查询前必须消费未完成或尚未消费的 ValueTask。查询不推进输入，未知 ID 抛异常但不终止 reader。Record 模式、已失败或已释放 reader 拒绝查询；已返回描述在 reader 释放后仍有效。消息 lease 拒绝 EmitChunks。不创建预取队列、溢写文件或文件自动分段。
 
 异步 lease 读取复用完成源和 continuation。每个交付批次允许分配 lease 与 SafeHandle 对象；I/O 挂起无需再创建逐操作 async 状态机。已有消息的批次在 parser 下一次请求输入时返回，即使尚未达到消息数或 payload 目标，避免仅为填满批次而等待额外 I/O。Stream 实现自身仍可能分配。取消释放 parser 资源前必须先消费输入完成结果。
 
@@ -304,7 +306,7 @@ Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 own
 | reader／snapshot 选项中的 `MaxRandomAccessCacheBytes` | 局部 LRU 对保留 chunk 存储、描述符、键及索引字节的计费；0 关闭保留 | 超额条目加载后不进入缓存。淘汰只释放缓存引用，不释放调用方 lease。排除分配器开销、解析临时空间、snapshot 输入及外部保留 owner。未压缩映射 chunk 按逻辑解压大小计费。 |
 | `ReadBatchLease` 数量和 payload 目标 | 默认最多 256 条；逻辑 payload 软目标 4 MiB | 加入整条消息后检查字节目标，允许越过目标。不限制 backing 容量或所有在途批次。异步批次可能在输入请求时提前返回。 |
 
-Reader 缓存选项用于其创建的 snapshot。`AllowBufferedSort=false` 完全拒绝回退收集。记录长度检查仍属于上游 parser 选项。这些控制项都不是进程总内存上限。
+Reader 缓存选项用于其创建的 snapshot，对 `McapAsyncReader` 和 `McapSansIoReader.CreateLinear` 无效。直接 `CreateIndexed` 只使用查询选择及排序，不支持回退，因此不使用 `AllowBufferedSort` 和 `MaxBufferedSortBytes`。`AllowBufferedSort=false` 完全拒绝回退收集。记录长度检查仍属于上游 parser 选项。这些控制项都不是进程总内存上限。
 
 ### 为保留结果选择存储
 
@@ -333,7 +335,7 @@ Dispose 释放该所有者持有的引用；所有引用释放后，存储才可
 
 ### 完整 chunk 随机访问
 
-缓存按完整调用方索引语义区分条目，命中不重复解压。未压缩映射 payload 引用映射范围，压缩 payload 共享解压存储。缓冲不足重试保留共享切片。
+缓存按完整调用方索引语义区分条目，映射插入顺序不影响身份，命中不重复解压。未压缩映射 payload 引用映射范围，压缩 payload 共享解压存储。缓冲不足重试保留共享切片。
 
 `SeekMessages(ReadOnlySpan<McapSeekRequest>)` 在本次调用内将同一 chunk 的请求分组，每个不同 chunk 加载一次，并按原请求顺序返回批次（包括重复项）；失败不交付半批。`SeekMessage(preparedIndex, entry, visitor)` 提供借用交付，缓冲区及自有结果 API 在最终交付时复制。`GetCacheStatistics` 报告命中和 chunk 加载次数。
 

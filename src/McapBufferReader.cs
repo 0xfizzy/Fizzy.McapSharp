@@ -4,19 +4,44 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-public enum McapBufferReadMode { Linear, SansMagic, FlattenChunks, Chunk, RawMessages, Messages }
+/// <summary>Selects slice-parser semantics. Every mode supports record delivery; only RawMessages and Messages support message delivery.</summary>
+public enum McapBufferReadMode
+{
+    /// <summary>Reads top-level file records, leaving Chunk bodies compressed.</summary>
+    Linear,
+    /// <summary>Reads expanded records from input without start or end magic.</summary>
+    SansMagic,
+    /// <summary>Reads file records with Chunk contents expanded.</summary>
+    FlattenChunks,
+    /// <summary>Reads records from a single encoded Chunk body, without the outer record header.</summary>
+    Chunk,
+    /// <summary>Reads only messages and collects encountered declarations without requiring each message's channel to be declared.</summary>
+    RawMessages,
+    /// <summary>Reads only messages and validates that their channels are declared.</summary>
+    Messages
+}
 
-/// <summary>Lazy adapters for official slice-reader semantics. Construction copies input; advancement parses records.</summary>
+/// <summary>Lazy adapters for official slice-reader semantics. Construction copies input; advancement parses records.
+/// Unsupported message delivery is rejected without advancement or terminal failure. Summary cursors support records only;
+/// snapshot Chunk cursors support messages as well as records.</summary>
 public sealed partial class McapBufferReader : IDisposable
 {
     readonly BufferReaderHandle handle;
     readonly object gate = new();
     readonly BorrowedReadSink borrowed = new();
+    readonly bool supportsMessages;
     void Check() { borrowed.CheckReentry(); ObjectDisposedException.ThrowIf(handle.IsClosed, this); }
-    internal McapBufferReader(IntPtr p) => handle = new(p);
+    void CheckMessages()
+    {
+        Check();
+        if (!supportsMessages) throw new InvalidOperationException("This cursor supports record delivery only.");
+    }
+    internal McapBufferReader(IntPtr p, bool supportsMessages) { handle = new(p); this.supportsMessages = supportsMessages; }
+    /// <summary>Copies input and opens one lazy cursor in the selected mode. ignoreEndMagic permits input without end magic where the mode reads a complete file.</summary>
     public unsafe McapBufferReader(ReadOnlySpan<byte> data, McapBufferReadMode mode = McapBufferReadMode.Messages, bool ignoreEndMagic = false)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        supportsMessages = mode is McapBufferReadMode.RawMessages or McapBufferReadMode.Messages;
         Native.EnsureAvailable();
         fixed (byte* p = data)
         {
@@ -35,7 +60,7 @@ public sealed partial class McapBufferReader : IDisposable
         int status = Native.fm_buffer_reader_mapped(config, (nuint)config.Length, out var p, out var r);
         Native.Consume(status, r).Json?.Dispose();
 
-        return new(p);
+        return new(p, mode is McapBufferReadMode.RawMessages or McapBufferReadMode.Messages);
     }
     /// <summary>Copies one raw record body into caller storage. BufferTooSmall retains the record and reports required capacity. The returned opcode identifies the body; length excludes the record header.</summary>
     public unsafe McapReadStatus ReadNextRecord(Span<byte> destination, out byte opcode, out ulong length)
@@ -46,9 +71,9 @@ public sealed partial class McapBufferReader : IDisposable
             fixed (byte* p = destination)
             {
                 var status = Native.fm_buffer_reader_next(handle, p, (nuint)destination.Length, out opcode, out var r);
-                if (status < 0) throw Native.ConsumeError(r);
+                if (status < Protocol.Status.Success) throw Native.ConsumeError(r);
                 length = r.Value;
-                return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
+                return status == Protocol.Status.End ? McapReadStatus.EndOfStream : status == Protocol.Status.BufferTooSmall ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
             }
         }
     }
@@ -57,16 +82,17 @@ public sealed partial class McapBufferReader : IDisposable
     {
         lock (gate)
         {
-            Check();
+            CheckMessages();
             fixed (byte* p = destination)
             {
                 int status = Native.fm_buffer_reader_message(handle, p, (nuint)destination.Length, out var h, out var r);
-                if (status < 0) throw Native.ConsumeError(r);
+                if (status < Protocol.Status.Success) throw Native.ConsumeError(r);
                 header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime); length = r.Value;
-                return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
+                return status == Protocol.Status.End ? McapReadStatus.EndOfStream : status == Protocol.Status.BufferTooSmall ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
             }
         }
     }
+    /// <summary>Returns an independent copy of an encountered or snapshot-provided channel and schema. Unknown IDs fail lookup without advancing or terminating the cursor.</summary>
     public McapChannel GetChannel(ushort id)
     {
         lock (gate)
@@ -91,8 +117,8 @@ public sealed partial class McapBufferReader : IDisposable
             sink.Reset();
             using var lease = sink.Acquire();
             int status = Native.fm_buffer_reader_owned(handle, false, sink.Sink, out var r);
-            if (status < 0) { var error = Native.ConsumeError(r); sink.ThrowIfError(); throw error; }
-            return status != 1;
+            if (status < Protocol.Status.Success) { var error = Native.ConsumeError(r); sink.ThrowIfError(); throw error; }
+            return status != Protocol.Status.End;
         }
     }
     /// <summary>Advances this session and yields independently owned copies of raw record bodies.</summary>
@@ -101,8 +127,10 @@ public sealed partial class McapBufferReader : IDisposable
         using var sink = new OwnedReadSink(OwnedReadSink.Kind.Record);
         while (ReadOwned(sink)) yield return (McapRawRecord)sink.Value!;
     }
+    /// <summary>Consumes a message-capable cursor and returns independent mutable message and declaration copies. Record-only modes reject enumeration before advancing.</summary>
     public IEnumerable<McapMessage> ReadMessages()
     {
+        lock (gate) CheckMessages();
         var channels = new Dictionary<ushort, McapChannel>();
         using var sink = new OwnedReadSink(OwnedReadSink.Kind.MessageBody);
         while (ReadOwned(sink))
@@ -114,6 +142,7 @@ public sealed partial class McapBufferReader : IDisposable
             yield return new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, data);
         }
     }
+    /// <summary>Releases parser state and its retained input; independently retained leases remain valid. Repeated disposal is a no-op.</summary>
     public void Dispose() { lock (gate) { borrowed.CheckReentry(); handle.Dispose(); } }
 }
 internal sealed class BufferReaderHandle : OwnedNativeHandle

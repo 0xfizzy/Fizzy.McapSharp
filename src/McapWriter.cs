@@ -1,16 +1,19 @@
 using System.Text.Json;
 
 namespace Fizzy.McapSharp;
+/// <summary>A serialized MCAP writer. Complete explicitly to finish the format; disposal only releases resources. Native or I/O failures are terminal except for configured audited pre-mutation rejections.</summary>
 public sealed partial class McapWriter : IDisposable
 {
     readonly WriterHandle handle;
     readonly object gate = new();
     bool completed, failed, disposed;
     bool attachment;
+    /// <summary>Creates a new file, failing if the path exists. The writer owns the file until disposal.</summary>
     public McapWriter(string path, McapWriterOptions? options = null) : this(path, null, options, false)
     {
     }
 
+    /// <summary>Writes to the supplied stream at its current end. The caller selects file creation/truncation; leaveOpen preserves stream ownership on disposal.</summary>
     public McapWriter(Stream stream, McapWriterOptions? options = null, bool leaveOpen = false) : this(null, stream ?? throw new ArgumentNullException(nameof(stream)), options, leaveOpen)
     {
     }
@@ -19,6 +22,7 @@ public sealed partial class McapWriter : IDisposable
     {
         Native.EnsureAvailable();
         options ??= new();
+        ArgumentNullException.ThrowIfNull(options.Profile);
         if (!Enum.IsDefined(options.Compression) || ((int)options.RecoverableErrors & ~31) != 0)
             throw new ArgumentOutOfRangeException(nameof(options));
         if (stream is null)
@@ -55,10 +59,10 @@ public sealed partial class McapWriter : IDisposable
 
     void CheckResult(int status, Native.Result result, ref bool safeRejection)
     {
-        if (status >= 0) { handle.Bridge?.ThrowIfError(); return; }
-        var error = Native.ConsumeError(result, status == -2);
+        if (status >= Protocol.Status.Success) { handle.Bridge?.ThrowIfError(); return; }
+        var error = Native.ConsumeError(result, status == Protocol.WriterStatus.SafeRejection);
         handle.Bridge?.ThrowIfError();
-        safeRejection = status == -2;
+        safeRejection = status == Protocol.WriterStatus.SafeRejection;
         throw error;
     }
 
@@ -84,10 +88,37 @@ public sealed partial class McapWriter : IDisposable
             throw new InvalidOperationException("Finish the attachment first.");
     }
 
-    public ushort RegisterSchema(string name, string encoding, ReadOnlySpan<byte> data) => checked((ushort)Call(1, new { name, encoding }, data));
-    public ushort RegisterSchema(ushort id, string name, string encoding, ReadOnlySpan<byte> data) => checked((ushort)Call(1, new { id, name, encoding }, data));
-    public ushort RegisterChannel(string topic, string messageEncoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null) => checked((ushort)Call(2, new { topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>() }));
-    public ushort RegisterChannel(ushort id, string topic, string messageEncoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null) => checked((ushort)Call(2, new { id, topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>() }));
+    /// <summary>Registers or deduplicates schema content and returns its allocated ID. Required strings must be non-null; data is consumed before returning.</summary>
+    public ushort RegisterSchema(string name, string encoding, ReadOnlySpan<byte> data)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(encoding);
+        return checked((ushort)Call(Protocol.WriterOperation.Schema, new { name, encoding }, data));
+    }
+    /// <summary>Registers schema content with an explicit nonzero ID. Conflicting declarations follow the configured safe-rejection policy.</summary>
+    public ushort RegisterSchema(ushort id, string name, string encoding, ReadOnlySpan<byte> data)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(encoding);
+        return checked((ushort)Call(Protocol.WriterOperation.Schema, new { id, name, encoding }, data));
+    }
+    /// <summary>Registers a channel and returns its allocated ID. Schema ID zero means no schema; null metadata means empty metadata.</summary>
+    public ushort RegisterChannel(string topic, string messageEncoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null)
+    {
+        ArgumentNullException.ThrowIfNull(topic);
+        ArgumentNullException.ThrowIfNull(messageEncoding);
+        if (metadata is not null) ArgumentValidation.ValidateMetadata(metadata);
+        return checked((ushort)Call(Protocol.WriterOperation.Channel, new { topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>() }));
+    }
+    /// <summary>Registers a channel with an explicit ID, including zero. Schema ID zero means no schema; null metadata means empty metadata.</summary>
+    public ushort RegisterChannel(ushort id, string topic, string messageEncoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null)
+    {
+        ArgumentNullException.ThrowIfNull(topic);
+        ArgumentNullException.ThrowIfNull(messageEncoding);
+        if (metadata is not null) ArgumentValidation.ValidateMetadata(metadata);
+        return checked((ushort)Call(Protocol.WriterOperation.Channel, new { id, topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>() }));
+    }
+    /// <summary>Writes a message on an already registered channel. Payload is consumed synchronously; the warmed path allocates zero managed bytes.</summary>
     public unsafe void WriteMessage(in McapMessageHeader header, ReadOnlySpan<byte> data)
     {
         lock (gate)
@@ -117,38 +148,56 @@ public sealed partial class McapWriter : IDisposable
         }
     }
 
-    public void WriteMetadata(string name, IReadOnlyDictionary<string, string> metadata) => Call(4, new { name, metadata });
-    public void WriteAttachment(string name, string mediaType, ulong logTime, ulong createTime, ReadOnlySpan<byte> data) => Call(5, new { name, media_type = mediaType, log_time = logTime, create_time = createTime }, data);
+    /// <summary>Writes metadata. The name, dictionary, keys and values must be non-null; validation errors do not fail the writer.</summary>
+    public void WriteMetadata(string name, IReadOnlyDictionary<string, string> metadata)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentValidation.ValidateMetadata(metadata);
+        Call(Protocol.WriterOperation.Metadata, new { name, metadata });
+    }
+    /// <summary>Writes a complete attachment. Times use caller-defined nanoseconds; the payload is consumed synchronously.</summary>
+    public void WriteAttachment(string name, string mediaType, ulong logTime, ulong createTime, ReadOnlySpan<byte> data)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(mediaType);
+        Call(Protocol.WriterOperation.Attachment, new { name, media_type = mediaType, log_time = logTime, create_time = createTime }, data);
+    }
+    /// <summary>Starts a segmented attachment with an exact payload byte length. FinishAttachment is required before other writer operations.</summary>
     public void StartAttachment(string name, string mediaType, ulong logTime, ulong createTime, ulong length)
     {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(mediaType);
         lock (gate)
         {
-            Call(8, new { name, media_type = mediaType, log_time = logTime, create_time = createTime, length });
+            Call(Protocol.WriterOperation.StartAttachment, new { name, media_type = mediaType, log_time = logTime, create_time = createTime, length });
             attachment = true;
         }
     }
 
+    /// <summary>Consumes the next payload segment of the active attachment synchronously. Exceeding the declared size fails the writer.</summary>
     public void WriteAttachmentBytes(ReadOnlySpan<byte> data)
     {
         lock (gate)
         {
             if (!attachment)
                 throw new InvalidOperationException("No attachment in progress.");
-            Call(9, null, data);
+            Call(Protocol.WriterOperation.AttachmentBytes, null, data);
         }
     }
 
+    /// <summary>Finishes the active attachment. A payload length mismatch is terminal.</summary>
     public void FinishAttachment()
     {
         lock (gate)
         {
             if (!attachment)
                 throw new InvalidOperationException("No attachment in progress.");
-            Call(10, null);
+            Call(Protocol.WriterOperation.FinishAttachment, null);
             attachment = false;
         }
     }
 
+    /// <summary>Writes a private opcode (0x80-0xFF), optionally inside chunks. Payload is consumed synchronously.</summary>
     public unsafe void WritePrivateRecord(byte opcode, ReadOnlySpan<byte> data, bool includeInChunks = false)
     {
         if (opcode < 0x80) throw new ArgumentOutOfRangeException(nameof(opcode));
@@ -161,7 +210,9 @@ public sealed partial class McapWriter : IDisposable
         }
     }
 
-    public void Flush() => Call(6, null);
+    /// <summary>Flushes the current chunk and output buffers without completing the format or requesting durable persistence.</summary>
+    public void Flush() => Call(Protocol.WriterOperation.Flush, null);
+    /// <summary>Finishes the MCAP format and flushes output buffers. Repeated successful calls do nothing; disposal remains required.</summary>
     public void Complete()
     {
         lock (gate)
@@ -169,7 +220,7 @@ public sealed partial class McapWriter : IDisposable
             CheckAvailable();
             if (completed)
                 return;
-            Call(7, null);
+            Call(Protocol.WriterOperation.Complete, null);
             completed = true;
         }
     }
@@ -188,7 +239,7 @@ public sealed partial class McapWriter : IDisposable
                 if (bridge is not null) bridge.FlushToDisk();
                 else
                 {
-                    var status = Native.fm_writer_call(handle, 13, [], 0, null, 0, out var result);
+                    var status = Native.fm_writer_call(handle, Protocol.WriterOperation.FlushToDisk, [], 0, null, 0, out var result);
                     Native.Consume(status, result).Json?.Dispose();
                 }
             }
@@ -196,12 +247,13 @@ public sealed partial class McapWriter : IDisposable
         }
     }
 
+    /// <summary>Returns an independent managed copy of the summary after successful Complete. Cost grows with summary contents.</summary>
     public unsafe McapSummary GetSummary()
     {
         lock (gate)
         {
             CheckCompleted();
-            var status = Native.fm_writer_call(handle, 12, [], 0, null, 0, out var r);
+            var status = Native.fm_writer_call(handle, Protocol.WriterOperation.Summary, [], 0, null, 0, out var r);
             var response = Native.Consume(status, r);
             using var json = response.Json!;
             return json.RootElement.Deserialize<McapSummary>(JsonSupport.Options)!;
@@ -212,7 +264,7 @@ public sealed partial class McapWriter : IDisposable
     {
         lock (gate)
         {
-            Check(op is 9 or 10);
+            Check(op is Protocol.WriterOperation.AttachmentBytes or Protocol.WriterOperation.FinishAttachment);
             var req = args is null ? [] : Native.Request(args);
             bool safeRejection = false;
             try
@@ -241,6 +293,7 @@ public sealed partial class McapWriter : IDisposable
         }
     }
 
+    /// <summary>Releases native writer state and transfers the underlying stream without implicit completion. Only stream-backed writers support transfer; cleanup errors are reported.</summary>
     public Stream IntoInner()
     {
         lock (gate)
@@ -253,6 +306,7 @@ public sealed partial class McapWriter : IDisposable
         }
     }
 
+    /// <summary>Releases native and owned stream resources without completing the format. Reports cleanup failures; repeated disposal does not replay release.</summary>
     public void Dispose()
     {
         lock (gate)
@@ -264,12 +318,4 @@ public sealed partial class McapWriter : IDisposable
             handle.Dispose();
         }
     }
-}
-
-internal static class JsonSupport
-{
-    internal static readonly JsonSerializerOptions Options = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 }

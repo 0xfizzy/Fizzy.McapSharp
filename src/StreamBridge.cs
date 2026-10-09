@@ -69,12 +69,12 @@ internal sealed unsafe class StreamBridge
             var n = b.stream.Read(new Span<byte>(dest, checked((int)Math.Min(length, (nuint)int.MaxValue))));
             *count = (nuint)n;
             b.position = checked(b.position + n);
-            return 0;
+            return Protocol.CallbackStatus.Accepted;
         }
         catch (Exception e)
         {
             b.CaptureError(e);
-            return -1;
+            return Protocol.CallbackStatus.Error;
         }
         finally
         {
@@ -97,12 +97,12 @@ internal sealed unsafe class StreamBridge
                 b.position = checked(b.position + n);
             }
 
-            return 0;
+            return Protocol.CallbackStatus.Accepted;
         }
         catch (Exception e)
         {
             b.CaptureError(e);
-            return -1;
+            return Protocol.CallbackStatus.Error;
         }
         finally
         {
@@ -121,7 +121,7 @@ internal sealed unsafe class StreamBridge
                 if (origin != 1 || offset != 0)
                     throw new NotSupportedException("Stream is not seekable.");
                 *result = checked((ulong)b.position);
-                return 0;
+                return Protocol.CallbackStatus.Accepted;
             }
 
             var absolute = b.stream.Seek(origin == 0 ? checked(b.start + offset) : offset, (SeekOrigin)origin);
@@ -129,12 +129,12 @@ internal sealed unsafe class StreamBridge
             if (b.position < 0)
                 throw new IOException("Seek before MCAP start.");
             *result = (ulong)b.position;
-            return 0;
+            return Protocol.CallbackStatus.Accepted;
         }
         catch (Exception e)
         {
             b.CaptureError(e);
-            return -1;
+            return Protocol.CallbackStatus.Error;
         }
         finally
         {
@@ -149,12 +149,12 @@ internal sealed unsafe class StreamBridge
         try
         {
             b.stream.Flush();
-            return 0;
+            return Protocol.CallbackStatus.Accepted;
         }
         catch (Exception e)
         {
             b.CaptureError(e);
-            return -1;
+            return Protocol.CallbackStatus.Error;
         }
         finally
         {

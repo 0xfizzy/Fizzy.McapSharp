@@ -84,6 +84,8 @@
 
 功能替代不代表移植特定运行时接口。实现见[异步 reader](../src/McapAsyncReader.cs)。
 
+异步消息 lease 是线性引擎之上的绑定能力。消费在途读取后，`GetChannelDescription` 和 `GetSchemaDescription` 可查询 lease 模式已遇到的不可变声明；这不增加上游 API 或本地补丁。
+
 ## 本地扩展与绑定能力
 
 清单中 `origin: local-extension`、分组为 `local-extensions` 的条目表示本地补丁声明，不计入官方数量。纯绑定层托管能力不一定增加 Rust 公共声明，也不加入官方基线。

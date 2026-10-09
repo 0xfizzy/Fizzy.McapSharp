@@ -1,31 +1,40 @@
 namespace Fizzy.McapSharp;
 
-public sealed record McapHeader(string Profile, string Library) : IMcapParsedRecord;
-public sealed record McapSchemaHeader(ushort Id, string Name, string Encoding);
-public sealed record McapChannelRecord(ushort Id, ushort SchemaId, string Topic, string MessageEncoding, IReadOnlyDictionary<string, string> Metadata) : IMcapParsedRecord;
-public sealed record McapMessageRecord(McapMessageHeader Header, byte[] Data) : IMcapParsedRecord;
+/// <summary>Owned file header containing the profile and writer library identifier.</summary>
+public sealed record McapHeader(string Profile, string Library) : IMcapRecord;
+/// <summary>Owned channel record retaining the schema ID rather than resolving the schema object.</summary>
+public sealed record McapChannelRecord(ushort Id, ushort SchemaId, string Topic, string MessageEncoding, IReadOnlyDictionary<string, string> Metadata) : IMcapRecord;
+/// <summary>Owned message record with an independent payload array.</summary>
+public sealed record McapMessageRecord(McapMessageHeader Header, byte[] Data) : IMcapRecord;
+/// <summary>Chunk descriptor. Times are nanoseconds; sizes are bytes; UncompressedCrc covers expanded record bytes.</summary>
 public sealed record McapChunkHeader(ulong MessageStartTime, ulong MessageEndTime, ulong UncompressedSize, uint UncompressedCrc, string Compression, ulong CompressedSize);
-public sealed record McapChunkRecord(McapChunkHeader Header, byte[] Data) : IMcapParsedRecord;
+/// <summary>Owned chunk record. Data contains the compressed bytes described by Header.</summary>
+public sealed record McapChunkRecord(McapChunkHeader Header, byte[] Data) : IMcapRecord;
+/// <summary>Attachment fields. LogTime and CreateTime use caller-defined nanoseconds.</summary>
 public sealed record McapAttachmentHeader(ulong LogTime, ulong CreateTime, string Name, string MediaType);
-public sealed record McapAttachmentRecord(McapAttachmentHeader Header, byte[] Data, uint Crc) : IMcapParsedRecord;
+/// <summary>Owned attachment body and stored CRC.</summary>
+public sealed record McapAttachmentRecord(McapAttachmentHeader Header, byte[] Data, uint Crc) : IMcapRecord;
 
+/// <summary>Parses record bodies into independent owned models and exposes MCAP layout helpers.</summary>
 public static class McapRecords
 {
+    /// <summary>Reads and validates the footer at the end of a complete file span. This does not validate the complete file.</summary>
     public static unsafe McapFooter ReadFooter(ReadOnlySpan<byte> file)
     {
         Native.EnsureAvailable();
         Span<byte> result = stackalloc byte[20];
-        fixed (byte* p = file) fixed (byte* dest = result) { int status = Native.fm_footer(p, (nuint)file.Length, dest, out var r); if (status < 0) throw Native.ConsumeError(r); }
+        fixed (byte* p = file) fixed (byte* dest = result) { int status = Native.fm_footer(p, (nuint)file.Length, dest, out var r); if (status < Protocol.Status.Success) throw Native.ConsumeError(r); }
         return McapRecordView.Parse(2, result).Footer;
     }
+    /// <summary>Computes the compressed-data byte offset from the MCAP origin (the initial Stream position for Stream inputs), given a chunk start offset from that same origin and its UTF-8 compression name.</summary>
     public static unsafe ulong GetCompressedDataOffset(ulong chunkStartOffset, ReadOnlySpan<byte> compressionUtf8)
     {
         Native.EnsureAvailable();
-        fixed (byte* p = compressionUtf8) { int status = Native.fm_chunk_offset(chunkStartOffset, p, (nuint)compressionUtf8.Length, out var r); if (status < 0) throw Native.ConsumeError(r); return r.Value; }
+        fixed (byte* p = compressionUtf8) { int status = Native.fm_chunk_offset(chunkStartOffset, p, (nuint)compressionUtf8.Length, out var r); if (status < Protocol.Status.Success) throw Native.ConsumeError(r); return r.Value; }
     }
 
     /// <summary>Uses upstream parse_record validation and returns the corresponding owned field model.</summary>
-    public static IMcapParsedRecord Parse(byte opcode, ReadOnlySpan<byte> body)
+    public static IMcapRecord Parse(byte opcode, ReadOnlySpan<byte> body)
     {
         var view = McapRecordView.Parse(opcode, body);
         var r = view.Fields;

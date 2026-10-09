@@ -40,7 +40,7 @@ internal sealed unsafe class OwnedReadSink : IDisposable
             {
                 case Kind.Record: owner.Value = new McapRawRecord(opcode, body.ToArray()); *copied = length; break;
                 case Kind.MessageBody:
-                    if (opcode != 5) return 0;
+                    if (opcode != 5) return Protocol.CallbackStatus.Accepted;
                     body = body[22..];
                     goto case Kind.Message;
                 case Kind.Message: owner.Value = body.ToArray(); *copied = (nuint)body.Length; break;
@@ -51,9 +51,9 @@ internal sealed unsafe class OwnedReadSink : IDisposable
                 case Kind.Attachment:
                     var attachment = RecordDecoder.Attachment(body); owner.Value = attachment; *copied = (nuint)attachment.Data.Length; break;
             }
-            return 0;
+            return Protocol.CallbackStatus.Accepted;
         }
-        catch (Exception e) { owner.error = ExceptionDispatchInfo.Capture(e); return -1; }
+        catch (Exception e) { owner.error = ExceptionDispatchInfo.Capture(e); return Protocol.CallbackStatus.Error; }
     }
     public void Dispose() { Value = null; if (root.IsAllocated) root.Free(); }
 }

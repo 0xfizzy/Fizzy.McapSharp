@@ -3,7 +3,7 @@ namespace Fizzy.McapSharp;
 /// <summary>Parsing and integrity options for one read session. Defaults do not prove full-file integrity; use Strict and consume the complete expanded scan for validation.</summary>
 public sealed record McapReaderOptions
 {
-    /// <summary>Local cache allowance for snapshots opened from this session: chunk storage, descriptors, keys and index bytes. Zero disables retention; oversized entries load without retention. Excludes input storage, parsing temporaries and external leases.</summary>
+    /// <summary>Local cache allowance only for snapshots opened from a McapReadSession. Ignored by asynchronous and direct Sans-I/O readers, which cannot create snapshots. Charges: chunk storage, descriptors, keys and index bytes. Zero disables retention; oversized entries load without retention. Excludes input storage, parsing temporaries and external leases.</summary>
     public ulong MaxRandomAccessCacheBytes { get; init; }
     /// <summary>Skips the leading magic; false by default. Enabling this prevents full-file validation.</summary>
     public bool SkipStartMagic { get; init; }
@@ -28,14 +28,11 @@ public sealed record McapReaderOptions
     internal bool IsStrict => !SkipStartMagic && !SkipEndMagic && !EmitChunks && (ValidateChunkCrcs || PrevalidateChunkCrcs) && ValidateDataSectionCrc && ValidateSummarySectionCrc && CheckFinishesAfterEndMagic;
 }
 
+/// <summary>Options for direct Sans-I/O summary reading. FileSize permits end-relative seeks to be resolved against the caller-provided source length.</summary>
 public sealed record McapSummaryReaderOptions
 {
+    /// <summary>Total source length in bytes, if known; null leaves end-relative seek resolution to the caller.</summary>
     public ulong? FileSize { get; init; }
     /// <summary>Maximum accepted record body length in bytes; null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</summary>
     public ulong? RecordLengthLimit { get; init; }
-}
-
-public sealed partial class McapFileReader
-{
-    public McapReadSession OpenIndexedMessages(McapQuery? query = null, McapReaderOptions? options = null) => new(path, null, query ?? new(), true, McapRecordMode.ExpandChunks, false, options, true);
 }

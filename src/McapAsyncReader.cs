@@ -25,6 +25,7 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
     CancellationToken cancellation;
     bool active, failed, disposed;
 
+    /// <summary>Opens one incremental session over a readable Stream. Owns the Stream unless leaveOpen is true; inputBufferSize limits each I/O transfer, not parser storage.</summary>
     public McapAsyncReader(Stream stream, McapReaderOptions? options = null, bool leaveOpen = false, int inputBufferSize = 65536)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -123,11 +124,13 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
     }
     ValueTaskSourceStatus IValueTaskSource<McapRecordReadResult>.GetStatus(short token) => completion.GetStatus(token);
     void IValueTaskSource<McapRecordReadResult>.OnCompleted(Action<object?> continuation, object? state, short token, ValueTaskSourceOnCompletedFlags flags) => completion.OnCompleted(continuation, state, token, flags);
+    /// <summary>Releases parser state and transfers the Stream after every outstanding ValueTask has been consumed. A release failure prevents reuse and leaves this reader disposed.</summary>
     public Stream IntoInner()
     {
         lock (gate) { CheckDispose(); disposed = true; return resources.Transfer(); }
     }
     void CheckDispose() { ObjectDisposedException.ThrowIf(disposed, this); if (active) throw new InvalidOperationException("Complete and consume the outstanding operation before disposal."); }
+    /// <summary>Releases parser state before the owned Stream. Outstanding operations must first complete and be consumed. Cleanup errors are reported once; repeated disposal is a no-op.</summary>
     public void Dispose()
     {
         lock (gate) { if (disposed) return; CheckDispose(); disposed = true; resources.Dispose(); }
@@ -141,5 +144,5 @@ internal sealed class AsyncResources : OwnedNativeHandle
     readonly McapSansIoReader parser;
     internal AsyncResources(McapSansIoReader parser, StreamBridge bridge) : base((IntPtr)1, bridge) { this.parser = parser; }
     protected override bool DependenciesReleased => parser.NativeReleased;
-    protected override int ReleaseNative(IntPtr value, out Native.Result result) { result = default; parser.Dispose(); return 0; }
+    protected override int ReleaseNative(IntPtr value, out Native.Result result) { result = default; parser.Dispose(); return Protocol.Status.Success; }
 }

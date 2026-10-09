@@ -7,10 +7,21 @@ namespace Fizzy.McapSharp;
 public sealed class McapPreparedChannel : IDisposable
 {
     internal readonly PreparedChannelHandle Handle;
+    /// <summary>Channel ID captured during preparation; message headers must use this ID.</summary>
     public ushort Id { get; }
+    /// <summary>Copies channel metadata and schema bytes into an immutable descriptor without registering declarations.</summary>
     public unsafe McapPreparedChannel(McapChannel channel)
     {
         ArgumentNullException.ThrowIfNull(channel);
+        ArgumentNullException.ThrowIfNull(channel.Topic);
+        ArgumentNullException.ThrowIfNull(channel.MessageEncoding);
+        ArgumentValidation.ValidateMetadata(channel.Metadata);
+        if (channel.Schema is { } schema)
+        {
+            ArgumentNullException.ThrowIfNull(schema.Name);
+            ArgumentNullException.ThrowIfNull(schema.Encoding);
+            ArgumentNullException.ThrowIfNull(schema.Data);
+        }
         Native.EnsureAvailable();
         Id = channel.Id;
         var s = channel.Schema;
@@ -29,54 +40,6 @@ public sealed class McapPreparedChannel : IDisposable
             Handle = new(p);
         }
     }
+    /// <summary>Releases the descriptor after the final synchronous write. Do not dispose concurrently with use.</summary>
     public void Dispose() => Handle.Dispose();
-}
-
-internal sealed class PreparedChannelHandle : OwnedNativeHandle
-{
-    internal PreparedChannelHandle(IntPtr p) : base(p) { }
-    protected override int ReleaseNative(IntPtr value, out Native.Result result) => Native.fm_channel_release(value, out result);
-}
-
-internal static partial class Native
-{
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_channel_prepare(byte[] req, nuint n, byte* data, nuint len, out IntPtr p, out Result result);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_writer_full_message(WriterHandle w, PreparedChannelHandle c, NativeHeader* h, byte* data, nuint len, out Result result);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_writer_private(WriterHandle w, byte opcode, [MarshalAs(UnmanagedType.I1)] bool chunks, byte* data, nuint len, out Result result);
-}
-
-public sealed partial class McapWriter
-{
-    public void WriteMessage(McapMessage message)
-    {
-        ArgumentNullException.ThrowIfNull(message);
-        using var channel = new McapPreparedChannel(message.Channel);
-        WriteMessage(channel, new(message.Channel.Id, message.Sequence, message.LogTime, message.PublishTime), message.Data);
-    }
-
-    public unsafe void WriteMessage(McapPreparedChannel channel, in McapMessageHeader header, ReadOnlySpan<byte> data)
-    {
-        ArgumentNullException.ThrowIfNull(channel);
-        if (header.ChannelId != channel.Id) throw new ArgumentException("Header and prepared channel IDs differ.", nameof(header));
-        lock (gate)
-        {
-            Check();
-            ObjectDisposedException.ThrowIf(channel.Handle.IsClosed, channel);
-            var h = new Native.NativeHeader { ChannelId = header.ChannelId, Sequence = header.Sequence, LogTime = header.LogTime, PublishTime = header.PublishTime };
-            bool safeRejection = false;
-            try
-            {
-                fixed (byte* p = data)
-                {
-                    var status = Native.fm_writer_full_message(handle, channel.Handle, &h, p, (nuint)data.Length, out var r);
-                    CheckResult(status, r, ref safeRejection);
-                }
-            }
-            catch { if (!safeRejection) failed = true; throw; }
-        }
-    }
-
 }

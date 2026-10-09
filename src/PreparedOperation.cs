@@ -18,47 +18,42 @@ public sealed class McapPreparedOperation : IDisposable
             Native.Consume(status, r).Json?.Dispose(); Handle = new(h);
         }
     }
-    public static McapPreparedOperation Schema(string name, string encoding, ReadOnlySpan<byte> data, ushort? id = null) => new(1, new { name, encoding, id }, data);
-    public static McapPreparedOperation Channel(string topic, string encoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null, ushort? id = null) => new(2, new { topic, encoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>(), id });
-    public static McapPreparedOperation Metadata(string name, IReadOnlyDictionary<string, string> metadata) => new(4, new { name, metadata });
-    public static McapPreparedOperation Attachment(string name, string mediaType, ulong logTime, ulong createTime) => new(5, new { name, media_type = mediaType, log_time = logTime, create_time = createTime });
-    public static McapPreparedOperation StartAttachment(string name, string mediaType, ulong logTime, ulong createTime, ulong length) => new(8, new { name, media_type = mediaType, log_time = logTime, create_time = createTime, length });
-    public void Dispose() => Handle.Dispose();
-}
-
-public sealed partial class McapWriter
-{
-    /// <summary>Runs the prepared operation synchronously; returns the registered ID for schema/channel operations, otherwise zero. Payload is consumed only by Attachment. Schema uses the bytes copied when prepared; other operations ignore payload. StartAttachment declares the length but consumes no body; follow with WriteAttachmentBytes and FinishAttachment. Writer failure and audited rejection rules still apply.</summary>
-    public unsafe ulong WritePrepared(McapPreparedOperation operation, ReadOnlySpan<byte> payload = default)
+    /// <summary>Copies schema fields and bytes for repeated registration. Null ID requests automatic allocation; an explicit ID must be nonzero.</summary>
+    public static McapPreparedOperation Schema(string name, string encoding, ReadOnlySpan<byte> data, ushort? id = null)
     {
-        ArgumentNullException.ThrowIfNull(operation);
-        lock (gate)
-        {
-            Check(); ObjectDisposedException.ThrowIf(operation.Handle.IsClosed, operation);
-            bool safeRejection = false;
-            try
-            {
-                fixed (byte* p = payload)
-                {
-                    int status = Native.fm_writer_prepared(handle, operation.Handle, p, (nuint)payload.Length, out var r);
-                    CheckResult(status, r, ref safeRejection);
-                    if (operation.Operation == 8) attachment = true;
-                    return r.Value;
-                }
-            }
-            catch { if (!safeRejection) failed = true; throw; }
-        }
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(encoding);
+        return new(Protocol.WriterOperation.Schema, new { name, encoding, id }, data);
     }
-}
-internal sealed class OperationHandle : OwnedNativeHandle
-{
-    internal OperationHandle(IntPtr p) : base(p) { }
-    protected override int ReleaseNative(IntPtr value, out Native.Result result) => Native.fm_operation_release(value, out result);
-}
-internal static partial class Native
-{
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_operation_prepare(uint op, byte[] req, nuint n, byte* data, nuint len, out IntPtr p, out Result r);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_writer_prepared(WriterHandle h, OperationHandle op, byte* data, nuint len, out Result r);
+    /// <summary>Copies channel fields for repeated registration. Schema ID zero means no schema; null metadata means empty metadata.</summary>
+    public static McapPreparedOperation Channel(string topic, string encoding, ushort schemaId = 0, IReadOnlyDictionary<string, string>? metadata = null, ushort? id = null)
+    {
+        ArgumentNullException.ThrowIfNull(encoding);
+        ArgumentNullException.ThrowIfNull(topic);
+        if (metadata is not null) ArgumentValidation.ValidateMetadata(metadata);
+        return new(Protocol.WriterOperation.Channel, new { topic, encoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>(), id });
+    }
+    /// <summary>Copies metadata fields for repeated writes. Name, dictionary, keys and values must be non-null.</summary>
+    public static McapPreparedOperation Metadata(string name, IReadOnlyDictionary<string, string> metadata)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentValidation.ValidateMetadata(metadata);
+        return new(Protocol.WriterOperation.Metadata, new { name, metadata });
+    }
+    /// <summary>Prepares attachment fields; supply each complete payload to WritePrepared. Times use caller-defined nanoseconds.</summary>
+    public static McapPreparedOperation Attachment(string name, string mediaType, ulong logTime, ulong createTime)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(mediaType);
+        return new(Protocol.WriterOperation.Attachment, new { name, media_type = mediaType, log_time = logTime, create_time = createTime });
+    }
+    /// <summary>Prepares a segmented attachment of the exact byte length. WritePrepared accepts no payload; follow with WriteAttachmentBytes and FinishAttachment.</summary>
+    public static McapPreparedOperation StartAttachment(string name, string mediaType, ulong logTime, ulong createTime, ulong length)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(mediaType);
+        return new(Protocol.WriterOperation.StartAttachment, new { name, media_type = mediaType, log_time = logTime, create_time = createTime, length });
+    }
+    /// <summary>Releases this descriptor after the last synchronous use. Do not dispose concurrently with a write.</summary>
+    public void Dispose() => Handle.Dispose();
 }

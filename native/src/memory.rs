@@ -1,4 +1,9 @@
-use super::*;
+use super::io::open_input;
+use super::{io, Outcome, MessageHeader};
+use std::io::{Seek, SeekFrom};
+use std::ptr;
+use serde_json::Value;
+use super::io::Input;
 use std::ops::Deref;
 
 #[derive(Clone)]
@@ -132,7 +137,7 @@ impl Sink {
             data.as_ptr(),
             data.len(),
             &mut copied,
-        ) != 0
+        ) != crate::protocol::callback_status::ACCEPTED
         {
             return Err("Managed delivery callback failed".into());
         }
@@ -213,12 +218,12 @@ impl Delivery {
     }
     pub unsafe fn deliver(&mut self, data: &[u8], dest: *mut u8, capacity: usize) -> Outcome<i32> {
         if self.capture {
-            return Ok(0);
+            return Ok(crate::protocol::status::SUCCESS);
         }
         if self.sink.is_some() {
             self.send(data, dest)?;
             self.release();
-            return Ok(0);
+            return Ok(crate::protocol::status::SUCCESS);
         }
         if capacity < data.len() {
             if self.shared.is_none() {
@@ -227,27 +232,27 @@ impl Delivery {
                 self.data.extend_from_slice(data);
             }
             self.active = true;
-            return Ok(2);
+            return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
         }
         copy(data, dest)?;
         self.release();
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     }
     pub unsafe fn retry(&mut self, dest: *mut u8, capacity: usize) -> Outcome<i32> {
         if self.capture {
             self.shared = Some(self.take_shared(0)?);
-            return Ok(0);
+            return Ok(crate::protocol::status::SUCCESS);
         }
         if let Some(sink) = self.sink {
             sink.send(self.opcode, &self.header, self.bytes())?;
         } else {
             if capacity < self.bytes().len() {
-                return Ok(2);
+                return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
             }
             copy(self.bytes(), dest)?;
         }
         self.release();
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     }
 }
 pub unsafe fn copy(data: &[u8], dest: *mut u8) -> Outcome<()> {

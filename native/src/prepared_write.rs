@@ -1,7 +1,5 @@
-use super::{
-    bytes, guard, map, number, request, string, writer_control, writer_guard, writer_result,
-    MessageHeader, Response, Writer,
-};
+use super::writer::{Writer, writer_control, writer_guard, writer_result};
+use super::{bytes, guard, map, number, request, string, MessageHeader, Response};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::ptr;
@@ -30,7 +28,7 @@ pub unsafe extern "C" fn fm_operation_prepare(
             return Err("Null output".into());
         }
         *handle = ptr::null_mut();
-        if !matches!(op, 1 | 2 | 4 | 5 | 8) {
+        if !matches!(op, crate::protocol::writer_operation::SCHEMA | crate::protocol::writer_operation::CHANNEL | crate::protocol::writer_operation::METADATA | crate::protocol::writer_operation::ATTACHMENT | crate::protocol::writer_operation::START_ATTACHMENT) {
             return Err("Unsupported prepared operation".into());
         }
         *handle = Box::into_raw(Box::new(PreparedOperation {
@@ -38,7 +36,7 @@ pub unsafe extern "C" fn fm_operation_prepare(
             args: request(p, n)?,
             data: bytes(data, len)?.to_vec(),
         }));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -51,7 +49,7 @@ pub unsafe extern "C" fn fm_operation_release(
         if !p.is_null() {
             drop(Box::from_raw(p));
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -69,7 +67,7 @@ pub unsafe extern "C" fn fm_writer_prepared(
             p,
             op.op,
             &op.args,
-            if op.op == 1 {
+            if op.op == crate::protocol::writer_operation::SCHEMA {
                 &op.data
             } else {
                 bytes(data, n)?
@@ -113,7 +111,7 @@ pub unsafe extern "C" fn fm_channel_prepare(
             schema,
             metadata: map(&v["metadata"])?,
         }))));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -123,7 +121,7 @@ pub unsafe extern "C" fn fm_channel_release(p: *mut PreparedChannel, out: *mut R
         if !p.is_null() {
             drop(Box::from_raw(p));
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -153,7 +151,7 @@ pub unsafe extern "C" fn fm_writer_full_message(
                 publish_time: h.publish_time,
                 data: Cow::Borrowed(bytes(p, n)?),
             })?;
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
     writer_result(handle, status)
 }
@@ -181,7 +179,7 @@ pub unsafe extern "C" fn fm_writer_private(
             .as_mut()
             .ok_or("Writer completed")?
             .write_private_record(opcode, bytes(p, n)?, opts)?;
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
     writer_result(handle, status)
 }

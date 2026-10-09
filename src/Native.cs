@@ -87,7 +87,7 @@ internal static partial class Native
     {
         if (!IsSupportedPlatform(OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture))
             throw new PlatformNotSupportedException("Fizzy.McapSharp supports Windows x64 and glibc Linux x64/ARM64 only.");
-        if (fm_abi_version() != 14)
+        if (fm_abi_version() != 15)
             throw new McapException("Incompatible native ABI.");
     }
 
@@ -116,7 +116,7 @@ internal static partial class Native
 
     internal static (JsonDocument? Json, byte[] Data, ulong Value) ConsumeReader(int status, Result result, StreamBridge? bridge)
     {
-        if (status < 0)
+        if (status < Protocol.Status.Success)
         {
             var error = ConsumeError(result);
             if (bridge is not null) bridge.ThrowOperationError(error);
@@ -132,7 +132,7 @@ internal static partial class Native
         try
         {
             var j = Copy(r.Json, r.JsonLength);
-            if (status < 0)
+            if (status < Protocol.Status.Success)
                 throw McapException.Decode(Encoding.UTF8.GetString(j));
             return (j.Length == 0 ? null : JsonDocument.Parse(j), Copy(r.Data, r.DataLength), r.Value);
         }

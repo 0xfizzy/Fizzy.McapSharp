@@ -56,7 +56,7 @@ public sealed partial class McapAsyncReader
             {
                 cancellation.ThrowIfCancellationRequested();
                 var (status, batch, needed) = parser.LeaseStep(leaseCount, leaseTarget);
-                if (batch is not null || status == 1)
+                if (batch is not null || status == Protocol.Status.End)
                 {
                     leaseCompletion.SetResult(batch);
                     return;

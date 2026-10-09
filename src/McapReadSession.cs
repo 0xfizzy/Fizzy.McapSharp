@@ -17,6 +17,7 @@ public sealed partial class McapReadSession : IDisposable
     /// <summary>True only after a strict complete expanded scan validates the entire file; indexed or non-strict success is insufficient.</summary>
     public bool IsFullyValidated { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed && fullyValidated; } } }
     ulong scannedRecordCount;
+    /// <summary>Number of records reported by the completed native scan; updated at EOF, not a live progress counter.</summary>
     public ulong ScannedRecordCount { get { lock (gate) { borrowed.CheckReentry(); return scannedRecordCount; } } private set => scannedRecordCount = value; }
 
     internal unsafe McapReadSession(string? path, Stream? stream, McapQuery? query, bool messages, McapRecordMode mode, bool leaveOpen, McapReaderOptions? options = null, bool indexedOnly = false)
@@ -43,7 +44,7 @@ public sealed partial class McapReadSession : IDisposable
             int status = Native.fm_reader_open(request, (nuint)request.Length, bridge is null ? null : &cb, out var p, out var r);
             if (p != IntPtr.Zero) opened = new(p, bridge);
             Native.ConsumeReader(status, r, bridge).Json?.Dispose();
-            if (status == 3) throw new NotSupportedException("Time ordering requires buffered sorting, which this query disables.");
+            if (status == Protocol.ReaderOpenStatus.BufferedSortRequired) throw new NotSupportedException("Time ordering requires buffered sorting, which this query disables.");
 
             handle = opened!;
         }
@@ -91,14 +92,14 @@ public sealed partial class McapReadSession : IDisposable
                     int status = Native.fm_reader_next(handle, p, (nuint)destination.Length, out var h, out opcode, out var r);
                     header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime);
                     requiredLength = r.Value;
-                    if (status < 0)
+                    if (status < Protocol.Status.Success)
                     {
                         var error = Native.ConsumeError(r);
                         handle.Bridge?.ThrowIfError();
                         throw error;
                     }
 
-                    if (status == 1)
+                    if (status == Protocol.Status.End)
                     {
                         ended = true;
                         fullyValidated = strict && h.Reserved == 0 && !topLevel;
@@ -109,7 +110,7 @@ public sealed partial class McapReadSession : IDisposable
                         return McapReadStatus.EndOfStream;
                     }
 
-                    return status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
+                    return status == Protocol.Status.BufferTooSmall ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
                 }
             }
             catch
@@ -120,12 +121,13 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Copies a schema already encountered by this session. Unknown IDs fail lookup without advancing or terminating the session.</summary>
     public McapSchema GetSchema(ushort id)
     {
         lock (gate)
         {
             Check();
-            int status = Native.fm_reader_describe(handle, 1, id, out var r);
+            int status = Native.fm_reader_describe(handle, Protocol.DeclarationKind.Schema, id, out var r);
             var x = Native.Consume(status, r);
             using var j = x.Json!;
             var v = j.RootElement;
@@ -133,12 +135,13 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Copies a channel and its schema already encountered by this session. Unknown IDs do not terminate the session.</summary>
     public McapChannel GetChannel(ushort id)
     {
         lock (gate)
         {
             Check();
-            int status = Native.fm_reader_describe(handle, 2, id, out var r);
+            int status = Native.fm_reader_describe(handle, Protocol.DeclarationKind.Channel, id, out var r);
             var x = Native.Consume(status, r);
             using var j = x.Json!;
             var v = j.RootElement;
@@ -147,6 +150,7 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Returns an independent summary, or null when absent. A non-seekable input must reach EOF first. I/O or parsing failure terminates this session.</summary>
     public McapSummary? GetSummary()
     {
         lock (gate)
@@ -165,6 +169,7 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Copies the record at a byte offset from the MCAP origin (the initial Stream position for Stream inputs) without advancing the sequential cursor. Requires seekable input; operation failures terminate the session.</summary>
     public McapRawRecord ReadRecordAt(ulong offset)
     {
         lock (gate)
@@ -182,29 +187,50 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Copies the indexed Chunk record and checks its opcode and total encoded length. The entire read and validation are serialized; any operation or index-validation failure terminates this session.</summary>
     public McapRawRecord ReadChunk(McapChunkIndex index)
     {
-        var record = ReadRecordAt(index.ChunkStartOffset);
-        if (record.Opcode != 6 || (ulong)record.Data.Length + 9 != index.ChunkLength)
-            throw new McapException("Invalid chunk index.");
-        return record;
+        ArgumentNullException.ThrowIfNull(index);
+        lock (gate)
+        {
+            Check();
+            if (!seekable) throw new NotSupportedException("Random access requires a seekable source.");
+            try
+            {
+                var record = ReadRecordAt(index.ChunkStartOffset);
+                if (record.Opcode != 6 || (ulong)record.Data.Length + 9 != index.ChunkLength)
+                    throw new McapException("Invalid chunk index.");
+                return record;
+            }
+            catch { failed = true; throw; }
+        }
     }
 
+    /// <summary>Copies the indexed MessageIndex records in channel-ID order, preserving empty groups. Reads and validation form one serialized operation; opcode, channel or parsing failures terminate this session.</summary>
     public IReadOnlyList<McapMessageIndex> ReadMessageIndexes(McapChunkIndex index)
     {
-        var result = new List<McapMessageIndex>();
-        foreach (var offset in index.MessageIndexOffsets.OrderBy(x => x.Key))
+        ArgumentNullException.ThrowIfNull(index);
+        lock (gate)
         {
-            var record = ReadRecordAt(offset.Value);
-            if (record.Opcode != 7)
-                throw new McapException("Invalid message index.");
-            var value = RecordDecoder.MessageIndex(record.Data);
-            if (value.ChannelId != offset.Key)
-                throw new McapException("Mismatched message index channel.");
-            result.Add(value);
+            Check();
+            if (!seekable) throw new NotSupportedException("Random access requires a seekable source.");
+            try
+            {
+                var result = new List<McapMessageIndex>();
+                foreach (var offset in index.MessageIndexOffsets.OrderBy(x => x.Key))
+                {
+                    var record = ReadRecordAt(offset.Value);
+                    if (record.Opcode != 7)
+                        throw new McapException("Invalid message index.");
+                    var value = RecordDecoder.MessageIndex(record.Data);
+                    if (value.ChannelId != offset.Key)
+                        throw new McapException("Mismatched message index channel.");
+                    result.Add(value);
+                }
+                return result;
+            }
+            catch { failed = true; throw; }
         }
-
-        return result;
     }
 
     bool ReadOwned(OwnedReadSink sink, byte wanted = 0)
@@ -217,14 +243,14 @@ public sealed partial class McapReadSession : IDisposable
             {
                 using var lease = sink.Acquire();
                 int status = Native.fm_reader_owned(handle, wanted, sink.Sink, out var h, out var r);
-                if (status < 0)
+                if (status < Protocol.Status.Success)
                 {
                     var error = Native.ConsumeError(r);
                     sink.ThrowIfError();
                     handle.Bridge?.ThrowIfError();
                     throw error;
                 }
-                if (status != 1) return true;
+                if (status != Protocol.Status.End) return true;
                 ended = true;
                 fullyValidated = strict && h.Reserved == 0 && !topLevel;
                 ScannedRecordCount = r.Value;
@@ -258,6 +284,7 @@ public sealed partial class McapReadSession : IDisposable
         while (ReadOwned(sink)) yield return (McapRawRecord)sink.Value!;
     }
 
+    /// <summary>Delivers the valid message prefix and returns the original structured McapException that ends parsing, if any. The failed session remains terminal. Callback exceptions propagate rather than becoming recovery results.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
         ArgumentNullException.ThrowIfNull(accept);
@@ -274,7 +301,7 @@ public sealed partial class McapReadSession : IDisposable
             }
             catch (McapException e)
             {
-                return new(count, false, e.Message);
+                return new(count, false, e);
             }
 
             accept(message);
@@ -282,6 +309,7 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Consumes the remaining strict expanded scan and returns its record count after full-file validation. Indexed sessions cannot establish full validation.</summary>
     public ulong ValidateRemaining()
     {
         if (!strict) throw new InvalidOperationException("Open with McapReaderOptions.Strict to validate the entire scan.");
@@ -308,21 +336,26 @@ public sealed partial class McapReadSession : IDisposable
         using var sink = new OwnedReadSink(kind);
         while (ReadOwned(sink, wanted)) yield return (T)sink.Value!;
     }
+    /// <summary>Consumes a record session and returns independent schemas, once per ID.</summary>
     public IEnumerable<McapSchema> ReadSchemas()
     {
         var seen = new HashSet<ushort>();
         foreach (var schema in ReadSelected<McapSchema>(3, OwnedReadSink.Kind.Schema))
             if (seen.Add(schema.Id)) yield return schema;
     }
+    /// <summary>Consumes a record session and returns independent channels with schemas, once per ID.</summary>
     public IEnumerable<McapChannel> ReadChannels()
     {
         var seen = new HashSet<ushort>();
         foreach (var id in ReadSelected<ushort>(4, OwnedReadSink.Kind.ChannelId))
             if (seen.Add(id)) yield return GetChannel(id);
     }
+    /// <summary>Consumes a record session and copies its metadata records.</summary>
     public IEnumerable<McapMetadata> ReadMetadata() => ReadSelected<McapMetadata>(12, OwnedReadSink.Kind.Metadata);
+    /// <summary>Consumes a record session and copies its attachments, including independent payload arrays.</summary>
     public IEnumerable<McapAttachment> ReadAttachments() => ReadSelected<McapAttachment>(9, OwnedReadSink.Kind.Attachment);
 
+    /// <summary>Releases the native reader and transfers its underlying Stream. Only Stream-backed sessions support transfer; release failure prevents reuse and leaves this session disposed.</summary>
     public Stream IntoInner()
     {
         lock (gate)
@@ -335,6 +368,7 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
+    /// <summary>Releases parser state before its input and reports cleanup failures. Repeated disposal is a no-op.</summary>
     public void Dispose()
     {
         lock (gate)

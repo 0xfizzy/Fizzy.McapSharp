@@ -1,4 +1,8 @@
-use super::*;
+#[cfg(test)]
+use super::fm_buffer_free;
+use super::reader::{Reader, fm_reader_next};
+use super::{batch, buffer_reader, guard, Outcome, Response, MessageHeader};
+use std::ptr;
 use mcap::storage::SharedBytes;
 pub struct Message {
     pub header: MessageHeader,
@@ -35,7 +39,7 @@ pub unsafe extern "C" fn fm_read_lease(
         if lease.is_null()
             || progress.is_null()
             || handle.is_null()
-            || kind > 1
+            || kind > crate::protocol::reader_kind::BUFFER
             || count == 0
             || count > 65536
             || target == 0
@@ -46,7 +50,7 @@ pub unsafe extern "C" fn fm_read_lease(
         let mut batch = Batch::new(count)?;
         for _ in 0..count {
             let mut header = MessageHeader::default();
-            let status = if kind == 0 {
+            let status = if kind == crate::protocol::reader_kind::SESSION {
                 let r = &mut *handle.cast::<Reader>();
                 r.delivery.capture = true;
                 fm_reader_next(r, ptr::null_mut(), 0, &mut header, ptr::null_mut(), out)
@@ -55,18 +59,18 @@ pub unsafe extern "C" fn fm_read_lease(
                 r.delivery.capture = true;
                 buffer_reader::fm_buffer_reader_message(r, ptr::null_mut(), 0, &mut header, out)
             };
-            if status < 0 {
+            if status < crate::protocol::status::SUCCESS {
                 return Ok(status);
             }
-            if status == 1 {
+            if status == crate::protocol::status::END {
                 (*progress).scanned = out.value;
                 (*progress).partial_validation = header.reserved as u32;
                 if !batch.messages.is_empty() {
                     *lease = publish(batch);
                 }
-                return Ok(1);
+                return Ok(crate::protocol::status::END);
             }
-            let delivery = if kind == 0 {
+            let delivery = if kind == crate::protocol::reader_kind::SESSION {
                 &mut (*handle.cast::<Reader>()).delivery
             } else {
                 &mut (*handle.cast::<buffer_reader::BufferReader>()).delivery
@@ -83,13 +87,13 @@ pub unsafe extern "C" fn fm_read_lease(
             }
         }
         *lease = publish(batch);
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
     if !handle.is_null() {
-        if kind == 0 {
+        if kind == crate::protocol::reader_kind::SESSION {
             (*handle.cast::<Reader>()).delivery.capture = false;
         }
-        if kind == 1 {
+        if kind == crate::protocol::reader_kind::BUFFER {
             (*handle.cast::<buffer_reader::BufferReader>())
                 .delivery
                 .capture = false;
@@ -116,7 +120,7 @@ pub unsafe extern "C" fn fm_lease_get(
         *header.as_mut().ok_or("Null header")? = m.header;
         *data.as_mut().ok_or("Null data")? = m.data.as_ref().as_ptr();
         *length.as_mut().ok_or("Null length")? = m.data.as_ref().len();
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 #[no_mangle]
@@ -140,7 +144,7 @@ pub unsafe extern "C" fn fm_lease_retain(
             data: m.data.clone(),
         });
         *output = publish(batch);
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 #[cfg(test)]
@@ -155,6 +159,6 @@ pub unsafe fn fm_lease_free(lease: *mut Batch) {
 pub unsafe extern "C" fn fm_lease_release(lease: *mut Batch, out: *mut Response) -> i32 {
     guard(out, |_| {
         if !lease.is_null() { drop(Box::from_raw(lease)); }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }

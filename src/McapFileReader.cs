@@ -3,6 +3,7 @@ namespace Fizzy.McapSharp;
 public sealed partial class McapFileReader
 {
     readonly string path;
+    /// <summary>Creates a reusable factory for an absolute-normalized path without opening the input file.</summary>
     public McapFileReader(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -27,6 +28,7 @@ public sealed partial class McapFileReader
             yield return m;
     }
 
+    /// <summary>Opens an independent scan and copies each schema once per ID. Enumeration owns and disposes its session.</summary>
     public IEnumerable<McapSchema> ReadSchemas()
     {
         using var session = OpenRecords();
@@ -34,6 +36,7 @@ public sealed partial class McapFileReader
             yield return item;
     }
 
+    /// <summary>Opens an independent scan and copies each channel and its schema once per ID.</summary>
     public IEnumerable<McapChannel> ReadChannels()
     {
         using var session = OpenRecords();
@@ -41,6 +44,7 @@ public sealed partial class McapFileReader
             yield return item;
     }
 
+    /// <summary>Opens an independent scan and returns owned metadata records.</summary>
     public IEnumerable<McapMetadata> ReadMetadata()
     {
         using var session = OpenRecords();
@@ -48,6 +52,7 @@ public sealed partial class McapFileReader
             yield return item;
     }
 
+    /// <summary>Opens an independent scan and returns attachments with independent payload arrays.</summary>
     public IEnumerable<McapAttachment> ReadAttachments()
     {
         using var session = OpenRecords();
@@ -55,18 +60,21 @@ public sealed partial class McapFileReader
             yield return item;
     }
 
+    /// <summary>Scans with strict validation, delivers the valid prefix and retains the original structured parse error in the result. Callback and I/O exceptions outside McapException propagate.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
         using var s = OpenMessages(options: McapReaderOptions.Strict);
         return s.RecoverMessages(accept);
     }
 
+    /// <summary>Reads an independent summary snapshot, or null if absent. Successful summary access does not validate the entire file.</summary>
     public McapSummary? GetSummary()
     {
         using var s = OpenRecords();
         return s.GetSummary();
     }
 
+    /// <summary>Strictly scans the entire file and returns its record count, throwing on format or integrity failures.</summary>
     public ulong Validate()
     {
         var req = Native.Request(new { path });
@@ -75,4 +83,10 @@ public sealed partial class McapFileReader
         x.Json?.Dispose();
         return x.Value;
     }
+}
+
+public sealed partial class McapFileReader
+{
+    /// <summary>Opens an indexed-only message session. Never falls back to scanning or buffered sorting; query AllowBufferedSort and MaxBufferedSortBytes do not apply. A successful query is not full-file validation.</summary>
+    public McapReadSession OpenIndexedMessages(McapQuery? query = null, McapReaderOptions? options = null) => new(path, null, query ?? new(), true, McapRecordMode.ExpandChunks, false, options, true);
 }

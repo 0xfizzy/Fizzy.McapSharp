@@ -1,4 +1,9 @@
-use super::*;
+use super::{memory, Outcome, Response, MessageHeader};
+#[cfg(test)]
+use std::ptr;
+use mcap::records;
+#[cfg(test)]
+use mcap::sans_io;
 const COMPACT_TARGET: usize = 256 * 1024;
 struct Entry {
     data: Option<mcap::storage::SharedBytes>,
@@ -190,14 +195,14 @@ impl Arena {
         out: &mut Response,
     ) -> Outcome<i32> {
         let Some(data) = self.pending(header, out) else {
-            return Ok(1);
+            return Ok(crate::protocol::status::END);
         };
         if capacity < data.len() {
-            return Ok(2);
+            return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
         }
         memory::copy(data, dest)?;
         self.read_shared(header, out);
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     }
     pub unsafe fn read_owned(
         &mut self,
@@ -206,11 +211,11 @@ impl Arena {
         out: &mut Response,
     ) -> Outcome<i32> {
         let Some(data) = self.pending(header, out) else {
-            return Ok(1);
+            return Ok(crate::protocol::status::END);
         };
         sink.send(records::op::MESSAGE, header, data)?;
         self.read_shared(header, out);
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     }
     pub fn clear(&mut self) {
         *self = Self::default();

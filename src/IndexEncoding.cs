@@ -33,6 +33,14 @@ internal ref struct IndexEncoding(Span<byte> destination)
         {
             foreach (var entry in dictionary) { U16(entry.Key); U64(entry.Value); }
         }
+        else if (offsets is SortedList<ushort, ulong> sorted)
+        {
+            // Indexed access avoids both interface-enumerator boxing and a scan
+            // across absent IDs. The key/value views are cached by SortedList.
+            var keys = sorted.Keys;
+            var values = sorted.Values;
+            for (int i = 0; i < sorted.Count; i++) { U16(keys[i]); U64(values[i]); }
+        }
         else
         {
             // IReadOnlyDictionary enumeration can box an enumerator. The key domain

@@ -1,6 +1,7 @@
+use super::summary::summary_json;
 use super::{
-    buffer_reader, bytes, guard, lease, memory, request, respond, summary_json, MessageHeader,
-    Outcome, Response,
+    buffer_reader, bytes, guard, lease, memory, request, respond, MessageHeader, Outcome,
+    Response,
 };
 use mcap::records;
 use mcap::sans_io;
@@ -57,19 +58,19 @@ pub unsafe extern "C" fn fm_engine_index_control(
             return Err("Indexed reader required".into());
         };
         match op {
-            0 => {
+            crate::protocol::indexed_control::INSERT_CHUNK => {
                 r.insert_chunk_record_data(value, bytes(data, n)?)?;
-                if h.waiting && h.event.kind == 5 && h.event.offset == value {
+                if h.waiting && h.event.kind == crate::protocol::engine_event::READ_CHUNK && h.event.offset == value {
                     h.waiting = false;
                 }
             }
-            1 => r.record_length_limit = Some(usize::try_from(value)?),
-            2 => r.record_length_limit = None,
+            crate::protocol::indexed_control::SET_RECORD_LENGTH_LIMIT => r.record_length_limit = Some(usize::try_from(value)?),
+            crate::protocol::indexed_control::CLEAR_RECORD_LENGTH_LIMIT => r.record_length_limit = None,
             _ => return Err("Unknown indexed operation".into()),
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
-    if status < 0 {
+    if status < crate::protocol::status::SUCCESS {
         if let Some(h) = p.as_mut() {
             h.failed = true;
             h.delivery.discard();
@@ -90,6 +91,33 @@ pub struct EngineHandle {
     failed: bool,
     ended: bool,
     pub(super) summary: Option<Arc<mcap::Summary>>,
+}
+
+/// Copies declarations already observed during lease reading; never advances or faults the engine.
+#[no_mangle]
+pub unsafe extern "C" fn fm_engine_describe(
+    p: *const EngineHandle,
+    kind: u32,
+    id: u16,
+    out: *mut Response,
+) -> i32 {
+    guard(out, |out| {
+        let h = p.as_ref().ok_or("Null engine")?;
+        if h.failed { return Err("Engine failed".into()); }
+        match kind {
+            crate::protocol::declaration_kind::SCHEMA => {
+                let schema = h.schemas.get(&id)
+                    .ok_or_else(|| mcap::McapError::UnknownSchema(String::new(), id))?;
+                respond(out, serde_json::to_vec(&serde_json::json!({
+                    "id": schema.id, "name": schema.name, "encoding": schema.encoding
+                }))?, schema.data.to_vec(), 0);
+                Ok(crate::protocol::status::SUCCESS)
+            }
+            crate::protocol::declaration_kind::CHANNEL => buffer_reader::describe_channel(
+                h.channels.get(&id).ok_or(mcap::McapError::UnknownChannel(0, id))?, out),
+            _ => Err("Unknown declaration kind".into()),
+        }
+    })
 }
 
 #[repr(C)]
@@ -120,8 +148,8 @@ pub unsafe extern "C" fn fm_engine_open(
         *handle = ptr::null_mut();
         let v = request(p, n)?;
         let engine = match kind {
-            0 => Engine::Linear(sans_io::LinearReader::new_with_options(linear_options(&v)?)),
-            1 => {
+            crate::protocol::engine_kind::LINEAR => Engine::Linear(sans_io::LinearReader::new_with_options(linear_options(&v)?)),
+            crate::protocol::engine_kind::SUMMARY => {
                 let mut opts = sans_io::SummaryReaderOptions::default();
                 if let Some(n) = v["FileSize"].as_u64() {
                     opts = opts.with_file_size(n);
@@ -131,7 +159,7 @@ pub unsafe extern "C" fn fm_engine_open(
                 }
                 Engine::Summary(Some(sans_io::SummaryReader::new_with_options(opts)))
             }
-            2 => {
+            crate::protocol::engine_kind::INDEXED => {
                 let s = summary
                     .as_ref()
                     .and_then(|s| s.summary.as_ref())
@@ -177,7 +205,7 @@ pub unsafe extern "C" fn fm_engine_open(
             ended: false,
             summary: None,
         }));
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -205,7 +233,7 @@ pub unsafe extern "C" fn fm_engine_next(
                 Engine::Linear(r) => match r.next_shared_event().transpose()? {
                     None => h.ended = true,
                     Some(sans_io::linear_reader::SharedReadEvent::ReadRequest(n)) => {
-                        h.event.kind = 1;
+                        h.event.kind = crate::protocol::engine_event::READ;
                         h.event.length = n as u64;
                     }
                     Some(sans_io::linear_reader::SharedReadEvent::Record {
@@ -214,13 +242,13 @@ pub unsafe extern "C" fn fm_engine_next(
                     }) => {
                         let data = shared.as_ref();
                         h.delivery.shared = Some(shared.clone());
-                        h.event.kind = 3;
+                        h.event.kind = crate::protocol::engine_event::RECORD;
                         h.event.opcode = opcode as u32;
 
                         h.event.length = data.len() as u64;
                         *event = h.event;
                         let status = h.delivery.deliver(data, dest, capacity)?;
-                        h.waiting = status == 2;
+                        h.waiting = status == crate::protocol::status::BUFFER_TOO_SMALL;
                         return Ok(status);
                     }
                 },
@@ -235,11 +263,11 @@ pub unsafe extern "C" fn fm_engine_next(
                         h.ended = true;
                     }
                     Some(sans_io::SummaryReadEvent::ReadRequest(n)) => {
-                        h.event.kind = 1;
+                        h.event.kind = crate::protocol::engine_event::READ;
                         h.event.length = n as u64;
                     }
                     Some(sans_io::SummaryReadEvent::SeekRequest(s)) => {
-                        h.event.kind = 2;
+                        h.event.kind = crate::protocol::engine_event::SEEK;
                         (h.event.origin, h.event.offset) = match s {
                             SeekFrom::Start(n) => (0, n),
                             SeekFrom::Current(n) => (1, n as u64),
@@ -253,7 +281,7 @@ pub unsafe extern "C" fn fm_engine_next(
                         offset,
                         length,
                     }) => {
-                        h.event.kind = 5;
+                        h.event.kind = crate::protocol::engine_event::READ_CHUNK;
                         h.event.offset = offset;
                         h.event.length = length as u64;
                     }
@@ -263,7 +291,7 @@ pub unsafe extern "C" fn fm_engine_next(
                     }) => {
                         let data = shared.as_ref();
                         h.delivery.shared = Some(shared.clone());
-                        h.event.kind = 4;
+                        h.event.kind = crate::protocol::engine_event::MESSAGE;
                         h.event.length = data.len() as u64;
 
                         h.event.header = MessageHeader {
@@ -275,7 +303,7 @@ pub unsafe extern "C" fn fm_engine_next(
                         };
                         *event = h.event;
                         let status = h.delivery.deliver(data, dest, capacity)?;
-                        h.waiting = status == 2;
+                        h.waiting = status == crate::protocol::status::BUFFER_TOO_SMALL;
                         return Ok(status);
                     }
                 },
@@ -284,20 +312,20 @@ pub unsafe extern "C" fn fm_engine_next(
         }
         if h.ended {
             h.delivery.discard();
-            *event = Event::default();
-            return Ok(1);
+            *event = Event { kind: crate::protocol::engine_event::END, ..Event::default() };
+            return Ok(crate::protocol::status::END);
         }
         *event = h.event;
-        if h.event.kind == 3 || h.event.kind == 4 {
+        if h.event.kind == crate::protocol::engine_event::RECORD || h.event.kind == crate::protocol::engine_event::MESSAGE {
             let status = h.delivery.retry(dest, capacity)?;
-            if status == 2 {
-                return Ok(2);
+            if status == crate::protocol::status::BUFFER_TOO_SMALL {
+                return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
             }
             h.waiting = false;
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
-    if status < 0 {
+    if status < crate::protocol::status::SUCCESS {
         if let Some(h) = p.as_mut() {
             h.failed = true;
             h.delivery.discard();
@@ -322,28 +350,28 @@ pub unsafe extern "C" fn fm_engine_feed(
         }
         let data = bytes(data, n)?;
         match (&mut h.engine, h.event.kind) {
-            (Engine::Linear(r), 1) => {
+            (Engine::Linear(r), crate::protocol::engine_event::READ) => {
                 if n as u64 > h.event.length {
                     return Err("Excess input".into());
                 }
                 r.try_insert(n)?.copy_from_slice(data);
                 r.notify_read(n);
             }
-            (Engine::Summary(Some(r)), 1) => {
+            (Engine::Summary(Some(r)), crate::protocol::engine_event::READ) => {
                 if n as u64 > h.event.length {
                     return Err("Excess input".into());
                 }
                 r.insert(n).copy_from_slice(data);
                 r.notify_read(n);
             }
-            (Engine::Summary(Some(r)), 2) => r.notify_seeked(position),
-            (Engine::Indexed(r), 5) => r.insert_chunk_record_data(position, data)?,
+            (Engine::Summary(Some(r)), crate::protocol::engine_event::SEEK) => r.notify_seeked(position),
+            (Engine::Indexed(r), crate::protocol::engine_event::READ_CHUNK) => r.insert_chunk_record_data(position, data)?,
             _ => return Err("Unexpected input".into()),
         }
         h.waiting = false;
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     });
-    if status < 0 {
+    if status < crate::protocol::status::SUCCESS {
         if let Some(h) = p.as_mut() {
             h.failed = true;
             h.delivery.discard();
@@ -363,7 +391,7 @@ pub unsafe extern "C" fn fm_engine_summary(p: *const EngineHandle, out: *mut Res
         if let Some(s) = &h.summary {
             respond(out, serde_json::to_vec(&summary_json(s))?, vec![], 0);
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -373,7 +401,7 @@ pub unsafe extern "C" fn fm_engine_release(p: *mut EngineHandle, out: *mut Respo
         if !p.is_null() {
             drop(Box::from_raw(p));
         }
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -386,7 +414,7 @@ pub unsafe extern "C" fn fm_engine_input_buffer(
 ) -> i32 {
     guard(out, |_| {
         let h = p.as_mut().ok_or("Null engine")?;
-        if h.failed || !h.waiting || h.event.kind != 1 || n as u64 > h.event.length {
+        if h.failed || !h.waiting || h.event.kind != crate::protocol::engine_event::READ || n as u64 > h.event.length {
             return Err("No matching input request".into());
         }
         let Engine::Linear(r) = &mut h.engine else {
@@ -397,7 +425,7 @@ pub unsafe extern "C" fn fm_engine_input_buffer(
         // Reserve the parser's complete request before a short asynchronous read.
         // Reserving only the managed read quantum would repeatedly relocate large records.
         *target = r.try_insert(usize::try_from(h.event.length)?)?.as_mut_ptr();
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -409,7 +437,7 @@ pub unsafe extern "C" fn fm_engine_input_complete(
 ) -> i32 {
     guard(out, |_| {
         let h = p.as_mut().ok_or("Null engine")?;
-        if h.failed || !h.waiting || h.event.kind != 1 || n as u64 > h.event.length {
+        if h.failed || !h.waiting || h.event.kind != crate::protocol::engine_event::READ || n as u64 > h.event.length {
             return Err("No matching input request".into());
         }
         let Engine::Linear(r) = &mut h.engine else {
@@ -417,7 +445,7 @@ pub unsafe extern "C" fn fm_engine_input_complete(
         };
         r.notify_read(n);
         h.waiting = false;
-        Ok(0)
+        Ok(crate::protocol::status::SUCCESS)
     })
 }
 
@@ -444,16 +472,16 @@ pub unsafe extern "C" fn fm_engine_lease_step(
         {
             return Err("Invalid lease step".into());
         }
-        *event = Event::default();
+        *event = Event { kind: crate::protocol::engine_event::END, ..Event::default() };
         if h.ended {
-            return Ok(1);
+            return Ok(crate::protocol::status::END);
         }
         if h.waiting {
-            if h.event.kind != 1 {
+            if h.event.kind != crate::protocol::engine_event::READ {
                 return Err("Consume the pending record before switching to leases".into());
             }
             *event = h.event;
-            return Ok(0);
+            return Ok(crate::protocol::status::SUCCESS);
         }
         let Engine::Linear(r) = &mut h.engine else {
             return Err("Linear engine required".into());
@@ -471,14 +499,14 @@ pub unsafe extern "C" fn fm_engine_lease_step(
                 }
                 Some(sans_io::linear_reader::SharedReadEvent::ReadRequest(n)) => {
                     h.event = Event {
-                        kind: 1,
+                        kind: crate::protocol::engine_event::READ,
                         length: n as u64,
                         ..Default::default()
                     };
                     h.waiting = true;
                     if h.lease_batch.as_ref().unwrap().messages.is_empty() {
                         *event = h.event;
-                        return Ok(0);
+                        return Ok(crate::protocol::status::SUCCESS);
                     }
                     break;
                 }
@@ -518,11 +546,11 @@ pub unsafe extern "C" fn fm_engine_lease_step(
         out.value = batch.messages.len() as u64;
         if !batch.messages.is_empty() {
             *output = lease::publish(batch);
-            return Ok(0);
+            return Ok(crate::protocol::status::SUCCESS);
         }
-        Ok(1)
+        Ok(crate::protocol::status::END)
     });
-    if status < 0 {
+    if status < crate::protocol::status::SUCCESS {
         if let Some(h) = p.as_mut() {
             h.failed = true;
             h.lease_batch = None;

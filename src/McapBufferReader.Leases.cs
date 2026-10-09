@@ -11,9 +11,9 @@ public sealed partial class McapBufferReader
         Native.CheckLeaseRequest(maxMessages, targetPayloadBytes);
         lock (gate)
         {
-            Check();
-            int status = Native.fm_read_lease(1, handle, (nuint)maxMessages, (nuint)targetPayloadBytes, out var p, out var progress, out var result);
-            if (status < 0) throw Native.ConsumeError(result);
+            CheckMessages();
+            int status = Native.fm_read_lease(Protocol.ReaderKind.Buffer, handle, (nuint)maxMessages, (nuint)targetPayloadBytes, out var p, out var progress, out var result);
+            if (status < Protocol.Status.Success) throw Native.ConsumeError(result);
             return p == IntPtr.Zero ? null : new(p, checked((int)progress.Count));
         }
     }
