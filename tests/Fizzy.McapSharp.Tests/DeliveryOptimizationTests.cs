@@ -29,20 +29,20 @@ public class DeliveryOptimizationTests
     public void OwnedDeliveryHasOneCopyAndConsumesPending(McapCompression compression)
     {
         var data = Recording(compression);
-        using var direct = McapReader.OpenMessages(new MemoryStream(data));
-        using var owned = McapReader.OpenMessages(new MemoryStream(data), options: new());
+        using var direct = McapFileReader.OpenMessages(new MemoryStream(data));
+        using var owned = McapFileReader.OpenMessages(new MemoryStream(data), options: new());
         var destination = new byte[70000];
         using var iterator = owned.ReadMessages().GetEnumerator();
         while (iterator.MoveNext())
         {
-            Assert.Equal(McapReadStatus.Message, direct.ReadNext(destination, out _, out var n));
+            Assert.Equal(McapReadStatus.Success, direct.ReadNext(destination, out _, out var n));
             Assert.Equal(destination.AsSpan(0, (int)n).ToArray(), iterator.Current.Data);
         }
         Assert.Equal(McapReadStatus.EndOfStream, direct.ReadNext(destination, out _, out _));
 
 
 
-        using var pending = McapReader.OpenMessages(new MemoryStream(data));
+        using var pending = McapFileReader.OpenMessages(new MemoryStream(data));
         Assert.Equal(McapReadStatus.BufferTooSmall, pending.ReadNext([], out _, out _));
         using (var messages = pending.ReadMessages().GetEnumerator())
         {
@@ -52,7 +52,7 @@ public class DeliveryOptimizationTests
         }
 
         Assert.Empty(Assert.Single(pending.ReadMessages()).Data);
-        using var isolated = McapReader.OpenMessages(new MemoryStream(data));
+        using var isolated = McapFileReader.OpenMessages(new MemoryStream(data));
         using (var messages = isolated.ReadMessages().GetEnumerator())
         {
             Assert.True(messages.MoveNext());
@@ -79,8 +79,8 @@ public class DeliveryOptimizationTests
     public void ClassifiedScanDoesNotDeliverUnrelatedPayloads(McapCompression compression)
     {
         var data = Recording(compression);
-        using var metadata = McapReader.OpenRecords(new MemoryStream(data), options: new());
-        using var attachment = McapReader.OpenRecords(new MemoryStream(data), options: new());
+        using var metadata = McapFileReader.OpenRecords(new MemoryStream(data), options: new());
+        using var attachment = McapFileReader.OpenRecords(new MemoryStream(data), options: new());
         Assert.Single(metadata.ReadMetadata());
         Assert.Equal(new byte[] { 1, 2, 3 }, Assert.Single(attachment.ReadAttachments()).Data);
 
@@ -106,7 +106,7 @@ public class DeliveryOptimizationTests
         Assert.Equal(expected.Data, snapshot.SeekMessage(prepared, entry).Data);
         Assert.Equal(expected.Data, other.SeekMessage(prepared, entry).Data);
         var output = new byte[70000];
-        Assert.Equal(McapReadStatus.Message, snapshot.SeekMessage(prepared, entry, output, out _, out _));
+        Assert.Equal(McapReadStatus.Success, snapshot.SeekMessage(prepared, entry, output, out _, out _));
         using var child = snapshot.OpenChunkReader(prepared);
         prepared.Dispose(); snapshot.Dispose();
         Assert.Equal(220, child.ReadMessages().Count());
@@ -129,7 +129,7 @@ public class DeliveryOptimizationTests
             snapshot.ReadMessageIndexes(index, [], out _);
             snapshot.ReadMessageIndexes(index, [], out _);
 
-            Assert.Equal(McapReadStatus.Message, snapshot.ReadMessageIndexes(index, output, out _));
+            Assert.Equal(McapReadStatus.Success, snapshot.ReadMessageIndexes(index, output, out _));
             Assert.Equal(expected, output);
 
         }
@@ -169,7 +169,7 @@ public class DeliveryOptimizationTests
     public void PendingRecordFilteringAndSnapshotOwnedRetryDoNotAdvanceTwice()
     {
         var data = Recording(McapCompression.Zstd);
-        using var records = McapReader.OpenRecords(new MemoryStream(data));
+        using var records = McapFileReader.OpenRecords(new MemoryStream(data));
         Assert.Equal(McapReadStatus.BufferTooSmall, records.ReadNextRecord([], out _, out _));
         Assert.Single(records.ReadMetadata());
         using var snapshot = new McapIndexSnapshot(data);

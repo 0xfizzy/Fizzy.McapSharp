@@ -120,7 +120,7 @@ impl ChunkCache {
         }
         let mut packed = Vec::new();
         for (channel_id, offset) in &index.message_index_offsets {
-            let body = extended::record_body(input, *offset, records::op::MESSAGE_INDEX)?;
+            let body = record_access::record_body(input, *offset, records::op::MESSAGE_INDEX)?;
             let records::Record::MessageIndex(record) =
                 mcap::parse_record(records::op::MESSAGE_INDEX, body)?
             else {

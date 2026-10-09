@@ -26,7 +26,7 @@ static class BatchGate
             foreach (bool borrowed in new[]{false,true})
             {
                 file.Position=0;
-                using var reader=McapReader.OpenMessages(file,new(){Order=McapReadOrder.File},true);
+                using var reader=McapFileReader.OpenMessages(file,new(){Order=McapReadOrder.File},true);
                 for(int i=0;i<100;i++) { if(borrowed) reader.VisitMessages(visitor,16); else reader.ReadBatch(headers,ranges,payload); }
                 var before=GC.GetAllocatedBytesForCurrentThread();
                 for(int i=0;i<1000;i++) { if(borrowed) reader.VisitMessages(visitor,16); else reader.ReadBatch(headers,ranges,payload); }

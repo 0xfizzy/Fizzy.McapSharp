@@ -26,17 +26,15 @@ public sealed class McapPreparedChunkIndex : IDisposable
     internal void Check() => ObjectDisposedException.ThrowIf(Handle.IsClosed, this);
     public void Dispose() { lock (Gate) Handle.Dispose(); }
 }
-internal sealed class PreparedChunkIndexHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal sealed class PreparedChunkIndexHandle : OwnedNativeHandle
 {
-    internal PreparedChunkIndexHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_chunk_index_free(handle);  return true; }
+    internal PreparedChunkIndexHandle(IntPtr p) : base(p) { }
+    protected override int ReleaseNative(IntPtr value, out Native.Result result) => Native.fm_chunk_index_release(value, out result);
 }
 internal static partial class Native
 {
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_chunk_index_prepare(byte* data, nuint n, out IntPtr h, out Result r);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void fm_chunk_index_free(IntPtr h);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_snapshot_prepared_call(SnapshotHandle h, uint op, PreparedChunkIndexHandle index, ulong time, ulong offset, byte* dest, nuint n, out NativeHeader header, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
@@ -86,7 +84,7 @@ public sealed partial class McapIndexSnapshot
                 int status = Native.fm_snapshot_prepared_call(handle, op, index.Handle, entry.LogTime, entry.Offset, p, (nuint)destination.Length, out var h, out var r);
                 if (status < 0) throw Native.ConsumeError(r);
                 header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime); length = r.Value;
-                return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Message;
+                return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
             }
         }
     }

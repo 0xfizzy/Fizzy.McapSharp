@@ -21,9 +21,9 @@ public class RobustnessTests
         for (int length = 0; length < data.Length; length++)
         {
             using var s = new MemoryStream(data, 0, length, false);
-            Assert.Throws<McapException>(() => { using var r = McapReader.OpenRecords(s, options: McapReaderOptions.Strict); r.ValidateRemaining(); });
+            Assert.Throws<McapException>(() => { using var r = McapFileReader.OpenRecords(s, options: McapReaderOptions.Strict); r.ValidateRemaining(); });
             using var recovery = new MemoryStream(data, 0, length, false);
-            try { using var r = McapReader.OpenMessages(recovery, options: McapReaderOptions.Strict); Assert.False(r.RecoverMessages(_ => { }).IsComplete); }
+            try { using var r = McapFileReader.OpenMessages(recovery, options: McapReaderOptions.Strict); Assert.False(r.RecoverMessages(_ => { }).IsFullyValidated); }
             catch (McapException) { /* Invalid prefixes can fail before a recovery session exists. */ }
         }
     }
@@ -33,7 +33,7 @@ public class RobustnessTests
     {
         var data = Small(); BinaryPrimitives.WriteUInt64LittleEndian(data.AsSpan(9), ulong.MaxValue);
         using var s = new MemoryStream(data);
-        Assert.Throws<McapException>(() => { using var r = McapReader.OpenRecords(s, options: McapReaderOptions.Strict with { RecordLengthLimit = 1024 }); r.ValidateRemaining(); });
+        Assert.Throws<McapException>(() => { using var r = McapFileReader.OpenRecords(s, options: McapReaderOptions.Strict with { RecordLengthLimit = 1024 }); r.ValidateRemaining(); });
     }
 
     [Theory]
@@ -41,10 +41,10 @@ public class RobustnessTests
     public void ShortReadsAndExtremeMessageFieldsSurviveRetry(int size)
     {
         using var s = new FaultStream(new MemoryStream(Small()), maxRead: size);
-        using var r = McapReader.OpenMessages(s);
+        using var r = McapFileReader.OpenMessages(s);
         for (int i = 0; i < 3; i++) Assert.Equal(McapReadStatus.BufferTooSmall, r.ReadNext([], out _, out _));
         var b = new byte[1];
-        Assert.Equal(McapReadStatus.Message, r.ReadNext(b, out var h, out _));
+        Assert.Equal(McapReadStatus.Success, r.ReadNext(b, out var h, out _));
         Assert.Equal(uint.MaxValue, h.Sequence); Assert.Equal(ulong.MaxValue, h.LogTime); Assert.Equal((byte)42, b[0]);
         Assert.Equal(McapReadStatus.EndOfStream, r.ReadNext([], out _, out _));
     }
@@ -56,7 +56,7 @@ public class RobustnessTests
         using var s = new FaultStream(operation == "read" ? new MemoryStream(Small()) : new MemoryStream());
         if (operation == "read")
         {
-            using var r = McapReader.OpenMessages(s, leaveOpen: true);
+            using var r = McapFileReader.OpenMessages(s, leaveOpen: true);
             s.Arm(operation, 1);
             Assert.Throws<IOException>(() => r.ReadNext(new byte[1024], out _, out _));
             Assert.Throws<InvalidOperationException>(() => r.ReadNext(new byte[1024], out _, out _));
@@ -77,7 +77,7 @@ public class RobustnessTests
     public void ReadFailureAtSpecifiedCallDoesNotConsumeSuccessfulResults(int call)
     {
         using var s = new FaultStream(new MemoryStream(Small()), maxRead: 1);
-        using var r = McapReader.OpenMessages(s);
+        using var r = McapFileReader.OpenMessages(s);
         s.Arm("read", call);
         Assert.Throws<IOException>(() => r.ReadNext(new byte[8], out _, out _));
         Assert.Throws<InvalidOperationException>(() => r.ReadNext(new byte[8], out _, out _));
@@ -88,7 +88,7 @@ public class RobustnessTests
     public void PartialReadFailureAtBytePositionPreservesOriginalIoException(int position)
     {
         using var s = new FaultStream(new MemoryStream(Small()));
-        using var r = McapReader.OpenMessages(s);
+        using var r = McapFileReader.OpenMessages(s);
         s.ArmBytes(position);
         Assert.Throws<IOException>(() => r.ReadNext(new byte[8], out _, out _));
         Assert.Equal(position, s.Position);

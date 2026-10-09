@@ -21,18 +21,18 @@ public class InputReservationTests
             writer.Complete();
         }
         using var input = new ShortStream(storage.ToArray());
-        using var reader = McapReader.OpenMessages(input, leaveOpen: true, options: McapReaderOptions.Strict);
-        Assert.Equal(McapReadStatus.Message, reader.ReadNext([], out _, out var empty)); Assert.Equal(0UL, empty);
+        using var reader = McapFileReader.OpenMessages(input, leaveOpen: true, options: McapReaderOptions.Strict);
+        Assert.Equal(McapReadStatus.Success, reader.ReadNext([], out _, out var empty)); Assert.Equal(0UL, empty);
         for (int i = 0; i < 3; i++)
         {
             Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out var header, out var size));
             Assert.Equal(1U, header.Sequence); Assert.Equal((ulong)payload.Length, size);
         }
         var target = new byte[payload.Length];
-        Assert.Equal(McapReadStatus.Message, reader.ReadNext(target, out _, out _)); Assert.Equal(payload, target);
-        Assert.Equal(McapReadStatus.Message, reader.ReadNext(target, out var last, out var length));
+        Assert.Equal(McapReadStatus.Success, reader.ReadNext(target, out _, out _)); Assert.Equal(payload, target);
+        Assert.Equal(McapReadStatus.Success, reader.ReadNext(target, out var last, out var length));
         Assert.Equal(2U, last.Sequence); Assert.Equal(1UL, length); Assert.Equal(42, target[0]);
-        Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext([], out _, out _)); Assert.True(reader.IsComplete);
+        Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext([], out _, out _)); Assert.True(reader.IsFullyValidated);
         Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext([], out _, out _));
     }
     sealed class ShortStream(byte[] data) : Stream

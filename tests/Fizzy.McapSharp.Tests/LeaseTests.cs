@@ -78,7 +78,7 @@ public class LeaseTests
             writer.Complete();
         }
         stream.Position=0;
-        using var reader=McapReader.OpenMessages(stream,new(){Order=McapReadOrder.File},true,new(){});
+        using var reader=McapFileReader.OpenMessages(stream,new(){Order=McapReadOrder.File},true,new(){});
         var retained=new Queue<McapMessageLease>();
         for(uint i=0;i<10000;i++) {
             using var batch=reader.ReadBatchLease(1)!;
@@ -106,7 +106,7 @@ public class LeaseTests
         foreach(bool indexed in new[]{false,true})
         {
             stream.Position=0;
-            using var reader=McapReader.OpenMessages(stream,new(){Order=indexed?McapReadOrder.LogTime:McapReadOrder.File},true);
+            using var reader=McapFileReader.OpenMessages(stream,new(){Order=indexed?McapReadOrder.LogTime:McapReadOrder.File},true);
             var leases=new List<McapMessageBatchLease>();
             for(int i=0;i<20;i++) leases.Add(reader.ReadBatchLease(1)!);
             Assert.Null(reader.ReadBatchLease()); reader.Dispose();

@@ -4,9 +4,10 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
+/// <summary>Caller-buffer read outcome. On Success, Opcode identifies the record and Length is the body bytes copied; on BufferTooSmall, Length is the required capacity and the same record remains pending. EOF does not prove full-file integrity.</summary>
 public readonly record struct McapRecordReadResult(McapReadStatus Status, byte Opcode, ulong Length);
 
-/// <summary>Incremental asynchronous record reader backed by the official Sans-I/O parser.</summary>
+/// <summary>One incremental asynchronous read session backed by the official Sans-I/O parser. Owns its Stream unless leaveOpen is true. Consume each ValueTask exactly once before another operation; I/O, parsing and cancellation failures terminate the session. Record and lease consumption cannot be mixed.</summary>
 public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskSource<McapRecordReadResult>, IValueTaskSource<McapMessageBatchLease?>
 {
     readonly Stream stream;
@@ -32,8 +33,21 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
         emitChunks = options?.EmitChunks ?? false;
         this.inputBufferSize = inputBufferSize;
         bridge = new(stream, false, leaveOpen);
-        try { parser = McapSansIoReader.CreateLinear(options); input = new(parser); }
-        catch { bridge.Release(); throw; }
+        McapSansIoReader? opened = null;
+        try { parser = opened = McapSansIoReader.CreateLinear(options); input = new(parser); }
+        catch (Exception operation)
+        {
+            Exception error = operation;
+            try { opened?.Dispose(); }
+            catch (Exception cleanup) { error = new AggregateException(error, cleanup); }
+            if (opened is null || opened.NativeReleased)
+            {
+                try { bridge.Release(); }
+                catch (Exception cleanup) { error = new AggregateException(error, cleanup); }
+            }
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+            throw;
+        }
         resources = new(parser, bridge);
         resume = Resume;
         // Inline completion avoids allocating a ThreadPool work item for every await.
@@ -41,6 +55,7 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
         completion.RunContinuationsAsynchronously = false;
         leaseCompletion.RunContinuationsAsynchronously = false;
     }
+    /// <summary>Copies one record body into destination. Keep the memory valid and untouched until consuming the returned ValueTask exactly once. BufferTooSmall retains the pending record for a larger-buffer retry; other failures terminate the session.</summary>
     public ValueTask<McapRecordReadResult> ReadNextRecordAsync(Memory<byte> destination, CancellationToken cancellationToken = default)
     {
         lock (gate)
@@ -82,7 +97,7 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
             {
                 cancellation.ThrowIfCancellationRequested();
                 var status = parser.NextEvent(destination.Span, out var e);
-                if (status != McapReadStatus.Message || e.Kind == McapReadEventKind.Record)
+                if (status != McapReadStatus.Success || e.Kind == McapReadEventKind.Record)
                 {
                     destination = default;
                     completion.SetResult(new(status, e.Opcode, e.Length));
@@ -110,20 +125,21 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
     void IValueTaskSource<McapRecordReadResult>.OnCompleted(Action<object?> continuation, object? state, short token, ValueTaskSourceOnCompletedFlags flags) => completion.OnCompleted(continuation, state, token, flags);
     public Stream IntoInner()
     {
-        lock (gate) { CheckDispose(); bridge.Detach(); Dispose(); return stream; }
+        lock (gate) { CheckDispose(); disposed = true; return resources.Transfer(); }
     }
     void CheckDispose() { ObjectDisposedException.ThrowIf(disposed, this); if (active) throw new InvalidOperationException("Complete and consume the outstanding operation before disposal."); }
     public void Dispose()
     {
         lock (gate) { if (disposed) return; CheckDispose(); disposed = true; resources.Dispose(); }
     }
+    /// <summary>Releases resources synchronously, including Stream.Dispose when owned. The returned task is already complete; this does not call Stream.DisposeAsync.</summary>
     public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
 }
 
-internal sealed class AsyncResources : SafeHandleZeroOrMinusOneIsInvalid
+internal sealed class AsyncResources : OwnedNativeHandle
 {
     readonly McapSansIoReader parser;
-    readonly StreamBridge bridge;
-    internal AsyncResources(McapSansIoReader parser, StreamBridge bridge) : base(true) { this.parser = parser; this.bridge = bridge; SetHandle((IntPtr)1); }
-    protected override bool ReleaseHandle() { parser.Dispose(); bridge.Release(); return true; }
+    internal AsyncResources(McapSansIoReader parser, StreamBridge bridge) : base((IntPtr)1, bridge) { this.parser = parser; }
+    protected override bool DependenciesReleased => parser.NativeReleased;
+    protected override int ReleaseNative(IntPtr value, out Native.Result result) { result = default; parser.Dispose(); return 0; }
 }

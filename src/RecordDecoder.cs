@@ -1,33 +1,16 @@
 using System.Buffers.Binary;
-using System.Text;
 
 namespace Fizzy.McapSharp;
 internal ref struct RecordDecoder
 {
-    ReadOnlySpan<byte> data;
-    internal RecordDecoder(ReadOnlySpan<byte> data) => this.data = data;
-    ReadOnlySpan<byte> Take(int n)
-    {
-        if (n < 0 || n > data.Length)
-            throw new McapException("Invalid record length.");
-        var v = data[..n];
-        data = data[n..];
-        return v;
-    }
-
-    internal ushort U16() => BinaryPrimitives.ReadUInt16LittleEndian(Take(2));
-    internal uint U32() => BinaryPrimitives.ReadUInt32LittleEndian(Take(4));
-    internal ulong U64() => BinaryPrimitives.ReadUInt64LittleEndian(Take(8));
-    internal string Text() => Encoding.UTF8.GetString(Take(checked((int)U32())));
-    internal byte[] Bytes(int n) => Take(n).ToArray();
-    internal Dictionary<string, string> Map()
-    {
-        var d = new RecordDecoder(Take(checked((int)U32())));
-        var m = new Dictionary<string, string>();
-        while (!d.data.IsEmpty)
-            m.Add(d.Text(), d.Text());
-        return m;
-    }
+    McapRecordFields fields;
+    internal RecordDecoder(ReadOnlySpan<byte> data) => fields = new(data);
+    internal ushort U16() => fields.ReadUInt16();
+    internal uint U32() => fields.ReadUInt32();
+    internal ulong U64() => fields.ReadUInt64();
+    internal string Text() => fields.ReadString();
+    internal byte[] Bytes(int n) => fields.ReadBytes(n).ToArray();
+    internal Dictionary<string, string> Map() => McapRecords.Strings(ref fields);
 
     internal static McapSchema Schema(ReadOnlySpan<byte> data)
     {

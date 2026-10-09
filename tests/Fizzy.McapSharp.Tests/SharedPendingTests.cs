@@ -22,12 +22,12 @@ public class SharedPendingTests
 
         }
         byte[] body = new byte[70022];
-        Assert.Equal(McapReadStatus.Message, reader.ReadNextRecord(body, out var op, out _));
+        Assert.Equal(McapReadStatus.Success, reader.ReadNextRecord(body, out var op, out _));
         Assert.Equal(header, ((McapMessageRecord)McapRecords.Parse(op, body)).Header);
 
         // Empty message body remains exchangeable with its empty payload.
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNextRecord([], out _, out _));
-        Assert.Equal(McapReadStatus.Message, reader.ReadNext([], out _, out length));
+        Assert.Equal(McapReadStatus.Success, reader.ReadNext([], out _, out length));
         Assert.Equal(0UL, length);
         reader.Dispose();
     }
@@ -38,7 +38,7 @@ public class SharedPendingTests
     public void PendingCanTransferToLeaseWithoutPayloadCopy(McapCompression compression, bool indexed)
     {
         var bytes = DeliveryOptimizationTests.Recording(compression);
-        using var reader = McapReader.OpenMessages(new MemoryStream(bytes), indexed ? new() : null,
+        using var reader = McapFileReader.OpenMessages(new MemoryStream(bytes), indexed ? new() : null,
             options: new());
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out var expected, out _));
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNext([], out _, out _));
@@ -65,7 +65,7 @@ public class SharedPendingTests
             if (mode == 0)
             {
                 int length = 0;
-                Assert.Equal(McapReadStatus.Message, reader.ReadNext((in McapMessageHeader h, ReadOnlySpan<byte> data) => { length = data.Length; return true; }));
+                Assert.Equal(McapReadStatus.Success, reader.ReadNext((in McapMessageHeader h, ReadOnlySpan<byte> data) => { length = data.Length; return true; }));
                 Assert.Equal(70000, length);
             }
             else if (mode == 1)
@@ -96,7 +96,7 @@ public class SharedPendingTests
             Assert.Equal(first, retry);
             var output = new byte[checked((int)first.Length)];
             var final = await reader.ReadNextRecordAsync(output);
-            Assert.Equal(McapReadStatus.Message, final.Status);
+            Assert.Equal(McapReadStatus.Success, final.Status);
 
         }
     }
@@ -129,7 +129,7 @@ public class SharedPendingTests
         using var snapshot = new McapIndexSnapshot(bytes);
         var chunks = snapshot.GetSummary()!.ChunkIndexes;
         Assert.True(chunks.Count > 2);
-        using var reader = McapReader.OpenMessages(new ShortReadStream(bytes), new(),
+        using var reader = McapFileReader.OpenMessages(new ShortReadStream(bytes), new(),
             options: new());
         var leases = new List<McapMessageBatchLease>();
         try
@@ -158,7 +158,7 @@ public class SharedPendingTests
         using var snapshot = new McapIndexSnapshot(bytes);
         var first = snapshot.GetSummary()!.ChunkIndexes[0];
         long start = checked((long)snapshot.GetCompressedDataOffset(first));
-        using var truncated = McapReader.OpenMessages(new ShortReadStream(bytes, start + 19, start + (long)first.CompressedSize), new());
+        using var truncated = McapFileReader.OpenMessages(new ShortReadStream(bytes, start + 19, start + (long)first.CompressedSize), new());
         Assert.Throws<McapException>(() => truncated.ReadNext(new byte[256], out _, out _));
         Assert.Throws<InvalidOperationException>(() => truncated.ReadNext(new byte[256], out _, out _));
     }

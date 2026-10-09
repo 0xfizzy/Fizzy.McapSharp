@@ -68,7 +68,7 @@ public partial class CoverageTests
         var buffer = Enumerable.Repeat((byte)0xCC, 256).ToArray();
         Assert.Equal(McapReadStatus.BufferTooSmall, snapshot.ReadMetadata(metadata, buffer.AsSpan(0, 1), out var required));
         Assert.All(buffer, b => Assert.Equal((byte)0xCC, b));
-        Assert.Equal(McapReadStatus.Message, snapshot.ReadMetadata(metadata, buffer, out var copied));
+        Assert.Equal(McapReadStatus.Success, snapshot.ReadMetadata(metadata, buffer, out var copied));
         Assert.Equal(required, copied);
         Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.ReadMetadata(metadata with { Length = 0 })).Kind);
         Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.ReadAttachment(attachment with { Length = 0 })).Kind);
@@ -112,7 +112,7 @@ public partial class CoverageTests
         var buffer = new byte[] { 0xCC };
         Assert.Equal(McapReadStatus.BufferTooSmall, snapshot.SeekMessage(chunk, entries[0].Records[0], [], out var header, out var length));
         Assert.Equal(1ul, length);
-        Assert.Equal(McapReadStatus.Message, snapshot.SeekMessage(chunk, entries[0].Records[0], buffer, out var retried, out _));
+        Assert.Equal(McapReadStatus.Success, snapshot.SeekMessage(chunk, entries[0].Records[0], buffer, out var retried, out _));
         Assert.Equal(header, retried); Assert.Equal((byte)1, buffer[0]);
         Assert.Equal(2, snapshot.ReadChunkMessages(chunk).Count());
     }

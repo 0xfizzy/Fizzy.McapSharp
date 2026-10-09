@@ -28,10 +28,12 @@ public sealed partial class McapWriter : IDisposable
         dict["compression"] = JsonSerializer.SerializeToElement(options.Compression.ToString().ToLowerInvariant());
         var req = Native.Request(new { path = path is null ? null : Path.GetFullPath(path), options = dict });
         StreamBridge? bridge = stream is null ? null : new(stream, true, leaveOpen);
+        WriterHandle? opened = null;
         try
         {
             var cb = bridge?.Callbacks ?? default;
             var status = Native.fm_writer_open(req, (nuint)req.Length, bridge is null ? null : &cb, out var p, out var r);
+            if (p != IntPtr.Zero) opened = new(p, bridge);
             try
             {
                 Native.Consume(status, r).Json?.Dispose();
@@ -41,11 +43,12 @@ public sealed partial class McapWriter : IDisposable
                 bridge?.ThrowIfError();
             }
 
-            handle = new(p, bridge);
+            handle = opened!;
         }
-        catch
+        catch (Exception operation)
         {
-            bridge?.Release();
+            try { if (opened is not null) opened.Dispose(); else bridge?.Release(); }
+            catch (Exception cleanup) { throw new AggregateException(operation, cleanup); }
             throw;
         }
     }
@@ -244,9 +247,9 @@ public sealed partial class McapWriter : IDisposable
         {
             handle.Bridge?.CheckReentry();
             ObjectDisposedException.ThrowIf(disposed, this);
-            var stream = handle.Bridge?.Detach() ?? throw new NotSupportedException("Only Stream-backed sessions can transfer ownership.");
-            Dispose();
-            return stream;
+            if (handle.Bridge is null) throw new NotSupportedException("Only Stream-backed sessions can transfer ownership.");
+            disposed = true;
+            return handle.Transfer();
         }
     }
 

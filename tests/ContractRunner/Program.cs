@@ -30,9 +30,9 @@ switch (args[0])
     case "check": await Contracts.Check(args[1], args[2]); break;
     case "exchange": Contracts.Exchange(args[1]); break;
     case "load-failure":
-        NativeLibrary.SetDllImportResolver(typeof(McapReader).Assembly, (name, assembly, search) =>
+        NativeLibrary.SetDllImportResolver(typeof(McapFileReader).Assembly, (name, assembly, search) =>
             args[1] == "missing" ? throw new DllNotFoundException("Isolated missing native asset") : NativeLibrary.Load(args[2]));
-        try { _ = new McapReader("unused"); throw new Exception("Expected load rejection"); }
+        try { _ = new McapFileReader("unused"); throw new Exception("Expected load rejection"); }
         catch (DllNotFoundException) when (args[1] == "missing") { }
         catch (McapException e) when (args[1] == "abi" && e.Message.Contains("ABI")) { }
         break;
@@ -40,7 +40,7 @@ switch (args[0])
         var library = NativeLibrary.Load(Path.GetFullPath(args[1]));
         try
         {
-            var imports = typeof(McapReader).Assembly.GetTypes().SelectMany(t => t.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic));
+            var imports = typeof(McapFileReader).Assembly.GetTypes().SelectMany(t => t.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic));
             foreach (var method in imports)
                 if (method.GetCustomAttribute<DllImportAttribute>() is { Value: "fizzy_mcap_native" } attribute)
                     if (!NativeLibrary.TryGetExport(library, attribute.EntryPoint ?? method.Name, out _)) throw new Exception("Missing export: " + method.Name);

@@ -40,7 +40,7 @@ static class Extended
                 Check("buffer/record-view " + compression, allocated);
             }
             storage.Position = 0;
-            using (var r = McapReader.OpenMessages(storage, leaveOpen: true))
+            using (var r = McapFileReader.OpenMessages(storage, leaveOpen: true))
             using (var snapshot = r.OpenIndexSnapshot())
             {
                 var summary = r.GetSummary()!;

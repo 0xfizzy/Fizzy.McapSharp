@@ -38,7 +38,7 @@ internal sealed unsafe class OwnedReadSink : IDisposable
             owner.Header = new(header->ChannelId, header->Sequence, header->LogTime, header->PublishTime);
             switch (owner.kind)
             {
-                case Kind.Record: owner.Value = new McapRecord(opcode, body.ToArray()); *copied = length; break;
+                case Kind.Record: owner.Value = new McapRawRecord(opcode, body.ToArray()); *copied = length; break;
                 case Kind.MessageBody:
                     if (opcode != 5) return 0;
                     body = body[22..];

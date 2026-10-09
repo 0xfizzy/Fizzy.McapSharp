@@ -615,11 +615,19 @@ pub unsafe extern "C" fn fm_buffer_reader_next(
     }
     status
 }
+#[cfg(test)]
+pub unsafe fn fm_buffer_reader_free(p: *mut BufferReader) {
+    let mut response = Response::default();
+    fm_buffer_reader_release(p, &mut response);
+    fm_buffer_free(response.json, response.json_len);
+    fm_buffer_free(response.data, response.data_len);
+}
 #[no_mangle]
-pub unsafe extern "C" fn fm_buffer_reader_free(p: *mut BufferReader) {
-    if !p.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p))));
-    }
+pub unsafe extern "C" fn fm_buffer_reader_release(p: *mut BufferReader, out: *mut Response) -> i32 {
+    guard(out, |_| {
+        if !p.is_null() { drop(Box::from_raw(p)); }
+        Ok(0)
+    })
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_reader_message(

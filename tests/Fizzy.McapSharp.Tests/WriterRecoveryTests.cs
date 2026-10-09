@@ -38,9 +38,9 @@ public class WriterRecoveryTests
                 Assert.Equal(2ul, w.GetSummary().Statistics!.MessageCount);
             }
             using Stream input = file ? File.OpenRead(path) : new MemoryStream(stream.ToArray());
-            using var reader = McapReader.OpenMessages(input, options: McapReaderOptions.Strict);
+            using var reader = McapFileReader.OpenMessages(input, options: McapReaderOptions.Strict);
             Assert.Equal(new ulong[] { 10, 20 }, reader.ReadMessages().Select(m => m.LogTime));
-            Assert.True(reader.IsComplete);
+            Assert.True(reader.IsFullyValidated);
             Assert.Equal(2, reader.GetSummary()!.SchemaIds.Count);
         }
         finally { if (File.Exists(path)) File.Delete(path); }

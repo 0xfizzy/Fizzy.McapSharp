@@ -4,9 +4,9 @@ using System.Text;
 namespace Fizzy.McapSharp;
 
 public enum McapOpcode : byte { Header = 1, Footer, Schema, Channel, Message, Chunk, MessageIndex, ChunkIndex, Attachment, AttachmentIndex, Statistics, Metadata, MetadataIndex, SummaryOffset, DataEnd }
-public readonly record struct McapFooter(ulong SummaryStart, ulong SummaryOffsetStart, uint SummaryCrc);
-public readonly record struct McapSummaryOffset(byte GroupOpcode, ulong GroupStart, ulong GroupLength);
-public readonly record struct McapDataEnd(uint DataSectionCrc);
+public readonly record struct McapFooter(ulong SummaryStart, ulong SummaryOffsetStart, uint SummaryCrc) : IMcapParsedRecord;
+public readonly record struct McapSummaryOffset(byte GroupOpcode, ulong GroupStart, ulong GroupLength) : IMcapParsedRecord;
+public readonly record struct McapDataEnd(uint DataSectionCrc) : IMcapParsedRecord;
 public static class McapFormat
 {
     public static ReadOnlySpan<byte> Magic => [0x89, 0x4d, 0x43, 0x41, 0x50, 0x30, 0x0d, 0x0a];
@@ -37,7 +37,7 @@ public readonly ref struct McapRecordView
     public McapSummaryOffset SummaryOffset { get { Require(14); var r = Fields; return new(r.ReadByte(), r.ReadUInt64(), r.ReadUInt64()); } }
     public McapDataEnd DataEnd { get { Require(15); return new(BinaryPrimitives.ReadUInt32LittleEndian(Data)); } }
     public McapRecordFields Fields => new(Data);
-    public McapRecord ToOwned() => new(Opcode, Data.ToArray());
+    public McapRawRecord ToOwned() => new(Opcode, Data.ToArray());
 }
 
 /// <summary>Allocation-free typed field cursor. Length-prefixed collections can be traversed with another cursor.</summary>

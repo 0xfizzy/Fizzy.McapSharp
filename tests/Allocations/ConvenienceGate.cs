@@ -35,7 +35,7 @@ static class ConvenienceGate
         var bytes = storage.ToArray();
         foreach (bool buffer in new[] { false, true })
         {
-            using var session = McapReader.OpenMessages(new MemoryStream(bytes));
+            using var session = McapFileReader.OpenMessages(new MemoryStream(bytes));
             using var reader = new McapBufferReader(bytes);
             using var messages = (buffer ? reader.ReadMessages() : session.ReadMessages()).GetEnumerator();
             for (int i = 0; i < 4; i++) messages.MoveNext();
@@ -74,7 +74,7 @@ static class ConvenienceGate
     static long Measure(byte[] bytes, int kind)
     {
         using var stream = new MemoryStream(bytes);
-        using var session = McapReader.OpenRecords(stream);
+        using var session = McapFileReader.OpenRecords(stream);
         long before = GC.GetAllocatedBytesForCurrentThread();
         int count = kind switch
         {

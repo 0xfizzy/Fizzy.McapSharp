@@ -48,7 +48,7 @@ foreach (var compression in Enum.GetValues<McapCompression>())
         storage.Position = 0;
         if (fileStream is not null)
             fileStream.Position = 0;
-        using (var r = mode == "file" ? new McapReader(path).OpenMessages() : McapReader.OpenMessages(fileStream is not null ? fileStream : new SpanStream(storage, mode == "seekable"), leaveOpen: true))
+        using (var r = mode == "file" ? new McapFileReader(path).OpenMessages() : McapFileReader.OpenMessages(fileStream is not null ? fileStream : new SpanStream(storage, mode == "seekable"), leaveOpen: true))
         {
             var buffer = new byte[100000];
             for (int i = 0; i < 1000; i++)
@@ -61,7 +61,7 @@ foreach (var compression in Enum.GetValues<McapCompression>())
                 var status = r.ReadNext([], out _, out _);
                 if (status == McapReadStatus.EndOfStream)
                     break;
-                if (status == McapReadStatus.BufferTooSmall && r.ReadNext(buffer, out _, out _) != McapReadStatus.Message)
+                if (status == McapReadStatus.BufferTooSmall && r.ReadNext(buffer, out _, out _) != McapReadStatus.Success)
                     throw new Exception("Retry failed");
                 n++;
             }
@@ -78,7 +78,7 @@ foreach (var compression in Enum.GetValues<McapCompression>())
         storage.Position = 0;
         if (fileStream is not null)
             fileStream.Position = 0;
-        using (var r = mode == "file" ? new McapReader(path).OpenMessages(new() { Topic = "t" }) : McapReader.OpenMessages(fileStream is not null ? fileStream : new SpanStream(storage, mode == "seekable"), new() { Topic = "t" }, true))
+        using (var r = mode == "file" ? new McapFileReader(path).OpenMessages(new() { Topic = "t" }) : McapFileReader.OpenMessages(fileStream is not null ? fileStream : new SpanStream(storage, mode == "seekable"), new() { Topic = "t" }, true))
         {
             var buffer = new byte[1024];
             for (int i = 0; i < 1000; i++)

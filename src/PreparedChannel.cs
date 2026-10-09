@@ -32,18 +32,16 @@ public sealed class McapPreparedChannel : IDisposable
     public void Dispose() => Handle.Dispose();
 }
 
-internal sealed class PreparedChannelHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal sealed class PreparedChannelHandle : OwnedNativeHandle
 {
-    internal PreparedChannelHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_channel_free(handle); return true; }
+    internal PreparedChannelHandle(IntPtr p) : base(p) { }
+    protected override int ReleaseNative(IntPtr value, out Native.Result result) => Native.fm_channel_release(value, out result);
 }
 
 internal static partial class Native
 {
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_channel_prepare(byte[] req, nuint n, byte* data, nuint len, out IntPtr p, out Result result);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void fm_channel_free(IntPtr p);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_writer_full_message(WriterHandle w, PreparedChannelHandle c, NativeHeader* h, byte* data, nuint len, out Result result);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

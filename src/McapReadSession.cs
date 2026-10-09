@@ -7,12 +7,15 @@ public sealed partial class McapReadSession : IDisposable
     readonly ReaderHandle handle;
     readonly bool seekable;
     readonly object gate = new();
+    readonly BorrowedReadSink borrowed = new();
     bool disposed, failed, ended, fullyValidated;
     readonly bool messages;
     readonly bool topLevel;
     readonly bool strict;
+    /// <summary>True after reaching the end of this scan without failure; does not imply full-file validation.</summary>
     public bool IsScanComplete { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed; } } }
-    public bool IsComplete { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed && fullyValidated; } } }
+    /// <summary>True only after a strict complete expanded scan validates the entire file; indexed or non-strict success is insufficient.</summary>
+    public bool IsFullyValidated { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed && fullyValidated; } } }
     ulong scannedRecordCount;
     public ulong ScannedRecordCount { get { lock (gate) { borrowed.CheckReentry(); return scannedRecordCount; } } private set => scannedRecordCount = value; }
 
@@ -33,25 +36,21 @@ public sealed partial class McapReadSession : IDisposable
         seekable = stream?.CanSeek ?? true;
         var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), allowBufferedSort = query?.AllowBufferedSort ?? true, indexedOnly, options, maxBufferedSortBytes = query?.MaxBufferedSortBytes, recordLengthLimit = options.RecordLengthLimit });
         StreamBridge? bridge = stream is null ? null : new(stream, false, leaveOpen);
+        ReaderHandle? opened = null;
         try
         {
             var cb = bridge?.Callbacks ?? default;
             int status = Native.fm_reader_open(request, (nuint)request.Length, bridge is null ? null : &cb, out var p, out var r);
-            try
-            {
-                if (status == 3) throw new NotSupportedException("Time ordering requires buffered sorting, which this query disables.");
-                Native.Consume(status, r).Json?.Dispose();
-            }
-            finally
-            {
-                bridge?.ThrowIfError();
-            }
+            if (p != IntPtr.Zero) opened = new(p, bridge);
+            Native.ConsumeReader(status, r, bridge).Json?.Dispose();
+            if (status == 3) throw new NotSupportedException("Time ordering requires buffered sorting, which this query disables.");
 
-            handle = new(p, bridge);
+            handle = opened!;
         }
-        catch
+        catch (Exception operation)
         {
-            bridge?.Release();
+            try { if (opened is not null) opened.Dispose(); else bridge?.Release(); }
+            catch (Exception cleanup) { throw new AggregateException(operation, cleanup); }
             throw;
         }
     }
@@ -64,6 +63,7 @@ public sealed partial class McapReadSession : IDisposable
             throw new InvalidOperationException("Reader failed; open a new session.");
     }
 
+    /// <summary>Copies one message payload into caller storage. BufferTooSmall reports the required byte length and preserves the pending message for retry; EOF is not proof of complete validation.</summary>
     public McapReadStatus ReadNext(Span<byte> destination, out McapMessageHeader header, out ulong requiredLength)
     {
         if (!messages)
@@ -71,6 +71,7 @@ public sealed partial class McapReadSession : IDisposable
         return Read(destination, out header, out _, out requiredLength);
     }
 
+    /// <summary>Copies one raw record body into caller storage. BufferTooSmall retains the record and reports required capacity. The returned opcode identifies the body; length excludes the record header.</summary>
     public McapReadStatus ReadNextRecord(Span<byte> destination, out byte opcode, out ulong requiredLength)
     {
         if (messages)
@@ -108,7 +109,7 @@ public sealed partial class McapReadSession : IDisposable
                         return McapReadStatus.EndOfStream;
                     }
 
-                    return status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Message;
+                    return status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
                 }
             }
             catch
@@ -153,41 +154,35 @@ public sealed partial class McapReadSession : IDisposable
             Check();
             if (!seekable && !ended)
                 throw new NotSupportedException("Read the non-seekable stream to EOF first.");
-            int status = Native.fm_reader_summary(handle, out var r);
             try
             {
-                var x = Native.Consume(status, r);
+                int status = Native.fm_reader_summary(handle, out var r);
+                var x = Native.ConsumeReader(status, r, handle.Bridge);
                 using var j = x.Json;
                 return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options);
             }
-            finally
-            {
-                handle.Bridge?.ThrowIfError();
-            }
+            catch { failed = true; throw; }
         }
     }
 
-    public McapRecord ReadRecordAt(ulong offset)
+    public McapRawRecord ReadRecordAt(ulong offset)
     {
         lock (gate)
         {
             Check();
             if (!seekable)
                 throw new NotSupportedException("Random access requires a seekable source.");
-            int status = Native.fm_reader_record_at(handle, offset, out var r);
             try
             {
-                var x = Native.Consume(status, r);
+                int status = Native.fm_reader_record_at(handle, offset, out var r);
+                var x = Native.ConsumeReader(status, r, handle.Bridge);
                 return new(checked((byte)x.Value), x.Data);
             }
-            finally
-            {
-                handle.Bridge?.ThrowIfError();
-            }
+            catch { failed = true; throw; }
         }
     }
 
-    public McapRecord ReadChunk(McapChunkIndex index)
+    public McapRawRecord ReadChunk(McapChunkIndex index)
     {
         var record = ReadRecordAt(index.ChunkStartOffset);
         if (record.Opcode != 6 || (ulong)record.Data.Length + 9 != index.ChunkLength)
@@ -255,11 +250,12 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
-    public IEnumerable<McapRecord> ReadRecords()
+    /// <summary>Advances this session and yields independently owned copies of raw record bodies.</summary>
+    public IEnumerable<McapRawRecord> ReadRecords()
     {
         if (messages) throw new InvalidOperationException("This is a message session.");
         using var sink = new OwnedReadSink(OwnedReadSink.Kind.Record);
-        while (ReadOwned(sink)) yield return (McapRecord)sink.Value!;
+        while (ReadOwned(sink)) yield return (McapRawRecord)sink.Value!;
     }
 
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
@@ -273,7 +269,7 @@ public sealed partial class McapReadSession : IDisposable
             try
             {
                 if (!iterator.MoveNext())
-                    return new(count, IsComplete, null);
+                    return new(count, IsFullyValidated, null);
                 message = iterator.Current;
             }
             catch (McapException e)
@@ -301,7 +297,7 @@ public sealed partial class McapReadSession : IDisposable
                 buffer = new byte[checked((int)length)];
         }
 
-        if (!IsComplete)
+        if (!IsFullyValidated)
             throw new InvalidOperationException("Indexed queries cannot validate the full source.");
         return ScannedRecordCount;
     }
@@ -333,9 +329,9 @@ public sealed partial class McapReadSession : IDisposable
         {
             borrowed.CheckReentry(); handle.Bridge?.CheckReentry();
             ObjectDisposedException.ThrowIf(disposed, this);
-            var stream = handle.Bridge?.Detach() ?? throw new NotSupportedException("Only Stream-backed sessions can transfer ownership.");
-            Dispose();
-            return stream;
+            if (handle.Bridge is null) throw new NotSupportedException("Only Stream-backed sessions can transfer ownership.");
+            disposed = true;
+            return handle.Transfer();
         }
     }
 

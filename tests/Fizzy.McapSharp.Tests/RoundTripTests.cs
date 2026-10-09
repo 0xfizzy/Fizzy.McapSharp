@@ -28,7 +28,7 @@ public sealed class RoundTripTests : IDisposable
             Assert.Throws<InvalidOperationException>(() => writer.Flush());
         }
 
-        var reader = new McapReader(path);
+        var reader = new McapFileReader(path);
         Assert.True(reader.Validate() > 0);
         var messages = reader.ReadMessages(new() { Topic = "/camera", StartTime = 100, EndTime = 150 }).ToArray();
         Assert.Equal(5, messages.Length);
@@ -51,7 +51,7 @@ public sealed class RoundTripTests : IDisposable
             w.Complete();
         }
 
-        var r = new McapReader(path);
+        var r = new McapFileReader(path);
         r.Validate();
         Assert.Equal(42, r.ReadMessages(new() { Topic = "t", StartTime = 3, EndTime = 4 }).Single().Data[0]);
     }
@@ -66,7 +66,7 @@ public sealed class RoundTripTests : IDisposable
             w.WriteMessage(new McapMessageHeader(c, 1, 1, 1), [42]);
         }
 
-        Assert.Throws<McapException>(() => new McapReader(path).Validate());
+        Assert.Throws<McapException>(() => new McapFileReader(path).Validate());
     }
 
     [Fact]
@@ -86,9 +86,9 @@ public sealed class RoundTripTests : IDisposable
         bytes[index] ^= 1;
         var corrupt = PathFor("corrupt.mcap");
         File.WriteAllBytes(corrupt, bytes);
-        Assert.Throws<McapException>(() => new McapReader(corrupt).Validate());
+        Assert.Throws<McapException>(() => new McapFileReader(corrupt).Validate());
         File.WriteAllBytes(corrupt, bytes[..^5]);
-        Assert.Throws<McapException>(() => new McapReader(corrupt).ReadMessages().ToArray());
+        Assert.Throws<McapException>(() => new McapFileReader(corrupt).ReadMessages().ToArray());
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class RoundTripTests : IDisposable
             w.Complete();
         }
 
-        using (var e = new McapReader(path).ReadMessages().GetEnumerator())
+        using (var e = new McapFileReader(path).ReadMessages().GetEnumerator())
         {
             Assert.True(e.MoveNext());
             if (OperatingSystem.IsWindows())
@@ -137,8 +137,8 @@ public sealed class RoundTripTests : IDisposable
         }
 
         var messages = new List<McapMessage>();
-        var result = new McapReader(path).RecoverMessages(messages.Add);
-        Assert.False(result.IsComplete);
+        var result = new McapFileReader(path).RecoverMessages(messages.Add);
+        Assert.False(result.IsFullyValidated);
         Assert.NotNull(result.Error);
         Assert.Single(messages);
         Assert.Equal(1ul, result.RecoveredMessageCount);
@@ -155,7 +155,7 @@ public sealed class RoundTripTests : IDisposable
             w.Complete();
         }
 
-        var reader = new McapReader(path);
+        var reader = new McapFileReader(path);
         reader.Validate();
         Assert.Single(reader.ReadSchemas());
         Assert.Equal("schema", reader.ReadChannels().Single().Schema!.Name);
@@ -184,7 +184,7 @@ public sealed class RoundTripTests : IDisposable
         Assert.True(index > 0);
         bytes[index] ^= 1;
         File.WriteAllBytes(path, bytes);
-        Assert.Throws<McapException>(() => new McapReader(path).Validate());
+        Assert.Throws<McapException>(() => new McapFileReader(path).Validate());
     }
 
     [Theory]
@@ -208,7 +208,7 @@ public sealed class RoundTripTests : IDisposable
         }
 
         McapMessage message;
-        using (var enumerator = new McapReader(path).ReadMessages().GetEnumerator())
+        using (var enumerator = new McapFileReader(path).ReadMessages().GetEnumerator())
         {
             Assert.True(enumerator.MoveNext());
             message = enumerator.Current;

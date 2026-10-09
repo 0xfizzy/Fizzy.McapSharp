@@ -27,24 +27,24 @@ public class ConvenienceTests
         var bytes = storage.ToArray();
         McapSchema[] schemas;
         McapAttachment[] attachments;
-        using (var session = McapReader.OpenRecords(new MemoryStream(bytes))) schemas = session.ReadSchemas().ToArray();
-        using (var session = McapReader.OpenRecords(new MemoryStream(bytes))) attachments = session.ReadAttachments().ToArray();
+        using (var session = McapFileReader.OpenRecords(new MemoryStream(bytes))) schemas = session.ReadSchemas().ToArray();
+        using (var session = McapFileReader.OpenRecords(new MemoryStream(bytes))) attachments = session.ReadAttachments().ToArray();
         Assert.Equal(new byte[] { 1, 2 }, Assert.Single(schemas).Data);
         Assert.Equal(3, attachments.Length);
         Assert.Empty(attachments[0].Data);
         Assert.Equal(new byte[] { 1 }, attachments[1].Data);
         Assert.Equal(new byte[] { 2 }, attachments[2].Data);
-        using (var session = McapReader.OpenRecords(new MemoryStream(bytes)))
+        using (var session = McapFileReader.OpenRecords(new MemoryStream(bytes)))
             Assert.Equal(new[] { "t", "unused" }, session.ReadChannels().Select(c => c.Topic));
-        using (var session = McapReader.OpenRecords(new MemoryStream(bytes)))
+        using (var session = McapFileReader.OpenRecords(new MemoryStream(bytes)))
             Assert.Equal(new[] { "0", "1", "2" }, session.ReadMetadata().Select(m => m.Values["k"]));
-        using (var session = McapReader.OpenRecords(new MemoryStream(bytes)))
+        using (var session = McapFileReader.OpenRecords(new MemoryStream(bytes)))
         {
             using (var enumerator = session.ReadMetadata().GetEnumerator()) Assert.True(enumerator.MoveNext());
             Assert.Equal(new[] { "1", "2" }, session.ReadMetadata().Select(m => m.Values["k"]));
         }
         bytes[^1] ^= 1;
-        using var damaged = McapReader.OpenRecords(new MemoryStream(bytes), options: McapReaderOptions.Strict);
+        using var damaged = McapFileReader.OpenRecords(new MemoryStream(bytes), options: McapReaderOptions.Strict);
         Assert.Throws<McapException>(() => damaged.ReadMetadata().ToArray());
     }
 

@@ -101,7 +101,7 @@ public class MemoryOptimizationTests
         Assert.Equal(McapReadStatus.BufferTooSmall, Read([], out var length));
         Assert.Equal(McapReadStatus.BufferTooSmall, Read([], out _));
 
-        Assert.Equal(McapReadStatus.Message, Read(new byte[(int)length], out _));
+        Assert.Equal(McapReadStatus.Success, Read(new byte[(int)length], out _));
 
     }
 

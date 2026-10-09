@@ -12,13 +12,13 @@ extern "C" {
     fn fm_buffer_free(p: *mut u8, n: usize);
     fn fm_buffer_reader_open(mode: u32, ignore: bool, p: *const u8, n: usize, h: *mut *mut c_void, r: *mut Response) -> i32;
     fn fm_buffer_reader_next(h: *mut c_void, p: *mut u8, n: usize, op: *mut u8, r: *mut Response) -> i32;
-    fn fm_buffer_reader_free(h: *mut c_void);
+    fn fm_buffer_reader_release(h: *mut c_void, r: *mut Response) -> i32;
     fn fm_parse_record(op: u8, p: *const u8, n: usize, r: *mut Response) -> i32;
     fn fm_snapshot_bytes(p: *const u8, n: usize, h: *mut *mut c_void, r: *mut Response) -> i32;
     fn fm_snapshot_summary(h: *mut c_void, r: *mut Response) -> i32;
     fn fm_snapshot_call(h: *mut c_void, op: u32, index: *const u8, length: usize, time: u64, offset: u64,
         dest: *mut u8, capacity: usize, header: *mut Header, r: *mut Response) -> i32;
-    fn fm_snapshot_free(h: *mut c_void);
+    fn fm_snapshot_release(h: *mut c_void, r: *mut Response) -> i32;
 }
 unsafe fn release(r: &mut Response) {
     let panic = r.json_len > 0 && String::from_utf8_lossy(slice::from_raw_parts(r.json, r.json_len)).contains("Native MCAP panic");
@@ -44,7 +44,7 @@ fn main() {
     let data = fs::read(&args[1]).unwrap();
     let repeats = args.get(2).map(|s| s.parse::<usize>().unwrap()).unwrap_or(1);
     unsafe {
-        assert_eq!(fm_abi_version(), 13);
+        assert_eq!(fm_abi_version(), 14);
         for _ in 0..repeats {
             let mut indexes = Vec::new();
             for mode in [0, 2, 4, 5] {
@@ -70,7 +70,9 @@ fn main() {
                     ordinal += 1;
                 }
                 trace::emit("strict free");
-                fm_buffer_reader_free(h);
+                let status = fm_buffer_reader_release(h, &mut r);
+                release(&mut r);
+                assert_eq!(status, 0, "Native release failed");
             }
             trace::emit("strict snapshot");
             let mut h = ptr::null_mut(); let mut r = Response::default();
@@ -91,7 +93,9 @@ fn main() {
                         if status < 0 { break; }
                     }
                 }
-                fm_snapshot_free(h);
+                let status = fm_snapshot_release(h, &mut r);
+                release(&mut r);
+                assert_eq!(status, 0, "Native release failed");
             }
             else { assert!(h.is_null()); }
         }

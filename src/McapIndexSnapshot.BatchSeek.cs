@@ -3,13 +3,8 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-public readonly record struct McapSeekRequest(McapPreparedChunkIndex Index, McapMessageIndexEntry Entry);
-public readonly record struct McapCacheStatistics(ulong Hits, ulong ChunkLoads);
-
 public sealed partial class McapIndexSnapshot
 {
-    readonly BorrowedReadSink borrowed = new();
-    void Check() { borrowed.CheckReentry(); ObjectDisposedException.ThrowIf(handle.IsClosed, this); }
     /// <summary>Within this call, loads each distinct chunk once and returns a shared batch in request order. Cross-call reuse depends on the snapshot cache; returned leases may retain whole chunks or input storage.</summary>
     public unsafe McapMessageBatchLease SeekMessages(ReadOnlySpan<McapSeekRequest> requests)
     {
@@ -72,13 +67,4 @@ public sealed partial class McapIndexSnapshot
             return new(hits, loads);
         }
     }
-}
-internal static partial class Native
-{
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct SeekRequest { internal IntPtr Index; internal ulong Time, Offset; }
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_snapshot_seek_batch(SnapshotHandle snapshot, SeekRequest* requests, nuint count, out IntPtr batch, out Result result);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int fm_snapshot_cache_statistics(SnapshotHandle snapshot, out ulong hits, out ulong loads, out Result result);
 }

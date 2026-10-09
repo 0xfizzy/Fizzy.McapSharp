@@ -10,7 +10,7 @@ static class Contracts
         if (paths.Length != 18) throw new Exception("Expected all 18 platform/producer/compression fixtures");
         foreach (var path in paths)
         {
-            var r = new McapReader(path); r.Validate();
+            var r = new McapFileReader(path); r.Validate();
             var messages = r.ReadMessages(new() { Topic = "/test", StartTime = 200, EndTime = 500 }).ToArray();
             if (!messages.Select(m => m.Sequence).SequenceEqual(new uint[] { 2, 3, 4 })) throw new Exception("Exchanged query mismatch");
             var origin = Path.GetFileName(path).StartsWith("python-") ? "python" : "dotnet";
@@ -38,7 +38,7 @@ static class Contracts
             for (int i = 0; i < actual.Length; i++)
                 if (JsonSerializer.Serialize(actual[i]) != JsonSerializer.Serialize(want[i])) throw new Exception($"Message {i} differs");
         }
-        var reader = new McapReader(path);
+        var reader = new McapFileReader(path);
         reader.Validate();
         Compare(reader.ReadMessages(new() { Order = McapReadOrder.File }), false);
         Compare(reader.ReadMessages(new() { Order = McapReadOrder.LogTime }), true);
@@ -68,7 +68,7 @@ static class Contracts
         }
         using (var buffer = new McapBufferReader(File.ReadAllBytes(path))) Compare(buffer.ReadMessages(), false);
         using (var stream = File.OpenRead(path))
-        using (var session = McapReader.OpenMessages(stream))
+        using (var session = McapFileReader.OpenMessages(stream))
         {
             var data = new byte[8192]; var count = 0;
             while (true)
@@ -78,7 +78,7 @@ static class Contracts
                 if (length > (ulong)data.Length) data = new byte[checked((int)length)];
                 if (status == McapReadStatus.BufferTooSmall)
                 {
-                    if (session.ReadNext(data, out var retried, out var copied) != McapReadStatus.Message || header != retried || length != copied) throw new Exception("Retry changed record");
+                    if (session.ReadNext(data, out var retried, out var copied) != McapReadStatus.Success || header != retried || length != copied) throw new Exception("Retry changed record");
                 }
                 var f = Canon.Fields(expected[count++]);
                 if (header.Sequence != uint.Parse(f["sequence"].GetString()!) || !data.AsSpan(0, (int)length).SequenceEqual(f["data"].EnumerateArray().Select(x => byte.Parse(x.GetString()!)).ToArray())) throw new Exception("Buffer mismatch");
@@ -121,7 +121,7 @@ static class Contracts
         try
         {
             using var stream = File.OpenRead(path);
-            using var reader = McapReader.OpenRecords(stream, options: McapReaderOptions.Strict with { RecordLengthLimit = 8 * 1024 * 1024 });
+            using var reader = McapFileReader.OpenRecords(stream, options: McapReaderOptions.Strict with { RecordLengthLimit = 8 * 1024 * 1024 });
             byte[] data = new byte[8 * 1024 * 1024];
             while (reader.ReadNextRecord(data, out _, out _) != McapReadStatus.EndOfStream) { }
         }
@@ -137,7 +137,7 @@ static class Contracts
             do
             {
                 using (var w = new McapWriter(path)) { var c = w.RegisterChannel("lifecycle", "raw"); w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), [1]); w.Complete(); }
-                var r = new McapReader(path);
+                var r = new McapFileReader(path);
                 using (var s = r.OpenMessages()) using (var snapshot = s.OpenIndexSnapshot())
                     if (s.ReadMessages().Single().Data[0] != 1) throw new Exception("Lifecycle mismatch");
                 using (var stream = File.OpenRead(path)) await using (var a = new McapAsyncReader(stream)) { await a.ReadNextRecordAsync(new byte[1024]); }
@@ -169,9 +169,9 @@ static class Contracts
                 w.Complete();
             }
             if (new FileInfo(path).Length <= uint.MaxValue) throw new Exception("Large fixture too small");
-            var r = new McapReader(path); r.Validate();
+            var r = new McapFileReader(path); r.Validate();
             using var s = r.OpenIndexedMessages(new() { StartTime = 4096 });
-            if (s.ReadNext(data, out var h, out var n) != McapReadStatus.Message || h.Sequence != 4096 || n != (ulong)data.Length || BitConverter.ToUInt32(data) != 4096) throw new Exception("64-bit index mismatch");
+            if (s.ReadNext(data, out var h, out var n) != McapReadStatus.Success || h.Sequence != 4096 || n != (ulong)data.Length || BitConverter.ToUInt32(data) != 4096) throw new Exception("64-bit index mismatch");
             if (s.ReadNext(data, out _, out _) != McapReadStatus.EndOfStream) throw new Exception("Unexpected tail");
         }
         finally { File.Delete(path); }

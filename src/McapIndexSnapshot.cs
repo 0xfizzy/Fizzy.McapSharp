@@ -9,6 +9,8 @@ public sealed partial class McapIndexSnapshot : IDisposable
 {
     readonly SnapshotHandle handle;
     readonly object gate = new();
+    readonly BorrowedReadSink borrowed = new();
+    void Check() { borrowed.CheckReentry(); ObjectDisposedException.ThrowIf(handle.IsClosed, this); }
     internal McapIndexSnapshot(IntPtr p) => handle = new(p);
     public McapIndexSnapshot(ReadOnlySpan<byte> data) : this(data, null) { }
     public unsafe McapIndexSnapshot(ReadOnlySpan<byte> data, McapIndexSnapshotOptions? options)
@@ -116,7 +118,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
                     int status = Native.fm_snapshot_call(handle, op, body, (nuint)encoded.Length, message.LogTime, message.Offset, p, (nuint)destination.Length, out var h, out var r);
                     if (status < 0) throw Native.ConsumeError(r);
                     header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime); length = r.Value;
-                    return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Message;
+                    return status == 1 ? McapReadStatus.EndOfStream : status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
                 }
             }
             finally { NativeMemory.Free(allocated); }
@@ -135,9 +137,13 @@ public sealed partial class McapReadSession
             Check();
             if (!seekable) throw new NotSupportedException("Snapshot requires a seekable source.");
             var config = options is null ? Array.Empty<byte>() : Native.Request(options);
-            int status = Native.fm_snapshot_open_options(handle, config, (nuint)config.Length, out var p, out var r);
-            try { Native.Consume(status, r).Json?.Dispose(); return new(p); }
-            finally { handle.Bridge?.ThrowIfError(); }
+            try
+            {
+                int status = Native.fm_snapshot_open_options(handle, config, (nuint)config.Length, out var p, out var r);
+                Native.ConsumeReader(status, r, handle.Bridge).Json?.Dispose();
+                return new(p);
+            }
+            catch { failed = true; throw; }
         }
     }
     public unsafe McapReadStatus ReadRecordAt(ulong offset, Span<byte> destination, out byte opcode, out ulong length)
@@ -146,25 +152,29 @@ public sealed partial class McapReadSession
         {
             Check();
             if (!seekable) throw new NotSupportedException("Random access requires a seekable source.");
-            fixed (byte* p = destination)
+            try
             {
-                int status = Native.fm_reader_record_into(handle, offset, p, (nuint)destination.Length, out opcode, out var r);
-                if (status < 0)
+                fixed (byte* p = destination)
                 {
-                    var error = Native.ConsumeError(r);
-                    handle.Bridge?.ThrowIfError();
-                    throw error;
+                    int status = Native.fm_reader_record_into(handle, offset, p, (nuint)destination.Length, out opcode, out var r);
+                    if (status < 0)
+                    {
+                        var error = Native.ConsumeError(r);
+                        if (handle.Bridge is not null) handle.Bridge.ThrowOperationError(error);
+                        throw error;
+                    }
+                    length = r.Value;
+                    return status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
                 }
-                length = r.Value;
-                return status == 2 ? McapReadStatus.BufferTooSmall : McapReadStatus.Message;
             }
+            catch { failed = true; throw; }
         }
     }
 }
-internal sealed class SnapshotHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal sealed class SnapshotHandle : OwnedNativeHandle
 {
-    internal SnapshotHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_snapshot_free(handle);  return true; }
+    internal SnapshotHandle(IntPtr p) : base(p) { }
+    protected override int ReleaseNative(IntPtr value, out Native.Result result) => Native.fm_snapshot_release(value, out result);
 }
 internal static partial class Native
 {
@@ -182,8 +192,6 @@ internal static partial class Native
     internal static extern int fm_snapshot_open(ReaderHandle h, out IntPtr p, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_snapshot_call(SnapshotHandle h, uint op, byte* index, nuint indexLength, ulong messageTime, ulong messageOffset, byte* dest, nuint capacity, out NativeHeader header, out Result r);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void fm_snapshot_free(IntPtr p);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_parse_record(byte op, byte* p, nuint n, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

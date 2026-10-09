@@ -37,7 +37,7 @@ fn private_abi_layout_matches_managed_contract() {
         ],
         [0, 8, 16, 24, 32, 40]
     );
-    assert_eq!(size_of::<extended::Event>(), 56);
+    assert_eq!(size_of::<engine::Event>(), 56);
 }
 
 fn fixture(options: mcap::WriteOptions) -> Vec<u8> {
@@ -140,7 +140,7 @@ fn caller_indexes_match_official_helpers() {
             let mut snapshot = ptr::null_mut();
             let mut response = Response::default();
             assert_eq!(
-                extended::fm_snapshot_bytes(
+                snapshot::fm_snapshot_bytes(
                     data.as_ptr(),
                     data.len(),
                     &mut snapshot,
@@ -157,7 +157,7 @@ fn caller_indexes_match_official_helpers() {
             let mut output = vec![0; 1024];
             let mut header = MessageHeader::default();
             assert_eq!(
-                extended::fm_snapshot_call(
+                snapshot::fm_snapshot_call(
                     snapshot,
                     5,
                     encoded.as_ptr(),
@@ -179,7 +179,7 @@ fn caller_indexes_match_official_helpers() {
             let expected_error = summary.read_message_indexes(&data, &index).unwrap_err();
             let (_, encoded) = buffer_reader::encode(records::Record::ChunkIndex(index)).unwrap();
             assert_eq!(
-                extended::fm_snapshot_call(
+                snapshot::fm_snapshot_call(
                     snapshot,
                     5,
                     encoded.as_ptr(),
@@ -199,7 +199,7 @@ fn caller_indexes_match_official_helpers() {
             );
             fm_buffer_free(response.json, response.json_len);
             fm_buffer_free(response.data, response.data_len);
-            extended::fm_snapshot_free(snapshot);
+            snapshot::fm_snapshot_free(snapshot);
         }
     }
 }

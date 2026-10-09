@@ -90,7 +90,7 @@ public sealed class SharedStatisticsTests
         else
         {
             stream.Position = 0;
-            using var reader = McapReader.OpenMessages(stream, new() { Order = McapReadOrder.File }, true,
+            using var reader = McapFileReader.OpenMessages(stream, new() { Order = McapReadOrder.File }, true,
                 new());
             // Shared summary declarations are then compared against raw sequential declarations.
             Assert.NotNull(reader.GetSummary());
@@ -183,7 +183,7 @@ public sealed class SharedStatisticsTests
             Check(writer.GetSummary());
         }
         storage.Position = 0;
-        using var reader = McapReader.OpenMessages(storage, leaveOpen: true);
+        using var reader = McapFileReader.OpenMessages(storage, leaveOpen: true);
         Check(reader.GetSummary()!);
         Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext(Span<byte>.Empty, out _, out _));
         Check(reader.GetSummary()!);
@@ -219,7 +219,7 @@ public sealed class SharedStatisticsTests
 
         }
         storage.Position = 0;
-        using var reader = McapReader.OpenMessages(storage, leaveOpen: true);
+        using var reader = McapFileReader.OpenMessages(storage, leaveOpen: true);
         Check(reader.GetSummary()!);
         Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNext(Span<byte>.Empty, out _, out _));
         Check(reader.GetSummary()!);
@@ -256,12 +256,12 @@ public sealed class SharedStatisticsTests
                 Check(writer.GetSummary());
         }
         storage.Position = 0;
-        using (var reader = McapReader.OpenMessages(storage, leaveOpen: true))
+        using (var reader = McapFileReader.OpenMessages(storage, leaveOpen: true))
         {
             Check(reader.GetSummary()!);
             Span<byte> data = stackalloc byte[4];
             var count = 0;
-            while (reader.ReadNext(data, out _, out _) == McapReadStatus.Message)
+            while (reader.ReadNext(data, out _, out _) == McapReadStatus.Success)
                 ++count;
             Assert.Equal(10, count);
             Check(reader.GetSummary()!);

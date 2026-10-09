@@ -8,7 +8,8 @@ public sealed partial class McapAsyncReader
     int consumptionMode;
     int leaseCount, leaseTarget;
     ManualResetValueTaskSourceCore<McapMessageBatchLease?> leaseCompletion;
-    /// <summary>Reads stable messages directly from native parser storage. Cancellation terminates this reader.</summary>
+    /// <summary>Reads stable messages directly from native parser storage. Cancellation terminates this reader.
+    /// Returns a stable shared batch, or null at EOF. Failure publishes no partial lease. Consume the ValueTask exactly once before starting another operation. Retain the lease throughout access and never dispose it concurrently.</summary>
     public ValueTask<McapMessageBatchLease?> ReadBatchLeaseAsync(int maxMessages = 256,
         int targetPayloadBytes = 4 * 1024 * 1024, CancellationToken cancellationToken = default)
     {
@@ -71,18 +72,4 @@ public sealed partial class McapAsyncReader
         }
         catch (Exception error) { failed = true; leaseCompletion.SetException(error); }
     }
-}
-public sealed partial class McapSansIoReader
-{
-    internal (int Status, McapMessageBatchLease? Batch, ulong Needed) LeaseStep(int count, int target)
-    {
-        int status = Native.fm_engine_lease_step(handle, (nuint)count, (nuint)target, out var p, out var e, out var result);
-        if (status < 0) throw Native.ConsumeError(result);
-        return (status, p == IntPtr.Zero ? null : new(p, checked((int)result.Value)), e.Length);
-    }
-}
-internal static partial class Native
-{
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int fm_engine_lease_step(EngineHandle engine, nuint count, nuint target, out IntPtr batch, out ReadEvent e, out Result result);
 }

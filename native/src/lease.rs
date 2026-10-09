@@ -143,9 +143,18 @@ pub unsafe extern "C" fn fm_lease_retain(
         Ok(0)
     })
 }
+#[cfg(test)]
+pub unsafe fn fm_lease_free(lease: *mut Batch) {
+    let mut response = Response::default();
+    fm_lease_release(lease, &mut response);
+    fm_buffer_free(response.json, response.json_len);
+    fm_buffer_free(response.data, response.data_len);
+}
+
 #[no_mangle]
-pub unsafe extern "C" fn fm_lease_free(lease: *mut Batch) {
-    if !lease.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(lease))));
-    }
+pub unsafe extern "C" fn fm_lease_release(lease: *mut Batch, out: *mut Response) -> i32 {
+    guard(out, |_| {
+        if !lease.is_null() { drop(Box::from_raw(lease)); }
+        Ok(0)
+    })
 }

@@ -69,7 +69,7 @@ public class BatchSeekTests
         Assert.Equal(2UL,uncached.GetCacheStatistics().ChunkLoads);
         Assert.Equal(McapReadStatus.BufferTooSmall,uncached.SeekMessage(a,ea,Span<byte>.Empty,out _,out _));
         var loads=uncached.GetCacheStatistics().ChunkLoads;
-        Assert.Equal(McapReadStatus.Message,uncached.SeekMessage(a,ea,new byte[70000],out _,out _));
+        Assert.Equal(McapReadStatus.Success,uncached.SeekMessage(a,ea,new byte[70000],out _,out _));
         Assert.Equal(loads,uncached.GetCacheStatistics().ChunkLoads);
     }
 }

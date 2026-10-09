@@ -9,8 +9,9 @@ Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Ru
 | Path | Responsibility |
 | --- | --- |
 | `Fizzy.McapSharp.csproj` | Library project and package metadata; compiles only `src/` |
-| `src/` | Public .NET API, P/Invoke, and SafeHandle |
-| `native/src/lib.rs` | Rust MCAP wrapper, private C ABI, file mapping, and validation |
+| `src/` | Public .NET API; capability partials are named after their owning type, with separate Native interop declarations |
+| `native/src/lib.rs` | File/Stream sessions, writer operations, validation and shared ABI boundaries |
+| `native/src/engine.rs`, `snapshot.rs`, `prepared_write.rs`, `record_access.rs` | Sans-I/O engines, independent indexed snapshots, prepared writing and raw-record utilities |
 | `tests/Fizzy.McapSharp.Tests/` | Managed functionality and resource lifetime tests |
 | `tests/Interop/`, `tests/interop.py` | Bidirectional interoperability with official Python MCAP |
 | `scripts/` | Build, packaging, and isolated package tests |

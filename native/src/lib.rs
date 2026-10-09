@@ -5,7 +5,10 @@ mod chunk_cache;
 #[cfg(test)]
 mod coverage_tests;
 mod errors;
-mod extended;
+mod engine;
+mod snapshot;
+mod prepared_write;
+mod record_access;
 mod io;
 mod lease;
 mod memory;
@@ -24,6 +27,25 @@ use std::{
 };
 type Error = Box<dyn std::error::Error>;
 type Outcome<T> = Result<T, Error>;
+#[derive(Debug)]
+pub(crate) struct OperationRestoreError {
+    pub(crate) operation: Error,
+    pub(crate) cleanup: std::io::Error,
+}
+impl std::fmt::Display for OperationRestoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Operation and source-position restoration both failed")
+    }
+}
+impl std::error::Error for OperationRestoreError {}
+fn restored<T>(result: Outcome<T>, restore: std::io::Result<u64>) -> Outcome<T> {
+    match (result, restore) {
+        (Ok(value), Ok(_)) => Ok(value),
+        (Err(error), Ok(_)) => Err(error),
+        (Ok(_), Err(error)) => Err(error.into()),
+        (Err(operation), Err(cleanup)) => Err(Box::new(OperationRestoreError { operation, cleanup })),
+    }
+}
 #[repr(C)]
 #[derive(Default)]
 pub struct Response {
@@ -111,7 +133,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    13
+    14
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {
@@ -487,11 +509,13 @@ unsafe fn writer_control(
     Ok(0)
 }
 
+
 #[no_mangle]
-pub unsafe extern "C" fn fm_writer_free(p: *mut Writer) {
-    if !p.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p))));
-    }
+pub unsafe extern "C" fn fm_writer_release(p: *mut Writer, out: *mut Response) -> i32 {
+    guard(out, |_| {
+        if !p.is_null() { drop(Box::from_raw(p)); }
+        Ok(0)
+    })
 }
 
 fn open_input(path: &str) -> Outcome<Input> {
@@ -884,7 +908,7 @@ pub unsafe extern "C" fn fm_reader_open(
             indexed_summary: None,
             indexed_summary_owner: None,
             parser: Some(sans_io::LinearReader::new_with_options(
-                extended::linear_options(&v["options"])?
+                engine::linear_options(&v["options"])?
                     .with_emit_chunks(v["topLevel"].as_bool().unwrap_or(false)),
             )),
             input,
@@ -1050,11 +1074,13 @@ pub unsafe extern "C" fn fm_reader_describe(
         Ok(0)
     })
 }
+
 #[no_mangle]
-pub unsafe extern "C" fn fm_reader_free(p: *mut Reader) {
-    if !p.is_null() {
-        let _ = catch_unwind(AssertUnwindSafe(|| drop(Box::from_raw(p))));
-    }
+pub unsafe extern "C" fn fm_reader_release(p: *mut Reader, out: *mut Response) -> i32 {
+    guard(out, |_| {
+        if !p.is_null() { drop(Box::from_raw(p)); }
+        Ok(0)
+    })
 }
 
 impl Reader {
@@ -1083,8 +1109,7 @@ impl Reader {
             }
             Ok(s.finish())
         })();
-        self.input.seek(SeekFrom::Start(pos))?;
-        result
+        restored(result, self.input.seek(SeekFrom::Start(pos)))
     }
     fn record_at(&mut self, offset: u64) -> Outcome<(u8, Vec<u8>)> {
         if !self.input.seekable() {
@@ -1116,8 +1141,7 @@ impl Reader {
             mcap::parse_record(h[0], &data)?;
             Ok((h[0], data))
         })();
-        self.input.seek(SeekFrom::Start(pos))?;
-        result
+        restored(result, self.input.seek(SeekFrom::Start(pos)))
     }
 }
 #[no_mangle]
@@ -1272,8 +1296,8 @@ impl Reader {
                 self.input.seek(SeekFrom::Current(i64::try_from(n)?))?;
             }
         })();
-        self.input.seek(SeekFrom::Start(position))?;
-        if !safe? {
+        let safe = restored(safe, self.input.seek(SeekFrom::Start(position)))?;
+        if !safe {
             return Ok(());
         }
         for (id, s) in &summary.schemas {
@@ -1360,8 +1384,7 @@ impl Reader {
         self.summary_present = old_present;
         self.in_summary = old_in;
         self.count = old_count;
-        self.input.seek(SeekFrom::Start(pos))?;
-        result
+        restored(result, self.input.seek(SeekFrom::Start(pos)))
     }
 }
 

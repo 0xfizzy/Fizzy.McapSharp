@@ -42,7 +42,7 @@ Defaults follow upstream writer settings, including Zstd, 1 MiB target chunks an
 | `read::RawMessageStream`, `RawMessage`, `get_channel` | RawMessages mode, header/payload reads, `GetChannel` | Adapted | Retains encountered declarations; no borrowed Rust iterator crosses the ABI |
 | `read::MessageStream` | Messages mode and owned message enumeration | Adapted | Owned results copy payload and mutable declarations; other delivery forms have different ownership |
 
-[McapBufferReader](../src/McapBufferReader.cs) consolidates these slice-reader interfaces. `McapReader.OpenMessages/OpenRecords` additionally provides file/Stream sessions driven by official parsing. Sequential file order, input ownership and delivery ownership are separate choices; see [reading](api.md#read-messages-into-reusable-buffers).
+[McapBufferReader](../src/McapBufferReader.cs) consolidates these slice-reader interfaces. `McapFileReader.OpenMessages/OpenRecords` additionally provides file/Stream sessions driven by official parsing. Sequential file order, input ownership and delivery ownership are separate choices; see [reading](api.md#read-messages-into-reusable-buffers).
 
 ## Summary and random access (`random-access`)
 

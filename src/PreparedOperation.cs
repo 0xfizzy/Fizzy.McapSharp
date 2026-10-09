@@ -3,7 +3,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-/// <summary>Immutable descriptor prepared once for allocation-free control writes.</summary>
+/// <summary>Immutable owned descriptor prepared once for repeated control writes. Factories copy descriptor values and schema bytes; preparation does not register or write anything. Dispose after the last synchronous use.</summary>
 public sealed class McapPreparedOperation : IDisposable
 {
     internal readonly OperationHandle Handle;
@@ -28,7 +28,7 @@ public sealed class McapPreparedOperation : IDisposable
 
 public sealed partial class McapWriter
 {
-    /// <summary>Runs the prepared operation; returns the registered ID for schema/channel operations.</summary>
+    /// <summary>Runs the prepared operation synchronously; returns the registered ID for schema/channel operations, otherwise zero. Payload is consumed only by Attachment. Schema uses the bytes copied when prepared; other operations ignore payload. StartAttachment declares the length but consumes no body; follow with WriteAttachmentBytes and FinishAttachment. Writer failure and audited rejection rules still apply.</summary>
     public unsafe ulong WritePrepared(McapPreparedOperation operation, ReadOnlySpan<byte> payload = default)
     {
         ArgumentNullException.ThrowIfNull(operation);
@@ -50,17 +50,15 @@ public sealed partial class McapWriter
         }
     }
 }
-internal sealed class OperationHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal sealed class OperationHandle : OwnedNativeHandle
 {
-    internal OperationHandle(IntPtr p) : base(true) => SetHandle(p);
-    protected override bool ReleaseHandle() { Native.fm_operation_free(handle); return true; }
+    internal OperationHandle(IntPtr p) : base(p) { }
+    protected override int ReleaseNative(IntPtr value, out Native.Result result) => Native.fm_operation_release(value, out result);
 }
 internal static partial class Native
 {
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_operation_prepare(uint op, byte[] req, nuint n, byte* data, nuint len, out IntPtr p, out Result r);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void fm_operation_free(IntPtr p);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_writer_prepared(WriterHandle h, OperationHandle op, byte* data, nuint len, out Result r);
 }

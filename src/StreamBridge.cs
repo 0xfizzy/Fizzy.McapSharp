@@ -73,7 +73,7 @@ internal sealed unsafe class StreamBridge
         }
         catch (Exception e)
         {
-            b.Error ??= ExceptionDispatchInfo.Capture(e);
+            b.CaptureError(e);
             return -1;
         }
         finally
@@ -101,7 +101,7 @@ internal sealed unsafe class StreamBridge
         }
         catch (Exception e)
         {
-            b.Error ??= ExceptionDispatchInfo.Capture(e);
+            b.CaptureError(e);
             return -1;
         }
         finally
@@ -133,7 +133,7 @@ internal sealed unsafe class StreamBridge
         }
         catch (Exception e)
         {
-            b.Error ??= ExceptionDispatchInfo.Capture(e);
+            b.CaptureError(e);
             return -1;
         }
         finally
@@ -153,7 +153,7 @@ internal sealed unsafe class StreamBridge
         }
         catch (Exception e)
         {
-            b.Error ??= ExceptionDispatchInfo.Capture(e);
+            b.CaptureError(e);
             return -1;
         }
         finally
@@ -178,6 +178,11 @@ internal sealed unsafe class StreamBridge
             throw new InvalidOperationException("An MCAP Stream callback cannot reenter its session.");
     }
 
+    void CaptureError(Exception error)
+    {
+        Error = ExceptionDispatchInfo.Capture(Error is null ? error : new AggregateException(Error.SourceException, error));
+    }
+
     internal void ThrowIfError()
     {
         var e = Error;
@@ -185,23 +190,26 @@ internal sealed unsafe class StreamBridge
         e?.Throw();
     }
 
-    internal Stream Detach() { CheckReentry(); leaveOpen = true; return stream; }
-
-    internal void Release()
+    internal void ThrowOperationError(McapException native)
     {
-        lock (Active)
-            Active.Remove(stream);
-        if (root.IsAllocated)
-            root.Free();
-        if (!leaveOpen)
-        {
-            try
-            {
-                stream.Dispose();
-            }
-            catch
-            { /* SafeHandle finalization must not throw. */
-            }
-        }
+        var error = Error;
+        Error = null;
+        if (error is null) throw native;
+        if (native.Details.ValueKind == System.Text.Json.JsonValueKind.Object && native.Details.TryGetProperty("operation", out _))
+            throw new AggregateException(native, error.SourceException);
+        error.Throw();
+    }
+
+    internal Stream Stream => stream;
+    bool released;
+    internal void Release(bool transfer = false)
+    {
+        if (released) return;
+        released = true;
+        if (root.IsAllocated) root.Free();
+        // A failing owned release must keep the weak-key exclusion entry in place.
+        // The entry does not root the Stream or require a background cleanup owner.
+        if (!leaveOpen && !transfer) stream.Dispose();
+        lock (Active) Active.Remove(stream);
     }
 }

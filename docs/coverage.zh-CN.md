@@ -42,7 +42,7 @@
 | `read::RawMessageStream`、`RawMessage`、`get_channel` | RawMessages 模式、header/payload 读取、`GetChannel` | 适配 | 保留已遇到的声明；借用 Rust 迭代器不跨越 ABI |
 | `read::MessageStream` | Messages 模式和自有消息枚举 | 适配 | 自有结果复制 payload 及可变声明；其他交付方式的所有权不同 |
 
-[McapBufferReader](../src/McapBufferReader.cs) 将这些切片接口统一为模式。`McapReader.OpenMessages/OpenRecords` 另外提供由官方解析驱动的文件／Stream 会话。顺序文件读取、输入所有权和交付所有权分别选择，详见 [API 指南](api.zh-CN.md)。
+[McapBufferReader](../src/McapBufferReader.cs) 将这些切片接口统一为模式。`McapFileReader.OpenMessages/OpenRecords` 另外提供由官方解析驱动的文件／Stream 会话。顺序文件读取、输入所有权和交付所有权分别选择，详见 [API 指南](api.zh-CN.md)。
 
 ## 摘要与随机访问（`random-access`）
 

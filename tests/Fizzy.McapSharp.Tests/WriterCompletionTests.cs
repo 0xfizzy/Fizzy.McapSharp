@@ -34,7 +34,7 @@ public sealed class WriterCompletionTests
             Write(writer);
             writer.Complete();
             var before = ReadShared(path);
-            using (var reader = McapReader.OpenMessages(new MemoryStream(before), options: McapReaderOptions.Strict))
+            using (var reader = McapFileReader.OpenMessages(new MemoryStream(before), options: McapReaderOptions.Strict))
                 Assert.True(reader.ValidateRemaining() > 0);
             writer.FlushToDisk();
             writer.FlushToDisk();
@@ -174,7 +174,7 @@ public sealed class WriterCompletionTests
             Write(writer);
             if (transfer) Assert.Same(stream, writer.IntoInner()); else writer.Dispose();
             Assert.Equal(0, stream.DurableFlushes);
-            Assert.ThrowsAny<IOException>(() => new McapReader(path).Validate());
+            Assert.ThrowsAny<IOException>(() => new McapFileReader(path).Validate());
         }
         finally { File.Delete(path); }
     }
