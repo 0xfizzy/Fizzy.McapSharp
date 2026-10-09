@@ -15,7 +15,7 @@ public enum McapCursorMode
     ExpandedRecords,
     /// <summary>Reads records from a single encoded Chunk body, without the outer record header.</summary>
     ChunkRecords,
-    /// <summary>Reads only messages and collects encountered declarations without requiring each message's channel to be declared.</summary>
+    /// <summary>Reads only messages and collects encountered declarations without requiring each message's channel to be declared. Owned ReadMessages results still require a resolvable channel.</summary>
     RawMessages,
     /// <summary>Reads only messages and validates that their channels are declared.</summary>
     Messages
@@ -120,7 +120,7 @@ public sealed partial class McapReadCursor : IDisposable
         using var sink = new OwnedReadSink(OwnedReadSink.Kind.Record);
         while (ReadOwned(sink)) yield return (McapRawRecord)sink.Value!;
     }
-    /// <summary>Consumes a message-capable cursor and returns independent mutable message and declaration copies. Record-only modes reject enumeration before advancing.</summary>
+    /// <summary>Consumes a message-capable cursor and returns independent mutable message and declaration copies. Record-only modes reject enumeration before advancing. RawMessages still requires channel declarations for these resolved results: a missing channel throws after consuming that message, without terminating the cursor. Use header/payload or raw-record delivery for undeclared channels.</summary>
     public IEnumerable<McapMessage> ReadMessages()
     {
         lock (gate) CheckMessages();

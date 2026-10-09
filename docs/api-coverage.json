@@ -4729,7 +4729,7 @@
     {
       "rust": "records.rs::Channel",
       "kind": "type",
-      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChannelRecord / McapRecordView.Fields",
       "native": "records::Channel",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4747,7 +4747,7 @@
     {
       "rust": "records.rs::Channel::id",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChannelRecord / McapRecordView.Fields",
       "native": "records::Channel::id",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4765,7 +4765,7 @@
     {
       "rust": "records.rs::Channel::schema_id",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChannelRecord / McapRecordView.Fields",
       "native": "records::Channel::schema_id",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4783,7 +4783,7 @@
     {
       "rust": "records.rs::Channel::topic",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChannelRecord / McapRecordView.Fields",
       "native": "records::Channel::topic",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4801,7 +4801,7 @@
     {
       "rust": "records.rs::Channel::message_encoding",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChannelRecord / McapRecordView.Fields",
       "native": "records::Channel::message_encoding",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4819,7 +4819,7 @@
     {
       "rust": "records.rs::Channel::metadata",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChannel / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChannelRecord / McapRecordView.Fields",
       "native": "records::Channel::metadata",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4837,7 +4837,7 @@
     {
       "rust": "records.rs::MessageHeader",
       "kind": "type",
-      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapMessageRecord.Header / McapRecordView.Fields",
       "native": "records::MessageHeader",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4855,7 +4855,7 @@
     {
       "rust": "records.rs::MessageHeader::channel_id",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapMessageRecord.Header / McapRecordView.Fields",
       "native": "records::MessageHeader::channel_id",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4873,7 +4873,7 @@
     {
       "rust": "records.rs::MessageHeader::sequence",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapMessageRecord.Header / McapRecordView.Fields",
       "native": "records::MessageHeader::sequence",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4891,7 +4891,7 @@
     {
       "rust": "records.rs::MessageHeader::log_time",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapMessageRecord.Header / McapRecordView.Fields",
       "native": "records::MessageHeader::log_time",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4909,7 +4909,7 @@
     {
       "rust": "records.rs::MessageHeader::publish_time",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapMessageHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapMessageRecord.Header / McapRecordView.Fields",
       "native": "records::MessageHeader::publish_time",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4927,7 +4927,7 @@
     {
       "rust": "records.rs::ChunkHeader",
       "kind": "type",
-      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChunkRecord.Header / McapRecordView.Fields",
       "native": "records::ChunkHeader",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4944,7 +4944,7 @@
     {
       "rust": "records.rs::ChunkHeader::message_start_time",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChunkRecord.Header / McapRecordView.Fields",
       "native": "records::ChunkHeader::message_start_time",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4961,7 +4961,7 @@
     {
       "rust": "records.rs::ChunkHeader::message_end_time",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChunkRecord.Header / McapRecordView.Fields",
       "native": "records::ChunkHeader::message_end_time",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4978,7 +4978,7 @@
     {
       "rust": "records.rs::ChunkHeader::uncompressed_size",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChunkRecord.Header / McapRecordView.Fields",
       "native": "records::ChunkHeader::uncompressed_size",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -4995,7 +4995,7 @@
     {
       "rust": "records.rs::ChunkHeader::uncompressed_crc",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChunkRecord.Header / McapRecordView.Fields",
       "native": "records::ChunkHeader::uncompressed_crc",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -5012,7 +5012,7 @@
     {
       "rust": "records.rs::ChunkHeader::compression",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChunkRecord.Header / McapRecordView.Fields",
       "native": "records::ChunkHeader::compression",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -5029,7 +5029,7 @@
     {
       "rust": "records.rs::ChunkHeader::compressed_size",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapChunkHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapChunkRecord.Header / McapRecordView.Fields",
       "native": "records::ChunkHeader::compressed_size",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -5351,7 +5351,7 @@
     {
       "rust": "records.rs::AttachmentHeader",
       "kind": "type",
-      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapAttachmentRecord.Header / McapRecordView.Fields",
       "native": "records::AttachmentHeader",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -5368,7 +5368,7 @@
     {
       "rust": "records.rs::AttachmentHeader::log_time",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapAttachmentRecord.Header / McapRecordView.Fields",
       "native": "records::AttachmentHeader::log_time",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -5385,7 +5385,7 @@
     {
       "rust": "records.rs::AttachmentHeader::create_time",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapAttachmentRecord.Header / McapRecordView.Fields",
       "native": "records::AttachmentHeader::create_time",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -5402,7 +5402,7 @@
     {
       "rust": "records.rs::AttachmentHeader::name",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapAttachmentRecord.Header / McapRecordView.Fields",
       "native": "records::AttachmentHeader::name",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
@@ -5419,7 +5419,7 @@
     {
       "rust": "records.rs::AttachmentHeader::media_type",
       "kind": "field",
-      "managed": "McapRecords.Parse -> McapAttachmentHeader / McapRecordView.Fields",
+      "managed": "McapRecords.Parse -> McapAttachmentRecord.Header / McapRecordView.Fields",
       "native": "records::AttachmentHeader::media_type",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [

@@ -4,12 +4,15 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-/// <summary>Owns copied or explicitly mapped input and its official summary, independently of the originating session.</summary>
+/// <summary>Owns copied or explicitly mapped input and its official summary, independently of the originating session.
+/// Snapshot message callbacks must not invoke operations on any snapshot or prepared chunk index, including disposal.</summary>
 public sealed partial class McapIndexSnapshot : IDisposable
 {
     readonly SnapshotHandle handle;
     readonly object gate = new();
     readonly BorrowedReadSink borrowed = new();
+    // Check the thread-wide callback scope before acquiring any snapshot or descriptor lock.
+    static void CheckBeforeLock() => McapPreparedChunkIndex.CheckCallbackReentry();
     void Check() { borrowed.CheckReentry(); ObjectDisposedException.ThrowIf(handle.IsClosed, this); }
     internal McapIndexSnapshot(IntPtr p) => handle = new(p);
     /// <summary>Copies the complete input into independent storage and reads its summary. Cache allowance excludes this input copy; summary success is not full-file validation.</summary>
@@ -35,11 +38,13 @@ public sealed partial class McapIndexSnapshot : IDisposable
     /// <summary>Returns an independent owned summary, or null when absent. Summary availability does not establish full-file validation.</summary>
     public McapSummary? GetSummary()
     {
+        CheckBeforeLock();
         lock (gate) { Check(); var status = Native.fm_snapshot_summary(handle, out var r); var response = Native.Consume(status, r); using var j = response.Json; return j?.RootElement.Deserialize<McapSummary>(JsonSupport.Options); }
     }
     /// <summary>Returns independent owned message-index groups for every requested channel, including valid empty groups. Requires a summary and valid message-index offsets.</summary>
     public IReadOnlyList<McapMessageIndex> ReadMessageIndexes(McapChunkIndex chunk)
     {
+        CheckBeforeLock();
         lock (gate)
         {
             ReadMessageIndexes(chunk, [], out var n); var b = new byte[checked((int)n)]; ReadMessageIndexes(chunk, b, out _);
@@ -56,10 +61,11 @@ public sealed partial class McapIndexSnapshot : IDisposable
         return groups.OrderBy(g => g.Key).Select(g => new McapMessageIndex(g.Key, g.Value)).ToArray();
     }
     /// <summary>Opens an independent summary-record cursor that retains the summary after this snapshot is disposed. Requires an available summary.</summary>
-    public McapReadCursor OpenSummaryRecords() { lock (gate) { Check(); return Native.SummaryRecords(Protocol.SummarySource.Snapshot, handle); } }
+    public McapReadCursor OpenSummaryRecords() { CheckBeforeLock(); lock (gate) { Check(); return Native.SummaryRecords(Protocol.SummarySource.Snapshot, handle); } }
     /// <summary>Returns an independent owned channel declaration from the summary, including schema and metadata.</summary>
     public McapChannel GetChannel(ushort id)
     {
+        CheckBeforeLock();
         lock (gate) { Check(); var status = Native.fm_snapshot_channel(handle, id, out var r); return DeclarationDecoder.Channel(Native.Consume(status, r)); }
     }
     /// <summary>Returns an independent owned message from its chunk-relative index entry. Requires a summary and a valid complete chunk descriptor.</summary>
@@ -74,6 +80,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
     public unsafe McapReadCursor OpenChunkReader(McapChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
+        CheckBeforeLock();
         lock (gate)
         {
             Check();
@@ -118,6 +125,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
     unsafe object ReadOwned(uint op, object index, OwnedReadSink.Kind kind)
     {
         ArgumentNullException.ThrowIfNull(index);
+        CheckBeforeLock();
         lock (gate)
         {
             Check();
@@ -141,6 +149,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
     }
     unsafe McapReadStatus Call(uint op, object? index, McapMessageIndexEntry message, Span<byte> destination, out McapMessageHeader header, out ulong length)
     {
+        CheckBeforeLock();
         lock (gate)
         {
             Check();
@@ -163,5 +172,5 @@ public sealed partial class McapIndexSnapshot : IDisposable
         }
     }
     /// <summary>Releases this owner once. Independently retained cursors and leases remain valid; repeated disposal does not replay release.</summary>
-    public void Dispose() { lock (gate) { borrowed.CheckReentry(); handle.Dispose(); } }
+    public void Dispose() { CheckBeforeLock(); lock (gate) { borrowed.CheckReentry(); handle.Dispose(); } }
 }

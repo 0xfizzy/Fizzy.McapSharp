@@ -13,7 +13,7 @@ public sealed class McapPreparedChunkIndex : IDisposable
     [ThreadStatic] static bool inSnapshotCallback;
     internal static void CheckCallbackReentry()
     {
-        if (inSnapshotCallback) throw new InvalidOperationException("Cannot use or dispose a prepared chunk index from a snapshot message callback.");
+        if (inSnapshotCallback) throw new InvalidOperationException("Cannot use or dispose a snapshot or prepared chunk index from a snapshot message callback.");
     }
     internal static void EnterCallback() => inSnapshotCallback = true;
     internal static void ExitCallback() => inSnapshotCallback = false;

@@ -60,7 +60,7 @@ public sealed partial class McapReaderFactory
             yield return item;
     }
 
-    /// <summary>Scans with strict validation, delivers the valid prefix and retains the original structured parse error in the result. All callback and Stream exceptions propagate, including McapException.</summary>
+    /// <summary>Opens a strict file-order scan, delivers the valid prefix and retains the original structured parse error in the result. The accept callback receives independently owned messages; its exceptions and Stream exceptions propagate, including McapException. The temporary session is disposed when this method returns or throws.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
         using var s = OpenMessages(options: McapReaderOptions.Strict);

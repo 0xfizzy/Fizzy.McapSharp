@@ -8,7 +8,7 @@ public sealed partial class McapIndexSnapshot
     public McapReadCursor OpenChunkReader(McapPreparedChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
-        McapPreparedChunkIndex.CheckCallbackReentry();
+        CheckBeforeLock();
         lock (index.Gate) lock (gate)
         {
             Check(); index.Check();
@@ -27,7 +27,7 @@ public sealed partial class McapIndexSnapshot
     public IReadOnlyList<McapMessageIndex> ReadMessageIndexes(McapPreparedChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
-        McapPreparedChunkIndex.CheckCallbackReentry();
+        CheckBeforeLock();
         lock (index.Gate) lock (gate)
         {
             ReadMessageIndexes(index, [], out var n); var b = new byte[checked((int)n)]; ReadMessageIndexes(index, b, out _);
@@ -45,7 +45,7 @@ public sealed partial class McapIndexSnapshot
     unsafe McapReadStatus CallPrepared(uint op, McapPreparedChunkIndex index, McapMessageIndexEntry entry, Span<byte> destination, out McapMessageHeader header, out ulong length)
     {
         ArgumentNullException.ThrowIfNull(index);
-        McapPreparedChunkIndex.CheckCallbackReentry();
+        CheckBeforeLock();
         lock (index.Gate) lock (gate)
         {
             Check(); index.Check();
@@ -61,7 +61,7 @@ public sealed partial class McapIndexSnapshot
     unsafe McapMessage SeekOwned(McapChunkIndex? index, McapPreparedChunkIndex? prepared, McapMessageIndexEntry entry)
     {
         if (prepared is null) ArgumentNullException.ThrowIfNull(index);
-        if (prepared is not null) McapPreparedChunkIndex.CheckCallbackReentry();
+        CheckBeforeLock();
         lock (prepared?.Gate ?? gate) lock (gate)
         {
             Check(); prepared?.Check();

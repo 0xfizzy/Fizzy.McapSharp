@@ -165,6 +165,37 @@ public class ValidationContractTests
         Assert.Throws<InvalidOperationException>(() => reader.ReadNext(new byte[1], out _, out _));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RecoveryConsumerExceptionPreservesIdentityAndContinuesAfterConsumedMessage(bool mcapError)
+    {
+        using var source = new MemoryStream();
+        using (var writer = new McapWriter(source, new() { UseChunks = false }, leaveOpen: true))
+        {
+            var channel = writer.RegisterChannel("topic", "raw");
+            writer.WriteMessage(new(channel, 1, 1, 1), [1]);
+            writer.WriteMessage(new(channel, 2, 2, 2), [2]);
+            writer.Complete();
+        }
+        source.Position = 0;
+        using var reader = McapReaderFactory.OpenMessages(source, options: McapReaderOptions.Strict);
+        Exception expected = mcapError ? new McapException("consumer") : new ApplicationException("consumer");
+        uint consumed = 0;
+        var actual = Record.Exception(() => reader.RecoverMessages(message =>
+        {
+            consumed = message.Sequence;
+            throw expected;
+        }));
+        Assert.Same(expected, actual);
+        Assert.Equal(1u, consumed);
+        Assert.False(reader.IsFullyValidated);
+        Assert.Equal(McapReadStatus.Success, reader.ReadNext(new byte[1], out var next, out _));
+        Assert.Equal(2u, next.Sequence);
+        reader.ValidateRemaining();
+        Assert.True(reader.IsFullyValidated);
+    }
+
     [Fact]
     public void StrictRecoveryRejectsBadChunkBeforeDelivery()
     {

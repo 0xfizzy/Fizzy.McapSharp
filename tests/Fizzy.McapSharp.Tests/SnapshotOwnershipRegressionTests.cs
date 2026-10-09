@@ -4,10 +4,10 @@ namespace Fizzy.McapSharp.Tests;
 
 public class SnapshotOwnershipRegressionTests
 {
-    static byte[] Recording(int attachmentBytes = 0)
+    static byte[] Recording(int attachmentBytes = 0, McapCompression compression = McapCompression.None)
     {
         using var stream = new MemoryStream();
-        using (var writer = new McapWriter(stream, new() { Compression = McapCompression.None, ChunkSize = 1024 * 1024 }, true))
+        using (var writer = new McapWriter(stream, new() { Compression = compression, ChunkSize = 1024 * 1024 }, true))
         {
             var channel = writer.RegisterChannel("topic", "raw");
             writer.WriteMessage(new(channel, 0, 1, 1), [11]);
@@ -17,6 +17,34 @@ public class SnapshotOwnershipRegressionTests
             writer.Complete();
         }
         return stream.ToArray();
+    }
+
+    [Theory]
+    [InlineData(McapCompression.None)]
+    [InlineData(McapCompression.Lz4)]
+    [InlineData(McapCompression.Zstd)]
+    public void PreparedBorrowedAndCallerBufferReadsRemainAllocationFree(McapCompression compression)
+    {
+        using var snapshot = new McapIndexSnapshot(Recording(compression: compression));
+        using var index = new McapPreparedChunkIndex(snapshot.GetSummary()!.ChunkIndexes[0]);
+        var entry = snapshot.ReadMessageIndexes(index)[0].Records[0];
+        var payload = new byte[1];
+        var packedIndex = new byte[18];
+        int visits = 0;
+        McapMessageVisitor visitor = (in McapMessageHeader header, ReadOnlySpan<byte> data) => { visits += data[0] == 11 ? 1 : 0; return true; };
+        void Read()
+        {
+            snapshot.SeekMessage(index, entry, visitor);
+            snapshot.SeekMessage(index, entry, payload, out _, out _);
+            snapshot.ReadMessageIndexes(index, packedIndex, out _);
+        }
+        for (int i = 0; i < 128; i++) Read();
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 128; i++) Read();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(0, allocated);
+        Assert.Equal(256, visits);
+        Assert.Equal(11, payload[0]);
     }
 
     [Fact]
@@ -120,6 +148,45 @@ public class SnapshotOwnershipRegressionTests
     }
 
     [Fact]
+    public async Task ConcurrentSnapshotCallbacksRejectCrossSnapshotCallsWithoutWaitingForLocks()
+    {
+        var bytes = Recording();
+        var first = new McapIndexSnapshot(bytes);
+        var second = new McapIndexSnapshot(bytes);
+        var a = new McapPreparedChunkIndex(first.GetSummary()!.ChunkIndexes[0]);
+        var b = new McapPreparedChunkIndex(second.GetSummary()!.ChunkIndexes[0]);
+        var ea = first.ReadMessageIndexes(a)[0].Records[0];
+        var eb = second.ReadMessageIndexes(b)[0].Records[0];
+        var callbacksEntered = new Barrier(2);
+        Task Run(McapIndexSnapshot source, McapPreparedChunkIndex index, McapMessageIndexEntry entry, McapIndexSnapshot other) => Task.Run(() =>
+        {
+            source.SeekMessage(index, entry, (in McapMessageHeader header, ReadOnlySpan<byte> payload) =>
+            {
+                Assert.True(callbacksEntered.SignalAndWait(TimeSpan.FromSeconds(5)));
+                Assert.Throws<InvalidOperationException>(() => other.GetSummary());
+                Assert.Throws<InvalidOperationException>(() => other.GetCacheStatistics());
+                Assert.Throws<InvalidOperationException>(() => other.ReadFooter());
+                Assert.Throws<InvalidOperationException>(() => other.Dispose());
+                return true;
+            });
+        });
+        var calls = Task.WhenAll(Run(first, a, ea, second), Run(second, b, eb, first));
+        try
+        {
+            await calls.WaitAsync(TimeSpan.FromSeconds(15));
+            // Failed reentry must leave the callback scope and both snapshots usable.
+            Assert.NotNull(first.GetSummary());
+            Assert.NotNull(second.GetSummary());
+        }
+        finally
+        {
+            // A deadlock regression must fail this test within the deadline, rather than
+            // blocking the test runner again while trying to dispose a locked snapshot.
+            if (calls.IsCompleted) { callbacksEntered.Dispose(); a.Dispose(); b.Dispose(); first.Dispose(); second.Dispose(); }
+        }
+    }
+
+    [Fact]
     public void SnapshotCallbackRejectsPreparedReentryBeforeTakingLocks()
     {
         var bytes = Recording();
@@ -134,7 +201,9 @@ public class SnapshotOwnershipRegressionTests
             Assert.Throws<InvalidOperationException>(() => second.SeekMessage(index, entry));
             Assert.Throws<InvalidOperationException>(() => second.SeekMessages([new(index, entry)]));
             Assert.Throws<InvalidOperationException>(() => second.ReadMessageIndexes(index));
-            Assert.NotNull(second.GetSummary());
+            Assert.Throws<InvalidOperationException>(() => second.GetSummary());
+            Assert.Throws<InvalidOperationException>(() => second.Dispose());
+            Assert.Throws<InvalidOperationException>(() => { using var messages = second.ReadChunkMessages(chunk).GetEnumerator(); messages.MoveNext(); });
             return true;
         }
         first.SeekMessage(index, entry, Visit);

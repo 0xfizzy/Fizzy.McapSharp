@@ -121,7 +121,7 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
-    /// <summary>Copies a schema already encountered by this session. Unknown IDs fail lookup without advancing or terminating the session.</summary>
+    /// <summary>Copies a schema encountered by the sequential scan or loaded from a summary. Lookup does not advance the scan or establish validation; unknown IDs do not terminate the session.</summary>
     public McapSchema GetSchema(ushort id)
     {
         lock (gate)
@@ -135,7 +135,7 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
-    /// <summary>Copies a channel and its schema already encountered by this session. Unknown IDs do not terminate the session.</summary>
+    /// <summary>Copies a channel and its schema encountered by the sequential scan or loaded from a summary. Lookup does not advance the scan or establish validation; unknown IDs do not terminate the session.</summary>
     public McapChannel GetChannel(ushort id)
     {
         lock (gate)
@@ -150,7 +150,7 @@ public sealed partial class McapReadSession : IDisposable
         }
     }
 
-    /// <summary>Returns an independent summary, or null when absent. A non-seekable input must reach EOF first. I/O or parsing failure terminates this session.</summary>
+    /// <summary>Returns an independent summary, or null when absent, and may make summary declarations available to lookup. Summary loading does not advance sequential validation or establish full-file integrity. A non-seekable input must reach EOF first. I/O or parsing failure terminates this session.</summary>
     public McapSummary? GetSummary()
     {
         lock (gate)
@@ -293,7 +293,7 @@ public sealed partial class McapReadSession : IDisposable
         while (ReadOwned(sink)) yield return (McapRawRecord)sink.Value!;
     }
 
-    /// <summary>Delivers the valid prefix from a strict message session and returns the original native parsing error, if any. Requires strict options; the failed session remains terminal. Stream and callback exceptions propagate, including McapException.</summary>
+    /// <summary>Delivers the valid prefix from a strict message session and returns the original native parsing error, if any. Use a strict file-order session for prefix salvage; time-ordered sessions may fail during their opening scan before recovery can begin. Parsing, Stream and delivery-sink failures terminate the session. Stream and sink exceptions propagate, including McapException. The accept callback receives an owned message after it has been consumed: its exception propagates unchanged without terminating an otherwise usable session, and subsequent reads continue after that message.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
         ArgumentNullException.ThrowIfNull(accept);

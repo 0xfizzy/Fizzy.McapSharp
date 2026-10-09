@@ -9,7 +9,7 @@ public sealed partial class McapIndexSnapshot
     public unsafe McapMessageBatchLease SeekMessages(ReadOnlySpan<McapSeekRequest> requests)
     {
         Native.CheckLeaseRequest(requests.Length, 1);
-        McapPreparedChunkIndex.CheckCallbackReentry();
+        CheckBeforeLock();
         // Acquire distinct descriptors in one order before the snapshot, as all prepared calls do.
         // Setup allocation is permitted for batch leases; no payload is copied here.
         var indexes = new McapPreparedChunkIndex[requests.Length];
@@ -53,12 +53,12 @@ public sealed partial class McapIndexSnapshot
             GC.KeepAlive(indexes);
         }
     }
-    /// <summary>Synchronously visits the indexed message. The payload expires when the callback returns; callback re-entry into this snapshot, any prepared-index operation, or prepared-index disposal is forbidden.</summary>
+    /// <summary>Synchronously visits the indexed message. The payload expires when the callback returns; the callback must not invoke operations on any snapshot or prepared chunk index, including disposal.</summary>
     public unsafe void SeekMessage(McapPreparedChunkIndex index, McapMessageIndexEntry entry, McapMessageVisitor visitor)
     {
         ArgumentNullException.ThrowIfNull(index);
         ArgumentNullException.ThrowIfNull(visitor);
-        McapPreparedChunkIndex.CheckCallbackReentry();
+        CheckBeforeLock();
         lock (index.Gate) lock (gate)
         {
             Check(); index.Check(); bool added = false;
@@ -75,6 +75,7 @@ public sealed partial class McapIndexSnapshot
     /// <summary>Returns cumulative chunk-cache hits and loads for this snapshot. Counts do not measure bytes, resident memory or full-file validation.</summary>
     public McapCacheStatistics GetCacheStatistics()
     {
+        CheckBeforeLock();
         lock (gate)
         {
             Check();

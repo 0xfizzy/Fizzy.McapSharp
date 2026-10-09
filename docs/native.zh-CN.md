@@ -76,7 +76,7 @@ Writer 完成时在上游 `finish` 后立即提取输出，释放上游 writer �
 
 `fm_writer_lease_batch` 接收 writer 与 lease 句柄、可选的 header 指针及 usize 数量、usize 已完成前缀输出和普通 Response。header 为 null 且数量为零时使用 lease 原有 header；否则数量必须匹配 lease 的消息数。写入前检查全部目标 Channel，直接读取保留批次的 payload 切片，不构造 payload 或描述符数组。托管端在整个调用期间显式持有 lease 的 SafeHandle 引用。Header 布局和批次错误语义不变。
 
-`fm_reader_owned`、`fm_buffer_reader_owned`、`fm_snapshot_message_owned`、`fm_snapshot_record_owned` 使用两个指针的 Sink（context、Cdecl 回调）。visitor 返回 1 表示正常停止，负值失败；托管异常不跨 FFI 展开。每次退出清除 sink。公开借用 Span 在回调返回时失效，自有交付创建独立副本。`fm_snapshot_record_owned` 验证索引指向的 Metadata／Attachment 记录体，并同步借用它以构造最终托管字段和 payload 数组，避免中间托管记录体副本。
+`fm_reader_owned`、`fm_buffer_reader_owned`、`fm_snapshot_message_owned`、`fm_snapshot_record_owned` 使用两个指针的 Sink（context、Cdecl 回调）。visitor 返回 1 表示正常停止，负值失败；托管异常不跨 FFI 展开。每次退出清除 sink。公开借用 Span 在回调返回时失效，自有交付创建独立副本。托管 snapshot 回调范围在取得实例锁前拒绝对任何 snapshot 实例或 prepared Chunk 索引执行操作，包括释放。`fm_snapshot_record_owned` 验证索引指向的 Metadata／Attachment 记录体，并同步借用它以构造最终托管字段和 payload 数组，避免中间托管记录体副本。
 
 `fm_read_lease`、`fm_engine_lease_step` 与 `fm_lease_get/retain/release` 使用 SharedBytes 和普通批次描述符。存储所有权使映射及文件在 reader 释放后仍有效；Span 使用不得与释放并发。`fm_engine_input_buffer/complete` 让 Stream.ReadAsync 通过 MemoryManager 直接填充解析器存储，期间不得推进或销毁引擎。
 
