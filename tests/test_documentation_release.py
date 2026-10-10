@@ -12,7 +12,7 @@ import zipfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import release
 import documentation
-import revision
+import docs_archive
 from documentation import tree_hashes, write_json, Page
 
 
@@ -27,51 +27,16 @@ class ReleaseTests(unittest.TestCase):
     def site(self, value, revision, text='original'):
         site = self.base / f'site-{value}-{revision}-{text}'
         site.mkdir()
-        write_json(site / 'doc-info.json', dict(version=value, revision=revision, docs_commit='a' * 40, release_commit='a' * 40))
+        write_json(site / 'doc-info.json', dict(version=value, channel="dev" if revision is None else "release", docs_commit='a' * 40, release_commit='a' * 40))
         (site / 'index.html').write_text(text)
         return site
 
     def merge(self, root, site, value, revision=None):
-        release.merge_site(root, site, value, revision, activate=True)
+        release.merge_site(root, site, value, revision is not None)
 
-    def test_stage_is_invisible_until_verified_activation(self):
-        site = self.site('1.0.0', 0)
-        release.merge_site(self.root, site, '1.0.0', 0)
-        self.assertTrue((self.root / 'v1.0.0/r0/index.html').exists())
-        self.assertFalse((self.root / 'v1.0.0/current.json').exists())
-        self.assertIsNone(json.loads((self.root / 'versions.json').read_text())['latest'])
-        with self.assertRaisesRegex(ValueError, 'identity'):
-            release.activate_site(self.root, '1.0.0', 0, expected_commit='b' * 40)
-        release.activate_site(self.root, '1.0.0', 0, expected_commit='a' * 40)
-        self.assertEqual('1.0.0', json.loads((self.root / 'versions.json').read_text())['latest'])
-        original = tree_hashes(self.root / 'v1.0.0/r0')
-        release.merge_site(self.root, self.site('1.0.0', 1, 'new'), '1.0.0', 1)
-        self.assertEqual(0, json.loads((self.root / 'v1.0.0/current.json').read_text())['revision'])
-        self.assertEqual(original, tree_hashes(self.root / 'v1.0.0/r0'))
 
-    def test_completed_revision_retry_does_not_undo_explicit_rollback(self):
-        original = self.site('1.0.0', 0)
-        revised = self.site('1.0.0', 1)
-        self.merge(self.root, original, '1.0.0', 0)
-        self.merge(self.root, revised, '1.0.0', 1)
-        release.activate_site(self.root, '1.0.0', 0, rollback=True)
-        self.merge(self.root, revised, '1.0.0', 1)
-        self.assertEqual(0, json.loads((self.root / 'v1.0.0/current.json').read_text())['revision'])
 
-    def test_rollback_rejects_staged_but_uncompleted_revision(self):
-        release.merge_site(self.root, self.site('1.0.0', 0), '1.0.0', 0)
-        with self.assertRaisesRegex(ValueError, 'previously completed'):
-            release.activate_site(self.root, '1.0.0', 0, rollback=True)
-        self.assertFalse((self.root / 'v1.0.0/current.json').exists())
 
-    def test_entrypoint_verification_rejects_stale_cdn_index(self):
-        stale = {'entries': [{'version': '1.0.0', 'current': 0, 'completed': True}], 'latest': '1.0.0'}
-        with patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps(stale).encode())):
-            with self.assertRaisesRegex(RuntimeError, 'active revision is stale'):
-                release.verify_entrypoints('1.0.0', attempts=1, expected_revision=1)
-        with patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps(stale).encode())):
-            with self.assertRaisesRegex(RuntimeError, 'latest version is stale'):
-                release.verify_entrypoints('1.0.0', attempts=1, expected_revision=0, expected_latest='2.0.0')
 
     def test_stale_main_is_rejected(self):
         site = self.site('1.0.0', None)
@@ -97,43 +62,9 @@ class ReleaseTests(unittest.TestCase):
                 z.writestr('.signature.p7s', b'repository-signature')
         return data.getvalue()
 
-    def test_two_versions_revision_and_dev_preserve_original(self):
-        self.merge(self.root, self.site('1.0.0', 0), '1.0.0', 0)
-        original = tree_hashes(self.root / 'v1.0.0/r0')
-        self.merge(self.root, self.site('2.0.0', 0), '2.0.0', 0)
-        self.merge(self.root, self.site('1.0.0', 1, 'corrected'), '1.0.0', 1)
-        self.merge(self.root, self.site('3.0.0', None), '3.0.0')
-        self.assertEqual(original, tree_hashes(self.root / 'v1.0.0/r0'))
-        self.assertEqual(1, json.loads((self.root / 'v1.0.0/current.json').read_text())['revision'])
-        self.assertEqual('2.0.0', json.loads((self.root / 'versions.json').read_text())['latest'])
 
-    def test_duplicate_and_conflict(self):
-        site = self.site('1.0.0', 0)
-        self.merge(self.root, site, '1.0.0', 0)
-        before = tree_hashes(self.root)
-        self.merge(self.root, site, '1.0.0', 0)
-        self.assertEqual(before, tree_hashes(self.root))
-        with self.assertRaisesRegex(ValueError, 'Immutable'):
-            self.merge(self.root, self.site('1.0.0', 0, 'changed'), '1.0.0', 0)
 
-    def test_semantic_latest_and_old_retry(self):
-        sites = {}
-        for value in ['1.9.0', '1.10.0', '2.0.0-beta.1']:
-            sites[value] = self.site(value, 0)
-            self.merge(self.root, sites[value], value, 0)
-        self.merge(self.root, self.site('1.9.0', 1), '1.9.0', 1)
-        self.merge(self.root, sites['1.9.0'], '1.9.0', 0)
-        self.assertEqual('1.10.0', json.loads((self.root / 'versions.json').read_text())['latest'])
-        self.assertEqual(1, json.loads((self.root / 'v1.9.0/current.json').read_text())['revision'])
 
-    def test_identity_gap_and_unsafe_versions(self):
-        with self.assertRaises(ValueError):
-            self.merge(self.root, self.site('1.0.0', 0), '2.0.0', 0)
-        with self.assertRaises(ValueError):
-            self.merge(self.root, self.site('1.0.0', 2), '1.0.0', 2)
-        for value in ['../escape', '01.0.0', '1.0', '1.0.0-alpha.01']:
-            with self.assertRaises(ValueError):
-                release.checked_version(value)
 
     def test_zip_traversal_rejected(self):
         archive = self.base / 'bad.zip'
@@ -177,7 +108,7 @@ class ReleaseTests(unittest.TestCase):
         restored = self.base / 'restored'
         release.unpack_site(archive, restored)
         self.merge(self.root, restored, '1.0.0', 0)
-        self.assertEqual(original, tree_hashes(self.root / 'v1.0.0/r0'))
+        self.assertEqual(original, tree_hashes(self.root / 'v1.0.0'))
 
     def test_html_parser_collects_anchors(self):
         page = Page('<h2 id="example">Example</h2><a href="#example">link</a>')
@@ -187,43 +118,7 @@ class ReleaseTests(unittest.TestCase):
     def git(self, *args):
         return subprocess.check_output(['git', *map(str, args)], stderr=subprocess.DEVNULL, text=True).strip()
 
-    def test_real_git_publish_retry_preserves_newer_tree_and_rollback(self):
-        remote = self.base / 'remote.git'
-        self.git('init', '--bare', remote)
-        fake_root = self.base / 'workspace'
-        fake_root.mkdir()
-        first = self.site('1.0.0', 0)
-        newer = self.site('2.0.0', 0)
-        with patch.object(release, 'ROOT', fake_root):
-            release.deploy_tree(first, '1.0.0', 0, remote_url=str(remote), activate=True)
-            original_run = subprocess.run
-            injected = []
-            def competing_push(args, **kwargs):
-                if isinstance(args, list) and 'push' in args and not injected:
-                    injected.append(True)
-                    release.deploy_tree(newer, '2.0.0', 0, remote_url=str(remote), activate=True)
-                return original_run(args, **kwargs)
-            with patch.object(subprocess, 'run', side_effect=competing_push):
-                exported = release.deploy_tree(self.site('1.0.0', 1), '1.0.0', 1, remote_url=str(remote), activate=True)
-            tree = Path(exported['export'])
-            self.assertTrue((tree / 'v2.0.0/r0/index.html').exists())
-            self.assertTrue((tree / 'v1.0.0/r1/index.html').exists())
-            self.assertFalse((tree / '.git').exists())
-            result = release.deploy_tree(first, '1.0.0', 0, rollback=0, remote_url=str(remote), activate=True)
-            tree = Path(result['export'])
-            self.assertEqual(0, json.loads((tree / 'v1.0.0/current.json').read_text())['revision'])
-            self.assertTrue((tree / 'v1.0.0/r1/index.html').exists())
-            # A failed Pages deployment can replay the same archive without dropping later versions.
-            result = release.deploy_tree(first, '1.0.0', 0, remote_url=str(remote), activate=True)
-            self.assertTrue((Path(result['export']) / 'v2.0.0/r0/index.html').exists())
 
-    def test_remote_failure_does_not_initialize_archive(self):
-        fake_root = self.base / 'workspace'
-        fake_root.mkdir()
-        with patch.object(release, 'ROOT', fake_root):
-            with self.assertRaises(subprocess.CalledProcessError):
-                release.deploy_tree(self.site('1.0.0', 0), '1.0.0', 0, remote_url=str(self.base / 'does-not-exist.git'))
-        self.assertFalse(list((fake_root / 'artifacts/pages').glob('export-*')))
 
     def test_preflight_blocks_tag_native_and_commit_mismatch(self):
         source = self.base / 'source'
@@ -347,72 +242,10 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(1, calls.call_count)
             self.assertEqual(manifest, release.verify_bundle(destination))
 
-    def test_revision_single_bundle_restores_original_package_identity(self):
-        folder, manifest = self.bundle()
-        revised = self.site('1.0.0', 1, 'revision')
-        docs = io.BytesIO()
-        with zipfile.ZipFile(docs, 'w') as archive:
-            for name in tree_hashes(revised):
-                archive.writestr(name, (revised / name).read_bytes())
-        metadata = {'version': '1.0.0', 'revision': 1, 'release_commit': manifest['commit'], 'docs_commit': manifest['commit'],
-                    'archive_sha256': release.digest(docs.getvalue()), 'package_sha256': release.digest((folder / 'Fizzy.McapSharp.1.0.0.nupkg').read_bytes()), 'files': tree_hashes(revised)}
-        bundle = io.BytesIO()
-        with zipfile.ZipFile(bundle, 'w') as archive:
-            archive.writestr('docs-r1.zip', docs.getvalue())
-            archive.writestr('provenance-r1.json', json.dumps(metadata))
-        workspace = self.base / 'workspace'
-        workspace.mkdir()
-        record = {'assets': [{'name': 'revision-r1.zip', 'id': 9}]}
-        with patch.object(release, 'ROOT', workspace), patch.object(release, 'BUNDLE', folder), patch.object(release, 'restore', return_value=manifest), patch.object(release, 'release_record', return_value=record), patch.object(release, 'gh', return_value=bundle.getvalue()):
-            result = release.recover_site('v1.0.0', 1)
-            self.assertEqual(tree_hashes(revised), tree_hashes(Path(result['recovered']) / 'v1.0.0/r1'))
-            self.assertFalse((Path(result['recovered']) / 'v1.0.0/current.json').exists())
 
-    def test_revision_inventory_reserves_partial_and_complete_identities(self):
-        record = {'draft': False, 'assets': [{'name': 'docs-r1.zip'}, {'name': 'revision-r2.zip'}, {'name': 'provenance-r3.json'}]}
-        with patch.object(revision, 'release_record', return_value=record):
-            self.assertEqual({1, 2, 3}, revision.inventory('v1.0.0')[1])
-        record['draft'] = True
-        with patch.object(revision, 'release_record', return_value=record):
-            with self.assertRaisesRegex(ValueError, 'public release'):
-                revision.inventory('v1.0.0')
 
-    def test_prepare_starts_from_verified_active_revision_commit(self):
-        recovered = self.base / 'recovered'
-        info = {'version': '1.0.0', 'revision': 1, 'docs_commit': 'b' * 40, 'release_commit': 'a' * 40}
-        write_json(recovered / 'v1.0.0/r1/doc-info.json', info)
-        def local_output(*args):
-            return '' if args[1] == 'status' else 'a' * 40
-        with patch.object(sys, 'argv', ['revision.py', 'prepare', '--tag', 'v1.0.0']), patch.object(revision, 'inventory', return_value=({'assets': []}, {1})), patch.object(revision, 'restore', return_value={'commit': 'a' * 40}), patch.object(revision, 'output', side_effect=local_output), patch.object(revision, 'run') as git, patch.object(subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)), patch.object(revision, 'recover_site', return_value={'recovered': str(recovered)}), patch.object(revision, 'verify_online') as online, patch('urllib.request.urlopen', return_value=io.BytesIO(b'{"revision":1}')):
-            result = revision.main()
-            self.assertEqual(2, result['revision'])
-            self.assertEqual('b' * 40, result['base_commit'])
-            self.assertEqual(('git', 'switch', '-c', 'docs/v1.0.0-r2', 'b' * 40), git.call_args.args)
-            online.assert_called_once_with('1.0.0', 1, expected_commit='b' * 40)
 
-    def test_revision_resume_dispatches_restore_without_rebuild(self):
-        with patch.object(sys, 'argv', ['revision.py', 'resume', '--tag', 'v1.0.0', '--revision', '1']), patch.object(revision, 'inventory', return_value=({'assets': [{'name': 'revision-r1.zip'}]}, {1})), patch.object(revision, 'restore'), patch.object(revision, 'gh') as dispatch, patch.object(revision, 'revision_build') as build:
-            self.assertEqual('resume', revision.main()['dispatched'])
-            self.assertIn('docs-restore.yml', dispatch.call_args.args)
-            self.assertIn('activate_revision=true', dispatch.call_args.args)
-            build.assert_not_called()
 
-    def test_real_git_stage_failure_keeps_latest_and_replay_preserves_newer_revision(self):
-        remote = self.base / 'stage.git'
-        self.git('init', '--bare', remote)
-        fake_root = self.base / 'workspace'
-        fake_root.mkdir()
-        original = self.site('1.0.0', 0)
-        updated = self.site('1.0.0', 1)
-        with patch.object(release, 'ROOT', fake_root):
-            release.deploy_tree(original, '1.0.0', 0, remote_url=str(remote), activate=True)
-            result = release.deploy_tree(updated, '1.0.0', 1, remote_url=str(remote))
-            tree = Path(result['export'])
-            self.assertEqual(0, json.loads((tree / 'v1.0.0/current.json').read_text())['revision'])
-            self.assertFalse((tree / 'v1.0.0/completed/r1.json').exists())
-            release.deploy_tree(updated, '1.0.0', 1, remote_url=str(remote), activate=True, expected_commit='a' * 40)
-            result = release.deploy_tree(original, '1.0.0', 0, remote_url=str(remote), activate=True)
-            self.assertEqual(1, json.loads((Path(result['export']) / 'v1.0.0/current.json').read_text())['revision'])
 
     def test_partial_durable_upload_uses_original_bundle_only(self):
         folder, manifest = self.bundle()
@@ -432,3 +265,134 @@ class ReleaseTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class DirectArchiveTests(unittest.TestCase):
+    setUp = ReleaseTests.setUp
+    site = ReleaseTests.site
+    git = ReleaseTests.git
+
+    def test_overwrite_deletes_pages_preserves_other_versions_and_latest(self):
+        original = self.site('1.0.0', 0)
+        (original / 'removed.html').write_text('removed')
+        newer = self.site('2.0.0', 0)
+        docs_archive.merge_site(self.root, original, '1.0.0', True)
+        docs_archive.merge_site(self.root, newer, '2.0.0', True)
+        before = tree_hashes(self.root / 'v2.0.0')
+        docs_archive.merge_site(self.root, self.site('1.0.0', 1, 'corrected'), '1.0.0', True)
+        self.assertFalse((self.root / 'v1.0.0/removed.html').exists())
+        self.assertEqual(before, tree_hashes(self.root / 'v2.0.0'))
+        self.assertEqual('corrected', (self.root / 'v1.0.0/index.html').read_text())
+        self.assertEqual('2.0.0', json.loads((self.root / 'versions.json').read_text())['latest'])
+        docs_archive.merge_site(self.root, self.site('3.0.0-beta.1', 0), '3.0.0-beta.1', True)
+        self.assertEqual('2.0.0', json.loads((self.root / 'versions.json').read_text())['latest'])
+
+    def test_legacy_paths_removed_without_redirect(self):
+        import shutil
+        old = self.site('1.0.0', 0)
+        write_json(old / 'doc-info.json', dict(version='1.0.0', revision=0, docs_commit='a'*40, release_commit='a'*40))
+        shutil.copytree(old, self.root / 'v1.0.0/r0')
+        write_json(self.root / 'v1.0.0/current.json', {'revision': 0})
+        docs_archive.migrate(self.root)
+        self.assertFalse((self.root / 'v1.0.0/r0').exists())
+        self.assertFalse((self.root / 'v1.0.0/current.json').exists())
+        self.assertEqual('original', (self.root / 'v1.0.0/index.html').read_text())
+        self.assertNotIn('revision', json.loads((self.root / 'v1.0.0/doc-info.json').read_text()))
+
+    def test_real_git_candidate_success_staleness_resume_and_rollback(self):
+        remote = self.base / 'direct.git'
+        self.git('init', '--bare', remote)
+        original = self.site('1.0.0', 0)
+        with patch.object(docs_archive, 'check_site'):
+            first = docs_archive.deploy_tree(original, '1.0.0', True, 'empty', '100', str(remote))
+            self.assertFalse((Path(first['archive']) / 'v1.0.0').exists())
+            recovered, candidate = docs_archive.recover_payload('100', value='1.0.0', remote_url=str(remote))
+            self.assertEqual(tree_hashes(original), tree_hashes(recovered))
+            self.assertEqual(first['candidate'], candidate)
+            with self.assertRaisesRegex(ValueError, 'successful'):
+                docs_archive.recover_payload(archive_commit=candidate, value='1.0.0', remote_url=str(remote))
+            completed = docs_archive.complete_deployment(first['archive'], '100', candidate)['archive_commit']
+            with self.assertRaisesRegex(ValueError, 'already completed'):
+                docs_archive.recover_payload('100', value='1.0.0', remote_url=str(remote))
+            with self.assertRaisesRegex(ValueError, 'changed since preparation'):
+                docs_archive.deploy_tree(original, '1.0.0', True, candidate, '101', str(remote))
+            changed = self.site('1.0.0', 1, 'corrected')
+            second = docs_archive.deploy_tree(changed, '1.0.0', True, completed, '102', str(remote))
+            self.assertEqual('original', (Path(second['archive']) / 'v1.0.0/index.html').read_text())
+            # A failed candidate has no success marker and leaves durable current docs unchanged.
+            self.assertFalse((Path(second['archive']) / '.deployments/102/success.json').exists())
+            restored, _ = docs_archive.recover_payload(archive_commit=completed, value='1.0.0', remote_url=str(remote))
+            self.assertEqual(tree_hashes(original), tree_hashes(restored))
+            current = docs_archive.complete_deployment(second['archive'], '102', second['candidate'])['archive_commit']
+            self.assertEqual('corrected', (Path(second['archive']) / 'v1.0.0/index.html').read_text())
+            rollback = docs_archive.deploy_tree(restored, '1.0.0', True, current, '103', str(remote))
+            rolled_back = docs_archive.complete_deployment(rollback['archive'], '103', rollback['candidate'])['archive_commit']
+            self.assertNotEqual(completed, rolled_back)
+            self.assertEqual('original', (Path(rollback['archive']) / 'v1.0.0/index.html').read_text())
+            self.git('-C', rollback['archive'], 'merge-base', '--is-ancestor', current, rolled_back)
+
+    def test_corrupt_payload_refused(self):
+        remote = self.base / 'corrupt.git'
+        self.git('init', '--bare', remote)
+        with patch.object(docs_archive, 'check_site'):
+            result = docs_archive.deploy_tree(self.site('1.0.0', 0), '1.0.0', True, 'empty', '200', str(remote))
+        (Path(result['archive']) / '.deployments/200/site/index.html').write_text('tampered')
+        with self.assertRaisesRegex(ValueError, 'content changed'):
+            docs_archive.complete_deployment(result['archive'], '200', result['candidate'])
+
+    def test_pending_candidate_cannot_resume_after_newer_success(self):
+        remote = self.base / 'stale.git'
+        self.git('init', '--bare', remote)
+        with patch.object(docs_archive, 'check_site'):
+            pending = docs_archive.deploy_tree(self.site('1.0.0', 0), '1.0.0', True, 'empty', '300', str(remote))
+            newer = docs_archive.deploy_tree(self.site('1.0.0', 1, 'new'), '1.0.0', True, pending['candidate'], '301', str(remote))
+            completed = docs_archive.complete_deployment(newer['archive'], '301', newer['candidate'])['archive_commit']
+            with self.assertRaisesRegex(ValueError, 'superseded'):
+                docs_archive.recover_payload('300', value='1.0.0', remote_url=str(remote))
+            with self.assertRaisesRegex(ValueError, 'changed during deployment'):
+                docs_archive.complete_deployment(pending['archive'], '300', pending['candidate'])
+            with self.assertRaisesRegex(ValueError, 'cannot overwrite corrected'):
+                docs_archive.deploy_tree(Path(pending['archive']) / '.deployments/300/site', '1.0.0', True, completed, '302', str(remote), initial=True)
+
+    def test_pending_dev_payload_recovery_needs_no_release(self):
+        remote = self.base / 'dev.git'
+        self.git('init', '--bare', remote)
+        with patch.object(docs_archive, 'check_site'):
+            site = self.site('0.1.0', None)
+            pending = docs_archive.deploy_tree(site, '0.1.0', False, run_id='400', remote_url=str(remote))
+            recovered, _ = docs_archive.recover_payload('400', remote_url=str(remote))
+            self.assertEqual(tree_hashes(site), tree_hashes(recovered))
+            self.assertEqual('dev', docs_archive.identity(recovered)['channel'])
+            self.assertFalse((Path(pending['archive']) / 'dev').exists())
+
+    def test_online_fingerprint_rejects_same_source_stale_content(self):
+        info = {'version': '1.0.0', 'channel': 'release', 'docs_commit': 'a'*40, 'content_sha256': 'old'}
+        with patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps(info).encode())):
+            with self.assertRaisesRegex(ValueError, 'fingerprint is stale'):
+                docs_archive.verify_online('1.0.0', True, attempts=1, expected_commit='a'*40, expected_content='new')
+
+    def test_update_rejects_sample_project_but_accepts_example_source(self):
+        with patch.object(release, 'output', return_value='samples/Documentation/Documentation.csproj'):
+            with self.assertRaisesRegex(ValueError, 'non-documentation'):
+                release.check_update_changes('base')
+        with patch.object(release, 'output', return_value='samples/Documentation/Program.cs'):
+            self.assertEqual(['samples/Documentation/Program.cs'], release.check_update_changes('base'))
+
+    def test_dev_resume_baseline_is_rechecked_at_deployment(self):
+        remote = self.base / 'dev-race.git'
+        self.git('init', '--bare', remote)
+        with patch.object(docs_archive, 'check_site'):
+            first = docs_archive.deploy_tree(self.site('0.1.0', None), '0.1.0', False, run_id='500', remote_url=str(remote))
+            recovered, baseline = docs_archive.recover_payload('500', remote_url=str(remote))
+            newer = docs_archive.deploy_tree(self.site('0.1.0', None, 'newer'), '0.1.0', False, run_id='501', remote_url=str(remote))
+            docs_archive.complete_deployment(newer['archive'], '501', newer['candidate'])
+            with self.assertRaisesRegex(ValueError, 'changed since preparation'):
+                docs_archive.deploy_tree(recovered, '0.1.0', False, expected_archive=baseline, run_id='502', remote_url=str(remote))
+
+    def test_online_fresh_identity_does_not_hide_stale_html(self):
+        site = self.site('1.0.0', 0)
+        def response(url, **kwargs):
+            if url.endswith('doc-info.json'): return io.BytesIO((site / 'doc-info.json').read_bytes())
+            return io.BytesIO(b'stale html')
+        with patch('urllib.request.urlopen', side_effect=response):
+            with self.assertRaisesRegex(ValueError, 'Online file differs'):
+                docs_archive.verify_online_files('https://example.test/v1.0.0/', site)

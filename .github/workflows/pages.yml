@@ -8,16 +8,10 @@ on:
       version:
         type: string
         required: true
-      promote:
+      fixed:
         type: boolean
         default: false
-      recovery:
-        type: boolean
-        default: false
-      rollback:
-        type: string
-        default: ''
-      revision:
+      expected_archive:
         type: string
         default: ''
 permissions:
@@ -39,6 +33,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -46,23 +42,23 @@ jobs:
         with:
           name: ${{ inputs.artifact }}
           path: artifacts/docs/site
-      - name: Merge latest archive tree
+      - name: Archive exact payload and assemble candidate site
         id: tree
         env:
           DOC_VERSION: ${{ inputs.version }}
-          DOC_REVISION: ${{ inputs.revision }}
-          DOC_ROLLBACK: ${{ inputs.rollback }}
-          DOC_RECOVERY: ${{ inputs.recovery }}
-        shell: bash
+          DOC_FIXED: ${{ inputs.fixed }}
+          DOC_BASE: ${{ inputs.expected_archive }}
         run: |
-          args=(deploy-tree --version "$DOC_VERSION")
-          if [ -n "$DOC_REVISION" ]; then args+=(--revision "$DOC_REVISION"); fi
-          if [ -n "$DOC_ROLLBACK" ]; then args+=(--rollback "$DOC_ROLLBACK"); fi
-          if [ "$DOC_RECOVERY" = true ]; then args+=(--recovery); fi
-          python scripts/release.py "${args[@]}"
+          args=(stage --version "$DOC_VERSION")
+          if [ "$DOC_FIXED" = true ]; then
+            if [ -z "$DOC_BASE" ]; then args+=(--initial); DOC_BASE=$(python -c "import sys; sys.path.insert(0,'scripts'); from docs_archive import archive_head; print(archive_head())"); fi
+            args+=(--fixed)
+          fi
+          if [ -n "$DOC_BASE" ]; then args+=(--expected-archive "$DOC_BASE"); fi
+          python scripts/docs_archive.py "${args[@]}"
       - name: Refuse stale main immediately before deployment
-        if: inputs.revision == ''
-        run: python scripts/release.py assert-main
+        if: ${{ !inputs.fixed }}
+        run: python scripts/docs_archive.py assert-main
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -72,41 +68,16 @@ jobs:
       - name: Verify live documentation
         env:
           DOC_VERSION: ${{ inputs.version }}
-          DOC_REVISION: ${{ inputs.revision }}
-        run: |
-          args=(online --version "$DOC_VERSION" --docs-commit "${{ steps.tree.outputs.docs_commit }}")
-          if [ -n "$DOC_REVISION" ]; then args+=(--revision "$DOC_REVISION"); fi
-          python scripts/release.py "${args[@]}"
-      - name: Activate verified immutable revision
-        if: inputs.revision != ''
-        id: active
-        env:
-          DOC_VERSION: ${{ inputs.version }}
-          DOC_REVISION: ${{ inputs.revision }}
-          DOC_ROLLBACK: ${{ inputs.rollback }}
-          DOC_RECOVERY: ${{ inputs.recovery }}
+          DOC_FIXED: ${{ inputs.fixed }}
           DOC_COMMIT: ${{ steps.tree.outputs.docs_commit }}
-          DOC_PROMOTE: ${{ inputs.promote }}
-        shell: bash
+          DOC_LATEST: ${{ steps.tree.outputs.latest }}
+          DOC_CONTENT: ${{ steps.tree.outputs.content_sha256 }}
         run: |
-          args=(deploy-tree --version "$DOC_VERSION" --revision "$DOC_REVISION" --activate --docs-commit "$DOC_COMMIT")
-          if [ -n "$DOC_ROLLBACK" ]; then args+=(--rollback "$DOC_ROLLBACK"); fi
-          if [ "$DOC_RECOVERY" = true ]; then args+=(--recovery); fi
-          if [ "$DOC_PROMOTE" = true ]; then args+=(--promote); fi
-          python scripts/release.py "${args[@]}"
-      - uses: actions/upload-pages-artifact@v3
-        if: inputs.revision != ''
-        with:
-          name: github-pages-active
-          path: ${{ steps.active.outputs.export }}
-      - uses: actions/deploy-pages@v4
-        if: inputs.revision != ''
-        with:
-          artifact_name: github-pages-active
-      - name: Verify activated entrypoints
-        if: inputs.revision != ''
+          args=(online --version "$DOC_VERSION" --docs-commit "$DOC_COMMIT" --expected-latest "$DOC_LATEST" --expected-content "$DOC_CONTENT")
+          if [ "$DOC_FIXED" = true ]; then args+=(--fixed); fi
+          python scripts/docs_archive.py "${args[@]}"
+      - name: Record successful deployment
         env:
-          DOC_VERSION: ${{ inputs.version }}
-          DOC_ACTIVE_REVISION: ${{ steps.active.outputs.active_revision }}
-          DOC_LATEST: ${{ steps.active.outputs.latest }}
-        run: python scripts/release.py verify-entrypoints --version "$DOC_VERSION" --expected-revision "$DOC_ACTIVE_REVISION" --expected-latest "$DOC_LATEST"
+          DOC_ARCHIVE: ${{ steps.tree.outputs.archive }}
+          DOC_CANDIDATE: ${{ steps.tree.outputs.candidate }}
+        run: python scripts/docs_archive.py complete --archive "$DOC_ARCHIVE" --candidate "$DOC_CANDIDATE" --run-id "$GITHUB_RUN_ID"

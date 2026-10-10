@@ -172,7 +172,7 @@ def extract_package(package, destination):
             raise ValueError('Documentation package identity differs from source metadata')
 
 
-def build_docs(package=None, revision=None, release_commit=None, xml_override=None):
+def build_docs(package=None, release_commit=None, xml_override=None):
     check_sources()
     DOCS.mkdir(parents=True, exist_ok=True)
     for name in ['api', 'site', 'input']:
@@ -191,7 +191,7 @@ def build_docs(package=None, revision=None, release_commit=None, xml_override=No
             updated = ET.parse(xml_override)
             ids = lambda tree: sorted(x.attrib['name'] for x in tree.findall('./members/member'))
             if ids(original) != ids(updated):
-                raise ValueError('Revision XML member inventory differs from original package')
+                raise ValueError('Updated XML member inventory differs from original package')
             shutil.copy2(xml_override, DOCS / 'input/Fizzy.McapSharp.xml')
     else:
         build()
@@ -210,7 +210,7 @@ def build_docs(package=None, revision=None, release_commit=None, xml_override=No
     run('dotnet', 'docfx', 'metadata', DOCS / 'metadata.json', '--warningsAsErrors')
     namespace_pages()
     run('dotnet', 'docfx', 'build', ROOT / 'docfx.json', '--warningsAsErrors')
-    info = {'version': version(), 'revision': revision, 'release_commit': release_commit or output('git', 'rev-parse', 'HEAD'),
+    info = {'version': version(), 'channel': 'release' if package else 'dev', 'release_commit': release_commit or output('git', 'rev-parse', 'HEAD'),
             'docs_commit': output('git', 'rev-parse', 'HEAD'), 'tools': {'dotnet': output('dotnet', '--version'), 'docfx': '2.78.3'},
             'run_id': os.environ.get('GITHUB_RUN_ID', 'local')}
     site = DOCS / 'site'
@@ -220,6 +220,10 @@ def build_docs(package=None, revision=None, release_commit=None, xml_override=No
         root = os.path.relpath(site, page.parent).replace('\\', '/') + '/'
         body = page.read_text(encoding='utf-8')
         page.write_text(body.replace('</body>', f'<script src="{root}version.js" data-doc-root="{root}"></script></body>'), encoding='utf-8')
+    content = tree_hashes(site)
+    content.pop('doc-info.json', None)
+    info['content_sha256'] = digest(json.dumps(content, sort_keys=True).encode())
+    write_json(site / 'doc-info.json', info)
     report = check_site(site)
     npm = 'npm.cmd' if os.name == 'nt' else 'npm'
     run(npm, 'ci', '--no-audit', '--no-fund')
@@ -241,9 +245,9 @@ def build_docs(package=None, revision=None, release_commit=None, xml_override=No
 
 def samples(package_directory=None, published=False):
     folder = Path(tempfile.mkdtemp(prefix='samples-', dir=ROOT / 'artifacts'))
-    for source in (ROOT / 'samples/Documentation').glob('*'):
-        if source.is_file():
-            shutil.copy2(source, folder / source.name)
+    for source in (ROOT / 'samples/Documentation').glob('*.cs'):
+        shutil.copy2(source, folder / source.name)
+    shutil.copy2(ROOT / 'samples/Documentation/Documentation.csproj', folder / 'Documentation.csproj')
     project = folder / 'Documentation.csproj'
     if package_directory and published:
         raise ValueError('Choose either a local package directory or the published source')
@@ -258,7 +262,10 @@ def samples(package_directory=None, published=False):
     else:
         build()
         reference = f'<ProjectReference Include="{ROOT / "Fizzy.McapSharp.csproj"}" />'
-    project.write_text(re.sub(r'<!-- REFERENCE -->.*?<!-- END REFERENCE -->', lambda _: reference, project.read_text(encoding='utf-8'), flags=re.S), encoding='utf-8')
+    template = project.read_text(encoding='utf-8')
+    if template.count('<!-- REFERENCE -->') != 1 or template.count('<!-- END REFERENCE -->') != 1:
+        raise ValueError('Trusted sample project must contain exactly one reference placeholder')
+    project.write_text(re.sub(r'<!-- REFERENCE -->.*?<!-- END REFERENCE -->', lambda _: reference, template, flags=re.S), encoding='utf-8')
     restore = ['dotnet', 'restore', project, '--packages', folder / 'packages']
     if package_directory or published:
         restore += ['--configfile', folder / 'NuGet.Config']
@@ -274,7 +281,6 @@ def main():
     parser.add_argument('--package', type=Path)
     parser.add_argument('--package-directory', type=Path)
     parser.add_argument('--published', action='store_true')
-    parser.add_argument('--revision', type=int)
     parser.add_argument('--release-commit')
     parser.add_argument('--xml-override', type=Path)
     parser.add_argument('--port', type=int, default=8087)
@@ -283,7 +289,7 @@ def main():
     if args.command == 'check':
         return check_sources(args.accept_translation)
     if args.command == 'build':
-        return build_docs(args.package, args.revision, args.release_commit, args.xml_override)
+        return build_docs(args.package, args.release_commit, args.xml_override)
     if args.command == 'site':
         return check_site(DOCS / 'site')
     if args.command == 'samples':

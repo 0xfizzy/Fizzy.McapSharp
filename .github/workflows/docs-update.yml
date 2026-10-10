@@ -1,0 +1,132 @@
+name: docs-update
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing public package tag (vX.Y.Z), or dev for Resume
+        required: true
+        type: string
+      source_ref:
+        description: Reviewed documentation source SHA (build only)
+        type: string
+      expected_archive:
+        description: Archive SHA captured at preparation
+        required: true
+        type: string
+      mode:
+        type: choice
+        options: [build, resume, rollback]
+        default: build
+      run_id:
+        description: Failed deployment run to resume without rebuilding
+        type: string
+      archive_commit:
+        description: Successful archive commit to restore for this version
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: windows-2022
+    environment: documentation-update
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      DOC_SOURCE: ${{ inputs.source_ref }}
+      DOC_RUN: ${{ inputs.run_id }}
+      DOC_ARCHIVE: ${{ inputs.archive_commit }}
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      expected_archive: ${{ steps.recovery.outputs.expected_archive || inputs.expected_archive }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: dtolnay/rust-toolchain@master
+        if: inputs.mode == 'build'
+        with:
+          toolchain: 1.98.1
+          targets: x86_64-pc-windows-msvc
+      - id: identity
+        env:
+          DOC_MODE: ${{ inputs.mode }}
+        run: |
+          @'
+          import os,sys
+          sys.path.insert(0,'scripts')
+          from release import tag_version,set_outputs,release_record
+          from docs_archive import recover_payload,identity
+          tag = os.environ['RELEASE_TAG']
+          if tag == 'dev':
+              assert os.environ['DOC_MODE'] == 'resume', 'Development supports Resume only'
+              site, _ = recover_payload(os.environ['DOC_RUN'])
+              info = identity(site)
+              assert info['channel'] == 'dev'
+              value = info['version']
+          else:
+              record = release_record(tag)
+              assert record and not record['draft']
+              value = tag_version(tag)
+          set_outputs({'version': value})
+          '@ | python
+          if ($LASTEXITCODE) { throw 'Documentation identity check failed' }
+      - name: Build reviewed docs with trusted tools and original package DLL
+        if: inputs.mode == 'build'
+        run: |
+          if ($env:DOC_SOURCE -notmatch '^[a-f0-9]{40}$') { throw 'Full source SHA required' }
+          New-Item -ItemType Directory -Force artifacts/trusted-tools | Out-Null
+          Copy-Item scripts artifacts/trusted-tools/scripts -Recurse
+          Copy-Item docfx.json,package.json,package-lock.json artifacts/trusted-tools/
+          Copy-Item samples/Documentation/Documentation.csproj artifacts/trusted-tools/Documentation.csproj
+          Copy-Item .config artifacts/trusted-tools/.config -Recurse
+          git fetch origin $env:DOC_SOURCE
+          if ($LASTEXITCODE) { throw 'Source fetch failed' }
+          git checkout --detach $env:DOC_SOURCE
+          if ($LASTEXITCODE) { throw 'Source checkout failed' }
+          Copy-Item artifacts/trusted-tools/scripts/* scripts/ -Recurse -Force
+          Copy-Item artifacts/trusted-tools/docfx.json,artifacts/trusted-tools/package.json,artifacts/trusted-tools/package-lock.json ./ -Force
+          Copy-Item artifacts/trusted-tools/.config/* .config/ -Recurse -Force
+          Copy-Item artifacts/trusted-tools/Documentation.csproj samples/Documentation/Documentation.csproj -Force
+          python scripts/release.py update --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE) { throw 'Update validation failed' }
+      - name: Restore exact archived payload
+        id: recovery
+        if: inputs.mode != 'build'
+        env:
+          DOC_MODE: ${{ inputs.mode }}
+          DOC_VERSION: ${{ steps.identity.outputs.version }}
+          DOC_EXPECTED: ${{ inputs.expected_archive }}
+        run: |
+          $arguments = @('recover','--version',$env:DOC_VERSION,'--expected-archive',$env:DOC_EXPECTED)
+          if ($env:DOC_MODE -eq 'resume') { $arguments += @('--run-id',$env:DOC_RUN) }
+          else { $arguments += @('--archive-commit',$env:DOC_ARCHIVE) }
+          python scripts/docs_archive.py @arguments
+          if ($LASTEXITCODE) { throw 'Archive recovery failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: updated-site
+          path: artifacts/docs/site
+          if-no-files-found: error
+  deploy:
+    needs: build
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      artifact: updated-site
+      version: ${{ needs.build.outputs.version }}
+      fixed: ${{ inputs.tag != 'dev' }}
+      expected_archive: ${{ needs.build.outputs.expected_archive }}

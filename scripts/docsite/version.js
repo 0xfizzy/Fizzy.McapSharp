@@ -1,4 +1,4 @@
-// Loaded relative to each immutable revision; only the shared index changes.
+// Each package version has one current documentation directory.
 (async () => {
   const script = document.querySelector('script[data-doc-root]');
   const root = new URL(script.dataset.docRoot, document.baseURI);
@@ -7,19 +7,19 @@
   bar.id = 'documentation-version';
   bar.style.cssText = 'padding:.6rem 1rem;border-bottom:1px solid #888;display:flex;gap:1rem;align-items:center';
   const label = document.createElement('span');
-  label.textContent = `${info.revision === null ? 'Development (unreleased)' : `v${info.version}${info.version.includes('-') ? ' (prerelease)' : ''}`} · ${info.docs_commit.slice(0, 12)}`;
+  label.textContent = `${info.channel === 'dev' ? 'Development (unreleased)' : `v${info.version}${info.version.includes('-') ? ' (prerelease)' : ''}`} · ${info.docs_commit.slice(0, 12)}`;
   bar.append(label);
   document.body.prepend(bar);
   // Local standalone previews have no shared versions index.
-  const shared = new URL(info.revision === null ? '../' : '../../', root);
+  const shared = new URL('../', root);
   const response = await fetch(new URL('versions.json', shared));
   if (!response.ok) return;
   const versions = await response.json();
   const select = document.createElement('select');
   select.setAttribute('aria-label', 'Documentation version');
-  const current = info.revision === null ? 'dev/' : `${info.version}/r${info.revision}/`;
+  const current = info.channel === 'dev' ? 'dev/' : `${info.version}/`;
   if (versions.dev) select.add(new Option('Development', 'dev/'));
-  for (const entry of versions.entries) select.add(new Option(`v${entry.version}`, `${entry.version}/r${entry.current}/`));
+  for (const entry of versions.entries) select.add(new Option(`v${entry.version}`, `${entry.version}/`));
   if (![...select.options].some(option => option.value === current)) select.add(new Option(`${current.replace(/\/$/, '')} (publication pending)`, current));
   select.value = current;
   select.addEventListener('change', async () => {

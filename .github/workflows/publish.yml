@@ -81,7 +81,7 @@ jobs:
           }
           $package = @(Get-ChildItem artifacts/packages/*.nupkg)
           if ($package.Count -ne 1) { throw 'Expected one verified package' }
-          ./scripts/Build-Docs.ps1 -Package $package[0].FullName -Revision 0 -ReleaseCommit $env:GITHUB_SHA
+          ./scripts/Build-Docs.ps1 -Package $package[0].FullName -ReleaseCommit $env:GITHUB_SHA
           ./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages
           ./scripts/Test-Release.ps1
           python scripts/release.py prepare --tag $env:RELEASE_TAG
@@ -192,7 +192,7 @@ jobs:
     with:
       artifact: release-site
       version: ${{ needs.preflight.outputs.version }}
-      revision: '0'
+      fixed: true
   finalize:
     needs: deploy
     if: always() && needs.deploy.result == 'success'

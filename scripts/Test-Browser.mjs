@@ -11,14 +11,14 @@ const info = liveUrl
   ? await fetch(new URL('doc-info.json', liveUrl)).then(response => { assert(response.ok, 'Live documentation identity'); return response.json(); })
   : JSON.parse(await readFile(path.join(site, 'doc-info.json'), 'utf8'));
 const prefix = '/Fizzy.McapSharp/';
-const mounts = ['dev', 'v0.0.0/r0'];
+const mounts = ['dev', 'v0.0.0'];
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 const server = createServer(async (req, res) => {
   try {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     if (pathname === prefix + 'versions.json') {
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ entries: [{ version: '0.0.0', current: 0, completed: true }], dev: true })); return;
+      res.end(JSON.stringify({ entries: [{ version: '0.0.0', completed: true }], dev: true })); return;
     }
     const mount = mounts.find(v => pathname.startsWith(`${prefix}${v}/`));
     if (!mount) { res.writeHead(404).end(); return; }
@@ -28,7 +28,7 @@ const server = createServer(async (req, res) => {
     if (mount !== 'dev' && relative === 'docs/zh-CN/usage.html') { res.writeHead(404).end(); return; }
     if (relative === 'doc-info.json') {
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ...info, version: mount === 'dev' ? info.version : '0.0.0', revision: mount === 'dev' ? null : 0 })); return;
+      res.end(JSON.stringify({ ...info, version: mount === 'dev' ? info.version : '0.0.0', channel: mount === 'dev' ? 'dev' : 'release' })); return;
     }
     const file = (await stat(target)).isDirectory() ? path.join(target, 'index.html') : target;
     res.setHeader('content-type', mime[path.extname(file)] || 'application/octet-stream');
@@ -52,11 +52,11 @@ try {
     assert.match(await page.locator('#documentation-version > span').innerText(), /Development \(unreleased\)/);
   }
   if (!liveUrl) {
-    await page.getByLabel('Documentation version', { exact: true }).selectOption('0.0.0/r0/');
-    await page.waitForURL('**/v0.0.0/r0/api/Fizzy.McapSharp.McapWriter.html');
+    await page.getByLabel('Documentation version', { exact: true }).selectOption('0.0.0/');
+    await page.waitForURL('**/v0.0.0/api/Fizzy.McapSharp.McapWriter.html');
     await page.goto(base + 'docs/zh-CN/usage.html');
-    await page.getByLabel('Documentation version', { exact: true }).selectOption('0.0.0/r0/');
-    await page.waitForURL('**/v0.0.0/r0/docs/zh-CN/index.html');
+    await page.getByLabel('Documentation version', { exact: true }).selectOption('0.0.0/');
+    await page.waitForURL('**/v0.0.0/docs/zh-CN/index.html');
   }
   await page.goto(base + 'docs/index.html');
   await page.locator('article').getByRole('link', { name: '简体中文', exact: true }).click();
