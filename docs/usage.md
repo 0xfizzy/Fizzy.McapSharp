@@ -14,11 +14,17 @@ The example starts with an empty destination, allocates the required size after 
 
 ## Select query behavior
 
-Use file order for incremental scanning. Set `AllowBufferedSort = false` to reject global scan-and-sort fallback; this still permits supported indexed queries. Use `OpenIndexedMessages()` when usable indexes are mandatory. The example combines an exact topic with file order and prohibited sorting fallback. A successful indexed query does not validate the entire file. See [query paths](api.md#choosing-a-query-path).
+To filter by topic/time while preserving recording order, call `OpenMessages(new() { Topic = "/sample", Order = McapReadOrder.File })`; add `StartTime` / `EndTime` for an inclusive/exclusive LogTime interval. File order needs no fallback-policy switch. Omitting the query uses file order, but adding an explicit query with only `Topic` or `Topics` selects ascending time order by default.
+
+For time order without global scan-and-sort, use `OpenMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false })`. If the query cannot use indexes, opening throws `NotSupportedException` before collecting matches. With the default `AllowBufferedSort = true`, it may collect all matches before returning the session. `ReverseLogTime` has the same fallback policy. Neither time order specifies the order of equal timestamps.
+
+Use `OpenIndexedMessages()` on the file factory when indexes are mandatory; disabling buffered sorting alone still permits file-order scans. Indexed reading can buffer chunks, and successful queries do not validate the entire file. The example checks file versus default query order, supported time ordering with fallback disabled, and rejection on an unindexed source. See [query paths and local allowances](api.md#choosing-a-query-path).
 
 ## Borrow or retain
 
 A visitor consumes spans synchronously and must not retain them or reenter its reader. A batch lease retains immutable backing storage after reader disposal; keep it alive until all span access finishes. The example forwards a retained batch synchronously after declaring the destination channel. Leases may retain whole chunks or mappings; payload size is not a total retained-memory bound. See [batches and leases](api.md#borrowing-batches-and-leases).
+
+Choose `ReadMessages()` when you need independent mutable results without managing a lease. For a few payloads retained long term, [copy the needed bytes before disposing the lease](api.md#choosing-storage-for-retained-results). Caller buffers copy too, even on a zero-managed-allocation path. A callback avoids the final delivery copy but cannot be retained; a lease avoids that copy while retaining backing storage. These are different costs, not guarantees of low total memory. Check [reader availability](api.md#choose-message-ownership) before choosing a delivery form.
 
 ## Stream and asynchronous ownership
 

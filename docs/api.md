@@ -35,7 +35,7 @@ Preparation may allocate. `McapPreparedOperation` similarly reuses schema/channe
 
 ## Choose message ownership
 
-Choose delivery ownership before tuning allocations. A message session applies its query and ordering independently of the delivery method; the methods below expose the selected messages with different result forms and lifetimes. Availability depends on the reader type.
+Choose delivery ownership before tuning allocations. A message session applies its query and ordering independently of the delivery method; the methods below expose the selected messages with different result forms and lifetimes.
 
 | Need | API | Managed allocation and payload delivery | Lifetime |
 | --- | --- | --- | --- |
@@ -43,6 +43,8 @@ Choose delivery ownership before tuning allocations. A message session applies i
 | Reuse caller storage | `ReadNext(buffer, ...)`, `ReadBatch(...)` | Warmed library path allocates 0 B managed; copies payload into caller buffers | Caller owns buffers and decides when to overwrite them |
 | Process synchronously | `ReadNext(visitor)`, `VisitMessages(...)` | Warmed library path allocates 0 B managed; no final payload delivery copy | Span expires when the callback returns; no reader reentry |
 | Retain across operations or forward | `ReadBatchLease(...)` | Allocates lease control objects; shares payload backing without batch repacking | Keep the lease alive throughout access; never dispose concurrently |
+
+All four forms are available on message `McapReadSession`s and message-capable `McapReadCursor`s (Messages, RawMessages and snapshot chunk readers). `McapAsyncReader` delivers messages through `ReadBatchLeaseAsync`, without query sorting; its caller-buffer API reads records. Direct `McapSansIoReader` uses caller-buffer events, not these visitor/lease methods. Snapshot random access has its own [delivery overloads](#complete-chunk-random-access).
 
 `ReadMessages()` copies to provide independent mutable results, not because message reading requires owned arrays. Buffer and borrowed paths return headers; retrieve declarations separately when needed. Shared immutable declarations are available through `GetChannelDescription`. Choosing a delivery method does not remove parser input, decompression, query sorting or index costs. See [allocation guarantees](#validation-recovery-and-allocation-guarantees).
 
@@ -56,7 +58,8 @@ Access selects where and in what order to read; delivery ownership selects how r
 | --- | --- | --- |
 | Process a recording in file order | Sequential message/record session | Incremental input; no global result collection for sorting |
 | Filter by topic/time in time order | Query with usable indexes | May buffer overlapping chunks; fallback can collect all matches when indexes are insufficient |
-| Require indexes, reject scan-and-sort | `OpenIndexedMessages` or disable buffered fallback | Fails when required query support is unavailable |
+| Reject global buffered sorting | `OpenMessages` with `AllowBufferedSort = false` | Still permits file-order scans and supported indexed queries |
+| Require indexes | `OpenIndexedMessages` | Fails instead of falling back to a sequential scan or global sort |
 | Read many messages in one chunk | One `OpenChunkReader` cursor | Reuses traversal within that cursor |
 | Fetch a known set of discrete messages | `SeekMessages` | Groups chunk loads within one call; returns a shared batch |
 | Revisit chunks across calls | Reuse a snapshot with a cache allowance | Trades retained storage for fewer repeated loads/decompressions |
@@ -191,21 +194,22 @@ while (true)
 
 `BufferTooSmall` returns the required payload length and message header, leaves the destination untouched and keeps the same record pending. Successful empty messages return `Success` with length zero. `McapReadStatus.Success` means an operation produced a result or event; inspect the opcode or event kind to determine its content. EOF is repeatable. Errors terminate message/record advancement. Caller-buffer methods expose no native addresses; separate borrowed methods follow the lifecycle contract below.
 
-Queries accept either one exact `Topic` or a `Topics` collection and apply `[StartTime, EndTime)` to LogTime. Null boundaries are unbounded; reversed boundaries throw, equal boundaries select nothing. Queries default to `LogTime` order, with `ReverseLogTime` and `File` available. Time ordering guarantees monotonic LogTime and delivery of every selected message; the order among messages with equal LogTime is unspecified, including across chunks. Use File order when physical recording order is required. Opening messages without a query uses sequential file order, matching the official message stream.
+Queries accept either one exact `Topic` or a `Topics` collection and apply `[StartTime, EndTime)` to LogTime. Null boundaries are unbounded; reversed boundaries throw, equal boundaries select nothing. An explicit `new McapQuery()`, including one that only sets `Topic` or `Topics`, defaults to ascending `LogTime` order, with `ReverseLogTime` and `File` available. Time ordering guarantees monotonic LogTime and delivery of every selected message; the order among messages with equal LogTime is unspecified, including across chunks. Use File order when physical recording order is required. `OpenMessages()` and `ReadMessages()` without a query use sequential file order, matching the official message stream.
 
-Seekable time-ordered queries use the official `IndexedReader` when summary declarations and chunk coverage suffice and there are no top-level messages. Non-default linear parser flags force high-level queries to scan; explicit indexed reading rejects these unsupported flags. Direct Sans-I/O indexed readers never use scan-and-sort fallback.
+Seekable time-ordered queries use the official `IndexedReader` when summary declarations and chunk coverage suffice and there are no top-level messages. Non-default linear parser flags force high-level queries to scan; explicit indexed reading rejects these unsupported flags. Missing summary/declarations/statistics, insufficient chunk coverage, top-level messages or a non-seekable source can prevent indexed selection. Missing per-message indexes alone does not prevent it: selected chunks can be parsed for messages. Malformed indexes and parsing/I/O errors can fail instead of falling back. Direct Sans-I/O indexed readers never use scan-and-sort fallback.
 
 ### Choosing a query path
 
 | Requested behavior | Execution | Cost |
 | --- | --- | --- |
-| No query, or File order | Incremental sequential scan | No collection of all matching messages for sorting |
+| `OpenMessages()` / `ReadMessages()` without a query | Incremental sequential scan in file order | No global sorting |
+| Explicit `Order = File` | Sequential scan, or indexed reading when topic/time filters and index prerequisites permit | Preserves file order without collecting all matches for a global sort; does not require `AllowBufferedSort = false` |
 | Time order with sufficient indexes and supported options | Official IndexedReader | May buffer overlapping Chunks |
 | Time order without sufficient indexes | Wrapper scan-and-sort fallback | Collects matching messages in native memory before returning the session |
 
 The fallback is a high-level binding capability, not sorting provided by official MessageStream. File order need not follow LogTime: after reading time 30, a later record can still have time 10. Without sufficient indexes or an ordering guarantee, the scan must finish before it can establish global time order. This increases time to the first result and memory use in proportion to selected payloads and sorting data; there is no automatic disk spill.
 
-`AllowBufferedSort` defaults to true, including for non-seekable sources. Set it to false to reject fallback with NotSupportedException before collection while retaining index probing, supported indexed queries and file-order scans. Use `OpenIndexedMessages()` to require usable indexes. The fallback collection allowance is defined under [local limits](#binding-performance-and-local-limits). A successful indexed query is not full-file validation.
+`AllowBufferedSort` defaults to true, including for non-seekable sources. Set it to false to reject fallback with NotSupportedException before collection while retaining index probing, supported indexed queries and file-order scans. Use the file factory’s `OpenIndexedMessages()` to require usable indexes; its omitted query defaults to LogTime, and `AllowBufferedSort` / `MaxBufferedSortBytes` do not apply. Unavailable indexed support raises `McapException`, not the fallback-policy `NotSupportedException`. Neither entry point promises no chunk buffering. The fallback collection allowance is defined under [local limits](#binding-performance-and-local-limits). A successful indexed query is not full-file validation.
 
 `GetChannel(id)` and `GetSchema(id)` copy descriptions already encountered or loaded from a summary. New declarations can appear during reading without creating managed objects in the message loop. IDs alone are returned on the hot path. Description lookup and summary operations allocate.
 
@@ -286,7 +290,7 @@ Owned results remain independent: `McapMessage.Data` is a `byte[]` copy and muta
 
 `ReadBatch(headers, ranges, payloadStorage)` fills caller-owned buffers with whole messages and returns count, used bytes, stop reason and the next required capacity. If a later record fails, the call throws and the session becomes terminal; buffers may contain an already written prefix, but no prefix count is returned, so discard the entire call's output. Visitor callbacks that already ran are not rolled back. A failing lease read publishes no partial batch; leases returned by earlier calls remain valid. It preserves the next message when space is insufficient. Borrowed, caller-buffer batch and batch-write paths have warmed Release zero-managed-allocation gates.
 
-`ReadBatchLease` returns `McapMessageBatchLease`, by default up to 256 messages and a soft 4 MiB payload target. The target is checked after adding a whole message, so a batch may exceed it, including when a single message exceeds the target. `GetHeader`, `GetPayload`, `CopyTo` and `RetainMessage(index)` access or retain messages without per-message payload arrays. Batches may reference multiple chunks without repacking. Leases survive reader disposal; Dispose is idempotent, with private SafeHandle finalization fallback. Dispose retained message leases separately.
+`ReadBatchLease` returns `McapMessageBatchLease`, by default up to 256 messages and a soft 4 MiB payload target. The target is checked after adding a whole message, so a batch may exceed it, including when a single message exceeds the target. `GetHeader`, `GetPayload`, `CopyTo` and `RetainMessage(index)` access or retain messages without per-message payload arrays. Batches may reference multiple chunks without repacking. Leases remain valid across reader advancement, reader disposal and cache eviction; Dispose is idempotent, with private SafeHandle finalization fallback. Dispose retained message leases separately.
 
 Keep a lease in a using scope throughout span use. Access methods reject disposed owners, but an existing span cannot be revoked. Keep the owner alive and never overlap span access with concurrent disposal. Cross-thread transfer is supported with caller synchronization. Mapped files must remain unchanged until every reader, child cursor and lease referencing them is released.
 

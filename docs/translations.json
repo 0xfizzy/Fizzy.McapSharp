@@ -1,6 +1,6 @@
 {
   "README.md": "4b96803089c8f098b6b03f9b82918c83470f3f2ae7c0da971de00050d792103c",
-  "docs/api.md": "6b5d4718ed4450baff80e3815dea0a7f7159e126d2056797787fa31f2e99f4e8",
+  "docs/api.md": "afe9ebff08c3bf0567ca2b11103fa7f2e6b9ca40d110dd9564c5aec3bb25be65",
   "docs/coverage.md": "3b9d101f3fa579eceddce02632fa6f88c99d499004f73c163ef30987b807fb97",
   "docs/development.md": "c592db3316603aaaab8fcd8e9e9fe280c305cdc3026b4f5be35ae6b9767dcbcf",
   "docs/documentation.md": "a8417cf09547dc468017091305996080ae1f5df21def1b9541aff0aaa95a2faf",
@@ -8,5 +8,5 @@
   "docs/native.md": "bc73046de745f069d94f4ccb222e32f6d6177278f754a819fb7da6048dc8a129",
   "docs/patches.md": "c724b802ffe41a7739d49cf6643eb6467a1201f5c4fe045e8dd620580b8af992",
   "docs/release.md": "e97388c9b7c1e915e5726c96735cab3df2e419bee4f8cc1759b9416d46680c15",
-  "docs/usage.md": "55295d39df39e7a32609bf58bc7fcef03724d73440d5fc0cbdd9651eea9bbde1"
+  "docs/usage.md": "75e3eb375afa137f7acde736f88906706547f00aaaa86e51cde9a50db88ba112"
 }

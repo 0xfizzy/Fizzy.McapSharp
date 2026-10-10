@@ -35,7 +35,7 @@
 
 ## 选择消息所有权
 
-先选择交付所有权，再优化分配。消息会话的查询与排序独立于交付方式；下列方法交付选中的消息，但结果形式和生命周期不同。具体可用方法取决于 reader 类型。
+先选择交付所有权，再优化分配。消息会话的查询与排序独立于交付方式；下列方法交付选中的消息，但结果形式和生命周期不同。
 
 | 需求 | API | 托管分配与 payload 交付 | 生命周期 |
 | --- | --- | --- | --- |
@@ -43,6 +43,8 @@
 | 复用调用方存储 | `ReadNext(buffer, ...)`、`ReadBatch(...)` | 库预热路径托管分配为 0 B；payload 复制到调用方缓冲 | 调用方拥有缓冲并决定覆盖时机 |
 | 同步处理 | `ReadNext(visitor)`、`VisitMessages(...)` | 库预热路径托管分配为 0 B；无最终 payload 交付复制 | Span 在回调返回时失效；禁止重入 reader |
 | 跨操作保留或转写 | `ReadBatchLease(...)` | 分配 lease 控制对象；共享 payload backing，不为批次重新拼接 | 访问期间保持 lease 存活；禁止并发释放 |
+
+这四种形式均适用于消息 `McapReadSession` 及支持消息的 `McapReadCursor`（Messages、RawMessages 和 snapshot chunk reader）。`McapAsyncReader` 通过 `ReadBatchLeaseAsync` 交付消息，不提供查询排序；其调用方缓冲 API 读取的是记录。直接 `McapSansIoReader` 使用调用方缓冲事件，不提供这些 visitor／lease 方法。Snapshot 随机访问另有[交付重载](#完整-chunk-随机访问)。
 
 `ReadMessages()` 的复制用于提供独立可变结果，并非消息读取必须创建自有数组。缓冲与借用路径返回 header，需要声明时单独查询；`GetChannelDescription` 提供可共享的不可变声明。选择交付方式不会消除解析器输入、解压、查询排序或索引成本。参见[分配保证](#校验恢复和分配承诺)。
 
@@ -56,7 +58,8 @@
 | --- | --- | --- |
 | 按文件顺序处理录制 | 顺序消息／记录会话 | 增量输入，无需为全局排序收集结果 |
 | 按 topic／时间过滤并按时间排序 | 使用可用索引的查询 | 可能缓冲重叠 chunk；索引不足时回退可能收集全部匹配结果 |
-| 要求索引，拒绝扫描排序 | `OpenIndexedMessages` 或禁止缓冲回退 | 所需查询支持不可用时失败 |
+| 拒绝全局缓冲排序 | `OpenMessages` 配合 `AllowBufferedSort = false` | 仍允许文件顺序扫描及受支持的索引查询 |
+| 必须使用索引 | `OpenIndexedMessages` | 不回退到顺序扫描或全局排序，而是失败 |
 | 读取同一 chunk 内多条消息 | 一个 `OpenChunkReader` 游标 | 在该游标内复用遍历 |
 | 读取已知的一组离散消息 | `SeekMessages` | 单次调用内合并 chunk 加载；返回共享批次 |
 | 跨调用反复访问 chunk | 复用配置缓存额度的 snapshot | 用保留存储换取更少的重复加载／解压 |
@@ -191,21 +194,22 @@ while (true)
 
 `BufferTooSmall` 返回所需 payload 长度和消息头，不修改目标缓冲，也不消费待处理记录。空消息成功返回 `Success`，长度为零。`McapReadStatus.Success` 表示操作产生了结果或事件；具体内容由 opcode 或事件种类确定。EOF 可重复读取。错误会终止消息/记录推进；调用方缓冲接口不暴露原生地址；专用借用入口遵循下文生命周期契约。
 
-查询指定完整 `Topic` 或 `Topics` 集合，对 LogTime 使用 `[StartTime, EndTime)`；null 为无边界，起点大于终点抛异常，相等为空区间。查询默认 `LogTime` 顺序，可选 `ReverseLogTime` 或 `File`；时间排序保证 LogTime 单调并交付所有选中消息；相同 LogTime 消息之间的顺序未指定，包括跨 Chunk 的情况。需要物理录制顺序时使用 File 顺序。不传查询对象时按官方消息流的文件顺序读取。
+查询指定完整 `Topic` 或 `Topics` 集合，对 LogTime 使用 `[StartTime, EndTime)`；null 为无边界，起点大于终点抛异常，相等为空区间。显式 `new McapQuery()`（包括仅设置 `Topic` 或 `Topics`）默认按 `LogTime` 升序读取，可选 `ReverseLogTime` 或 `File`；时间排序保证 LogTime 单调并交付所有选中消息；相同 LogTime 消息之间的顺序未指定，包括跨 Chunk 的情况。需要物理录制顺序时使用 File 顺序。`OpenMessages()` 和 `ReadMessages()` 不传查询对象时按官方消息流的文件顺序读取。
 
-可定位时间排序查询在摘要声明和 Chunk 覆盖充分、无 Chunk 外消息时使用官方 `IndexedReader`。非默认线性解析选项使高层查询转为扫描；显式索引读取拒绝这些不支持的选项。直接 Sans-I/O 索引读取不使用扫描排序回退。
+可定位时间排序查询在摘要声明和 Chunk 覆盖充分、无 Chunk 外消息时使用官方 `IndexedReader`。非默认线性解析选项使高层查询转为扫描；显式索引读取拒绝这些不支持的选项。缺少摘要／声明／统计、Chunk 覆盖不足、存在 Chunk 外消息或源不可定位，都可能使查询无法选择索引路径。仅缺少逐消息索引不一定阻止索引读取：仍可解析选中的 Chunk 来取得消息。索引损坏及解析／I/O 错误可能直接失败，而非回退。直接 Sans-I/O 索引读取不使用扫描排序回退。
 
 ### 选择查询路径
 
 | 请求行为 | 执行方式 | 成本 |
 | --- | --- | --- |
-| 不带查询或选择 File 顺序 | 增量顺序扫描 | 不为排序收集全部匹配消息 |
+| `OpenMessages()`／`ReadMessages()` 不传 query | 按文件顺序增量扫描 | 无全局排序 |
+| 显式 `Order = File` | 顺序扫描；有 topic／时间过滤且满足索引条件时也可使用索引 | 保持文件顺序，不为全局排序收集全部匹配结果；不要求设置 `AllowBufferedSort = false` |
 | 时间排序且索引充分、选项受支持 | 官方 IndexedReader | 可能缓存时间范围重叠的 Chunk |
 | 时间排序但索引不足 | 封装层扫描排序回退 | 返回会话前将匹配消息收集到原生内存 |
 
 回退是高层封装增加的能力，不是官方 MessageStream 提供的排序。文件顺序不一定按 LogTime 递增：读到时间 30 后，后续仍可能出现时间 10。缺少充分索引或顺序保证时，必须完成扫描才能确定全局时间顺序，因此增加首条结果延迟，并消耗与选中 payload 和排序数据成比例的内存；不会自动溢写磁盘。
 
-`AllowBufferedSort` 默认 true，非定位源同样允许回退。设为 false 后在收集前抛出 NotSupportedException 拒绝回退，但仍允许索引探测、受支持的索引查询及文件顺序扫描；用 `OpenIndexedMessages()` 明确要求索引可用。回退收集额度的计量范围见[局部限制](#绑定层性能与局部限制)。索引查询成功仍不代表全文件已验证。
+`AllowBufferedSort` 默认 true，非定位源同样允许回退。设为 false 后在收集前抛出 NotSupportedException 拒绝回退，但仍允许索引探测、受支持的索引查询及文件顺序扫描；文件工厂的 `OpenIndexedMessages()` 明确要求索引可用；不传 query 时默认为 LogTime，`AllowBufferedSort`／`MaxBufferedSortBytes` 不适用。索引支持不可用时抛出 `McapException`，而非回退策略的 `NotSupportedException`。两个入口都不保证没有 Chunk 缓冲。回退收集额度的计量范围见[局部限制](#绑定层性能与局部限制)。索引查询成功仍不代表全文件已验证。
 
 `GetChannel(id)` 和 `GetSchema(id)` 复制已遇到或从 Summary 加载的描述。文件中途新增声明不会在消息循环创建托管对象，热路径只返回 ID。描述查询与 Summary 操作允许分配。
 
@@ -288,7 +292,7 @@ Owned 结果保持独立：`McapMessage.Data` 仍为 `byte[]` 副本，可变声
 
 `ReadBatch(headers, ranges, payloadStorage)` 将完整消息写入调用方缓冲，返回数量、使用字节、停止原因和下一条所需容量。后续记录失败时，调用抛异常并终止会话；缓冲可能已写入前缀，但不返回前缀数量，因此必须丢弃本次调用的全部输出。已经执行的 visitor 回调副作用不回滚。失败的 lease 读取不发布部分批次；此前成功返回的 lease 仍有效。空间不足时保留下一条。借用、调用方批量读取和批量写入都有预热后的 Release 零托管分配门禁。
 
-`ReadBatchLease` 返回 `McapMessageBatchLease`，默认最多 256 条、软目标 4 MiB。在加入整条消息后检查目标，因此批次可能超过目标，包括单条消息已超过目标的情况。通过 GetHeader、GetPayload、CopyTo、RetainMessage(index) 访问或保留消息，不产生逐消息载荷数组。批次可引用多个 chunk，不重新拼接。Lease 在 reader 释放后有效；Dispose 幂等，私有 SafeHandle 提供终结兜底。Retain 的消息 lease 单独释放。
+`ReadBatchLease` 返回 `McapMessageBatchLease`，默认最多 256 条、软目标 4 MiB。在加入整条消息后检查目标，因此批次可能超过目标，包括单条消息已超过目标的情况。通过 GetHeader、GetPayload、CopyTo、RetainMessage(index) 访问或保留消息，不产生逐消息载荷数组。批次可引用多个 chunk，不重新拼接。Lease 在 reader 推进、reader 释放和缓存淘汰后仍有效；Dispose 幂等，私有 SafeHandle 提供终结兜底。Retain 的消息 lease 单独释放。
 
 Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 owner，但已有 Span 无法撤销。禁止访问与 Dispose 并发；可在调用者同步下跨线程转移。所有相关 reader、子游标和 lease 释放前，映射文件必须保持不变。
 

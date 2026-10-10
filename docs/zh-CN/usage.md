@@ -14,11 +14,17 @@
 
 ## 查询路径
 
-文件顺序适合增量扫描。`AllowBufferedSort = false` 拒绝全局扫描排序回退，但仍允许支持的索引查询。必须具备索引时使用 `OpenIndexedMessages()`。示例组合精确主题、文件顺序和禁止排序回退。索引查询成功不能替代全文件验证。
+按 topic／时间过滤且保持录制顺序时，调用 `OpenMessages(new() { Topic = "/sample", Order = McapReadOrder.File })`；需要时间范围时添加 `StartTime`／`EndTime`，分别是 LogTime 的包含下界和不包含上界。文件顺序不需要设置回退策略。不传 query 使用文件顺序，但显式 query 即使只设置 `Topic` 或 `Topics`，也默认按时间升序读取。
+
+需要时间顺序但不接受全局扫描排序时，使用 `OpenMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false })`。查询无法使用索引时，打开会话会在收集匹配消息前抛出 `NotSupportedException`。默认的 `AllowBufferedSort = true` 则可能在返回会话前收集全部匹配结果。`ReverseLogTime` 使用相同回退策略；两个时间顺序都不指定相同时间戳之间的顺序。
+
+必须使用索引时，调用文件工厂的 `OpenIndexedMessages()`；仅禁止缓冲排序仍允许文件顺序扫描。索引读取也可能缓冲 Chunk，查询成功不能替代全文件验证。示例检查文件顺序与默认 query 顺序、禁用回退时受支持的时间排序，以及无索引源上的拒绝行为。详见[查询路径与局部额度](api.md#选择查询路径)。
 
 ## 借用与保留
 
 visitor 同步消费 span，不得保留 span 或重入 reader。batch lease 在 reader 释放后仍保留不可变存储；所有 span 使用结束前必须保持 lease 存活。示例声明目标 Channel 后同步转发保留的 batch。lease 可能保留整个 Chunk 或映射，payload 长度不代表总保留内存上限。
+
+需要独立可变结果且不想管理 lease 时，选择 `ReadMessages()`。若只需长期保留少量 payload，可在[释放 lease 前复制所需字节](api.md#为保留结果选择存储)。调用方缓冲即使走零托管分配路径，也会复制 payload。回调避免最终交付复制，但不能保留 span；lease 避免该复制，却会保留 backing 存储。这些是不同的成本，不是低总内存保证。选择交付方式前，先核对[适用的 reader 类型](api.md#选择消息所有权)。
 
 ## Stream 与异步所有权
 
