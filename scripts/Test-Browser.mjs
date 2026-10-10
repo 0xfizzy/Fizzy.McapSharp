@@ -48,14 +48,14 @@ try {
   for (const relative of ['docs/index.html', 'docs/zh-CN/index.html', 'api/Fizzy.McapSharp.McapWriter.html']) {
     const response = await page.goto(base + relative);
     assert.equal(response.status(), 200, relative);
-    await page.getByLabel('Switch documentation version').waitFor();
-    assert.match(await page.getByLabel('Documentation version', { exact: true }).innerText(), /dev — unreleased/);
+    await page.getByLabel('Documentation version', { exact: true }).waitFor();
+    assert.match(await page.locator('#documentation-version > span').innerText(), /Development \(unreleased\)/);
   }
   if (!liveUrl) {
-    await page.getByLabel('Switch documentation version').selectOption('0.0.0/r0/');
+    await page.getByLabel('Documentation version', { exact: true }).selectOption('0.0.0/r0/');
     await page.waitForURL('**/v0.0.0/r0/api/Fizzy.McapSharp.McapWriter.html');
     await page.goto(base + 'docs/zh-CN/usage.html');
-    await page.getByLabel('Switch documentation version').selectOption('0.0.0/r0/');
+    await page.getByLabel('Documentation version', { exact: true }).selectOption('0.0.0/r0/');
     await page.waitForURL('**/v0.0.0/r0/docs/zh-CN/index.html');
   }
   await page.goto(base + 'docs/index.html');
@@ -77,7 +77,7 @@ try {
     await result.click();
   }
   await page.waitForURL(url => /\/api\/[^/]*McapWriter[^/]*\.html$/.test(url.pathname));
-  await page.getByLabel('Switch documentation version').waitFor();
+  await page.getByLabel('Documentation version', { exact: true }).waitFor();
   assert.deepEqual(errors, []);
   assert.deepEqual(resources, []);
   await mkdir(output, { recursive: true });
