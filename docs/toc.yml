@@ -1,18 +1,24 @@
-- name: English guides
-  href: index.md
-- name: Task guide and examples
-  href: usage.md
-- name: API contracts
-  href: api.md
-- name: Development
-  href: development.md
+- name: Getting started and usage
+  items:
+    - name: Overview
+      href: index.md
+    - name: Task guide and examples
+      href: usage.md
+    - name: API contracts
+      href: api.md
+- name: Development and internals
+  items:
+    - name: Development
+      href: development.md
+    - name: Native ABI
+      href: native.md
+    - name: Upstream coverage
+      href: coverage.md
+    - name: Local patches
+      href: patches.md
 - name: Documentation maintenance
-  href: documentation.md
-- name: Release SOP
-  href: release.md
-- name: Native ABI
-  href: native.md
-- name: Upstream coverage
-  href: coverage.md
-- name: Local patches
-  href: patches.md
+  items:
+    - name: Documentation builds
+      href: documentation.md
+    - name: Release SOP
+      href: release.md

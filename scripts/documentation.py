@@ -172,7 +172,7 @@ def extract_package(package, destination):
             raise ValueError('Documentation package identity differs from source metadata')
 
 
-def build_docs(package=None, release_commit=None, xml_override=None):
+def build_docs(package=None, release_commit=None, xml_override=None, skip_browser=False):
     check_sources()
     DOCS.mkdir(parents=True, exist_ok=True)
     for name in ['api', 'site', 'input']:
@@ -216,23 +216,29 @@ def build_docs(package=None, release_commit=None, xml_override=None):
     site = DOCS / 'site'
     write_json(site / 'doc-info.json', info)
     shutil.copy2(ROOT / 'scripts/docsite/version.js', site / 'version.js')
+    shutil.copy2(ROOT / 'scripts/docsite/version.css', site / 'version.css')
     for page in site.rglob('*.html'):
         root = os.path.relpath(site, page.parent).replace('\\', '/') + '/'
         body = page.read_text(encoding='utf-8')
-        page.write_text(body.replace('</body>', f'<script src="{root}version.js" data-doc-root="{root}"></script></body>'), encoding='utf-8')
+        if '</head>' in body:
+            addition = f'<link rel="stylesheet" href="{root}version.css">\n<script defer src="{root}version.js" data-doc-root="{root}"></script>\n'
+            page.write_text(body.replace('</head>', addition + '</head>'), encoding='utf-8')
     content = tree_hashes(site)
     content.pop('doc-info.json', None)
     info['content_sha256'] = digest(json.dumps(content, sort_keys=True).encode())
     write_json(site / 'doc-info.json', info)
     report = check_site(site)
-    npm = 'npm.cmd' if os.name == 'nt' else 'npm'
-    run(npm, 'ci', '--no-audit', '--no-fund')
-    executable = output('node', '-e', "process.stdout.write(require('@playwright/test').chromium.executablePath())")
-    # Reuse the exact pinned browser when present; do not contend for another installer's lock.
-    if not Path(executable).is_file():
-        run('node', ROOT / 'node_modules/@playwright/test/cli.js', 'install', 'chromium')
-    run('node', ROOT / 'scripts/Test-Browser.mjs')
-    report['browser'] = 'passed'
+    if skip_browser:
+        report['browser'] = 'skipped (manual verification requested)'
+    else:
+        npm = 'npm.cmd' if os.name == 'nt' else 'npm'
+        run(npm, 'ci', '--no-audit', '--no-fund')
+        executable = output('node', '-e', "process.stdout.write(require('@playwright/test').chromium.executablePath())")
+        # Reuse the exact pinned browser when present; do not contend for another installer's lock.
+        if not Path(executable).is_file():
+            run('node', ROOT / 'node_modules/@playwright/test/cli.js', 'install', 'chromium')
+        run('node', ROOT / 'scripts/Test-Browser.mjs')
+        report['browser'] = 'passed'
     write_json(DOCS / 'files.json', tree_hashes(site))
     # Stable entry timestamps keep retries with identical site bytes reproducible.
     with zipfile.ZipFile(DOCS / 'docs.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
@@ -283,13 +289,14 @@ def main():
     parser.add_argument('--published', action='store_true')
     parser.add_argument('--release-commit')
     parser.add_argument('--xml-override', type=Path)
+    parser.add_argument('--skip-browser', action='store_true')
     parser.add_argument('--port', type=int, default=8087)
     parser.add_argument('--site-directory', type=Path, default=DOCS / 'site')
     args = parser.parse_args()
     if args.command == 'check':
         return check_sources(args.accept_translation)
     if args.command == 'build':
-        return build_docs(args.package, args.release_commit, args.xml_override)
+        return build_docs(args.package, args.release_commit, args.xml_override, args.skip_browser)
     if args.command == 'site':
         return check_site(DOCS / 'site')
     if args.command == 'samples':

@@ -19,6 +19,8 @@ Build-Docs builds native Release before managed Release, checks XML, generates A
 
 For a verified complete package, `Build-Docs.ps1 -Package <absolute-nupkg-path> -ReleaseCommit <sha>` uses its DLL/XML. The package version must match project metadata. This is candidate-package documentation, not proof of published-package availability. To compare a candidate with public NuGet and execute isolated public-source package tests, run `./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published`.
 
+For generation with manual browser verification, run `./scripts/Build-Docs.ps1 -SkipBrowser`. Source, XML and static site checks still run; the report marks the browser check as skipped. This does not replace the full validation required before release.
+
 ## Translation and changes
 
 Keep English guides in `docs/` and same-name Chinese guides in `docs/zh-CN/`, with independent navigation and language links. The root README uses `README.zh-CN.md`. After reviewing the translated text, explicitly accept the English revision:

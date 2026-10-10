@@ -19,6 +19,8 @@ Build-Docs 先构建 native Release，再构建 managed Release、检查 XML、�
 
 已有验证通过的完整包时，`Build-Docs.ps1 -Package <nupkg绝对路径> -ReleaseCommit <sha>` 使用其 DLL/XML。包版本必须匹配项目元数据；这是候选包文档，不代表已发布包验证。比较候选包与公开 NuGet 并执行隔离的公开源包测试，运行 `./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published`。
 
+如需生成文档并自行进行浏览器验证，运行 `./scripts/Build-Docs.ps1 -SkipBrowser`。仍会执行源文件、XML 和站点静态检查；报告明确标记浏览器检查已跳过。此模式不替代发布前要求的完整验证。
+
 ## 翻译与变更
 
 英文指南位于 `docs/`，同名中文指南位于 `docs/zh-CN/`，分别维护导航和语言切换链接；根 README 对应 `README.zh-CN.md`。人工复核译文后显式接受英文更新：

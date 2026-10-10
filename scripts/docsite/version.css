@@ -1,0 +1,5 @@
+.documentation-version { padding: .6rem 1rem; border-bottom: 1px solid #888; display: flex; gap: 1rem; align-items: center; }
+/* Preserve legibility on phones; scroll the diagram rather than shrinking labels. */
+pre.mermaid { overflow-x: auto; }
+pre.mermaid > svg { min-width: 640px; }
+pre.mermaid > svg[aria-roledescription="sequence"] { min-width: 1000px; }

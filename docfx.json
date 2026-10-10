@@ -38,7 +38,8 @@
     "dest": "artifacts/docs/site",
     "template": [
       "default",
-      "modern"
+      "modern",
+      "docs/template"
     ],
     "globalMetadata": {
       "_appTitle": "Fizzy.McapSharp",
