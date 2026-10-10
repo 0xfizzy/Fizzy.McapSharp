@@ -103,9 +103,9 @@ def main():
     return dict(fields, dispatched=True)
 
 if __name__ == '__main__':
-    result = {'status': 'failed'}
+    result = {'command_status': 'failed'}
     try:
-        result.update(main()); result['status'] = 'passed'; print(json.dumps(result))
+        result.update(main()); result['command_status'] = 'passed'; print(json.dumps(result))
     except Exception as error:
         result['error'] = str(error); raise
     finally: write_json(ROOT / 'artifacts/reports/docs-update.json', result)
