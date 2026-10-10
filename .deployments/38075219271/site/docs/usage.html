@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Task guide and runnable examples | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Task guide and runnable examples | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="task-guide-and-runnable-examples">Task guide and runnable examples</h1>
+
+<p>English | <a href="zh-CN/usage.html">简体中文</a></p>
+<p>The <a href="../samples/Documentation/Program.cs">complete example</a> runs without hardware and deletes its temporary recording. Run <code>./scripts/Test-Samples.ps1</code> from the repository root to build the native host library first and execute against current source. For an already verified complete package, use <code>./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages</code>.</p>
+<h2 id="write-and-validate">Write and validate</h2>
+<p>Register a channel, write header/payload messages and call <code>Complete()</code> explicitly. The path constructor rejects an existing file. <code>Dispose()</code> releases resources and does not complete the format. <code>FlushToDisk()</code> is a separate persistence request. Use <code>Validate()</code> for a full-file check before processing trusted-format input; payload interpretation remains the consumer's responsibility. See <a href="api.html#write-a-recording">writing contracts</a>.</p>
+<h2 id="read-into-caller-buffers">Read into caller buffers</h2>
+<p>The example starts with an empty destination, allocates the required size after <code>BufferTooSmall</code>, then retries the pending record. Process successful bytes before reusing the buffer. EOF is not an error. Buffer growth and setup are outside the warmed zero-managed-allocation guarantee; that guarantee does not imply zero native allocations or copies. See <a href="api.html#read-messages-into-reusable-buffers">buffer negotiation</a>.</p>
+<h2 id="select-query-behavior">Select query behavior</h2>
+<p>Use file order for incremental scanning. Set <code>AllowBufferedSort = false</code> to reject global scan-and-sort fallback; this still permits supported indexed queries. Use <code>OpenIndexedMessages()</code> when usable indexes are mandatory. The example combines an exact topic with file order and prohibited sorting fallback. A successful indexed query does not validate the entire file. See <a href="api.html#choosing-a-query-path">query paths</a>.</p>
+<h2 id="borrow-or-retain">Borrow or retain</h2>
+<p>A visitor consumes spans synchronously and must not retain them or reenter its reader. A batch lease retains immutable backing storage after reader disposal; keep it alive until all span access finishes. The example forwards a retained batch synchronously after declaring the destination channel. Leases may retain whole chunks or mappings; payload size is not a total retained-memory bound. See <a href="api.html#borrowing-batches-and-leases">batches and leases</a>.</p>
+<h2 id="stream-and-asynchronous-ownership">Stream and asynchronous ownership</h2>
+<p>Use <code>leaveOpen: true</code> when the caller keeps the Stream; do not touch it while a session owns it. Await and consume each async result before another operation or disposal. Cancellation terminates that reader; it is not a reset protocol. The example uses async lease mode throughout and disposes every delivered lease. See <a href="api.html#stream-sessions-and-ownership">Stream ownership</a> and <a href="api.html#asynchronous-records-and-errors">asynchronous contracts</a>.</p>
+<p>Examples demonstrate behavior, not throughput measurements. Production code must handle its own payload schema and application error policy.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

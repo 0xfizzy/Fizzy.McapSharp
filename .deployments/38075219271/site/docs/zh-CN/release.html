@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>发布与恢复操作规程 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="发布与恢复操作规程 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../favicon.ico">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="发布与恢复操作规程">发布与恢复操作规程</h1>
+
+<p><a href="../release.html">English</a></p>
+<h2 id="配置与包发布">配置与包发布</h2>
+<p>为 <code>publish.yml</code>、<code>nuget</code> 环境和 <code>NUGET_USER</code> 配置 NuGet Trusted Publishing。Pages 使用 GitHub Actions，<code>github-pages</code> 允许 main 和发布 tag；为 <code>documentation-update</code> 配置必要审核。保留 <code>gh-pages</code> 的 Git 历史，禁止强制推送。Actions 产物用于传输，不承担长期存储。</p>
+<p>修改发布工具前运行 <code>./scripts/Test-Release.ps1</code>、完整文档构建及受影响的示例检查。包发布获得授权后，提交版本变更，通过跨平台验证，创建对应 <code>v&lt;version&gt;</code> tag，再执行：</p>
+<pre><code class="lang-powershell">./scripts/Release.ps1 Check -Tag v&lt;version&gt;
+./scripts/Release.ps1 Start -Tag v&lt;version&gt;
+./scripts/Release.ps1 Status -Tag v&lt;version&gt;
+./scripts/Release.ps1 Resume -Tag v&lt;version&gt;
+</code></pre>
+<p>发布工作流验证各平台原生资产和同一包，在 OIDC 推送 NuGet 前将原始候选完整保存到 Release 资产，验证公开包，再部署绑定该包的文档。部署成功后才公开 Release。恢复复用原始资产，不重新打包或覆盖资产；部分上传从原始自包含 bundle 恢复。执行命令本身不替代版本、tag 和发布授权。</p>
+<h2 id="文档地址与存储">文档地址与存储</h2>
+<p><code>/dev/</code> 跟随当前 main，明确标为未发布。<code>/v&lt;version&gt;/</code> 保存该包最新文档；更新整体替换目录，已删除页面也会移除。编号文档路径直接删除，不提供重定向。版本选择器仅列开发版和包版本。<code>/latest/</code> 选择成功部署的最高稳定语义版本；修改旧版文档不改变该选择。根入口进入 latest，没有稳定版时进入 dev。</p>
+<p>全部生产者共享串行 Pages 部署锁。开发版在归档组装前和部署前两次核对远端 main。固定版携带准备时的归档 SHA；归档已变化则拒绝覆盖。候选的原始页面、源码 SHA、运行 ID 和内容哈希保存在 <code>gh-pages</code> 的 <code>.deployments/&lt;run-id&gt;/</code>，不进入公开站点。组装完整候选站点，仅替换目标版本。Pages 部署及线上身份和全部文件字节验证成功后，才新增成功记录并提交当前站点，不改写历史。失败候选不标记成功。构建或 Pages 部署失败保留原站点；Pages 已成功但线上验证失败时，需要恢复或回滚。</p>
+<h2 id="更新已有包文档">更新已有包文档</h2>
+<pre><code class="lang-powershell">./scripts/Update-Docs.ps1 Prepare -Tag v&lt;version&gt;
+# 修改指南、翻译、示例或 XML 注释；审核并提交。
+./scripts/Update-Docs.ps1 Check -Tag v&lt;version&gt; -SourceRef &lt;docs-sha&gt;
+git push -u origin HEAD
+./scripts/Update-Docs.ps1 Start -Tag v&lt;version&gt; -SourceRef &lt;docs-sha&gt;
+./scripts/Update-Docs.ps1 Status -Tag v&lt;version&gt;
+./scripts/Update-Docs.ps1 Status -Tag v&lt;version&gt; -RunId &lt;run-id&gt;
+</code></pre>
+<p>Prepare 要求干净工作区和公开 Release，验证原始包来源，拉取成功归档及其中当前文档源码 SHA，从它创建 <code>docs/v&lt;version&gt;-update</code> 分支。<code>-SourceRef</code> 可指定源码，<code>-Branch</code> 可改分支名。归档基线保存到 artifacts，不推送；应保留到 Start。没有准备状态时，Start 捕获当前归档 SHA。Check 和 Start 要求检出指定源码。Start 使用可信 main 工作流、呈现资源、浏览器测试及固定工具配置处理精确源码 SHA。脚本、呈现器、示例工程和工具配置不在文档更新白名单内。云端门禁使用可信 main 示例工程，仅复制示例 C# 源码到隔离包测试目录。</p>
+<p>相对原始包提交，只允许指南、翻译、README/导航、文档示例 C# 源码和 XML 注释变化。拒绝运行时 C#、原生代码、包元数据及无关文件变化。API DLL 来自原始 nupkg；更新 XML 的成员 ID 必须一致。Check 完整构建文档、执行浏览器验证，并使用原包运行示例。文档更新不修改包、tag 或原始 Release 资产。</p>
+<h2 id="恢复与回滚">恢复与回滚</h2>
+<pre><code class="lang-powershell">./scripts/Update-Docs.ps1 Resume -Tag v&lt;version&gt; -RunId &lt;failed-run-id&gt;
+./scripts/Update-Docs.ps1 Rollback -Tag v&lt;version&gt; -ArchiveCommit &lt;successful-archive-sha&gt;
+</code></pre>
+<p>开发版失败部署使用 <code>Resume -Tag dev -RunId &lt;failed-run-id&gt;</code>；仍然拒绝过期 main 源码，并在部署锁内重新核对恢复时的归档基线。</p>
+<p>Resume 恢复持久化原始字节并校验哈希，不重建；拒绝已完成运行和被后续归档变化取代的候选。候选尚未持久化时，需要在同一源码 SHA 重跑原构建。Rollback 要求当前历史可达的完整归档 SHA，且包含指定版本成功部署；只恢复该版本，以新提交记录，其他版本保持当前状态。SHA 应选择成功完成提交，而不是候选提交。原始 Release bundle 仍是独立的不可变包恢复来源。</p>
+<p>脚本失败返回非零，报告保存在 <code>artifacts/reports/</code>。必须检查运行完成状态和线上身份，分派成功不代表部署成功。离线回归覆盖覆盖/删除、其他版本保留、latest、过期拒绝、原字节恢复、成功标记、回滚和原包来源；离线测试不发包。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../../version.js" data-doc-root="../../"></script></body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Local patch boundaries | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Local patch boundaries | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="local-patch-boundaries">Local patch boundaries</h1>
+
+<p>English | <a href="zh-CN/patches.html">简体中文</a></p>
+<p>Maintainers should prefer unmodified upstream APIs. A patch is permitted only when a documented binding ownership or performance contract cannot be met by upstream APIs or reasonable binding-only adaptation. Preserve format state machines and semantics; do not patch codec allocators, add total-memory accounting, or optimize upstream internals. Keep patches local; do not submit them upstream.</p>
+<p>When adaptation requires disproportionate duplicated state or lifetime machinery, compare it with the smallest necessary access or storage ownership extension. Document the contract, the rejected adaptation and its concrete complexity, and the correctness, maintenance and upstream-update costs of both options. Choose the simpler maintainable solution within these boundaries; complexity is not permission for convenience APIs or unrelated upstream changes. Independent behavior, lifetime and performance evidence remains required.</p>
+<h2 id="permitted-extensions">Permitted extensions</h2>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Upstream limitation and rejected alternative</th>
+<th>Local contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>storage.rs, linear_reader.rs, indexed_reader.rs; lib.rs export</td>
+<td>Borrowed events expire on advancement. Copying each leased message or retry body adds binding payload copies; keeping the parser alive alone does not prevent buffer reuse.</td>
+<td>Shared immutable storage ranges retain owners across advancement, parser disposal and cache eviction. Published ranges are never overwritten; retained storage forces relocation before overlapping writes. Shared indexed input transfers an existing buffer or mapping and rejects uncompressed input whose length disagrees with the declared decompressed length. Direct-fill input exposes only writable unpublished bytes.</td>
+</tr>
+<tr>
+<td>storage.rs: shares_backing</td>
+<td>Shared slices expose capacity but not backing identity. Payload pointers can differ within one allocation, and equal capacities do not establish shared ownership. Binding-only grouping would have to guess identity or copy dense selections too.</td>
+<td>Read-only Arc identity comparison, used to group consecutive owned sort ranges before publication. No addresses cross the C ABI. The binding chooses whether to compact; upstream state machines and allocation policy are unchanged.</td>
+</tr>
+<tr>
+<td>write.rs: contains_channel</td>
+<td>Batch preflight needs to reject unknown channels before any write. A binding-side channel registry duplicates upstream declaration state, including automatic declarations.</td>
+<td>Read-only membership query; upstream validates and writes records as before.</td>
+</tr>
+<tr>
+<td>write.rs: Drop after into_inner</td>
+<td>Upstream Drop calls finish even after output extraction, conflicting with explicit Complete and disposal without completion. A dummy output still executes unnecessary format finalization.</td>
+<td>Skip Drop finalization when output has been extracted. Ordinary upstream Drop with output present remains unchanged. The binding extracts output when disposing without Complete.</td>
+</tr>
+</tbody>
+</table>
+<p>No local patch changes CRC rules, record interpretation, compression algorithms, index ordering or writer defaults. The wrapper's optional complete-chunk cache validates the entire target chunk, which can report tail corruption earlier than an upstream prefix seek. This is a binding behavior, not an upstream guarantee.</p>
+<h2 id="evidence-and-maintenance">Evidence and maintenance</h2>
+<p><code>UPSTREAM.json</code> preserves hashes of the official crate files; <code>PATCHES.json</code> lists only local differences. <code>scripts/check_vendor.py</code> rejects undeclared differences. The API inventory labels official declarations separately from local extensions.</p>
+<p><code>python scripts/test_upstream.py</code> compiles a registry-only reference independently of the patched crate and compares deterministic writer output, records, messages, indexed seeks, every truncation of bounded fixtures and sampled corruption under None/Lz4/Zstd. These checks are finite evidence, not proof of all format behavior. Native shared-storage tests assert pointer identity, retained lifetime and allocation-free pending delivery; managed tests cover disposal, mapped storage, retries and asynchronous ownership. The mandatory Release allocation gate verifies warmed managed hot paths separately.</p>
+<p><code>sort_arena</code> tests check backing identity, compaction thresholds, exact-once selected-payload copying, segment boundaries and retained results after disposal. <code>memory_probe::sort_compaction_profile</code> compares shared and compact policies on identical inputs, verifies released backing allocations and reports retained capacity, copy bytes and old/new group overlap. <code>SortStorageTests</code> covers filtered fallback sorting, ties, reverse order, retries and lease lifetimes across compression and input modes. These tests establish binding storage behavior; the independent upstream comparison remains the format reference.</p>
+<p>For each patch change, review its necessity and binding-only alternatives, update this contract and both manifests as appropriate (never rewrite upstream hashes to accept a patch), and rerun independent behavior, lifetime and allocation checks. New convenience APIs or upstream resource policies do not justify expanding the patch.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

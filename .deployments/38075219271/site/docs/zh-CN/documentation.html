@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>文档构建与维护 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="文档构建与维护 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../favicon.ico">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="文档构建与维护">文档构建与维护</h1>
+
+<p><a href="../documentation.html">English</a> | 简体中文</p>
+<p>成员契约放在英文 XML 注释中，跨 API 契约维护在 <a href="api.html">api.md</a>，任务流程放在<a href="usage.html">使用指南</a>。对照实现审阅约束、单位、所有权、取消、失败及清理；XML 覆盖不等于语义正确。</p>
+<h2 id="本地流程">本地流程</h2>
+<p>使用 Python 3.12、PowerShell 7、Node.js 22、.NET 8 SDK、固定 Rust 工具链和<a href="development.html">开发指南</a>指定的本机编译器。DocFX 由本地工具清单固定版本，<code>dotnet tool restore</code> 只恢复该工具，不安装全局工具。</p>
+<pre><code class="lang-powershell">./scripts/Test-Documentation.ps1
+./scripts/Build-Docs.ps1
+./scripts/Test-Samples.ps1
+./scripts/Serve-Docs.ps1 -Port 8087
+</code></pre>
+<p>Build-Docs 先构建 native Release，再构建 managed Release、检查 XML、生成 API 页面、校验站点并运行固定版本 Chromium 冒烟门禁。共享输出目录的构建必须串行。Serve-Docs 支持 <code>-SiteDirectory</code>，通过本机 HTTP 在 <code>/Fizzy.McapSharp/dev/</code> 前缀下提供已有站点，Ctrl+C 停止；不要使用 file URL。检查双语页面、导航、搜索及代表性 API 页面。</p>
+<p>已有验证通过的完整包时，<code>Build-Docs.ps1 -Package &lt;nupkg绝对路径&gt; -ReleaseCommit &lt;sha&gt;</code> 使用其 DLL/XML。包版本必须匹配项目元数据；这是候选包文档，不代表已发布包验证。比较候选包与公开 NuGet 并执行隔离的公开源包测试，运行 <code>./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published</code>。</p>
+<h2 id="翻译与变更">翻译与变更</h2>
+<p>英文指南位于 <code>docs/</code>，同名中文指南位于 <code>docs/zh-CN/</code>，分别维护导航和语言切换链接；根 README 对应 <code>README.zh-CN.md</code>。人工复核译文后显式接受英文更新：</p>
+<pre><code class="lang-powershell">./scripts/Test-Documentation.ps1 -AcceptTranslation docs/usage.md
+</code></pre>
+<p>规范化源文件哈希记录复核状态，不衡量翻译质量；不得未经复核就接受哈希。双语页面共用示例源码和英文 API 参考。</p>
+<p>公开及受保护 API 声明、XML、指南、翻译、README、导航、模板及文档工具变化必须运行完整文档构建。内部变更仅在影响生成参考或文档契约时需要。示例代码或相关 API 变化后编译执行示例；发布、归档、更新或恢复逻辑变化后运行 <code>Test-Release.ps1</code>。文档检查不替代 native、分配、互操作及包测试。</p>
+<h2 id="产物与诊断">产物与诊断</h2>
+<p>API YAML、站点、docs.zip、文件哈希及成员清单位于 <code>artifacts/docs/</code>，报告位于 <code>artifacts/reports/</code>；失败返回非零退出码。生成 HTML 不提交到源码分支。源检查发现翻译漂移和缺失文件；最终 HTML 检查验证链接、锚点、搜索索引及项目路径安全。Chromium 验证双语与 API 页面加载、语言切换、一个 API 搜索结果、版本切换、缺页语言回退、页面脚本错误及必要资源，输出 JSON 结果，仅失败时保存截图；静态检查覆盖全站链接与锚点。</p>
+<p>文档工作流校验 PR，仅从 main 更新 <code>/dev/</code>，不发布 NuGet。在部署锁内，归档前和部署前均核对产物提交与远程 main，明确拒绝过期构建。包版本文档、远程配置、更新和恢复见<a href="release.html">发布 SOP</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../../version.js" data-doc-root="../../"></script></body>
+</html>

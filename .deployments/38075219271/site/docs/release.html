@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Release and recovery SOP | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Release and recovery SOP | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="release-and-recovery-sop">Release and recovery SOP</h1>
+
+<p><a href="zh-CN/release.html">简体中文</a></p>
+<h2 id="setup-and-package-publication">Setup and package publication</h2>
+<p>Configure NuGet Trusted Publishing for <code>publish.yml</code>, the <code>nuget</code> environment and <code>NUGET_USER</code>. Set Pages to GitHub Actions, and allow main and release tags in <code>github-pages</code>. Protect <code>documentation-update</code> with required reviewers. Keep <code>gh-pages</code> Git history; never force-push it. Actions artifacts are transport, not long-term storage.</p>
+<p>Run <code>./scripts/Test-Release.ps1</code>, the full documentation build and affected sample gates before changing publishing tools. For an authorized package release, commit the version update, pass the reusable cross-platform validation, create the matching <code>v&lt;version&gt;</code> tag and use:</p>
+<pre><code class="lang-powershell">./scripts/Release.ps1 Check -Tag v&lt;version&gt;
+./scripts/Release.ps1 Start -Tag v&lt;version&gt;
+./scripts/Release.ps1 Status -Tag v&lt;version&gt;
+./scripts/Release.ps1 Resume -Tag v&lt;version&gt;
+</code></pre>
+<p>The publish workflow validates native assets and the identical package across supported platforms, retains an immutable original candidate in Release assets before OIDC NuGet publication, verifies published package content, then deploys its package-bound documentation. Only after successful deployment does it make the Release public. Resume reuses original package assets; it never repacks or overwrites existing assets. A partial asset upload is recovered from the original self-contained bundle. Commands do not authorize version changes, tags or publication by themselves.</p>
+<h2 id="documentation-addresses-and-storage">Documentation addresses and storage</h2>
+<p><code>/dev/</code> follows current main and is explicitly unreleased. <code>/v&lt;version&gt;/</code> holds the latest documentation for that package; an update replaces the entire directory, including removing deleted pages. Numbered documentation paths are removed, without redirects. The version selector lists only Development and package versions. <code>/latest/</code> selects the highest successfully deployed stable semantic version; updating older documentation does not change it. The root enters latest, or dev before the first stable release.</p>
+<p>All producers use one serialized Pages deployment workflow. Dev artifacts must still match remote main before archive assembly and immediately before deployment. Fixed updates carry the archive SHA captured at preparation; a changed archive causes rejection, rather than overwriting a later update. The payload, source SHA, run ID and content hashes are retained under <code>.deployments/&lt;run-id&gt;/</code> in <code>gh-pages</code>, excluded from the public Pages artifact. The candidate contains the full current site plus the selected replacement. After Pages deployment and online identity and complete file-byte verification, a success record and current tree are committed without rewriting Git history. Failed candidates are never recorded as successful. A failed build or Pages deployment leaves the previously deployed site in place; an online verification failure after a successful Pages deployment requires Resume or Rollback.</p>
+<h2 id="updating-existing-package-documentation">Updating existing package documentation</h2>
+<pre><code class="lang-powershell">./scripts/Update-Docs.ps1 Prepare -Tag v&lt;version&gt;
+# Edit guides, translations, examples or XML comments; review and commit.
+./scripts/Update-Docs.ps1 Check -Tag v&lt;version&gt; -SourceRef &lt;docs-sha&gt;
+git push -u origin HEAD
+./scripts/Update-Docs.ps1 Start -Tag v&lt;version&gt; -SourceRef &lt;docs-sha&gt;
+./scripts/Update-Docs.ps1 Status -Tag v&lt;version&gt;
+./scripts/Update-Docs.ps1 Status -Tag v&lt;version&gt; -RunId &lt;run-id&gt;
+</code></pre>
+<p>Prepare requires a clean checkout and public Release, verifies original package provenance, fetches the successful archive and its current documentation source SHA and creates <code>docs/v&lt;version&gt;-update</code> from it. <code>-SourceRef</code> selects an explicit source and <code>-Branch</code> overrides the branch name. It saves the archive baseline under artifacts; no push occurs. Keep that preparation state until Start. If starting without it, Start captures the current archive SHA. Check and Start require the selected source checked out. Start dispatches trusted main tooling, renderer, browser tests and pinned tool configuration against the exact source SHA. Script, renderer, sample project and tool configuration edits are outside the update whitelist. The cloud gate supplies the trusted main sample project and copies only example C# sources into its isolated package test.</p>
+<p>Only guides, translations, README/navigation, documentation example C# sources and XML documentation comments may differ from the original package commit. Executable C# changes, native code, package metadata and unrelated files are rejected. The original nupkg supplies the API DLL; updated XML must preserve its member IDs. Check builds the complete documentation, runs browser validation and runs examples against the original package. No package, tag or original Release asset is changed by a documentation update.</p>
+<h2 id="resume-and-rollback">Resume and rollback</h2>
+<pre><code class="lang-powershell">./scripts/Update-Docs.ps1 Resume -Tag v&lt;version&gt; -RunId &lt;failed-run-id&gt;
+./scripts/Update-Docs.ps1 Rollback -Tag v&lt;version&gt; -ArchiveCommit &lt;successful-archive-sha&gt;
+</code></pre>
+<p>For a failed Development deployment use <code>Resume -Tag dev -RunId &lt;failed-run-id&gt;</code>; it still rejects an outdated main source and rechecks the recovered archive baseline under the deployment lock.</p>
+<p>Resume loads exact durable bytes and verifies hashes; it does not rebuild. It refuses a completed run or a candidate superseded by archive changes. Failure before a durable candidate exists requires rerunning the original build on the same source SHA. Rollback requires a full archive SHA reachable from current history containing a successful deployment of the selected version, restores only that version and makes a new archive commit; other versions remain current. The archive SHA is the successful completion commit, not the candidate commit. Original Release bundles remain a separate immutable package recovery source.</p>
+<p>Scripts fail nonzero and write reports under <code>artifacts/reports/</code>. Inspect workflow completion and live identity rather than treating dispatch acceptance as success. Offline regression tests cover replacement/deletion, retained versions, semantic latest, stale guards, exact payload recovery, success markers, rollback and original package provenance. No offline test publishes a package.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

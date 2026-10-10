@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Struct McapRecordReadResult | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Struct McapRecordReadResult | Fizzy.McapSharp ">
+      
+      <meta name="description" content="Caller-buffer read outcome. On Success, Opcode identifies the record and Length is the body bytes copied; on BufferTooSmall, Length is the required capacity and the same record remains pending. EOF does not prove full-file integrity.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Fizzy.McapSharp.McapRecordReadResult">
+
+
+
+  <h1 id="Fizzy_McapSharp_McapRecordReadResult" data-uid="Fizzy.McapSharp.McapRecordReadResult" class="text-break">
+Struct McapRecordReadResult  
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Fizzy.html">Fizzy</a>.<a class="xref" href="Fizzy.McapSharp.html">McapSharp</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Caller-buffer read outcome. On Success, Opcode identifies the record and Length is the body bytes copied; on BufferTooSmall, Length is the required capacity and the same record remains pending. EOF does not prove full-file integrity.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public readonly struct McapRecordReadResult : IEquatable&lt;McapRecordReadResult&gt;</code></pre>
+  </div>
+
+
+
+
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapRecordReadResult.html">McapRecordReadResult</a>&gt;</div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="constructors">Constructors
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult__ctor_" data-uid="Fizzy.McapSharp.McapRecordReadResult.#ctor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult__ctor_Fizzy_McapSharp_McapReadStatus_System_Byte_System_UInt64_" data-uid="Fizzy.McapSharp.McapRecordReadResult.#ctor(Fizzy.McapSharp.McapReadStatus,System.Byte,System.UInt64)">
+  McapRecordReadResult(McapReadStatus, byte, ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Caller-buffer read outcome. On Success, Opcode identifies the record and Length is the body bytes copied; on BufferTooSmall, Length is the required capacity and the same record remains pending. EOF does not prove full-file integrity.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapRecordReadResult(McapReadStatus Status, byte Opcode, ulong Length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>Status</code> <a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+    <dt><code>Opcode</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a></dt>
+    <dd></dd>
+    <dt><code>Length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="properties">Properties
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_Length_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Length*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_Length" data-uid="Fizzy.McapSharp.McapRecordReadResult.Length">
+  Length
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ulong Length { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_Opcode_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Opcode*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_Opcode" data-uid="Fizzy.McapSharp.McapRecordReadResult.Opcode">
+  Opcode
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public byte Opcode { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_Status_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Status*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_Status" data-uid="Fizzy.McapSharp.McapRecordReadResult.Status">
+  Status
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus Status { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_Deconstruct_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Deconstruct*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_Deconstruct_Fizzy_McapSharp_McapReadStatus__System_Byte__System_UInt64__" data-uid="Fizzy.McapSharp.McapRecordReadResult.Deconstruct(Fizzy.McapSharp.McapReadStatus@,System.Byte@,System.UInt64@)">
+  Deconstruct(out McapReadStatus, out byte, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void Deconstruct(out McapReadStatus Status, out byte Opcode, out ulong Length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>Status</code> <a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+    <dt><code>Opcode</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a></dt>
+    <dd></dd>
+    <dt><code>Length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_Equals_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Equals*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_Equals_Fizzy_McapSharp_McapRecordReadResult_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Equals(Fizzy.McapSharp.McapRecordReadResult)">
+  Equals(McapRecordReadResult)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool Equals(McapRecordReadResult other)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>other</code> <a class="xref" href="Fizzy.McapSharp.McapRecordReadResult.html">McapRecordReadResult</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_Equals_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Equals*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_Equals_System_Object_" data-uid="Fizzy.McapSharp.McapRecordReadResult.Equals(System.Object)">
+  Equals(object)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override bool Equals(object obj)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>obj</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_GetHashCode_" data-uid="Fizzy.McapSharp.McapRecordReadResult.GetHashCode*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_GetHashCode" data-uid="Fizzy.McapSharp.McapRecordReadResult.GetHashCode">
+  GetHashCode()
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override int GetHashCode()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_ToString_" data-uid="Fizzy.McapSharp.McapRecordReadResult.ToString*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_ToString" data-uid="Fizzy.McapSharp.McapRecordReadResult.ToString">
+  ToString()
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override string ToString()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="operators">Operators
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_op_Equality_" data-uid="Fizzy.McapSharp.McapRecordReadResult.op_Equality*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_op_Equality_Fizzy_McapSharp_McapRecordReadResult_Fizzy_McapSharp_McapRecordReadResult_" data-uid="Fizzy.McapSharp.McapRecordReadResult.op_Equality(Fizzy.McapSharp.McapRecordReadResult,Fizzy.McapSharp.McapRecordReadResult)">
+  operator ==(McapRecordReadResult, McapRecordReadResult)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool operator ==(McapRecordReadResult left, McapRecordReadResult right)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>left</code> <a class="xref" href="Fizzy.McapSharp.McapRecordReadResult.html">McapRecordReadResult</a></dt>
+    <dd></dd>
+    <dt><code>right</code> <a class="xref" href="Fizzy.McapSharp.McapRecordReadResult.html">McapRecordReadResult</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapRecordReadResult_op_Inequality_" data-uid="Fizzy.McapSharp.McapRecordReadResult.op_Inequality*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapRecordReadResult_op_Inequality_Fizzy_McapSharp_McapRecordReadResult_Fizzy_McapSharp_McapRecordReadResult_" data-uid="Fizzy.McapSharp.McapRecordReadResult.op_Inequality(Fizzy.McapSharp.McapRecordReadResult,Fizzy.McapSharp.McapRecordReadResult)">
+  operator !=(McapRecordReadResult, McapRecordReadResult)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool operator !=(McapRecordReadResult left, McapRecordReadResult right)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>left</code> <a class="xref" href="Fizzy.McapSharp.McapRecordReadResult.html">McapRecordReadResult</a></dt>
+    <dd></dd>
+    <dt><code>right</code> <a class="xref" href="Fizzy.McapSharp.McapRecordReadResult.html">McapRecordReadResult</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

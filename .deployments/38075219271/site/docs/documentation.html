@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Building and maintaining documentation | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Building and maintaining documentation | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="building-and-maintaining-documentation">Building and maintaining documentation</h1>
+
+<p>English | <a href="zh-CN/documentation.html">简体中文</a></p>
+<p>Maintain member contracts in English XML comments, cross-API contracts in <a href="api.html">api.md</a>, and task sequences in <a href="usage.html">usage.md</a>. Review constraints, units, ownership, cancellation, failure and cleanup against implementation. XML coverage is not semantic correctness.</p>
+<h2 id="local-workflow">Local workflow</h2>
+<p>Use Python 3.12, PowerShell 7, Node.js 22, the .NET 8 SDK and the pinned Rust toolchain with the host native compiler described in <a href="development.html">development</a>. DocFX is pinned in the local tool manifest; <code>dotnet tool restore</code> restores that tool only. No global tool installation is performed.</p>
+<pre><code class="lang-powershell">./scripts/Test-Documentation.ps1
+./scripts/Build-Docs.ps1
+./scripts/Test-Samples.ps1
+./scripts/Serve-Docs.ps1 -Port 8087
+</code></pre>
+<p>Build-Docs builds native Release before managed Release, checks XML, generates API pages and validates the final site, then runs the pinned Chromium smoke gate. Shared build directories must not be used concurrently. Serve-Docs accepts <code>-SiteDirectory</code> and serves an existing site under <code>/Fizzy.McapSharp/dev/</code> at a loopback HTTP address; Ctrl+C stops it. Do not preview using file URLs. Inspect English and Chinese guides, navigation, search and representative API pages.</p>
+<p>For a verified complete package, <code>Build-Docs.ps1 -Package &lt;absolute-nupkg-path&gt; -ReleaseCommit &lt;sha&gt;</code> uses its DLL/XML. The package version must match project metadata. This is candidate-package documentation, not proof of published-package availability. To compare a candidate with public NuGet and execute isolated public-source package tests, run <code>./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published</code>.</p>
+<h2 id="translation-and-changes">Translation and changes</h2>
+<p>Keep English guides in <code>docs/</code> and same-name Chinese guides in <code>docs/zh-CN/</code>, with independent navigation and language links. The root README uses <code>README.zh-CN.md</code>. After reviewing the translated text, explicitly accept the English revision:</p>
+<pre><code class="lang-powershell">./scripts/Test-Documentation.ps1 -AcceptTranslation docs/usage.md
+</code></pre>
+<p>Normalized source hashes record review state, not translation quality. Never accept hashes without review. Both languages share the same sample source and English API reference.</p>
+<p>Public/protected API declarations, XML, guides, translations, README, navigation, templates or documentation tooling changes require the full documentation build. Internal-only changes need it only when they affect the generated reference or documented behavior. Compile and run examples when their code or relevant API changes. Run <code>Test-Release.ps1</code> when release, archive, update or restoration behavior changes. Documentation tests never replace native, allocation, interoperability or package tests.</p>
+<h2 id="outputs-and-diagnostics">Outputs and diagnostics</h2>
+<p>Generated API YAML, site, docs.zip, file hashes and API member inventory live under <code>artifacts/docs/</code>. Reports live under <code>artifacts/reports/</code>; scripts exit nonzero on failure. No generated HTML belongs on the source branch. Source checks detect translation drift and missing files; final HTML checks validate local links, anchors, required search output and project-prefix-safe URLs. Chromium verifies English/Chinese/API loading, language links, one API search result, version switching, missing-page language fallback, page script errors and required resources. It writes a JSON result and saves screenshots only on failure; static checks cover the full link/anchor graph.</p>
+<p>The docs workflow validates PRs and updates <code>/dev/</code> only from main. Under the deployment lock, the artifact commit must still equal remote main before archiving and immediately before deployment; stale builds fail explicitly. It does not publish NuGet. See the <a href="release.html">release SOP</a> for package-version documentation, remote setup, updates and recovery.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>
