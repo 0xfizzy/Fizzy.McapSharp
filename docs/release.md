@@ -27,15 +27,16 @@ All producers use one serialized Pages deployment workflow. Dev artifacts must s
 
 ```powershell
 ./scripts/Update-Docs.ps1 Prepare -Tag v<version>
-# Edit guides, translations, examples or XML comments; review and commit.
+# In the returned source worktree, edit and commit the reviewed documentation.
+# Run the remaining Update-Docs commands from this trusted tooling checkout.
 ./scripts/Update-Docs.ps1 Check -Tag v<version> -SourceRef <docs-sha>
-git push -u origin HEAD
+git -C <source-worktree> push -u origin HEAD
 ./scripts/Update-Docs.ps1 Start -Tag v<version> -SourceRef <docs-sha>
-./scripts/Update-Docs.ps1 Status -Tag v<version>
+./scripts/Update-Docs.ps1 Status
 ./scripts/Update-Docs.ps1 Status -Tag v<version> -RunId <run-id>
 ```
 
-Prepare requires a clean checkout and public Release, verifies original package provenance, fetches the successful archive and its current documentation source SHA and creates `docs/v<version>-update` from it. `-SourceRef` selects an explicit source and `-Branch` overrides the branch name. It saves the archive baseline under artifacts; no push occurs. Keep that preparation state until Start. If starting without it, Start captures the current archive SHA. Check and Start require the selected source checked out. Start dispatches trusted main tooling, renderer, browser tests and pinned tool configuration against the exact source SHA. Script, renderer, sample project and tool configuration edits are outside the update whitelist. The cloud gate supplies the trusted main sample project and copies only example C# sources into its isolated package test.
+Prepare requires a clean checkout and public Release, verifies original package provenance, fetches the successful archive and its current documentation source SHA and creates `docs/v<version>-update` in a separate sibling source worktree. The trusted tooling checkout stays on its current commit. `-SourceRef` selects an explicit source and `-Branch` overrides the branch name. It saves the archive baseline under artifacts; no push occurs. Keep that preparation state until Start. If starting without it, Start captures the current archive SHA. Run Check and Start from the trusted tooling checkout. They resolve `-SourceRef`, or the prepared source worktree HEAD when omitted, without switching that checkout. Check creates a temporary source worktree, overlays trusted tooling and the sample project, validates the original package, then removes the temporary worktree. Start dispatches trusted main tooling, renderer, browser tests and pinned tool configuration against the exact source SHA. Script, renderer, sample project and tool configuration edits are outside the update whitelist. The cloud gate supplies the trusted main sample project and copies only example C# sources into its isolated package test.
 
 Only guides, translations, README/navigation, documentation example C# sources and XML documentation comments may differ from the original package commit. Executable C# changes, native code, package metadata and unrelated files are rejected. The original nupkg supplies the API DLL; updated XML must preserve its member IDs. Check builds the complete documentation, runs browser validation and runs examples against the original package. No package, tag or original Release asset is changed by a documentation update.
 

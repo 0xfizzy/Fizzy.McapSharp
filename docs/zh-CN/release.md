@@ -27,15 +27,16 @@
 
 ```powershell
 ./scripts/Update-Docs.ps1 Prepare -Tag v<version>
-# 修改指南、翻译、示例或 XML 注释；审核并提交。
+# 在返回的源码工作区中修改文档、审核并提交。
+# 后续 Update-Docs 命令仍从可信工具工作区执行。
 ./scripts/Update-Docs.ps1 Check -Tag v<version> -SourceRef <docs-sha>
-git push -u origin HEAD
+git -C <source-worktree> push -u origin HEAD
 ./scripts/Update-Docs.ps1 Start -Tag v<version> -SourceRef <docs-sha>
-./scripts/Update-Docs.ps1 Status -Tag v<version>
+./scripts/Update-Docs.ps1 Status
 ./scripts/Update-Docs.ps1 Status -Tag v<version> -RunId <run-id>
 ```
 
-Prepare 要求干净工作区和公开 Release，验证原始包来源，拉取成功归档及其中当前文档源码 SHA，从它创建 `docs/v<version>-update` 分支。`-SourceRef` 可指定源码，`-Branch` 可改分支名。归档基线保存到 artifacts，不推送；应保留到 Start。没有准备状态时，Start 捕获当前归档 SHA。Check 和 Start 要求检出指定源码。Start 使用可信 main 工作流、呈现资源、浏览器测试及固定工具配置处理精确源码 SHA。脚本、呈现器、示例工程和工具配置不在文档更新白名单内。云端门禁使用可信 main 示例工程，仅复制示例 C# 源码到隔离包测试目录。
+Prepare 要求干净工作区和公开 Release，验证原始包来源，拉取成功归档及其中当前文档源码 SHA，从它在独立的相邻源码工作区创建 `docs/v<version>-update` 分支，可信工具工作区保持当前提交。`-SourceRef` 可指定源码，`-Branch` 可改分支名。归档基线保存到 artifacts，不推送；应保留到 Start。没有准备状态时，Start 捕获当前归档 SHA。Check 和 Start 从可信工具工作区执行，解析 `-SourceRef`，省略时使用准备好的源码工作区 HEAD，不切换工具工作区。Check 创建临时源码工作区，覆盖可信工具和示例工程，验证原始包后移除临时工作区。Start 使用可信 main 工作流、呈现资源、浏览器测试及固定工具配置处理精确源码 SHA。脚本、呈现器、示例工程和工具配置不在文档更新白名单内。云端门禁使用可信 main 示例工程，仅复制示例 C# 源码到隔离包测试目录。
 
 相对原始包提交，只允许指南、翻译、README/导航、文档示例 C# 源码和 XML 注释变化。拒绝运行时 C#、原生代码、包元数据及无关文件变化。API DLL 来自原始 nupkg；更新 XML 的成员 ID 必须一致。Check 完整构建文档、执行浏览器验证，并使用原包运行示例。文档更新不修改包、tag 或原始 Release 资产。
 

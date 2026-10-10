@@ -351,13 +351,13 @@ def without_xml_comments(text):
 
 
 
-def check_update_changes(base):
-    changed = output('git', 'diff', '--name-only', base, 'HEAD').splitlines()
+def check_update_changes(base, source="HEAD"):
+    changed = output('git', 'diff', '--name-only', base, source).splitlines()
     allowed = ('docs/',)
     for name in changed:
         if name.startswith('src/') and name.endswith('.cs'):
             before = subprocess.check_output(['git', 'show', f'{base}:{name}'], cwd=ROOT, text=True)
-            after = (ROOT / name).read_text(encoding='utf-8')
+            after = subprocess.check_output(['git', 'show', f'{source}:{name}'], cwd=ROOT, text=True)
             strip = without_xml_comments
             if strip(before) != strip(after):
                 raise ValueError(f'Only XML-comment changes are allowed in documentation source: {name}')

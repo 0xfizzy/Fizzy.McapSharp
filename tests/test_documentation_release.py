@@ -396,3 +396,58 @@ class DirectArchiveTests(unittest.TestCase):
         with patch('urllib.request.urlopen', side_effect=response):
             with self.assertRaisesRegex(ValueError, 'Online file differs'):
                 docs_archive.verify_online_files('https://example.test/v1.0.0/', site)
+
+class UpdateCliTests(unittest.TestCase):
+    def test_status_without_tag_does_not_require_release(self):
+        import update_docs
+        with patch.object(sys, 'argv', ['update_docs.py', 'status']), patch.object(update_docs, 'gh', return_value='[]'), patch.object(update_docs, 'release_record') as release_lookup:
+            self.assertEqual({'runs': []}, update_docs.main())
+            release_lookup.assert_not_called()
+
+    def test_prepare_keeps_tool_checkout_and_creates_source_worktree(self):
+        import update_docs
+        info = {'version': '1.0.0', 'release_commit': 'c'*40, 'channel': 'release', 'docs_commit': 'b'*40}
+        def output(*args):
+            if args[1] == 'status': return ''
+            if args[1] == 'show': return json.dumps(info)
+            return 'a'*40
+        with patch.object(sys, 'argv', ['update_docs.py', 'prepare', '--tag', 'v1.0.0']), patch.object(update_docs, 'release_record', return_value={'draft': False}), patch.object(update_docs, 'restore', return_value={'commit': 'c'*40}), patch.object(update_docs, 'output', side_effect=output), patch.object(update_docs, 'run') as command, patch.object(update_docs, 'write_json'):
+            result = update_docs.main()
+            self.assertIn('worktree', result)
+            self.assertEqual('b'*40, result['source_ref'])
+            self.assertTrue(any(call.args[1:3] == ('worktree', 'add') for call in command.call_args_list))
+            self.assertFalse(any('switch' in call.args or 'checkout' in call.args for call in command.call_args_list))
+
+    def test_start_validates_source_ref_without_switching_tool_checkout(self):
+        import update_docs
+        def output(*args):
+            return '' if args[1] == 'status' else 'b'*40
+        with tempfile.TemporaryDirectory(dir=release.ROOT / 'artifacts') as temp, patch.object(update_docs, 'ROOT', Path(temp)), patch.object(sys, 'argv', ['update_docs.py', 'start', '--tag', 'v1.0.0', '--source-ref', 'reviewed']), patch.object(update_docs, 'release_record', return_value={'draft': False}), patch.object(update_docs, 'restore', return_value={'commit': 'c'*40}), patch.object(update_docs, 'output', side_effect=output), patch.object(update_docs, 'check_update_changes') as check, patch.object(update_docs, 'archive_head', return_value='a'*40), patch.object(update_docs, 'gh') as dispatch:
+            result = update_docs.main()
+            check.assert_called_once_with('c'*40, 'b'*40)
+            self.assertEqual('b'*40, result['source_ref'])
+            self.assertIn('--ref', dispatch.call_args.args)
+            self.assertIn('main', dispatch.call_args.args)
+
+    def test_check_overlays_trusted_tools_on_old_source_and_cleans_worktree(self):
+        import update_docs
+        import shutil
+        commands = []
+        def git(*args):
+            commands.append(args)
+            if args[1:3] == ('worktree', 'add'):
+                target = Path(args[-2])
+                target.mkdir()
+                (target / 'scripts').mkdir()
+                (target / 'scripts/release.py').write_text('old tooling')
+            elif args[1:3] == ('worktree', 'remove'):
+                shutil.rmtree(args[-1])
+        def validate(args, cwd, check):
+            self.assertEqual((update_docs.ROOT / 'scripts/release.py').read_bytes(), (cwd / 'scripts/release.py').read_bytes())
+            self.assertEqual((update_docs.ROOT / 'samples/Documentation/Documentation.csproj').read_bytes(), (cwd / 'samples/Documentation/Documentation.csproj').read_bytes())
+            self.assertNotEqual(update_docs.ROOT, cwd)
+            return subprocess.CompletedProcess(args, 0)
+        with patch.object(update_docs, 'run', side_effect=git), patch.object(update_docs.subprocess, 'run', side_effect=validate):
+            result = update_docs.check_source('v1.0.0', 'b'*40)
+            self.assertEqual('b'*40, result['source_ref'])
+            self.assertEqual(('worktree', 'remove'), commands[-1][1:3])

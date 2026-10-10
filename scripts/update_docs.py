@@ -2,34 +2,59 @@
 import argparse
 import json
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 from build import ROOT, output, run
 from documentation import write_json
-from release import REPO, gh, release_record, restore, tag_version, check_update_changes, update_build
+from release import REPO, gh, release_record, restore, tag_version, check_update_changes
 from docs_archive import archive_head
 
 def clean():
     if output('git', 'status', '--porcelain'): raise ValueError('Commit reviewed changes first; clean checkout required')
 
+def check_source(tag, source):
+    """Validate a source commit without replacing the trusted tooling checkout."""
+    parent = ROOT / 'artifacts/docs-update-check'
+    parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='check-', dir=parent) as temp:
+        checkout = Path(temp) / 'source'
+        run('git', 'worktree', 'add', '--detach', checkout, source)
+        try:
+            shutil.copytree(ROOT / 'scripts', checkout / 'scripts', dirs_exist_ok=True)
+            for name in ('docfx.json', 'package.json', 'package-lock.json', '.config/dotnet-tools.json', 'samples/Documentation/Documentation.csproj'):
+                destination = checkout / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / name, destination)
+            subprocess.run([sys.executable, 'scripts/release.py', 'update', '--tag', tag], cwd=checkout, check=True)
+        finally:
+            run('git', 'worktree', 'remove', '--force', checkout)
+    return {'source_ref': source, 'validation': 'original-package API, XML, samples and browser gates passed'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['prepare', 'check', 'start', 'status', 'resume', 'rollback'])
-    parser.add_argument('--tag', required=True)
+    parser.add_argument('--tag')
     parser.add_argument('--source-ref')
     parser.add_argument('--run-id')
     parser.add_argument('--archive-commit')
     parser.add_argument('--branch')
     args = parser.parse_args()
+    if args.action == 'status':
+        if args.run_id:
+            return json.loads(gh('run', 'view', args.run_id, '--repo', REPO, '--json', 'status,conclusion,url,headSha'))
+        return {'runs': json.loads(gh('run', 'list', '--repo', REPO, '--workflow', 'docs-update.yml', '--json', 'databaseId,status,conclusion,url'))}
+    if not args.tag: raise ValueError('Tag is required for this action')
     if args.tag != 'dev':
         tag_version(args.tag)
         record = release_record(args.tag)
         if not record or record['draft']: raise ValueError('Documentation updates require a completed public release')
-    elif args.action not in ['status', 'resume']:
-        raise ValueError('Use docs workflow on main to build Development; Tag dev supports Status and Resume')
-    state = ROOT / 'artifacts/docs-update.json'
-    if args.action == 'status':
-        if args.run_id: return json.loads(gh('run', 'view', args.run_id, '--repo', REPO, '--json', 'status,conclusion,url,headSha'))
-        return json.loads(gh('run', 'list', '--repo', REPO, '--workflow', 'docs-update.yml', '--json', 'databaseId,status,conclusion,url'))
+    elif args.action != 'resume':
+        raise ValueError('Use docs workflow on main to build Development; Tag dev supports Resume')
+    state = ROOT / f'artifacts/docs-update-{args.tag}.json'
     if args.action == 'prepare':
         clean()
         manifest = restore(args.tag)
@@ -45,16 +70,23 @@ def main():
         if not re.fullmatch('[a-f0-9]{40}', source): raise ValueError('Full documentation source SHA required')
         run('git', 'fetch', 'origin', source)
         branch = args.branch or f'docs/{args.tag}-update'
-        run('git', 'switch', '-c', branch, source)
-        write_json(state, {'tag': args.tag, 'expected_archive': baseline, 'package_commit': manifest['commit']})
-        return {'branch': branch, 'source_ref': source, 'expected_archive': baseline}
+        worktree = ROOT.parent / f'{ROOT.name}-docs-{args.tag}-{baseline[:8]}'
+        run('git', 'worktree', 'add', '-b', branch, worktree, source)
+        write_json(state, {'tag': args.tag, 'expected_archive': baseline, 'package_commit': manifest['commit'], 'worktree': str(worktree)})
+        return {'branch': branch, 'worktree': str(worktree), 'source_ref': source, 'expected_archive': baseline}
     if args.action in ['check', 'start']:
         clean()
-        commit = output('git', 'rev-parse', (args.source_ref or 'HEAD') + '^{commit}')
-        if commit != output('git', 'rev-parse', 'HEAD'): raise ValueError('Check and Start require SourceRef checked out')
+        prepared = json.loads(state.read_text()) if state.exists() else {}
+        if args.source_ref:
+            commit = output('git', 'rev-parse', args.source_ref + '^{commit}')
+        elif prepared.get('worktree'):
+            commit = output('git', '-C', prepared['worktree'], 'rev-parse', 'HEAD')
+        else:
+            commit = output('git', 'rev-parse', 'HEAD')
+        if not re.fullmatch('[a-f0-9]{40}', commit): raise ValueError('Full documentation source SHA required')
         manifest = restore(args.tag)
-        check_update_changes(manifest['commit'])
-        if args.action == 'check': return update_build(args.tag)
+        check_update_changes(manifest['commit'], commit)
+        if args.action == 'check': return check_source(args.tag, commit)
         baseline = json.loads(state.read_text())['expected_archive'] if state.exists() and json.loads(state.read_text())['tag'] == args.tag else archive_head()
         if archive_head() != baseline: raise ValueError('Archive changed since Prepare; review and prepare again')
         # GitHub checkout validates that the immutable source SHA is available remotely.
