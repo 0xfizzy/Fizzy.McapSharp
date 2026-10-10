@@ -50,3 +50,6 @@ Large-payload pipelines can use borrowed callbacks, batch reads/writes and stabl
 - [Repository guidelines](AGENTS.md)
 
 Licensed under [MIT](LICENSE). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for third-party dependencies.
+
+- [Documentation home](docs/index.md)
+- [Release SOP](docs/release.md)

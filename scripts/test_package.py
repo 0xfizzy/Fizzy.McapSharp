@@ -15,6 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package-directory", type=Path, default=ROOT / "artifacts/packages")
     parser.add_argument("--fixtures", type=Path, help="All three platform fixture directories")
+    parser.add_argument("--published", action="store_true", help="Restore only from public NuGet with an isolated cache")
     args = parser.parse_args()
     rid = host_rid()
     package = args.package_directory.resolve() / f"Fizzy.McapSharp.{version()}.nupkg"
@@ -38,6 +39,7 @@ def main():
             raise RuntimeError(f"Unexpected or missing runtime assets: {actual_assets ^ expected_assets}")
         if "lib/net8.0/Fizzy.McapSharp.dll" not in archive.namelist():
             raise RuntimeError("Missing net8.0 managed assembly")
+        archive.read('lib/net8.0/Fizzy.McapSharp.xml')
         for asset_rid, (_, filename) in TARGETS.items():
             data = archive.read(f"runtimes/{asset_rid}/native/{filename}")
             check = smoke / (asset_rid + "-" + filename)
@@ -46,7 +48,7 @@ def main():
         expected = archive.read(f"runtimes/{rid}/native/{TARGETS[rid][1]}")
     print("Package SHA256:", hashlib.sha256(package.read_bytes()).hexdigest())
     (smoke / "NuGet.Config").write_text('<configuration><packageSources><clear/><add key="local" value="' +
-        str(args.package_directory.resolve()).replace("&", "&amp;").replace('"', "&quot;") + '"/></packageSources></configuration>', encoding="utf-8")
+        ('https://api.nuget.org/v3/index.json' if args.published else str(args.package_directory.resolve())).replace("&", "&amp;").replace('"', "&quot;") + '"/></packageSources></configuration>', encoding="utf-8")
     project = smoke / "Smoke.csproj"
     project.write_text(f'''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>
 <TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><NuGetAudit>false</NuGetAudit><UseAppHost>false</UseAppHost>
@@ -86,6 +88,11 @@ Console.WriteLine("Isolated native load and all compression roundtrips passed.")
 ''', encoding="utf-8")
     config = smoke / "NuGet.Config"
     run("dotnet", "restore", project, "--configfile", config, "--packages", smoke / "packages")
+    if args.published:
+        from release import package_content
+        restored = smoke / 'packages/fizzy.mcapsharp' / version().lower() / f'fizzy.mcapsharp.{version().lower()}.nupkg'
+        if package_content(package) != package_content(restored):
+            raise RuntimeError('Public package differs from candidate')
     run("dotnet", "run", "--project", project, "-c", "Release", "--no-restore")
     run("dotnet", "restore", project, "-r", rid, "--configfile", config, "--packages", smoke / "packages")
     published = smoke / "published"
@@ -114,7 +121,7 @@ Console.WriteLine("Isolated native load and all compression roundtrips passed.")
         run('dotnet', contract_dll, 'check', fixture, spec)
     if args.fixtures:
         run('dotnet', contract_dll, 'exchange', args.fixtures.resolve())
-    return dict(rid=rid, package=str(package), sha256=hashlib.sha256(package.read_bytes()).hexdigest(),
+    return dict(rid=rid, source='published-package' if args.published else 'local-package', package=str(package), sha256=hashlib.sha256(package.read_bytes()).hexdigest(),
                 fixture_directory=str(args.fixtures) if args.fixtures else None)
 
 

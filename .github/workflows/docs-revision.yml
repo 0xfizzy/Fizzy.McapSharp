@@ -1,0 +1,77 @@
+name: docs-revision
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing package tag (vX.Y.Z)
+        required: true
+        type: string
+      revision:
+        description: New revision number, or existing revision for rollback
+        required: true
+        type: number
+      rollback:
+        description: Point to an existing immutable revision without rebuilding
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: windows-2022
+    environment: documentation-revision
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      DOC_REVISION: ${{ inputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: dtolnay/rust-toolchain@master
+        if: ${{ !inputs.rollback }}
+        with:
+          toolchain: 1.98.1
+          targets: x86_64-pc-windows-msvc
+      - id: identity
+        run: python -c "import os,sys; sys.path.insert(0,'scripts'); from release import tag_version,set_outputs; set_outputs({'version':tag_version(os.environ['RELEASE_TAG'])})"
+      - if: ${{ !inputs.rollback }}
+        run: python scripts/release.py revision --tag $env:RELEASE_TAG --revision $env:DOC_REVISION
+      - if: inputs.rollback
+        run: |
+          python scripts/release.py restore --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE) { throw 'Original provenance check failed' }
+          New-Item -ItemType Directory -Force artifacts/docs/site | Out-Null
+          Set-Content artifacts/docs/site/rollback.txt 'Use the existing immutable archive'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: revision-site
+          path: artifacts/docs/site
+          if-no-files-found: error
+  deploy:
+    needs: build
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      artifact: revision-site
+      version: ${{ needs.build.outputs.version }}
+      revision: ${{ format('{0}', inputs.revision) }}
+      rollback: ${{ inputs.rollback && format('{0}', inputs.revision) || '' }}

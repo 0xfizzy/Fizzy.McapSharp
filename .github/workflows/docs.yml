@@ -1,0 +1,55 @@
+name: docs
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+          targets: x86_64-pc-windows-msvc
+      - run: ./scripts/Test-Release.ps1
+      - run: ./scripts/Build-Docs.ps1
+      - run: ./scripts/Test-Samples.ps1
+      - id: identity
+        run: python -c "import sys; sys.path.insert(0,'scripts'); from build import version; from release import set_outputs; set_outputs({'version':version()})"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: artifacts/docs/site
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docs-reports
+          path: artifacts/reports
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      artifact: docs-site
+      version: ${{ needs.build.outputs.version }}

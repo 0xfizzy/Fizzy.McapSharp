@@ -3,39 +3,220 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: nuget-publish
   cancel-in-progress: false
 jobs:
+  preflight:
+    runs-on: ubuntu-22.04
+    outputs:
+      reuse: ${{ steps.check.outputs.reuse }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test '${{ github.ref_type }}' = tag
+          python scripts/release.py check --tag "$RELEASE_TAG"
   validate:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     uses: ./.github/workflows/validate.yml
     with:
       deep: true
+  candidate:
+    needs: [preflight, validate]
+    if: always() && needs.preflight.result == 'success' && (needs.validate.result == 'success' || needs.preflight.outputs.reuse == 'true')
+    runs-on: windows-2022
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/download-artifact@v4
+        if: needs.preflight.outputs.reuse != 'true'
+        with:
+          name: packages
+          path: artifacts/packages
+      - uses: actions/download-artifact@v4
+        if: needs.preflight.outputs.reuse != 'true'
+        with:
+          pattern: native-*
+          path: artifacts/native-download
+      - uses: actions/download-artifact@v4
+        if: needs.preflight.outputs.reuse != 'true'
+        with:
+          pattern: '*report*'
+          path: artifacts/validation-reports
+      - name: Prepare original documentation and durable candidate
+        if: needs.preflight.outputs.reuse != 'true'
+        shell: pwsh
+        run: |
+          foreach ($rid in @('win-x64', 'linux-x64', 'linux-arm64')) {
+            New-Item -ItemType Directory -Force "artifacts/native/$rid" | Out-Null
+            Copy-Item "artifacts/native-download/native-$rid/*" "artifacts/native/$rid/"
+          }
+          $package = @(Get-ChildItem artifacts/packages/*.nupkg)
+          if ($package.Count -ne 1) { throw 'Expected one verified package' }
+          ./scripts/Build-Docs.ps1 -Package $package[0].FullName -Revision 0 -ReleaseCommit $env:GITHUB_SHA
+          ./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages
+          ./scripts/Test-Release.ps1
+          python scripts/release.py prepare --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE) { throw 'Candidate preparation failed' }
+      - name: Restore original durable candidate
+        if: needs.preflight.outputs.reuse == 'true'
+        run: |
+          python scripts/release.py restore --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE) { throw 'Candidate restore failed' }
+      - name: Extract verified site
+        run: python -c "import sys; from pathlib import Path; sys.path.insert(0,'scripts'); from release import unpack_site; unpack_site(Path('artifacts/release/docs.zip'),Path('artifacts/release-site'))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: artifacts/release
+          if-no-files-found: error
+      - name: Finish durable uploads before publication
+        run: python scripts/release.py persist --tag $env:RELEASE_TAG
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-site
+          path: artifacts/release-site
+          if-no-files-found: error
   publish:
-    needs: validate
+    needs: candidate
+    if: always() && needs.candidate.result == 'success'
     runs-on: windows-2022
     environment: nuget
     permissions:
       contents: read
       id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.ref_name }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: '8.0.x'
       - uses: actions/download-artifact@v4
         with:
-          name: packages
-          path: artifacts/packages
+          name: release-bundle
+          path: artifacts/release
+      - id: state
+        run: python scripts/release.py publish-state --tag $env:RELEASE_TAG
       - uses: NuGet/login@v1
+        if: steps.state.outputs.exists != 'true'
         id: login
         with:
           user: ${{ vars.NUGET_USER }}
-      - name: Publish verified package
-        run: |
-          $packages = @(Get-ChildItem -LiteralPath artifacts/packages -Filter '*.nupkg' -File)
-          if ($packages.Count -ne 1) { throw "Expected exactly one verified package, found $($packages.Count)" }
-          dotnet nuget push $packages[0].FullName --api-key "$env:NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
-          if ($LASTEXITCODE -ne 0) { throw "NuGet push failed with exit code $LASTEXITCODE" }
-        shell: pwsh
+      - name: Publish the saved candidate
+        if: steps.state.outputs.exists != 'true'
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          PACKAGE_PATH: ${{ steps.state.outputs.package }}
+        shell: pwsh
+        run: |
+          dotnet nuget push $env:PACKAGE_PATH --api-key "$env:NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+          # An unsuccessful response can follow a successful upload: verify remote content.
+          python scripts/release.py wait-nuget --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE) { throw 'Publication incomplete; resume the same tag' }
+  public-package:
+    needs: publish
+    if: always() && needs.publish.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, ubuntu-22.04, ubuntu-22.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: artifacts/release
+      - run: python scripts/test_package.py --package-directory artifacts/release --published
+      - run: python scripts/documentation.py samples --published
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-report-${{ matrix.runner }}
+          path: |
+            artifacts/package-report.json
+            artifacts/reports/documentation.json
+  deploy:
+    needs: [public-package, preflight]
+    if: always() && needs.public-package.result == 'success' && needs.preflight.result == 'success'
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      artifact: release-site
+      version: ${{ needs.preflight.outputs.version }}
+      revision: '0'
+  finalize:
+    needs: deploy
+    if: always() && needs.deploy.result == 'success'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: artifacts/release
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: published-report-*
+          path: artifacts/published-reports
+      - name: Persist public validation and complete release
+        run: |
+          python -c "import shutil; shutil.make_archive('artifacts/published-validation-${{ github.run_id }}-${{ github.run_attempt }}','zip','artifacts/published-reports')"
+          gh release upload "$RELEASE_TAG" "artifacts/published-validation-${{ github.run_id }}-${{ github.run_attempt }}.zip" --repo 0xfizzy/Fizzy.McapSharp
+          python scripts/release.py finalize --tag "$RELEASE_TAG"

@@ -1,6 +1,6 @@
 # Official Rust API coverage
 
-English | [简体中文](coverage.zh-CN.md)
+English | [简体中文](zh-CN/coverage.md)
 
 Use this guide to locate the .NET entry for an official Rust capability and understand its adaptation. The baseline is the exact `mcap` dependency in [Cargo.toml](../native/Cargo.toml). For ownership, allocation and usage choices, start with the [API guide](api.md#choose-message-ownership).
 

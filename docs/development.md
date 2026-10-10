@@ -1,6 +1,6 @@
 # Building, testing, and consumer integration
 
-English | [简体中文](development.zh-CN.md)
+English | [简体中文](zh-CN/development.md)
 
 ## Environment and layout
 
@@ -23,6 +23,8 @@ Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Ru
 `build.py` (called by `Build.ps1`) prefers `.tools/cargo/bin/cargo.exe` and sets the corresponding CARGO_HOME/RUSTUP_HOME when present; otherwise it uses Cargo from PATH. It does not install tools. `.tools/` is ignored; do not commit local tool installations.
 
 ## Build and test
+
+Documentation builds, translations and examples follow [documentation maintenance](documentation.md). Versioned archives, publication and recovery follow the [release SOP](release.md). Public API/XML and guide changes require `./scripts/Build-Docs.ps1`; release/archive tooling changes require `./scripts/Test-Release.ps1`. These gates supplement the native and package checks below.
 
 ```powershell
 ./scripts/Build.ps1 -Test
@@ -100,7 +102,7 @@ The reusable validation workflow builds and runs xUnit plus Python interoperabil
 
 PRs, pushes to `main`, and manual dispatch run this workflow. Superseded builds on the same PR/ref are cancelled. Intermediate artifacts expire after one day; only packages passing every job are retained for seven days. Cargo caches are separated by OS, architecture, toolchain, lockfile and native source. Standard hosted runners are used; no paid larger runners or additional cache quota are configured. Public-repository runner time is free under GitHub's current rules; storage remains subject to account allowances.
 
-The manual publish workflow runs the same validation and passes the identical verified package to its protected publishing job without repacking. Maintainer publishing rules are in [AGENTS.md](../AGENTS.md#publishing). Passing CI is not verification of a published NuGet.org package.
+The manual publish workflow runs the same validation and passes the identical verified package to its protected publishing job without repacking. It persists the package and matching documentation before publication, then separately validates the public NuGet package on three RIDs and deploys the version archive. Resume reuses the original verified candidate. Follow the [release SOP](release.md) and maintainer rules in [AGENTS.md](../AGENTS.md#publishing). Ordinary build CI still validates a local candidate, not NuGet.org availability.
 
 ## Consumer integration
 

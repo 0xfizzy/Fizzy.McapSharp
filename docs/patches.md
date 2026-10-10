@@ -1,6 +1,6 @@
 # Local patch boundaries
 
-English | [简体中文](patches.zh-CN.md)
+English | [简体中文](zh-CN/patches.md)
 
 Maintainers should prefer unmodified upstream APIs. A patch is permitted only when a documented binding ownership or performance contract cannot be met by upstream APIs or reasonable binding-only adaptation. Preserve format state machines and semantics; do not patch codec allocators, add total-memory accounting, or optimize upstream internals. Keep patches local; do not submit them upstream.
 

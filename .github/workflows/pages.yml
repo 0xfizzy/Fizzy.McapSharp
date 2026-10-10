@@ -1,0 +1,112 @@
+name: pages
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      promote:
+        type: boolean
+        default: false
+      recovery:
+        type: boolean
+        default: false
+      rollback:
+        type: string
+        default: ''
+      revision:
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: documentation-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          path: artifacts/docs/site
+      - name: Merge latest archive tree
+        id: tree
+        env:
+          DOC_VERSION: ${{ inputs.version }}
+          DOC_REVISION: ${{ inputs.revision }}
+          DOC_ROLLBACK: ${{ inputs.rollback }}
+          DOC_RECOVERY: ${{ inputs.recovery }}
+        shell: bash
+        run: |
+          args=(deploy-tree --version "$DOC_VERSION")
+          if [ -n "$DOC_REVISION" ]; then args+=(--revision "$DOC_REVISION"); fi
+          if [ -n "$DOC_ROLLBACK" ]; then args+=(--rollback "$DOC_ROLLBACK"); fi
+          if [ "$DOC_RECOVERY" = true ]; then args+=(--recovery); fi
+          python scripts/release.py "${args[@]}"
+      - name: Refuse stale main immediately before deployment
+        if: inputs.revision == ''
+        run: python scripts/release.py assert-main
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ steps.tree.outputs.export }}
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify live documentation
+        env:
+          DOC_VERSION: ${{ inputs.version }}
+          DOC_REVISION: ${{ inputs.revision }}
+        run: |
+          args=(online --version "$DOC_VERSION" --docs-commit "${{ steps.tree.outputs.docs_commit }}")
+          if [ -n "$DOC_REVISION" ]; then args+=(--revision "$DOC_REVISION"); fi
+          python scripts/release.py "${args[@]}"
+      - name: Activate verified immutable revision
+        if: inputs.revision != ''
+        id: active
+        env:
+          DOC_VERSION: ${{ inputs.version }}
+          DOC_REVISION: ${{ inputs.revision }}
+          DOC_ROLLBACK: ${{ inputs.rollback }}
+          DOC_RECOVERY: ${{ inputs.recovery }}
+          DOC_COMMIT: ${{ steps.tree.outputs.docs_commit }}
+          DOC_PROMOTE: ${{ inputs.promote }}
+        shell: bash
+        run: |
+          args=(deploy-tree --version "$DOC_VERSION" --revision "$DOC_REVISION" --activate --docs-commit "$DOC_COMMIT")
+          if [ -n "$DOC_ROLLBACK" ]; then args+=(--rollback "$DOC_ROLLBACK"); fi
+          if [ "$DOC_RECOVERY" = true ]; then args+=(--recovery); fi
+          if [ "$DOC_PROMOTE" = true ]; then args+=(--promote); fi
+          python scripts/release.py "${args[@]}"
+      - uses: actions/upload-pages-artifact@v3
+        if: inputs.revision != ''
+        with:
+          name: github-pages-active
+          path: ${{ steps.active.outputs.export }}
+      - uses: actions/deploy-pages@v4
+        if: inputs.revision != ''
+        with:
+          artifact_name: github-pages-active
+      - name: Verify activated entrypoints
+        if: inputs.revision != ''
+        env:
+          DOC_VERSION: ${{ inputs.version }}
+          DOC_ACTIVE_REVISION: ${{ steps.active.outputs.active_revision }}
+          DOC_LATEST: ${{ steps.active.outputs.latest }}
+        run: python scripts/release.py verify-entrypoints --version "$DOC_VERSION" --expected-revision "$DOC_ACTIVE_REVISION" --expected-latest "$DOC_LATEST"

@@ -1,10 +1,10 @@
 # 源码构建、测试与消费者集成
 
-[English](development.md) | 简体中文
+[English](../development.md) | 简体中文
 
 ## 环境与目录
 
-在仓库根目录执行命令。需要 Python 3.12、.NET 8 SDK、Rust 1.98.1 和原生编译器。Windows x64 使用包含 Windows SDK 的 Visual C++ MSVC 构建工具；Linux x64/ARM64 使用 Ubuntu 22.04、GCC/build-essential 和 binutils，并安装下表对应的 Rust target。Windows 本地开发不需要虚拟机、WSL、Docker 或交叉编译器。工具链声明见 [rust-toolchain.toml](../rust-toolchain.toml)，完整依赖锁定在 `native/Cargo.lock`。
+在仓库根目录执行命令。需要 Python 3.12、.NET 8 SDK、Rust 1.98.1 和原生编译器。Windows x64 使用包含 Windows SDK 的 Visual C++ MSVC 构建工具；Linux x64/ARM64 使用 Ubuntu 22.04、GCC/build-essential 和 binutils，并安装下表对应的 Rust target。Windows 本地开发不需要虚拟机、WSL、Docker 或交叉编译器。工具链声明见 [rust-toolchain.toml](../../rust-toolchain.toml)，完整依赖锁定在 `native/Cargo.lock`。
 
 | 路径 | 职责 |
 | --- | --- |
@@ -23,6 +23,8 @@
 `Build.ps1` 调用的 `build.py` 优先使用仓库 `.tools/cargo/bin/cargo.exe`，存在时设置对应 CARGO_HOME/RUSTUP_HOME；否则使用 PATH 中的 Cargo。脚本不安装工具。`.tools/` 为忽略目录，不提交本机工具。
 
 ## 构建与测试
+
+文档构建、翻译与示例遵循[文档维护](documentation.md)，版本归档、发布与恢复遵循[发布 SOP](release.md)。公开 API/XML 和指南变更须运行 `./scripts/Build-Docs.ps1`；发布及归档工具变更须运行 `./scripts/Test-Release.ps1`。这些门禁补充而不替代下述 native 及包检查。
 
 公开 API 的 XML 文档由 CS1591 编译门禁要求；在相关成员上说明单位、所有权、适用模式和失败行为。Python 测试同时核对 `src/Native.Protocol.cs` 与 `native/src/protocol.rs` 的私有协议常量；即使数值相同，也保持不同操作域和状态域独立。
 
@@ -98,7 +100,7 @@ runtimes/linux-arm64/native/libfizzy_mcap_native.so
 
 PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧构建自动取消。中间产物保留一天，只有通过全部任务的完整包保留七天。Cargo 缓存按系统、架构、工具链、锁文件和原生源码区分。只使用标准托管 runner，不配置付费 larger runner 或额外缓存额度。按 GitHub 当前规则，公开仓库的标准 runner 运行时间免费，存储仍受账户额度约束。
 
-手动发布工作流运行相同验证，将已验证的同一包交给受保护的发布任务，不重新打包。维护者发布规则见 [AGENTS.md](../AGENTS.md#publishing)。CI 成功不等于 NuGet.org 已发布包通过验证。
+手动发布工作流运行相同验证，将已验证的同一包交给受保护的发布任务，不重新打包。推包前持久保存包和对应文档；随后独立验证公开 NuGet 源上的包（三个 RID），再部署版本归档。Resume 复用原始已验证候选产物。操作遵循[发布 SOP](release.md)和 [AGENTS.md](../../AGENTS.md#publishing)。普通 build CI 仍仅验证本地候选包，不证明 NuGet.org 可用。
 
 ## 消费者集成
 
@@ -111,7 +113,7 @@ PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧�
 
 ### 官方 API 与扩展分配门禁
 
-`Build.ps1 -Test` 同时运行锁定依赖的 Release 原生差分测试和 `scripts/check_api_coverage.py`；[覆盖清单](coverage.zh-CN.md) 对照实际 Cargo 源码，包含可选 Tokio 公共声明。清单检查不能替代行为测试。已有锁定版本的 binrw 增为直接依赖，用于编码上游自有记录，没有升级依赖版本。
+`Build.ps1 -Test` 同时运行锁定依赖的 Release 原生差分测试和 `scripts/check_api_coverage.py`；[覆盖清单](coverage.md) 对照实际 Cargo 源码，包含可选 Tokio 公共声明。清单检查不能替代行为测试。已有锁定版本的 binrw 增为直接依赖，用于编码上游自有记录，没有升级依赖版本。
 
 扩展分配测试在各压缩模式下覆盖完整预准备消息（含晚到声明）、控制记录、私有记录、附件、记录视图、直接缓冲区读取和随机索引/Metadata/Attachment。异步测试使用可复用源和专用 I/O 线程强制挂起，合计调用线程及工作线程分配，并覆盖内联完成通知下的直接 await。初始化、调用方扩容、自有便利对象和错误仍排除在外；原生快照内存不属于托管分配保证。
 
@@ -198,4 +200,4 @@ cargo test --manifest-path native/Cargo.toml --release --locked random_access_pr
 
 `python scripts/test_upstream.py` 分别编译未修改的 registry mcap 和本地补丁版本，以独立进程比较写入字节、顺序与索引读取、截断及损坏输入。两者使用相同固定依赖版本；未修改参考工程有独立 Cargo.lock，不继承本地补丁。相同补丁源码之间的测试只证明内部一致性。
 
-`python scripts/check_vendor.py` 检查原始文件清单与本地补丁哈希。更新补丁时保持 UPSTREAM.json 不变，审阅差异后更新 PATCHES.json。允许范围、替代方案及验证要求见[本地补丁](patches.zh-CN.md)；不向上游提交。
+`python scripts/check_vendor.py` 检查原始文件清单与本地补丁哈希。更新补丁时保持 UPSTREAM.json 不变，审阅差异后更新 PATCHES.json。允许范围、替代方案及验证要求见[本地补丁](patches.md)；不向上游提交。

@@ -1,0 +1,54 @@
+name: docs-restore
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing package tag to restore from durable assets
+        required: true
+        type: string
+      revision:
+        description: Revision to activate only if the archive has no current pointer
+        required: true
+        type: number
+      activate_revision:
+        description: Resume activation of this verified revision without lowering an existing pointer
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  restore:
+    runs-on: ubuntu-22.04
+    environment: documentation-revision
+    outputs:
+      version: ${{ steps.restore.outputs.version }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      DOC_REVISION: ${{ inputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - id: restore
+        run: python scripts/release.py recover-site --tag "$RELEASE_TAG" --revision "$DOC_REVISION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recovered-site
+          path: artifacts/recovered-archive
+          if-no-files-found: error
+  deploy:
+    needs: restore
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      artifact: recovered-site
+      version: ${{ needs.restore.outputs.version }}
+      revision: ${{ format('{0}', inputs.revision) }}
+      recovery: true
+      promote: ${{ inputs.activate_revision }}

@@ -1,4 +1,6 @@
-param([string]$PackageDirectory = (Join-Path $PSScriptRoot '../artifacts/packages'))
+param([string]$PackageDirectory = (Join-Path $PSScriptRoot '../artifacts/packages'), [switch]$Published)
 $ErrorActionPreference = 'Stop'
-& python (Join-Path $PSScriptRoot 'test_package.py') --package-directory $PackageDirectory
+$arguments = @('--package-directory', $PackageDirectory)
+if ($Published) { $arguments += '--published' }
+& python (Join-Path $PSScriptRoot 'test_package.py') @arguments
 if ($LASTEXITCODE) { throw 'Isolated package validation failed' }

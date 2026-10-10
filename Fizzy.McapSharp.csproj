@@ -14,6 +14,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <WarningsAsErrors>$(WarningsAsErrors);1591</WarningsAsErrors>
+    <WarningsAsErrors Condition="'$(DocumentationStrict)' == 'true'">$(WarningsAsErrors);1570;1572;1573;1574;1580;1581;1584;1658</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="src/**/*.cs" Exclude="src/**/bin/**;src/**/obj/**" />

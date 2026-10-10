@@ -3,7 +3,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Fizzy.McapSharp.svg?style=flat)](https://www.nuget.org/packages/Fizzy.McapSharp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
-[![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/api.zh-CN.md)
+[![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/zh-CN/api.md)
 
 [English](README.md) | 简体中文
 
@@ -40,13 +40,16 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
 
 必须显式调用 `Complete()` 完成格式，再按需调用 `FlushToDisk()` 请求文件持久化；`Dispose()` 只释放资源。`ReadMessages()` 不替代完整文件校验。
 
-大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；先[选择消息所有权](docs/api.zh-CN.md#选择消息所有权)，再了解生命周期与局部缓存／排序额度。
+大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；先[选择消息所有权](docs/zh-CN/api.md#选择消息所有权)，再了解生命周期与局部缓存／排序额度。
 
 ## 文档入口
 
-- [API、生命周期与数据所有权](docs/api.zh-CN.md)
-- [源码构建、测试与消费者集成](docs/development.zh-CN.md)
-- [原生 ABI 与内存边界](docs/native.zh-CN.md)
+- [API、生命周期与数据所有权](docs/zh-CN/api.md)
+- [源码构建、测试与消费者集成](docs/zh-CN/development.md)
+- [原生 ABI 与内存边界](docs/zh-CN/native.md)
 - [仓库维护约定](AGENTS.md)
 
 本项目采用 [MIT 许可证](LICENSE)；第三方依赖见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+
+- [文档首页](docs/zh-CN/index.md)
+- [发布 SOP](docs/zh-CN/release.md)

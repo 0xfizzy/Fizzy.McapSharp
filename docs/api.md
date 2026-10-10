@@ -1,6 +1,6 @@
 # API, lifetime, and data ownership
 
-English | [简体中文](api.zh-CN.md)
+English | [简体中文](zh-CN/api.md)
 
 `Fizzy.McapSharp` provides MCAP file, Stream, buffer and Sans-I/O operations on .NET 8: Windows x64 and glibc Linux x64/ARM64, built against Ubuntu 22.04. macOS, musl and 32-bit processes are unsupported. Applications define payload encodings and nanosecond clock semantics. Cancellable asynchronous record reading and time sorting are available; payload decoding remains application-defined. See the [official API coverage map](coverage.md).
 

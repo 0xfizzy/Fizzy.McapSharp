@@ -66,14 +66,15 @@
 - Version changes, commits, pushes, and publishing require user authorization. Check the working tree and release ref, complete applicable validation, and verify the package version and all three RID native assets before manually triggering `.github/workflows/publish.yml`.
 - Before publishing, configure a NuGet Trusted Publisher matching this repository, publishing workflow, and GitHub `nuget` environment. Configure the environment's protection rules and the `NUGET_USER` variable used by `NuGet/login@v1`. The workflow uses `id-token: write` for OIDC and obtains a temporary API key; do not store long-lived publishing credentials.
 - `.github/workflows/build.yml` runs on pushes to main, pull requests, or manual dispatch. It calls `validate.yml` to build native and managed code on three platforms, run xUnit and bidirectional Python interoperability, pack once, validate the identical complete package on five OS/architecture combinations, and exchange platform fixtures. Confirm it passed for the release commit.
-- The manual publish workflow calls the same reusable validation, then publishes its verified package without rebuilding or repacking in the publish job. Both workflows run the cross-platform `test_package.py` implementation behind `Test-Package.ps1`. Consumer Source builds, hardware/UI checks and published-package validation are not covered by these workflows.
+- The manual publish workflow calls the same reusable validation, then publishes its verified package without rebuilding or repacking in the publish job. Both workflows run the cross-platform `test_package.py` implementation behind `Test-Package.ps1`. The publish workflow additionally verifies the public NuGet package on all supported RIDs and archives/deploys matching documentation. Consumer Source builds and hardware/UI checks are not covered.
 - For an authorized version update, check the managed project, native `Cargo.toml` / `Cargo.lock`, native library identifier and metadata-driven package tests for consistency. Retain the lockfile and exact native dependency versions.
 - After publication, confirm the workflow result and NuGet availability, then validate consumers using the published package source. Local nupkg test success is not published-package validation.
 
 ## Documentation
 
+- Public API/XML, README, guide, navigation, and documentation-tool changes require `./scripts/Build-Docs.ps1`; run `./scripts/Test-Samples.ps1` for affected examples and `./scripts/Test-Release.ps1` for release/archive logic. Follow `docs/documentation.md` and `docs/release.md`. These commands do not authorize publication. Preserve immutable version archives and original Release assets; never force-push archive history or overwrite a published revision.
 - Keep README limited to an introduction, quick start, and links. Maintain public contracts in `docs/api.md`, the ABI in `docs/native.md`, and builds, package contents, and integration in `docs/development.md`. Keep maintainer publishing rules in this file.
-- AGENTS.md is English-only. English is the default for README and the guides in docs/; each has a sibling `*.zh-CN.md` translation with a language switch. Update both versions together when behavior, commands, or support changes. Keep links within the selected language where a translation exists.
+- AGENTS.md is English-only. English is the default for README and the guides in docs/; guides have same-name translations under `docs/zh-CN/` with an independent navigation; the root README uses `README.zh-CN.md` with a language switch. Update both versions together when behavior, commands, or support changes. Keep links within the selected language where a translation exists.
 - Do not hard-code the current package version in documentation or installation examples; refer to project metadata and omit the version option for normal NuGet installation.
 - Identify the audience, use case, core question, and expected action before deciding on the main message and structure.
 - Organize content in the order readers need to understand or act on it. Explain its purpose, cover necessary concepts, steps, and exceptions, and provide a conclusion or next step.
@@ -86,3 +87,9 @@
 
 - Use the `type(scope): description` format; scope is optional. Start the type, scope, and English description with lowercase letters, and mark breaking changes with `!`.
 - Examples: `refactor(viewer): simplify frame ownership`, `chore: update dependencies`, `refactor(api)!: remove legacy interface`.
+
+## Temporary files and task artifacts
+
+- Put temporary development logs, backups, validation reports and one-off scripts under this repository's `artifacts/`. Do not create `.log`, `.bak` or similar temporary files at the repository root. Apply this rule to command redirection and default output paths in new or modified scripts.
+- Treat `artifacts/` as disposable output. Do not keep the only copy of work, long-term records or machine-local configuration there. Preserve needed patches, benchmark data and experiment records in an appropriate version-controlled location or durable storage outside the repository.
+- This rule does not relocate existing `bin/`, `obj/`, `build/`, application runtime logs or local configuration, and does not itself authorize deleting existing files. Check cleanup scope and outputs still in use before deletion.

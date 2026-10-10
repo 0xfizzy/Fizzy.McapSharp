@@ -1,12 +1,12 @@
 # API、生命周期与数据所有权
 
-[English](api.md) | 简体中文
+[English](../api.md) | 简体中文
 
-`Fizzy.McapSharp` 提供 MCAP 文件、Stream、缓冲区和 Sans-I/O 操作，支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；支持可取消的异步记录读取和时间排序；业务解码由应用实现。参见[官方 API 覆盖表](coverage.zh-CN.md)。
+`Fizzy.McapSharp` 提供 MCAP 文件、Stream、缓冲区和 Sans-I/O 操作，支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；支持可取消的异步记录读取和时间排序；业务解码由应用实现。参见[官方 API 覆盖表](coverage.md)。
 
 ## 读写能力总览
 
-先找到所需能力，再选择输入／输出、交付所有权及访问模式。下表列出本库能力；与官方 Rust API 的对应关系见[覆盖指南](coverage.zh-CN.md)。
+先找到所需能力，再选择输入／输出、交付所有权及访问模式。下表列出本库能力；与官方 Rust API 的对应关系见[覆盖指南](coverage.md)。
 
 | 能力 | 写入路径 | 读取路径 |
 | --- | --- | --- |
@@ -245,7 +245,7 @@ while (true)
 
 初始化、注册和预热后，正常 WriteMessage 与缓冲区 ReadNext 必须严格产生 0 B 托管分配。这是热路径的硬性契约，覆盖跨 Chunk/压缩边界、中途声明、缓冲不足重试和 EOF。读取仍将原生数据复制到调用方内存，并非零拷贝；也不保证进程没有 GC 或 Rust 没有堆分配。调用方扩容、自有记录枚举、描述查询、启动和错误路径不在承诺内。用户 Stream 自身可能分配，本库只承诺桥接层的分配行为。
 
-不支持的平台抛 PlatformNotSupportedException；原生加载错误保留 .NET 类型；原生操作/ABI 失败抛 McapException（继承 IOException）。托管参数/状态检查使用标准异常，已释放对象抛 ObjectDisposedException。参见 [ABI](native.zh-CN.md) 与[分配验收和构建](development.zh-CN.md)。
+不支持的平台抛 PlatformNotSupportedException；原生加载错误保留 .NET 类型；原生操作/ABI 失败抛 McapException（继承 IOException）。托管参数/状态检查使用标准异常，已释放对象抛 ObjectDisposedException。参见 [ABI](native.md) 与[分配验收和构建](development.md)。
 
 文件总长度不作为记录或解压后 Chunk 的大小上限。高压缩率 Chunk 解压后的大小可以超过文件大小，但仍需要足够可用内存并受上游解析器限制。
 
@@ -352,4 +352,4 @@ Dispose 释放该所有者持有的引用；所有引用释放后，存储才可
 
 工作集是缓存复用期间会反复访问的那些 chunk。按解压存储及描述符成本配置额度，不能按压缩文件字节数估算。工作集超过额度可能导致淘汰与重复解压；这种访问仍然合法。通过 `GetCacheStatistics()` 的命中和 chunk 加载次数判断复用效果。Prepared index 减少重复描述符编码／解析，不负责避免缓存未命中时的解压；复制返回的 payload 也不会缓存源 chunk。
 
-随机读取校验完整目标 chunk，可能比前缀读取更早报告尾部损坏，但不代表全文件校验。补丁边界与证据见[本地补丁](patches.zh-CN.md)。
+随机读取校验完整目标 chunk，可能比前缀读取更早报告尾部损坏，但不代表全文件校验。补丁边界与证据见[本地补丁](patches.md)。

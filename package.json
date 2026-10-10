@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "description": "Pinned documentation browser verification tools",
+  "devDependencies": { "@playwright/test": "1.56.1" },
+  "scripts": { "test:docs": "node scripts/Test-Browser.mjs" }
+}

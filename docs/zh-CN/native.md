@@ -1,8 +1,8 @@
 # 原生 ABI 与内存边界
 
-[English](native.md) | 简体中文
+[English](../native.md) | 简体中文
 
-.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../native/src/lib.rs) 负责共享 ABI／错误边界，[reader.rs](../native/src/reader.rs) 和 [writer.rs](../native/src/writer.rs) 实现会话操作，[io.rs](../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../src/Native.cs) 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
+.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../../native/src/lib.rs) 负责共享 ABI／错误边界，[reader.rs](../../native/src/reader.rs) 和 [writer.rs](../../native/src/writer.rs) 实现会话操作，[io.rs](../../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../../src/Native.cs) 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
 
 ## ABI 契约
 
@@ -52,7 +52,7 @@ Writer 完成时在上游 `finish` 后立即提取输出，释放上游 writer �
 
 可失败原生入口捕获 panic 并转换成错误响应。分配器 abort 和外部非法指针无法转换成托管异常；调用方必须传入有效缓冲及本 ABI 创建的句柄。Rust 编译期断言和托管测试验证支持平台上的布局大小及偏移。
 
-[公共 API](api.zh-CN.md) 区分完整校验、索引查询和原始记录。[构建与分配验收](development.zh-CN.md) 分别验证托管分配和格式互操作；托管零分配不等于原生零分配。
+[公共 API](api.md) 区分完整校验、索引查询和原始记录。[构建与分配验收](development.md) 分别验证托管分配和格式互操作；托管零分配不等于原生零分配。
 
 
 ## 扩展操作族
@@ -70,7 +70,7 @@ Writer 完成时在上游 `finish` 后立即提取输出，释放上游 writer �
 
 ## 稳定存储与批次
 
-公共交付方式及调用方责任见 [API 指南](api.zh-CN.md#选择消息所有权)。内部共享范围持有引用计数 backing；释放 reader 或淘汰缓存条目只释放该 owner 的引用。Backing 的最终释放取决于所有引用它的 parser、游标、snapshot 和 lease。这些生命周期保证不构成保留容量上限。
+公共交付方式及调用方责任见 [API 指南](api.md#选择消息所有权)。内部共享范围持有引用计数 backing；释放 reader 或淘汰缓存条目只释放该 owner 的引用。Backing 的最终释放取决于所有引用它的 parser、游标、snapshot 和 lease。这些生命周期保证不构成保留容量上限。
 
 `fm_writer_batch` 接收 24 字节 Header、8 字节 offset/length 范围、共享 payload 和独立的已完成前缀输出。`fm_read_batch`／`fm_visit_messages` 使用 40 字节 Progress（四个 u64、两个 u32）。预检先于写入；推进后的失败不回滚。
 
@@ -86,4 +86,4 @@ pending 保存共享字节或合成记录体。Buffer reader 保留完整 Messag
 
 回退排序使用绑定层 arena，保存 header、文件序号和共享范围。固定大小的待处理组跟踪连续 owned backing 的身份与选中字节，不建立全文件 owner 字典。组结束时，可将稀疏选中数据一次复制到按消息划分的不可变段，再发布结果；映射及其他外部 owner 不紧凑化。`SharedBytes::shares_backing` 是本地只读所有权查询，紧凑化决策和分配仍在绑定层执行。现有逻辑排序检查不变，新旧存储重叠不计入该额度。失败终止构造，不发布部分会话；ABI 不变。
 
-官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于[本地补丁](patches.zh-CN.md)。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。
+官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于[本地补丁](patches.md)。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。

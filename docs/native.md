@@ -1,6 +1,6 @@
 # Native ABI and memory boundaries
 
-English | [简体中文](native.zh-CN.md)
+English | [简体中文](zh-CN/native.md)
 
 .NET uses Cdecl P/Invoke and SafeHandle to call a private Rust `cdylib` backed by official `mcap` 0.25.0. There is no C++ layer. [lib.rs](../native/src/lib.rs) owns shared ABI/error boundaries; [reader.rs](../native/src/reader.rs) and [writer.rs](../native/src/writer.rs) implement session operations, while [io.rs](../native/src/io.rs) implements file/Stream I/O. Managed declarations are in [Native.cs](../src/Native.cs) and its capability partials. Windows x64 loads `fizzy_mcap_native.dll`; glibc Linux x64/ARM64 load `libfizzy_mcap_native.so` through the extensionless name `fizzy_mcap_native`.
 
