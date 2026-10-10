@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Release and recovery SOP | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Release and recovery SOP | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="release-and-recovery-sop">Release and recovery SOP</h1>
+
+<p>English | <a href="zh-CN/release.html">简体中文</a></p>
+<p>This SOP is for authorized maintainers. Starting with the next release, every package retains its original bilingual documentation and API reference. Existing historical packages are not reconstructed automatically. Version edits, commits, tags, pushes, settings changes and publication require authorization. Local checks do not authorize those actions.</p>
+<h2 id="one-time-repository-setup">One-time repository setup</h2>
+<ol>
+<li>Configure NuGet Trusted Publisher for this repository, <code>publish.yml</code> and the <code>nuget</code> environment. Set <code>NUGET_USER</code>; do not store a long-lived NuGet key. Require the intended release approval on that environment.</li>
+<li>Set Settings → Pages → Build and deployment to GitHub Actions. Configure <code>github-pages</code> to allow main, release tags <code>v*</code>, and explicitly approved documentation revision branches. Configure <code>documentation-revision</code> with required reviewers and permitted revision branches.</li>
+<li>Protect main with the existing build and documentation checks. Protect release tags against update/deletion. Protect <code>gh-pages</code> against deletion and force pushes while allowing the deployment identity to make ordinary commits. Do not require an impossible PR-only update for that bot branch.</li>
+<li>Allow workflow job permissions: read-only for builds; contents write for durable Release assets/archive commits; Pages write and OIDC only for deployment; OIDC for NuGet login. PR builds never deploy.</li>
+<li>Confirm GitHub CLI authentication for local orchestration (<code>gh auth status</code>), Python 3.12, Node.js 22, .NET 8 and the pinned Rust toolchain. See <a href="documentation.html">documentation maintenance</a>.</li>
+<li>Run the local release regression gate, preview the documentation and verify the first Pages deployment. Validation-job evidence is preserved with the candidate, so expired Actions history does not prevent long-term archive recovery. A missing archive branch is initialized only after a successful remote ref listing; authentication/network failures are never interpreted as an empty archive.</li>
+</ol>
+<h2 id="prepare-and-publish">Prepare and publish</h2>
+<p>Follow this sequence for every version:</p>
+<ol>
+<li>Update authorized version metadata consistently in the managed project and native Cargo files, retaining exact dependency pins and the lockfile. Check native identifier handling if it changes; this library currently uses the upstream writer library identifier.</li>
+<li>Update English, Chinese, XML contracts and affected examples together. Run documentation, sample and release gates. Run the existing current-source/package validation applicable to the change. Full package validation requires all three same-source native assets.</li>
+<li>Commit and push the reviewed release commit to main with authorization. Wait for its normal build and documentation checks. Create and push the authorized <code>v&lt;version&gt;</code> tag on that commit; never move a published tag.</li>
+<li>From the clean checkout at that tag, run:</li>
+</ol>
+<pre><code class="lang-powershell">./scripts/Release.ps1 Check -Tag v&lt;version&gt;
+./scripts/Release.ps1 Start -Tag v&lt;version&gt;
+./scripts/Release.ps1 Status -Tag v&lt;version&gt;
+</code></pre>
+<p>Replace placeholders with the metadata version. Check verifies clean source, local/remote tag identity, version consistency, main ancestry and a successful normal build for that commit. Start repeats the check and dispatches <code>publish.yml</code> at the tag; it does not push a package locally. Dispatch acceptance is not publication success: follow the Actions run and final Status result.</p>
+<p>The workflow runs deep validation, collects the three native assets, packs once and tests the identical package on five environments. It then generates documentation from that package's DLL/XML, tests examples and saves the candidate to a draft GitHub Release <strong>before</strong> NuGet push. OIDC publication uses that same nupkg. It verifies remote package content, runs isolated public-NuGet tests on three supported RIDs, stages/deploys the immutable revision and verifies its live resources, then marks it completed, activates version/latest entrypoints, redeploys and verifies those entrypoints before making the Release public. A failed fixed-URL verification never advances active pointers.</p>
+<p>The self-contained <code>release-bundle.zip</code> contains the nupkg, docs.zip, validation.zip, validation-jobs.json and provenance.json. It is uploaded before the compatibility loose assets and can restore them without Actions artifacts. Every restored file is checked against provenance. Provenance records the tag, source commit/fingerprint, native hashes, package/archive hashes, complete site file hashes, tool versions and originating workflow. Signed NuGet packages are compared by identity and ZIP entry content except the repository signature, not by whole-package hash alone.</p>
+<h2 id="version-storage-and-acceptance">Version storage and acceptance</h2>
+<p><code>/dev/</code> follows main and is explicitly unreleased. <code>/v&lt;version&gt;/r0/</code> is the frozen original site; later <code>rN</code> directories are immutable revisions. <code>/v&lt;version&gt;/</code> selects the active revision. <code>/latest/</code> selects the highest completed stable semantic version; prereleases and older retries cannot lower it. The root enters latest, or dev before the first stable release. Version numbers in URLs come from package metadata.</p>
+<p>The <code>gh-pages</code> branch stores the full site history. Release assets are a separate durable recovery source. Actions artifacts expire and are not the archive. All Pages producers share a serialized deployment workflow that rereads the latest archive tree, checks historical file hashes and uses non-force pushes with bounded conflict retries. Completed markers live outside immutable revision trees. Dev deployment rejects stale main artifacts before archiving and again before deploying. An older complete tree must never be copied over the current archive.</p>
+<p>Accept a release only after Actions reports all enabled gates successful, NuGet restores the matching package from its public source, both languages and representative API pages load, search/assets work under the project prefix, the version/source banner matches and the original archive remains downloadable. Local package tests do not establish published-package validity. GitHub workflows do not validate consumer hardware/UI.</p>
+<h2 id="failure-and-recovery">Failure and recovery</h2>
+<p>Scripts return nonzero on failure and write JSON under <code>artifacts/reports/</code>. Preserve the workflow/run identity when diagnosing failures; do not expose credentials in logs. No recovery flag bypasses validation.</p>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Required action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Validation failed before upload</td>
+<td>Fix the cause. Do not bypass gates. If source changes, create a new reviewed release commit/tag before publication.</td>
+</tr>
+<tr>
+<td>Candidate assets partially uploaded</td>
+<td>Resume first restores the self-contained release-bundle.zip. If it was not saved, candidate.json identifies the original release-bundle Actions artifact to finish missing uploads. Existing assets must match exactly. If that artifact has expired before durable upload completed, stop for maintainer review; never regenerate or overwrite conflicting assets.</td>
+</tr>
+<tr>
+<td>Upload response failed or timed out</td>
+<td>Query NuGet first. Matching content means continue; absent content permits another upload; conflicting content blocks release.</td>
+</tr>
+<tr>
+<td>NuGet visibility deadline expired</td>
+<td>Resume later at the same tag. Each attempt has bounded polling.</td>
+</tr>
+<tr>
+<td>NuGet succeeded, package checks/Pages failed</td>
+<td>Correct infrastructure or permissions, then Resume. The saved candidate is reused without repacking or blind duplicate push.</td>
+</tr>
+<tr>
+<td>Actions artifacts expired</td>
+<td>Resume restores the draft/public Release assets and checks provenance plus the durable original validation-job evidence.</td>
+</tr>
+<tr>
+<td>Pages failure after archive commit</td>
+<td>Resume redeploys the latest complete archive, retaining versions added since the original attempt.</td>
+</tr>
+<tr>
+<td>Incorrect published package</td>
+<td>Publish a new corrected version through the full process. Never replace package bytes under the old version.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="lang-powershell">./scripts/Release.ps1 Status -Tag v&lt;version&gt;
+./scripts/Release.ps1 Resume -Tag v&lt;version&gt;
+</code></pre>
+<p>Resume verifies the saved bundle and remote tag before dispatch. The candidate.json journal binds partial uploads to the original run. Resume completes uploads from that run's bundle and verifies provenance before publication. Missing journal/input bytes or unverifiable original validation evidence blocks publication rather than manufacturing evidence. For partial uploads that cannot be resumed from their original inputs, preserve the evidence and resolve the candidate manually under maintainer review; do not claim a new build is the original artifact.</p>
+<h2 id="documentation-revisions-and-rollback">Documentation revisions and rollback</h2>
+<p>Use the scripted facade; it never bumps versions, creates tags or publishes a package:</p>
+<pre><code class="lang-powershell">./scripts/Revision-Docs.ps1 Prepare -Tag v&lt;version&gt;
+# Edit, review and commit on the returned revision branch.
+./scripts/Revision-Docs.ps1 Check -Tag v&lt;version&gt; -Revision &lt;N&gt;
+# Push the reviewed branch with authorization.
+./scripts/Revision-Docs.ps1 Start -Tag v&lt;version&gt; -Revision &lt;N&gt;
+./scripts/Revision-Docs.ps1 Status -Tag v&lt;version&gt; -Revision &lt;N&gt;
+./scripts/Revision-Docs.ps1 Resume -Tag v&lt;version&gt; -Revision &lt;N&gt;
+./scripts/Revision-Docs.ps1 Rollback -Tag v&lt;version&gt; -Revision &lt;previous-N&gt;
+</code></pre>
+<p>Prepare requires a clean checkout, a public release and matching local/remote tag provenance, selects the next unused revision and verifies the active revision against its durable provenance and live identity, then creates a branch from that revision's documentation commit to retain earlier corrections. If that verified commit is missing locally, Prepare fetches that exact SHA from origin; executable-change checks still compare with the original package commit. <code>-Branch</code> overrides its name. No push occurs. Changes are limited to guides, README/navigation, sample code, site resources and XML documentation lines; executable C# changes (including string literals), package metadata and other files are rejected. The original package supplies the API assembly; revised XML member IDs must match the package. Check performs the full documentation/browser and original-package sample gates without uploading revision assets.</p>
+<p>Start checks the clean committed branch matches its remote, then dispatches <code>docs-revision</code>. Approval on the documentation-revision environment remains applicable. The workflow first saves a self-contained <code>revision-rN.zip</code> containing <code>docs-rN.zip</code> and <code>provenance-rN.json</code>, followed by the loose compatibility assets, stages/deploys the immutable site, verifies the fixed URL, then activates and verifies version/latest entrypoints. Existing revision content must match exactly; old-release retries never lower an active pointer. Status distinguishes complete, partial and absent uploads and reports live state and recent workflow runs; dispatch acceptance is not successful deployment.</p>
+<p>Resume restores durable revision bytes through trusted main and completes activation without rebuilding or lowering a newer pointer. The self-contained revision bundle also recovers a partial loose-asset upload. If failure occurred before the revision became durable, rerun the original revision workflow on the same commit; conflicting bytes remain blocked. Rollback restores no new content and points only to an existing verified revision. No revision is removed. A partial revision upload with no recoverable original artifact requires maintainer review; do not create a replacement under the same identity.</p>
+<h2 id="regression-and-restoration-drills">Regression and restoration drills</h2>
+<p>Run <code>./scripts/Test-Release.ps1</code> before changes to release/archive logic. The tests use temporary directories under artifacts, fake packages and mocked services; they do not publish to NuGet. They cover multiple versions, immutable revisions, dev updates, prerelease/latest rules, conflict rejection, unsafe ZIPs, repository-signature comparison and bounded availability retries. Run the full documentation and affected sample gates after tool/content changes.</p>
+<p>For a site-loss incident, preserve any surviving branch and Release assets first. Run Actions → docs-restore from the trusted main workflow, selecting an existing tag and the revision to activate if no pointer survives. It restores every original/revision asset for that tag, verifies file manifests, and merges into the latest archive without changing an existing active pointer. Repeat for each missing version. For a local read-only drill, run <code>python scripts/release.py recover-site --tag v&lt;version&gt; --revision 0</code>; the reconstructed tree is under <code>artifacts/recovered-archive</code>. Do not restore one old complete site over a newer live tree. Repository administrators remain responsible for access controls, retained Releases and remote protection settings.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

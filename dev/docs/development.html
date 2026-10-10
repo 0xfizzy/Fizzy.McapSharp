@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Building, testing, and consumer integration | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Building, testing, and consumer integration | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="building-testing-and-consumer-integration">Building, testing, and consumer integration</h1>
+
+<p>English | <a href="zh-CN/development.html">简体中文</a></p>
+<h2 id="environment-and-layout">Environment and layout</h2>
+<p>Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Rust 1.98.1, and a native compiler. Windows x64 uses Visual C++ MSVC build tools with the Windows SDK. Linux x64/ARM64 uses Ubuntu 22.04, GCC/build-essential and binutils; install the Rust target for the host listed below. No local VM, WSL, Docker or cross compiler is required for Windows development. See <a href="../rust-toolchain.toml">rust-toolchain.toml</a> for the toolchain; <code>native/Cargo.lock</code> pins the full dependency graph.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Fizzy.McapSharp.csproj</code></td>
+<td>Library project and package metadata; compiles only <code>src/</code></td>
+</tr>
+<tr>
+<td><code>src/</code></td>
+<td>Public .NET API; capability partials are named after their owning type, with separate Native interop declarations</td>
+</tr>
+<tr>
+<td><code>src/McapWriterOptions.cs</code>, <code>McapQuery.cs</code>, <code>McapReadContracts.cs</code></td>
+<td>Writing configuration, message selection and read outcomes/modes</td>
+</tr>
+<tr>
+<td><code>src/McapDeclarations.cs</code>, <code>McapMessageModels.cs</code>, <code>McapDataRecords.cs</code>, <code>McapSummaryModels.cs</code></td>
+<td>Declaration, message, data-record and summary/index models; independent of reader implementations</td>
+</tr>
+<tr>
+<td><code>native/src/lib.rs</code>, <code>protocol.rs</code></td>
+<td>Shared ABI/error boundaries and named wire-protocol values</td>
+</tr>
+<tr>
+<td><code>native/src/reader.rs</code>, <code>writer.rs</code>, <code>summary.rs</code>, <code>io.rs</code></td>
+<td>File/Stream read sessions and queries, writer state, summary serialization and source/callback I/O</td>
+</tr>
+<tr>
+<td><code>native/src/engine.rs</code>, <code>snapshot.rs</code>, <code>prepared_write.rs</code>, <code>record_access.rs</code></td>
+<td>Sans-I/O engines, independent indexed snapshots, prepared writing and raw-record utilities</td>
+</tr>
+<tr>
+<td><code>tests/Fizzy.McapSharp.Tests/</code></td>
+<td>Managed functionality and resource lifetime tests</td>
+</tr>
+<tr>
+<td><code>tests/Interop/</code>, <code>tests/interop.py</code></td>
+<td>Bidirectional interoperability with official Python MCAP</td>
+</tr>
+<tr>
+<td><code>scripts/</code></td>
+<td>Build, packaging, and isolated package tests</td>
+</tr>
+<tr>
+<td><code>.github/workflows/</code></td>
+<td>CI build and manual publishing</td>
+</tr>
+</tbody>
+</table>
+<p><code>build.py</code> (called by <code>Build.ps1</code>) prefers <code>.tools/cargo/bin/cargo.exe</code> and sets the corresponding CARGO_HOME/RUSTUP_HOME when present; otherwise it uses Cargo from PATH. It does not install tools. <code>.tools/</code> is ignored; do not commit local tool installations.</p>
+<h2 id="build-and-test">Build and test</h2>
+<p>Documentation builds, translations and examples follow <a href="documentation.html">documentation maintenance</a>. Versioned archives, publication and recovery follow the <a href="release.html">release SOP</a>. Public API/XML and guide changes require <code>./scripts/Build-Docs.ps1</code>; release/archive tooling changes require <code>./scripts/Test-Release.ps1</code>. These gates supplement the native and package checks below.</p>
+<pre><code class="lang-powershell">./scripts/Build.ps1 -Test
+# After collecting all three native assets from the same source:
+./scripts/Build.ps1 -Test -Pack
+./scripts/Test-Package.ps1
+</code></pre>
+<p>Linux uses <code>python scripts/build.py build --test</code>. Use <code>python scripts/build.py pack</code> to pack previously collected assets without rebuilding, and <code>python scripts/test_package.py</code> to test the package. CI installs Python 3.12; on Linux use an environment where <code>python</code> resolves to Python 3.</p>
+<table>
+<thead>
+<tr>
+<th>RID</th>
+<th>Rust target</th>
+<th>Native build runner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>win-x64</code></td>
+<td><code>x86_64-pc-windows-msvc</code></td>
+<td><code>windows-2022</code></td>
+</tr>
+<tr>
+<td><code>linux-x64</code></td>
+<td><code>x86_64-unknown-linux-gnu</code></td>
+<td><code>ubuntu-22.04</code></td>
+</tr>
+<tr>
+<td><code>linux-arm64</code></td>
+<td><code>aarch64-unknown-linux-gnu</code></td>
+<td><code>ubuntu-22.04-arm</code></td>
+</tr>
+</tbody>
+</table>
+<p>The build script runs <code>cargo build --release --locked --target &lt;target&gt;</code> before managed Release builds. Native outputs are isolated in <code>native/target/&lt;target&gt;/release/</code> and staged in <code>artifacts/native/&lt;rid&gt;/</code> with a manifest recording the commit, source fingerprint, target and binary hash. <code>-Test</code> runs build/packaging regression checks and xUnit; the default builds only the host platform. No script installs tools.</p>
+<p>Public API XML documentation is required by the CS1591 build gate. Keep units, ownership, supported modes and failure behavior on the relevant members. Private protocol constants in <code>src/Native.Protocol.cs</code> and <code>native/src/protocol.rs</code> are checked together by the Python test suite; keep operation and status domains separate even when numeric values coincide.</p>
+<p>Linux builds audit ELF architecture, dynamic dependencies and required GLIBC versions (at most 2.35), and reject external compression libraries and embedded search paths. CPU-specific Rust flags are rejected. Linux ARM64 builds and tests run on native ARM64 runners. macOS, musl, Ubuntu 20.04, Windows ARM64, 32-bit, NativeAOT and single-file publishing are outside the validation matrix.</p>
+<p><code>Test-Package.ps1</code> calls <code>test_package.py</code>, which creates an independent application and package cache under <code>artifacts/smoke-&lt;GUID&gt;/</code>. It obtains the version from project metadata, verifies all packaged native architectures, restores only from the specified package directory, and tests every compression mode both with ordinary execution and RID-specific framework-dependent publishing. Override the package location with <code>-PackageDirectory</code> or <code>--package-directory</code>. This tests a local package, not NuGet.org availability.</p>
+<p>Existing xUnit coverage includes all three compression modes, time and topic filtering, metadata, attachments, unindexed reading, incomplete files, CRC corruption, recovery results, terminal writer failure, overwrite prevention, enumerator disposal, and declarations without messages. Tests use temporary files and require no devices.</p>
+<h3 id="allocation-acceptance">Allocation acceptance</h3>
+<p><code>Build.ps1 -Test</code> also runs <code>dotnet run --project tests/Allocations -c Release</code>. The gate warms the writer/reader before measuring <code>GC.GetAllocatedBytesForCurrentThread</code>, excludes setup and reporting, and requires exactly zero managed bytes in the message loop; this is a mandatory hot-path contract for the library. It covers None/Lz4/Zstd, native file I/O, actual FileStream, and seekable/non-seekable span streams, with chunk boundaries, multiple channels, late declarations, empty/large messages, insufficient-buffer retries, repeated EOF and queries. The executable reports throughput and average per-message elapsed time; these are workload measurements, not latency percentiles or universal performance guarantees. Functional tests additionally cover retry correctness and callback failures.</p>
+<p>Use Release only. Caller buffer growth, initialization, description/summary snapshots, errors and owned-record convenience APIs are outside this gate. User Stream implementations may allocate; bridge-only tests use a preallocated span-based stream whose array fallback throws. Native allocations require a separate native profiler. Keep baseline measurements in ignored artifacts, not in API documentation.</p>
+<p>Classification enumeration acceptance compares 32 and 4096 unrelated fixed-size messages with a fixed set of target records under all three compression modes. It measures the complete enumeration and permits at most 4096 additional managed bytes, rejecting per-record allocation growth without requiring owned results to allocate zero bytes.</p>
+<p>Completion tests distinguish ordinary flushing from explicit file synchronization, cover retained handle ownership and terminal synchronization failures, and use test-only native fault injection and FileStream overrides. These tests verify dispatch and failure contracts, not power-loss durability. ABI changes require rebuilding all three native assets from the same source before complete-package validation.</p>
+<h3 id="single-file-writer-memory-diagnostics">Single-file writer memory diagnostics</h3>
+<p>Run <code>dotnet run --project tests/Allocations -c Release -- memory-profile 65536</code> and <code>cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture</code>, redirecting reports under ignored <code>artifacts/</code>. The managed profile uses a counting Stream rather than retaining output, compares None/Lz4/Zstd, seekable/non-seekable output, 1/4/16 MiB chunk targets and frequent Flush, and disables each index family separately. It samples writing, completion, a held GetSummary result, result collection and disposal; it reports private bytes, working set, managed heap, output length, elapsed time and final chunk count. Increase the message count to study longer recordings. Sampling and forced GC affect timing; process samples across configurations are not isolated allocator measurements.</p>
+<p>The native fixture compares identical 64-chunk recordings with eager summary JSON and the production on-demand path. It samples tracked live Rust bytes at 16/32/48/64 chunks, asserts lower completion retention and peak, checks response equivalence and reclamation, and reports cumulative allocations. Peak means tracked live requested allocation sizes on the test thread, not process RSS or allocator-internal realloc overlap. Codec allocations outside the Rust allocator and allocator caches are excluded. The fixture enforces storage properties, not fixed byte counts or throughput thresholds. Managed temporary-file tests verify format, indexes and summary cursor lifetime. Upstream chunk-index growth remains; these diagnostics do not establish constant-memory recording.</p>
+<h3 id="python-interoperability">Python interoperability</h3>
+<p>Run in an environment with Python available; CI uses Python 3.12:</p>
+<pre><code class="lang-powershell">python -m pip install mcap==1.3.1 lz4==4.4.5 zstandard==0.25.0
+$interopDirectory = Join-Path 'artifacts' ('interop-' + [Guid]::NewGuid().ToString('N'))
+dotnet run --project tests/Interop -c Release -- write $interopDirectory
+python tests/interop.py $interopDirectory
+dotnet run --project tests/Interop -c Release -- read $interopDirectory
+</code></pre>
+<p>Keep this order: .NET writes files, Python validates them and generates files, then .NET validates the Python output. Checks cover None, Lz4, Zstd, queries, metadata, and attachments. Use a fresh directory each time because the writer's path overload only creates new files. <code>Build.ps1 -Test</code> does not run interoperability checks.</p>
+<h2 id="package-contents">Package contents</h2>
+<p>The package ID is <code>Fizzy.McapSharp</code>, targeting net8.0. One package includes the managed assembly, README, official MCAP icon with its MIT license, third-party notices, and these assets:</p>
+<pre><code class="lang-text">runtimes/win-x64/native/fizzy_mcap_native.dll
+runtimes/linux-x64/native/libfizzy_mcap_native.so
+runtimes/linux-arm64/native/libfizzy_mcap_native.so
+</code></pre>
+<p><code>RequireNativeForPackage</code> rejects missing assets or manifests, mismatched architecture, binary hashes, commits or source fingerprints. Local <code>-Pack</code> also requires all three assets. Download each <code>native-&lt;rid&gt;</code> artifact from a single matching CI run into <code>artifacts/native/&lt;rid&gt;/</code>, retaining its manifest. Do not mix assets across runs or edit the source after collecting them. Source fingerprints normalize text line endings across Windows and Linux. Packages are written to <code>artifacts/packages/</code>; scripts do not publish or change versions.</p>
+<h3 id="ci-and-release-validation">CI and release validation</h3>
+<p>The <code>validate / verified</code> job is the final gate: it requires every enabled job to succeed, including deep checks for a release. Configure branch protection to require that check. A cancelled or unexpectedly skipped job cannot produce a verified package.</p>
+<p>The reusable validation workflow builds and runs xUnit plus Python interoperability on all three native runners, then packs once. Five package-test jobs run on Windows 2022 and Ubuntu 22.04/24.04 x64/ARM64. They restore the complete package into isolated caches, exercise ordinary and RID-published execution, and read fixtures produced by every build platform. Missing fixtures fail validation. Ubuntu is the tested distribution; other glibc distributions also need compatible system libraries and .NET 8.</p>
+<p>PRs, pushes to <code>main</code>, and manual dispatch run this workflow. Superseded builds on the same PR/ref are cancelled. Intermediate artifacts expire after one day; only packages passing every job are retained for seven days. Cargo caches are separated by OS, architecture, toolchain, lockfile and native source. Standard hosted runners are used; no paid larger runners or additional cache quota are configured. Public-repository runner time is free under GitHub's current rules; storage remains subject to account allowances.</p>
+<p>The manual publish workflow runs the same validation and passes the identical verified package to its protected publishing job without repacking. It persists the package and matching documentation before publication, then separately validates the public NuGet package on three RIDs and deploys the version archive. Resume reuses the original verified candidate. Follow the <a href="release.html">release SOP</a> and maintainer rules in <a href="../AGENTS.html#publishing">AGENTS.md</a>. Ordinary build CI still validates a local candidate, not NuGet.org availability.</p>
+<h2 id="consumer-integration">Consumer integration</h2>
+<p>Use <code>PackageReference</code> by default. For local source development, the consuming project can select a <code>ProjectReference</code> to this repository's project instead. Select exactly one reference type per project. Reference-selection properties, paths and build entry points belong to the consuming project; this library does not configure them.</p>
+<p>For source mode, run this repository's <code>./scripts/Build.ps1</code> before restoring and building consumers. The managed project uses an explicit <code>RuntimeIdentifier</code> when supplied, otherwise the SDK host RID, and propagates only that native library to source consumer outputs; <code>dotnet build</code> alone does not compile Rust. Use the current checkout without fetching or switching branches. Restore after switching Source/Package mode, and serialize builds sharing outputs. Do not commit local paths or mode configuration.</p>
+<p>Distinguish source, local package, and published package validation in reports. Testing a published dependency does not validate current source.</p>
+<h3 id="official-api-and-extended-allocation-gates">Official API and extended allocation gates</h3>
+<p><code>Build.ps1 -Test</code> also runs locked Release native differential tests and <code>scripts/check_api_coverage.py</code>. The reviewed <a href="coverage.html">coverage inventory</a> is checked against the exact Cargo source, including optional Tokio public declarations. It does not replace behavior tests. The existing locked binrw version is also a direct dependency for encoding owned upstream records; no dependency versions are upgraded.</p>
+<p>Extended allocation tests cover prepared complete-message writes (including late declarations), prepared control records, private records, attachments, record views, direct buffer readers and random index/metadata/attachment reads under every compression mode. Asynchronous tests force suspension using a reusable source and a dedicated I/O thread, summing caller and worker allocation counts, and also exercise direct awaiting with inline completion. Initialization, caller growth, owned convenience objects and errors remain excluded. Native snapshot memory is intentionally outside the managed-allocation contract.</p>
+<p>Native differential tests compare all six slice modes against the patched implementation under every compression mode. Lazy-reader checks assert no construction-time advancement and at most one pending record; these state/capacity checks exclude the input copy and do not measure total allocator or decompressor memory. Managed tests cover independent Chunk lifetimes, deferred errors, caller indexes and buffered-sort rejection. The Release allocation gate also measures independent lazy Chunk advancement.</p>
+<h3 id="external-contract-suites">External contract suites</h3>
+<p>These suites are for maintainers checking interoperability and failure handling. Build the host native Release library first. Use Python dependencies from the interoperability section and Node 24 for conformance. Each invocation requires a fresh output directory; preserve failed runs for diagnosis.</p>
+<pre><code class="lang-powershell">python scripts/test_suites.py conformance --output artifacts/check-conformance
+python scripts/test_abi.py
+python scripts/test_suites.py differential --no-build --seed 1 --samples 32 --output artifacts/check-differential
+python scripts/test_suites.py robustness --no-build --seed 1 --samples 32 --output artifacts/check-robustness
+python scripts/test_suites.py stress --no-build --budget 10 --output artifacts/check-stress
+</code></pre>
+<p>The first command builds the managed contract runner. <code>--no-build</code> reuses it; neither option builds Rust. Conformance downloads the commit pinned in <code>tests/conformance-lock.json</code>, verifies the archive and each Git LFS object's SHA-256, and preserves the upstream MIT license. Node imports the official expected-result and Rust support rules directly; no upstream multi-language build or npm installation is required. The inventory requires 416 sequential reads, 32 indexed reads and 208 exact-byte writes. The other 384 indexed cases lack prerequisites required by the official Rust runner; 208 padded writer cases cannot be emitted by the upstream writer. Unsupported cases carry explicit reasons. Count drift, missing data and supported-case failures fail the suite.</p>
+<p>Differential testing uses a version-independent xorshift32 generator, 32 fixed seeds, three compression settings and both .NET/Python producers. Each file contains at most 256 messages and is limited to 8 MiB. Tests compare payloads, declarations, metadata and attachments, sequential/buffer/async paths, indexed order and random access. Equal-time ordering across chunks is unspecified: sorted results must be monotonic and contain exactly the expected tied messages. Odd seeds disable chunks; even seeds exercise compression and indexes. Managed xUnit tests also cover every truncation of a small recording, extreme fields, length limits, short reads, injected I/O failures and session isolation. Existing async cancellation and ownership checks remain part of the host gate.</p>
+<p>The robustness runner mutates valid input and launches each parser probe in a separate process with a 30-second timeout. Expected MCAP errors are accepted; unexpected exceptions, panics, crashes and timeouts fail. Strict parsing uses an 8 MiB record-length limit. <code>--samples</code> selects bounded cases; a positive <code>--budget</code> instead runs until that many seconds have elapsed. <code>report.json</code> records configuration, commit, RID, runtime versions and current input. Replay with the recorded seed and configuration into a new output directory. The report's original command must have its output directory changed before rerunning.</p>
+<p><code>test_abi.py</code> checks all managed P/Invoke export names and uses isolated child processes with an injected missing-library resolver and a test-only incompatible Rust library. The stub stays under ignored artifacts and is never packaged.</p>
+<h3 id="weekly-and-manual-deep-checks">Weekly and manual deep checks</h3>
+<p>PRs and main pushes run the fixed suites on all three native platforms. Every Sunday at 02:00 UTC, the build workflow additionally runs Linux x64 native mutation (20 minutes), Valgrind (10 minutes), lifecycle stress (10 minutes), and an actual file exceeding 4 GiB. Manual dispatch accepts <code>deep</code>, <code>seed</code> and mutation <code>budget</code> (1–1800 seconds). Publishing requires these deep checks against the same commit and publishes the same candidate package. Scheduled runs use the workflow run number as a recorded rotating seed. No daily job is configured. Hosted schedules may start later than their nominal time.</p>
+<p>On Linux x64 with the pinned Rust toolchain, built native asset, .NET and Valgrind installed:</p>
+<pre><code class="lang-sh">python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stress-budget 600 --output artifacts/deep-check
+</code></pre>
+<p>Malformed-input mutation failures use one attribution policy for every compression mode. On an eligible FFI failure, a separately compiled, unmodified registry <code>mcap</code> probe reads the identical input with equivalent parser options, the same 30-second deadline and 1 GiB address-space limit. Both probes report the read mode, delivered-record count and rolling digest of preceding records; valid fixtures must produce matching progress traces before mutation testing begins. Attribution requires matching configuration, last read stage and failure evidence: a timeout without panic/abort diagnostics, an allocation abort with the same requested bytes and exit code, or an ABI-caught panic with the same source filename and complete first diagnostic line as the reference panic. Matching exit codes or signals alone never qualify. A panic escaping the ABI and test-driver assertions remain failures.</p>
+<p>The reference currently covers top-level and decompressed record reads (buffer modes 0 and 2). Failures in other modes, snapshots, setup or delivery have no automatic waiver; unsupported operations, missing references, mismatched outcomes and absent evidence fail closed. This is finite diagnostic evidence of upstream behavior, not proof that arbitrary crashes share a root cause. It does not modify runtime behavior or make malformed input safe; use process isolation when a hard deadline is required.</p>
+<p>Reports count completed mutations (including expected parse errors), attributed upstream failures, binding failures and unclassified failures separately. Every failing subprocess case preserves the input by SHA-256 and a JSON evidence file containing both process logs, commands, limits, progress and exit outcomes. The release gate accepts only attributed upstream cases in this mutation suite. Valid-input interoperability, ABI/layout assertions, ownership/lifetime and buffer contracts, retries, concurrency, the zero-managed-allocation gate, Valgrind and package integrity remain unconditional gates.</p>
+<p>The standalone Rust driver links the real private C ABI, checks layouts, and exercises record/chunk parsing, pending buffer reads, snapshots and indexed operations with valid handles. Native mutations run in bounded child processes with a 1 GiB address-space limit and 30-second timeout. Mutation failures preserve the original input without reducing away attribution evidence. Valgrind rejects illegal accesses and definite/indirect leaks. This is mutation-based testing, not coverage-guided fuzzing or proof of memory safety.</p>
+<p>Lifecycle stress samples private memory and handles after GC, discards the first third of samples, and compares middle/tail medians when at least 30 samples exist. Growth above 32 handles or 256 MiB fails for investigation; smaller growth remains diagnostic, and native allocator caches can retain memory. The large-file test writes 4097 MiB of uncompressed payload with bounded buffers, validates the file and queries its tail through indexes, then removes the file. Ensure at least 6 GiB of free disk space. This does not require snapshot APIs to use constant memory.</p>
+<p>Reports are retained for seven days and failed inputs for fourteen days. Successful stress files are not uploaded. Allocation remains a strict 0 B gate; throughput has no hosted-runner pass threshold. The deep job has a 90-minute timeout. Inspect the failing suite report and reproduce its input before changing expectations.</p>
+<p>Package jobs restore only the candidate nupkg into isolated caches. In addition to ordinary/RID-published smoke tests, they compile the shared public contract runner against the package and read all 18 exchanged platform fixtures with <code>python scripts/test_package.py --fixtures artifacts/exchanged</code>. They do not download source native assets or run a source ProjectReference for those checks. Package validation still requires all three matching native assets; host-only builds cannot substitute for it.</p>
+<h3 id="native-storage-and-patch-validation">Native storage and patch validation</h3>
+<table>
+<thead>
+<tr>
+<th>Contract under review</th>
+<th>Evidence</th>
+<th>What it does not establish</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Warmed managed allocation</td>
+<td>Release allocation gates; async lease gate compares inline and suspended result-object baselines</td>
+<td>Zero native allocation, zero payload copying or an RSS bound</td>
+</tr>
+<tr>
+<td>Shared storage lifetime and delivery</td>
+<td>Pointer identity, retry, disposal and eviction tests</td>
+<td>Small retained backing merely because the payload is small</td>
+</tr>
+<tr>
+<td>Local collection/cache allowances</td>
+<td>Limit boundary tests and deduplicated backing diagnostics</td>
+<td>A process-wide heap limit; diagnostic thresholds are workload-specific</td>
+</tr>
+<tr>
+<td>Random-access reuse</td>
+<td>Chunk-load/hit counts for batch, cache and cursor paths</td>
+<td>No repeated decompression for arbitrary requests across cache misses</td>
+</tr>
+</tbody>
+</table>
+<p>Release native tests check pointer identity, retained lease lifetime and delivery allocations with a test-only thread-local allocator counter. The counter is absent from production builds and is not a total native-memory limit or codec allocation statistic.</p>
+<p>Input reservation tests compare complete-request reservation with 64 KiB incremental reservation on 1/8/32 MiB records. Managed tests exercise short reads, retries and strict validation under all compression modes. Lease storage diagnostics advance 512 batches with fixed 1/4/16-batch retention windows, deduplicate backing allocations by address, and compare middle/tail retained capacities. Copied-input capacity and mapped address space are reported separately. These are fixture-specific retention checks, not a process RSS bound; allocator counters cover the measured thread's Rust allocations, excluding codec allocations through other allocators. Pointer tests cover retained messages after reader/snapshot disposal and actual cache eviction. Lease batch writing additionally verifies that uncompressed output receives the original payload addresses and that both header overloads allocate zero managed bytes after warm-up.</p>
+<p>The default allocation runner includes the async lease gate. For focused runs:</p>
+<pre><code class="lang-powershell">dotnet run --project tests/Allocations -c Release -- lease-gate
+dotnet run --project tests/Allocations -c Release -- lease-profile
+cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- --nocapture
+</code></pre>
+<p><code>lease-gate</code> compares fixed one-message batch counts with inline completion and forced suspension at 64 KiB, 4 KiB and 512-byte I/O quanta. It sums caller/worker allocations and requires the same allocation total as the inline result-object baseline. A separate direct-await exercise checks continuation reentry on the I/O thread. <code>lease-profile</code> reports the same measurements without enforcing allocation equality, including throughput and median/p95 batch latency. Native diagnostics also report allocation counts/bytes and known retained storage. Keep reports under ignored artifacts; diagnostic timing includes instrumentation and has no performance pass threshold.</p>
+<p>Focused storage-policy diagnostics run in the native Release test executable:</p>
+<pre><code class="lang-powershell">cargo test --manifest-path native/Cargo.toml --release --locked sort_compaction_profile -- --nocapture
+cargo test --manifest-path native/Cargo.toml --release --locked random_access_profile -- --nocapture
+</code></pre>
+<p>The sort fixture compares identical dense/sparse selections with shared and adaptive storage. It reports deduplicated retained backing capacity, exact copied payload bytes, peak old-plus-new capacity within a compacted group, cumulative test-thread allocations, time until results are ready and throughput. The group overlap is not a process-wide peak; active parser storage and previously completed groups are separate. Source preparation is included in timing/allocation counts; compression and RSS are not measured by this fixture. Threshold tests cover both sides of the four-times ratio and 256 KiB saving rule. Managed fallback tests cover compression, short reads, mapped input, oversized/empty messages, ties, retries and post-disposal leases.</p>
+<p>The random-access fixture reads four chunks repeatedly under None/Lz4/Zstd, with cache disabled, a cache smaller than the working set, and a cache that holds the working set. It asserts chunk-load/hit counts and reports cache allowance charge, deduplicated payload backing capacity, input capacity, allocations and median/p95 lookup latency. Input capacity can also appear in retained backing capacity for uncompressed chunks; do not add them twice. Chunk-cursor traversal reads the same messages and reports its own allocations and elapsed time; it includes caller-buffer delivery copies, whereas cache lookup measures shared message delivery. These measurements include test instrumentation, exclude setup indexes/summary and do not measure codec allocations made outside the Rust allocator. Timing has no CI pass threshold; cache defaults remain unchanged.</p>
+<p><code>python scripts/test_upstream.py</code> compiles unmodified registry mcap and the local patched version separately, comparing write bytes, sequential/indexed reads, truncations and corrupt input in independent processes. Both use the same pinned dependency versions; the reference project has its own Cargo.lock and does not inherit the patch. Tests using the same patched source establish internal consistency only.</p>
+<p><code>python scripts/check_vendor.py</code> verifies the original file inventory and local patch hashes. Keep UPSTREAM.json unchanged; review differences before updating PATCHES.json. See <a href="patches.html">local patches</a> for allowed scope, alternatives and validation requirements. Do not submit patches upstream.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>使用任务与可运行示例 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="使用任务与可运行示例 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../favicon.ico">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="使用任务与可运行示例">使用任务与可运行示例</h1>
+
+<p><a href="../usage.html">English</a> | 简体中文</p>
+<p><a href="../../samples/Documentation/Program.cs">完整示例</a>无需硬件，会删除临时录制文件。在仓库根目录运行 <code>./scripts/Test-Samples.ps1</code>，先构建本机 native 库，再针对当前源码执行。验证已有完整包使用 <code>./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages</code>。</p>
+<h2 id="写入与验证">写入与验证</h2>
+<p>注册 Channel，写入 header/payload，并显式调用 <code>Complete()</code>。路径构造函数拒绝已有文件；<code>Dispose()</code> 只释放资源，不完成格式。<code>FlushToDisk()</code> 是独立的持久化请求。<code>Validate()</code> 检查整个文件的格式完整性，不解释业务 payload。详细规则见 <a href="api.html">API 契约</a>。</p>
+<h2 id="调用方缓冲区">调用方缓冲区</h2>
+<p>示例从空缓冲区开始，遇到 <code>BufferTooSmall</code> 后按返回大小分配，再重试同一条待处理记录。成功后应在复用缓冲区前处理数据；EOF 不是错误。缓冲区扩容和初始化不属于预热后的零托管分配保证，该保证也不代表零 native 分配或零复制。</p>
+<h2 id="查询路径">查询路径</h2>
+<p>文件顺序适合增量扫描。<code>AllowBufferedSort = false</code> 拒绝全局扫描排序回退，但仍允许支持的索引查询。必须具备索引时使用 <code>OpenIndexedMessages()</code>。示例组合精确主题、文件顺序和禁止排序回退。索引查询成功不能替代全文件验证。</p>
+<h2 id="借用与保留">借用与保留</h2>
+<p>visitor 同步消费 span，不得保留 span 或重入 reader。batch lease 在 reader 释放后仍保留不可变存储；所有 span 使用结束前必须保持 lease 存活。示例声明目标 Channel 后同步转发保留的 batch。lease 可能保留整个 Chunk 或映射，payload 长度不代表总保留内存上限。</p>
+<h2 id="stream-与异步所有权">Stream 与异步所有权</h2>
+<p>调用方需要保留 Stream 时使用 <code>leaveOpen: true</code>；session 拥有 Stream 期间不得从外部访问。每次异步操作必须 await 并消费结果，再开始下一次操作或释放。取消会终止 reader，不是重置协议。示例始终使用异步 lease 模式，并释放每个返回的 lease。</p>
+<p>完整生命周期、重试及错误边界以 <a href="api.html">API 契约</a>为准。示例验证行为，不提供吞吐量测量；生产应用负责 payload 协议及应用错误策略。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../../version.js" data-doc-root="../../"></script></body>
+</html>

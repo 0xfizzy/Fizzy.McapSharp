@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>官方 Rust API 覆盖 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="官方 Rust API 覆盖 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../favicon.ico">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="官方-rust-api-覆盖">官方 Rust API 覆盖</h1>
+
+<p><a href="../coverage.html">English</a> | 简体中文</p>
+<p>本文用于查找官方 Rust 能力的 .NET 入口并理解适配差异。基线是 <a href="../../native/Cargo.toml">Cargo.toml</a> 锁定的 <code>mcap</code> 依赖。所有权、分配和使用方式的选择见 <a href="api.html#%E9%80%89%E6%8B%A9%E6%B6%88%E6%81%AF%E6%89%80%E6%9C%89%E6%9D%83">API 指南</a>。</p>
+<h2 id="如何阅读覆盖关系">如何阅读覆盖关系</h2>
+<p>下表按能力组织，不逐条展开声明。一个托管入口可以覆盖多个 Rust 构造函数、builder 方法或迭代操作。<strong>适配</strong>表示通过托管类型或组合操作提供官方能力，不承诺签名、所有权或全部行为相同。<strong>替代</strong>表示通过另一官方能力提供相近的托管功能。<strong>未暴露</strong>属于明确排除，不能算作已实现。</p>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../upstream-api.json">upstream-api.json</a></td>
+<td>未修改上游的固定声明基线；不得为接纳本地扩展而修改</td>
+</tr>
+<tr>
+<td><a href="../api-coverage.json">api-coverage.json</a></td>
+<td>符号级映射、能力分组、映射类别、来源、实现／测试引用及排除原因</td>
+</tr>
+<tr>
+<td>本文</td>
+<td>能力导航和重要适配差异；详细用法由 API 指南维护</td>
+</tr>
+</tbody>
+</table>
+<p>审查清单包含 344 项官方声明和 18 项本地扩展声明，涵盖类型、方法、字段、常量和错误变体；这些数量不是已实现操作数或通过测试数。可选 Tokio 声明也在清单内，但绑定不调用 Tokio。</p>
+<h2 id="写入writing">写入（<code>writing</code>）</h2>
+<p>托管入口位于 <a href="../../src/McapWriter.cs">McapWriter</a> 及其 partial 实现。</p>
+<table>
+<thead>
+<tr>
+<th>官方 Rust API</th>
+<th>.NET 入口</th>
+<th>映射</th>
+<th>关键差异或约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WriteOptions</code>、<code>Writer::new/with_options</code></td>
+<td><code>McapWriterOptions</code>、<code>McapWriter</code> 构造函数</td>
+<td>适配</td>
+<td>Builder 配置转为属性；摘要总开关先于显式单项覆盖</td>
+</tr>
+<tr>
+<td><code>Writer::add_schema/add_schema_with_id</code>、<code>add_channel/add_channel_with_id</code></td>
+<td><code>RegisterSchema</code>、<code>RegisterChannel</code> 重载</td>
+<td>适配</td>
+<td>ID 与二进制载荷分离；prepared 描述符属于绑定扩展</td>
+</tr>
+<tr>
+<td><code>Writer::write</code></td>
+<td><code>WriteMessage(McapMessage)</code>、prepared channel 重载</td>
+<td>适配</td>
+<td>调用上游自动声明；准备操作快照化可变描述</td>
+</tr>
+<tr>
+<td><code>Writer::write_to_known_channel</code></td>
+<td><code>WriteMessage(in header, span)</code></td>
+<td>适配</td>
+<td>同步消费借用载荷，无托管 payload 副本</td>
+</tr>
+<tr>
+<td><code>Writer::attach</code>、<code>start_attachment/put_attachment_bytes/finish_attachment</code></td>
+<td><code>WriteAttachment</code>、<code>StartAttachment/WriteAttachmentBytes/FinishAttachment</code></td>
+<td>适配</td>
+<td>分段附件必须满足声明的精确长度</td>
+</tr>
+<tr>
+<td><code>Writer::write_metadata</code>、<code>write_private_record</code>、<code>PrivateRecordOptions</code></td>
+<td><code>WriteMetadata</code>、<code>WritePrivateRecord</code></td>
+<td>适配</td>
+<td>私有记录位置选项转为 <code>includeInChunks</code></td>
+</tr>
+<tr>
+<td><code>Writer::flush</code>、<code>finish</code>、<code>into_inner</code></td>
+<td><code>Flush</code>、<code>Complete/GetSummary</code>、<code>IntoInner</code></td>
+<td>适配</td>
+<td>完成和摘要获取分离；释放不隐式完成。<code>FlushToDisk</code> 属于绑定扩展</td>
+</tr>
+</tbody>
+</table>
+<p>默认值遵循上游 writer，包括 Zstd、1 MiB 目标 chunk 和上游 library 标识。路径创建保护、配置的安全拒绝白名单以外的终止性失败属于托管契约。完整规则见<a href="api.html#%E5%86%99%E5%85%A5%E5%BD%95%E5%88%B6">写入录制</a>。</p>
+<h2 id="顺序读取sequential-reading">顺序读取（<code>sequential-reading</code>）</h2>
+<table>
+<thead>
+<tr>
+<th>官方 Rust API</th>
+<th>.NET 入口</th>
+<th>映射</th>
+<th>关键差异或约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read::LinearReader</code>、<code>Options</code>、<code>sans_magic</code></td>
+<td><code>McapReadCursor</code> 的 TopLevelRecords/ExpandedRecordsWithoutMagic 模式</td>
+<td>适配</td>
+<td>官方 Sans-I/O 配置匹配切片读取器；输入复制或显式映射</td>
+</tr>
+<tr>
+<td><code>read::ChunkReader</code></td>
+<td><code>McapReadCursor</code> 的 ChunkRecords 模式</td>
+<td>适配</td>
+<td>接收 Chunk 记录体并惰性推进</td>
+</tr>
+<tr>
+<td><code>read::ChunkFlattener</code></td>
+<td>ExpandedRecords 模式</td>
+<td>适配</td>
+<td>将 chunk 展开为记录</td>
+</tr>
+<tr>
+<td><code>read::RawMessageStream</code>、<code>RawMessage</code>、<code>get_channel</code></td>
+<td>RawMessages 模式、header/payload 读取、<code>GetChannel</code></td>
+<td>适配</td>
+<td>保留已遇到的声明；借用 Rust 迭代器不跨越 ABI</td>
+</tr>
+<tr>
+<td><code>read::MessageStream</code></td>
+<td>Messages 模式和自有消息枚举</td>
+<td>适配</td>
+<td>自有结果复制 payload 及可变声明；其他交付方式的所有权不同</td>
+</tr>
+</tbody>
+</table>
+<p><a href="../../src/McapReadCursor.cs">McapReadCursor</a> 将这些切片接口统一为模式。<code>McapReaderFactory.OpenMessages/OpenRecords</code> 另外提供由官方解析驱动的文件／Stream 会话。顺序文件读取、输入所有权和交付所有权分别选择，详见 <a href="api.html">API 指南</a>。</p>
+<h2 id="摘要与随机访问random-access">摘要与随机访问（<code>random-access</code>）</h2>
+<table>
+<thead>
+<tr>
+<th>官方 Rust API</th>
+<th>.NET 入口</th>
+<th>映射</th>
+<th>关键差异或约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Summary</code>、<code>Summary::read</code> 及摘要字段</td>
+<td><code>McapIndexSnapshot</code>、<code>GetSummary</code>、<code>OpenSummaryRecords</code></td>
+<td>适配</td>
+<td>Snapshot 拥有输入副本或映射；托管摘要和记录游标是不同表示形式</td>
+</tr>
+<tr>
+<td><code>Summary::stream_chunk</code></td>
+<td><code>OpenChunkReader</code>、<code>ReadChunkMessages</code></td>
+<td>适配</td>
+<td>独立惰性游标共享输入和摘要，在 snapshot 释放后仍有效</td>
+</tr>
+<tr>
+<td><code>Summary::seek_message</code></td>
+<td><code>SeekMessage</code> 重载</td>
+<td>适配</td>
+<td>绑定加载／校验完整 chunk，可能比上游前缀定位更早报告尾部损坏</td>
+</tr>
+<tr>
+<td><code>Summary::read_message_indexes</code></td>
+<td><code>ReadMessageIndexes</code></td>
+<td>适配</td>
+<td>调用方缓冲形式使用 18 字节打包行</td>
+</tr>
+<tr>
+<td><code>read::attachment</code>、<code>read::metadata</code></td>
+<td><code>ReadAttachment</code>、<code>ReadMetadata</code></td>
+<td>适配</td>
+<td>使用调用方提供的索引并验证源范围</td>
+</tr>
+</tbody>
+</table>
+<p>入口见 <a href="../../src/McapIndexSnapshot.cs">McapIndexSnapshot</a>。Prepared index、分组 seek 和缓存保留属于绑定扩展，不是新增官方方法；复用范围见<a href="api.html#%E5%AE%8C%E6%95%B4-chunk-%E9%9A%8F%E6%9C%BA%E8%AE%BF%E9%97%AE">随机访问</a>。索引读取成功不代表完整文件校验。</p>
+<h2 id="sans-iosans-io">Sans-I/O（<code>sans-io</code>）</h2>
+<table>
+<thead>
+<tr>
+<th>官方 Rust API</th>
+<th>.NET 入口</th>
+<th>映射</th>
+<th>关键差异或约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sans_io::LinearReader</code>、<code>LinearReaderOptions</code>、<code>LinearReadEvent</code></td>
+<td><code>McapSansIoReader.CreateLinear</code>、<code>McapReaderOptions</code>、<code>NextEvent/SupplyInput</code></td>
+<td>适配</td>
+<td>值事件和调用方缓冲替代 Rust 事件借用及可写输入切片</td>
+</tr>
+<tr>
+<td><code>sans_io::SummaryReader</code>、选项及事件</td>
+<td><code>CreateSummary</code>、<code>McapSummaryReaderOptions</code>、输入／定位通知及摘要访问</td>
+<td>适配</td>
+<td>调用方驱动 I/O；完成后摘要可用于索引读取</td>
+</tr>
+<tr>
+<td><code>sans_io::IndexedReader</code>、选项、事件及 <code>ReadOrder</code></td>
+<td><code>CreateIndexed</code>、<code>McapQuery</code>、<code>McapReadOrder</code>、索引控制操作</td>
+<td>适配</td>
+<td>直接索引引擎要求索引，不进行扫描排序回退</td>
+</tr>
+</tbody>
+</table>
+<p>具体事件与控制项见 <a href="../../src/SansIo.cs">SansIo.cs</a> 及符号清单。可选 CRC 检查默认遵循上游配置。共享事件和直接填充所有权扩展在下文单列。</p>
+<h2 id="记录工具与错误records-and-errors">记录、工具与错误（<code>records-and-errors</code>）</h2>
+<table>
+<thead>
+<tr>
+<th>官方 Rust API</th>
+<th>.NET 入口</th>
+<th>映射</th>
+<th>关键差异或约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Schema</code>、<code>Channel</code>、<code>Message</code>、<code>Attachment</code>、<code>Compression</code></td>
+<td>对应 <code>Mcap*</code> 模型与 <code>McapCompression</code></td>
+<td>适配</td>
+<td>托管所有权替代 <code>Cow</code>、<code>Arc</code> 和 Rust 生命周期</td>
+</tr>
+<tr>
+<td><code>records::*</code>、操作码及格式常量</td>
+<td>自有记录模型、<code>McapRecordView.Fields</code>、<code>McapOpcode</code>、<code>McapFormat</code></td>
+<td>适配</td>
+<td>字段和变体可通过视图或自有模型访问，不一定有独立方法</td>
+</tr>
+<tr>
+<td><code>read::parse_record</code>、<code>read::footer</code>、chunk 数据偏移辅助方法</td>
+<td><code>McapRecords.Parse</code>、<code>McapRecordView.Parse</code>、<code>ReadFooter</code>、<code>GetCompressedDataOffset</code></td>
+<td>适配</td>
+<td>自有解析复制数据；视图遵循调用方内存生命周期</td>
+</tr>
+<tr>
+<td><code>McapError</code>、<code>McapResult</code></td>
+<td><code>McapErrorKind</code>、<code>McapException.Kind/Details</code>、返回值和异常</td>
+<td>适配</td>
+<td>结构化错误转换替代 Rust result；.NET 参数／释放／Stream 异常保留各自契约</td>
+</tr>
+</tbody>
+</table>
+<h2 id="异步与未暴露接口">异步与未暴露接口</h2>
+<table>
+<thead>
+<tr>
+<th>官方 Rust API</th>
+<th>.NET 入口</th>
+<th>映射</th>
+<th>原因或约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>可选 <code>tokio::LinearReader</code>（<code>async</code>）</td>
+<td><code>McapAsyncReader.ReadNextRecordAsync</code></td>
+<td>替代</td>
+<td>.NET 异步 I/O 驱动官方 Sans-I/O，不调用 Tokio 本身；取消和挂起遵循托管契约</td>
+</tr>
+<tr>
+<td><code>sans_io::Decompressor</code>、<code>DecompressResult</code>（<code>unexposed</code>）</td>
+<td>无</td>
+<td>未暴露</td>
+<td>上游没有自定义解压器注册入口；未实现该 trait 的托管版本</td>
+</tr>
+</tbody>
+</table>
+<p>功能替代不代表移植特定运行时接口。实现见<a href="../../src/McapAsyncReader.cs">异步 reader</a>。</p>
+<p>异步消息 lease 是线性引擎之上的绑定能力。消费在途读取后，<code>GetChannelDescription</code> 和 <code>GetSchemaDescription</code> 可查询 lease 模式已遇到的不可变声明；这不增加上游 API 或本地补丁。</p>
+<h2 id="本地扩展与绑定能力">本地扩展与绑定能力</h2>
+<p>清单中 <code>origin: local-extension</code>、分组为 <code>local-extensions</code> 的条目表示本地补丁声明，不计入官方数量。纯绑定层托管能力不一定增加 Rust 公共声明，也不加入官方基线。</p>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>能力</th>
+<th>契约与证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原生本地补丁</td>
+<td>共享存储／事件、直接填充所有权、<code>shares_backing</code></td>
+<td>发布范围不可变及保留所有权；指针、推进、释放和淘汰检查</td>
+</tr>
+<tr>
+<td>原生本地补丁</td>
+<td><code>Writer::contains_channel</code>；输出取出后的释放</td>
+<td>批次预检及释放不隐式完成；writer／lease 测试</td>
+</tr>
+<tr>
+<td>托管／原生绑定</td>
+<td>Prepared 描述符、借用交付、批次、lease 及转写</td>
+<td>显式所有权与已完成前缀失败规则；<code>BatchTests</code>、<code>LeaseTests</code>、<code>LeaseWriteTests</code>、分配门禁</td>
+</tr>
+<tr>
+<td>托管／原生绑定</td>
+<td>缓存、分组 seek、回退排序及自适应存储</td>
+<td>局部额度、复用范围及保留；<code>BatchSeekTests</code>、<code>SortStorageTests</code>、原生诊断</td>
+</tr>
+<tr>
+<td>托管／原生绑定</td>
+<td>异步调度、输入预留、<code>Complete</code>／<code>FlushToDisk</code> 分离</td>
+<td>托管挂起／生命周期及持久化契约；异步、预留和 writer 完成测试</td>
+</tr>
+</tbody>
+</table>
+<p>补丁动机和允许范围由 <a href="patches.html">patches.md</a> 维护，ABI 所有权由 <a href="native.html">native.md</a> 维护，公共用法与性能保证由 <a href="api.html">api.md</a> 维护。</p>
+<h2 id="核验与维护">核验与维护</h2>
+<p>修改映射后运行 <code>python scripts/check_api_coverage.py</code>。脚本对照所用原生源码检查符号集合和种类，通过固定基线区分官方／本地来源，并检查映射类别、分组、必要原因和引用文件。它不验证每条映射描述的语义正确性，也不证明两种实现行为相同；这些需要审查及行为测试。</p>
+<p>行为证据单独评估：固定 conformance 用例、.NET／Python 互操作、独立未修改上游对比、生命周期／重试测试及分配门禁分别验证不同性质。仅对补丁源码测试不构成独立上游证据；绑定诊断不证明总内存上限，也不约束 codec 分配。命令、夹具数量和限制集中维护在 <a href="development.html#%E5%A4%96%E9%83%A8%E5%A5%91%E7%BA%A6%E6%B5%8B%E8%AF%95%E5%A5%97%E4%BB%B6">development.md</a>。</p>
+<p>审查某项能力时，先定位上述分组，再到审查清单查找精确 <code>rust</code> 符号，最后检查所映射源码及证据。新增本地能力时保持官方基线不变；明确记录替代和排除项，不将其计作直接实现。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../../version.js" data-doc-root="../../"></script></body>
+</html>

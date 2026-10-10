@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Native ABI and memory boundaries | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Native ABI and memory boundaries | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="native-abi-and-memory-boundaries">Native ABI and memory boundaries</h1>
+
+<p>English | <a href="zh-CN/native.html">简体中文</a></p>
+<p>.NET uses Cdecl P/Invoke and SafeHandle to call a private Rust <code>cdylib</code> backed by official <code>mcap</code> 0.25.0. There is no C++ layer. <a href="../native/src/lib.rs">lib.rs</a> owns shared ABI/error boundaries; <a href="../native/src/reader.rs">reader.rs</a> and <a href="../native/src/writer.rs">writer.rs</a> implement session operations, while <a href="../native/src/io.rs">io.rs</a> implements file/Stream I/O. Managed declarations are in <a href="../src/Native.cs">Native.cs</a> and its capability partials. Windows x64 loads <code>fizzy_mcap_native.dll</code>; glibc Linux x64/ARM64 load <code>libfizzy_mcap_native.so</code> through the extensionless name <code>fizzy_mcap_native</code>.</p>
+<h2 id="abi-contract">ABI contract</h2>
+<p><code>fm_abi_version()</code> returns 16. Managed constructors reject mismatches, including native libraries without indexed owned-record sink delivery. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fm_writer_open</code> / <code>fm_writer_release</code></td>
+<td>Create/release a writer, optionally with Stream callbacks.</td>
+</tr>
+<tr>
+<td><code>fm_writer_message</code></td>
+<td>Fixed message header plus borrowed input pointer/length, consumed synchronously.</td>
+</tr>
+<tr>
+<td><code>fm_writer_call</code></td>
+<td>Cold control operations and attachment/private record payloads.</td>
+</tr>
+<tr>
+<td><code>fm_reader_open</code> / <code>fm_reader_release</code></td>
+<td>Create/release one read session.</td>
+</tr>
+<tr>
+<td><code>fm_reader_next</code></td>
+<td>Copy the next message payload or raw record body into caller memory.</td>
+</tr>
+<tr>
+<td><code>fm_reader_describe</code></td>
+<td>Copy a known schema/channel description; schema bytes are separate binary data.</td>
+</tr>
+<tr>
+<td><code>fm_reader_summary</code> / <code>fm_reader_record_at</code></td>
+<td>Retrieve a summary or random raw record without consuming the pending sequential record.</td>
+</tr>
+<tr>
+<td><code>fm_validate</code></td>
+<td>Fully scan a mapped file.</td>
+</tr>
+<tr>
+<td><code>fm_buffer_free</code></td>
+<td>Release a Rust-owned response allocation.</td>
+</tr>
+</tbody>
+</table>
+<p>Control operations: 1 schema, 2 channel, 4 metadata, 5 attachment, 6 flush, 7 complete, 8 start attachment, 9 attachment bytes, 10 finish attachment, 11 private record, 12 completed writer summary, 13 completed file synchronization. Messages use their dedicated entry.</p>
+<p>The private message header is 24 bytes: <code>u16 channel_id</code>, <code>u16 reserved</code>, <code>u32 sequence</code>, <code>u64 log_time</code>, <code>u64 publish_time</code>, with offsets 0, 2, 4, 8, 16. It is converted to/from upstream records; it is not a Rust record layout. At reader EOF, reserved is 1 for indexed scans and sorted fallback and 0 for sequential scans. Managed code uses that distinction when reporting full validation.</p>
+<p>The 40-byte response contains a JSON pointer/usize length, binary pointer/usize length and u64 value. Pointers and nuint are 64 bits on supported targets. Status 0 is success, 1 EOF, 2 insufficient destination, negative error. Read value reports required/copied bytes or scan count at EOF. Insufficient capacity neither writes a partial result nor consumes the pending record.</p>
+<p>Writer open options include <code>recoverableErrors</code>, an immutable bit mask (1 invalid explicit schema ID, 2 explicit schema conflict, 4 unknown schema during channel registration, 8 explicit channel conflict, 16 unknown channel during header/payload message writing). Missing means 31; unknown bits fail before output creation. Writer status -2 preserves the ordinary structured error response and leaves the writer usable; status -1, including panic, is terminal. Managed code uses this call status only after checking callback exceptions, never the exception type, to set <code>CanContinueWriting</code>. Reader errors do not acquire recovery semantics.</p>
+<h2 id="data-and-lifetime">Data and lifetime</h2>
+<p>Hot messages use only fixed data and caller buffers. No JSON, managed payload arrays, native result allocation or per-message channel description serialization is required at that boundary. The reader can allocate native buffers internally and copies native bytes into managed caller memory. Cold requests/descriptions use length-delimited UTF-8 JSON; binary data is never Base64-encoded.</p>
+<p>Cold responses use Rust-owned JSON/binary allocations released with <code>fm_buffer_free</code>; <code>Native.Consume</code> frees both in finally. Error JSON contains kind, message and details. Message text is limited to 256 UTF-8 bytes and textual detail values to 128 bytes, including any <code>[truncated]</code> suffix; truncation preserves character boundaries and is flagged in details. OS errors carry an exact <code>osCode</code> with fixed text. Parse errors use the root cause instead of decorated parser backtraces. When an operation and source-position restoration both fail, details retain separately encoded <code>operation</code> and <code>cleanup</code> causes. Error formatting is also protected by a panic boundary. Successful hot calls return no owned response buffers. Input spans are pinned only during synchronous calls. Convenience results own managed copies; callbacks and leases follow the API lifetime contract.</p>
+<p>Each read session owns one native reader. Mapped input owns its file; incremental <code>sans_io::LinearReader</code> state and pending records contain native-owned buffers, without extending a borrowed iterator's lifetime. Stream reads are incremental, including short reads. Indexed queries use official IndexedReader, which may retain overlapping chunks for time sorting, and do not claim whole-file validation. Sorted sequential fallback collects matching messages in native memory. Missing summary declarations fall back to sequential reading; resolving a partial summary may require a cold full scan.</p>
+<p>Mapped files must remain unchanged. Windows denies ordinary competing write/delete opens, while existing writable mappings are outside that protection. Linux does not enforce exclusion. Concurrent truncation can terminate the process; this is outside panic/exception handling. Record bounds are checked against source size for random reads. Native allocation and decompression still require memory proportional to records/chunks; upstream allocation and codec policies remain unchanged.</p>
+<h2 id="stream-callbacks-and-release">Stream callbacks and release</h2>
+<p>The callback table is 48 bytes: context pointer, Read/Write/Seek/Flush function pointers, then <code>u32 seekable</code> and alignment padding. Cdecl callbacks report status, with byte count/position through output pointers. The managed bridge roots its callback context once per session. SafeHandle releases the native handle before unrooting the context and closing an owned stream.</p>
+<p>Callbacks run synchronously on the initiating thread. Managed callback exceptions are captured and returned as failure; after native code unwinds normally, the original exception is rethrown. Reentry is rejected. A stream cannot belong to two concurrent sessions. Seek offsets are relative to the captured MCAP origin; non-seekable writers allow only a current-position query and use upstream <code>disable_seeking(true)</code> buffering.</p>
+<p>Writer operations are serialized. Writer status -2 is a configured, audited pre-mutation rejection; -1 is terminal. Other native errors are terminal. <code>Complete</code> calls upstream finish and ordinary output flush, retaining output until release. Operation 13 requires successful completion and a native File output, then calls sync_all. FileStream persistence uses managed Flush(true) under the writer lock and reentry guard; callback layouts are unchanged. Synchronization failures are terminal. Drop uses upstream <code>into_inner</code>, preventing implicit completion. Resource release operations consume each handle once and catch destructor panics. Explicit managed disposal reports release failures; SafeHandle finalization suppresses them. Native release finishes before callback roots and owned Streams are released. Stream exclusion remains registered if owned Stream disposal fails, and IntoInner transfers ownership only after native release succeeds.</p>
+<p>Writer completion extracts the output immediately after upstream <code>finish</code>, releasing the upstream writer's cached summary and declarations. The binding retains only <code>Arc&lt;Summary&gt;</code>; operation 12 encodes fields and index entries into the final UTF-8 response on demand, with at most the current record/statistics JSON value as intermediate storage. No complete JSON tree is retained. Summary cursors share the Arc independently of the writer. The upstream finish-time summary clone and file-level index accumulation are unchanged; this is a binding ownership optimization, not an upstream memory bound or ABI change.</p>
+<h2 id="error-boundary-and-validation">Error boundary and validation</h2>
+<p>Fallible native exports catch panics and convert them into error responses. Allocation aborts and invalid externally supplied pointers cannot be converted into managed exceptions; callers must pass valid buffers and handles created by this ABI. Rust compile-time assertions and managed tests check supported layout sizes and offsets.</p>
+<p>The public <a href="api.html">API contract</a> distinguishes complete validation, indexed queries and raw records. <a href="development.html">Build and allocation acceptance</a> runs managed allocation gates separately from format interoperability; zero managed allocation does not imply zero native allocation.</p>
+<h2 id="extended-operation-families">Extended operation families</h2>
+<p><code>fm_channel_prepare/release</code> own immutable Channel/Schema snapshots. <code>fm_writer_full_message</code> invokes upstream writing with the descriptor and synchronous borrowed payload. <code>fm_operation_prepare/release</code> own parsed cold control data; <code>fm_writer_prepared</code> reuses descriptors without managed serialization. <code>fm_writer_private</code> accepts scalar flags and a span.</p>
+<p><code>fm_engine_open/next/feed/release</code> wrap official linear, summary and indexed Sans-I/O state. The 56-byte event layout is: u32 kind, u32 opcode, u64 length, u64 offset, u32 seek origin, u32 reserved and the 24-byte message header. Kinds 0–5 are End, Read, Seek, Record, Message and ReadChunk. Seek offsets preserve signed two's-complement bits for Current/End. Read requests remain pending until supplied; record/message events remain pending on insufficient buffers. <code>fm_engine_index_control</code> supports indexed insertion and length-limit changes. <code>fm_engine_summary</code> and <code>fm_summary_records</code> export owned summaries or native-owned record cursors.</p>
+<p><code>fm_buffer_reader_*</code> owns an input copy and an official Sans-I/O parser configured to match each slice reader. Advancement retains one pending record and encountered declarations; no borrowed iterator survives a call. Chunk adapters feed a synthetic record prefix through the public parser because upstream for_chunk is private. <code>fm_snapshot_*</code> owns copied or mapped input and an official summary; random message reads retain shared complete-chunk storage through private handles. <code>fm_snapshot_call</code> accepts a synchronous pointer/length to a standard MCAP index record body and both message-index scalars (log time and offset). It parses the supplied index rather than looking it up in the summary. The managed bridge uses bounded stack storage or temporary native memory for index encoding, including UTF-8 strings and channel-offset maps. <code>fm_reader_record_into</code>, <code>fm_parse_record</code>, <code>fm_footer</code> and <code>fm_chunk_offset</code> provide caller-buffer or scalar utility operations. <code>fm_snapshot_chunk_reader</code> adds independent lazy Chunk cursors sharing immutable native input and summary; releasing a snapshot does not invalidate those cursors. Reader-open status 3 means buffered sorting was prohibited, mapped to managed NotSupportedException. These handles are private SafeHandles; cursor reads have no owned response allocation on success.</p>
+<p>The asynchronous reader drives the linear engine with .NET ReadAsync, retaining only managed Memory between waits. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.</p>
+<p><code>fm_engine_describe</code> copies a schema (kind 1) or resolved channel (kind 2) already observed by lease reading. It does not advance the engine or turn a missing-ID lookup into a terminal failure. The managed async owner serializes queries with reading and requires consumption of the outstanding ValueTask. Immutable managed descriptions are cached on demand and remain independent of parser disposal.</p>
+<h2 id="stable-storage-and-batching">Stable storage and batching</h2>
+<p>Public delivery choices and caller responsibilities are defined in the <a href="api.html#choose-message-ownership">API guide</a>. Internally, shared ranges retain reference-counted backing; freeing a reader or evicting a cache entry releases only that owner's references. Final backing release depends on every parser, cursor, snapshot and lease using it. These lifetime guarantees do not imply a bound on retained capacity.</p>
+<p><code>fm_writer_batch</code> receives 24-byte headers, 8-byte offset/length ranges, shared payload and a separate completed-prefix output. <code>fm_read_batch</code>/<code>fm_visit_messages</code> use a 40-byte Progress (four u64, two u32). Preflight precedes writes; advancement failures do not roll back.</p>
+<p><code>fm_writer_lease_batch</code> receives writer and lease handles, an optional header pointer with usize count, a usize completed-prefix output, and the ordinary Response. Null headers with count zero select the lease's headers; otherwise the count must match the lease's messages. All destination Channels are checked before writing. Payload slices are read directly from the retained batch; no payload or descriptor array is constructed. Managed code holds an explicit SafeHandle reference to the lease across the call. Header layouts and batch error semantics are unchanged.</p>
+<p><code>fm_reader_owned</code>, <code>fm_buffer_reader_owned</code>, <code>fm_snapshot_message_owned</code> and <code>fm_snapshot_record_owned</code> use a two-pointer Sink (context, Cdecl callback). Visitor result 1 is normal stop, negative is failure; managed exceptions never unwind across FFI. Every exit clears the sink. Public borrowed spans expire when callbacks return; owned delivery creates independent copies. Managed snapshot callback scope rejects operations on any snapshot instance or prepared chunk index, including disposal, before acquiring instance locks. <code>fm_snapshot_record_owned</code> validates the indexed metadata/attachment body and borrows it synchronously to construct the final managed fields and payload array, avoiding an intermediate managed record-body copy.</p>
+<p><code>fm_read_lease</code>, <code>fm_engine_lease_step</code> and <code>fm_lease_get/retain/release</code> use SharedBytes and ordinary batch descriptors. Storage ownership retains mappings and files after reader disposal; span access must not overlap disposal. <code>fm_engine_input_buffer/complete</code> lets Stream.ReadAsync fill parser storage directly through a MemoryManager, without concurrent engine advancement or destruction.</p>
+<p>Pending delivery retains shared bytes or a synthesized record body. Buffer readers retain the complete Message body and choose its payload range at delivery, supporting record/message retry switching. Indexed Stream input transfers buffer ownership into the parser, avoiding an extra uncompressed-chunk copy; short reads use read_exact. Cache and sort enforce only the local allowances documented in the API.</p>
+<p>Synchronous linear feeding reserves the complete current parser request through try_insert and reads at most 64 KiB into that storage per call. Sequential Stream reads, summary fallback scans and validation use the same helper. Async direct-fill similarly reserves the complete request while exposing only the selected I/O quantum. Async lease delivery uses a reusable explicit state machine and the cached I/O continuation; lease result/control allocations remain permitted. Nonempty batches still return at the next input request.</p>
+<p>Fallback sorting uses a binding-owned arena of headers, ordinals and shared ranges. One fixed-size pending group tracks consecutive owned backing identity and selected bytes; it does not build a file-wide owner map. At group closure, sparse selections may be copied once into message-aligned immutable segments before publication. Mappings and other external owners are not compacted. <code>SharedBytes::shares_backing</code> is a read-only local ownership query; compaction decisions and allocations remain in the binding. Existing logical sort checks are unchanged, and old/new storage overlap is outside that allowance. Failures terminate construction without publishing a partial session. There is no ABI change.</p>
+<p>The pinned mcap crate supplies official format state machines, codecs and default writing behavior. Shared storage, channel lookup for batch preflight, and disposal without implicit completion are <a href="patches.html">local patches</a>. SafeHandle, managed copies, local cache/sort and asynchronous I/O are binding behavior.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

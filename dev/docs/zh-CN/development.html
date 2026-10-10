@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>源码构建、测试与消费者集成 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="源码构建、测试与消费者集成 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../favicon.ico">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="源码构建测试与消费者集成">源码构建、测试与消费者集成</h1>
+
+<p><a href="../development.html">English</a> | 简体中文</p>
+<h2 id="环境与目录">环境与目录</h2>
+<p>在仓库根目录执行命令。需要 Python 3.12、.NET 8 SDK、Rust 1.98.1 和原生编译器。Windows x64 使用包含 Windows SDK 的 Visual C++ MSVC 构建工具；Linux x64/ARM64 使用 Ubuntu 22.04、GCC/build-essential 和 binutils，并安装下表对应的 Rust target。Windows 本地开发不需要虚拟机、WSL、Docker 或交叉编译器。工具链声明见 <a href="../../rust-toolchain.toml">rust-toolchain.toml</a>，完整依赖锁定在 <code>native/Cargo.lock</code>。</p>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Fizzy.McapSharp.csproj</code></td>
+<td>库项目与包元数据；仅编译 <code>src/</code> 下的源码</td>
+</tr>
+<tr>
+<td><code>src/</code></td>
+<td>公共 .NET API；能力 partial 按所属类型命名，Native 互操作声明独立组织</td>
+</tr>
+<tr>
+<td><code>src/McapWriterOptions.cs</code>、<code>McapQuery.cs</code>、<code>McapReadContracts.cs</code></td>
+<td>写入配置、消息筛选与读取结果／模式</td>
+</tr>
+<tr>
+<td><code>src/McapDeclarations.cs</code>、<code>McapMessageModels.cs</code>、<code>McapDataRecords.cs</code>、<code>McapSummaryModels.cs</code></td>
+<td>声明、消息、数据记录与摘要／索引模型；不依赖具体 reader 实现</td>
+</tr>
+<tr>
+<td><code>native/src/lib.rs</code>、<code>protocol.rs</code></td>
+<td>共享 ABI／错误边界及具名协议数值</td>
+</tr>
+<tr>
+<td><code>native/src/reader.rs</code>、<code>writer.rs</code>、<code>summary.rs</code>、<code>io.rs</code></td>
+<td>文件／Stream 读取会话与查询、writer 状态、摘要序列化及源／回调 I/O</td>
+</tr>
+<tr>
+<td><code>native/src/engine.rs</code>、<code>snapshot.rs</code>、<code>prepared_write.rs</code>、<code>record_access.rs</code></td>
+<td>Sans-I/O 引擎、独立索引快照、预准备写入和原始记录工具</td>
+</tr>
+<tr>
+<td><code>tests/Fizzy.McapSharp.Tests/</code></td>
+<td>托管功能与资源生命周期测试</td>
+</tr>
+<tr>
+<td><code>tests/Interop/</code>、<code>tests/interop.py</code></td>
+<td>.NET 与官方 Python MCAP 双向互操作</td>
+</tr>
+<tr>
+<td><code>scripts/</code></td>
+<td>构建、打包与隔离包测试</td>
+</tr>
+<tr>
+<td><code>.github/workflows/</code></td>
+<td>CI 构建与手动发布</td>
+</tr>
+</tbody>
+</table>
+<p><code>Build.ps1</code> 调用的 <code>build.py</code> 优先使用仓库 <code>.tools/cargo/bin/cargo.exe</code>，存在时设置对应 CARGO_HOME/RUSTUP_HOME；否则使用 PATH 中的 Cargo。脚本不安装工具。<code>.tools/</code> 为忽略目录，不提交本机工具。</p>
+<h2 id="构建与测试">构建与测试</h2>
+<p>文档构建、翻译与示例遵循<a href="documentation.html">文档维护</a>，版本归档、发布与恢复遵循<a href="release.html">发布 SOP</a>。公开 API/XML 和指南变更须运行 <code>./scripts/Build-Docs.ps1</code>；发布及归档工具变更须运行 <code>./scripts/Test-Release.ps1</code>。这些门禁补充而不替代下述 native 及包检查。</p>
+<p>公开 API 的 XML 文档由 CS1591 编译门禁要求；在相关成员上说明单位、所有权、适用模式和失败行为。Python 测试同时核对 <code>src/Native.Protocol.cs</code> 与 <code>native/src/protocol.rs</code> 的私有协议常量；即使数值相同，也保持不同操作域和状态域独立。</p>
+<pre><code class="lang-powershell">./scripts/Build.ps1 -Test
+# 收齐同一源码构建的三平台原生资产后：
+./scripts/Build.ps1 -Test -Pack
+./scripts/Test-Package.ps1
+</code></pre>
+<p>Linux 使用 <code>python scripts/build.py build --test</code>。收齐资产后用 <code>python scripts/build.py pack</code> 直接打包，不重复编译；用 <code>python scripts/test_package.py</code> 验证完整包。CI 安装 Python 3.12；Linux 环境中的 <code>python</code> 应指向 Python 3。</p>
+<table>
+<thead>
+<tr>
+<th>RID</th>
+<th>Rust target</th>
+<th>原生构建 runner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>win-x64</code></td>
+<td><code>x86_64-pc-windows-msvc</code></td>
+<td><code>windows-2022</code></td>
+</tr>
+<tr>
+<td><code>linux-x64</code></td>
+<td><code>x86_64-unknown-linux-gnu</code></td>
+<td><code>ubuntu-22.04</code></td>
+</tr>
+<tr>
+<td><code>linux-arm64</code></td>
+<td><code>aarch64-unknown-linux-gnu</code></td>
+<td><code>ubuntu-22.04-arm</code></td>
+</tr>
+</tbody>
+</table>
+<p>构建脚本先执行 <code>cargo build --release --locked --target &lt;target&gt;</code>，再构建托管 Release 项目。原生产物按目标隔离在 <code>native/target/&lt;target&gt;/release/</code>，并暂存到 <code>artifacts/native/&lt;rid&gt;/</code>，清单记录提交、源码指纹、目标和二进制哈希。<code>-Test</code> 运行构建/打包回归检查和 xUnit，默认只构建宿主平台。脚本不安装工具。</p>
+<p>Linux 构建检查 ELF 架构、动态依赖和 GLIBC 符号版本（不得高于 2.35），拒绝外部压缩库依赖和嵌入的库搜索路径，并拒绝自定义 CPU 优化的 Rust 标志。Linux ARM64 使用原生 ARM64 runner 编译和测试。macOS、musl、Ubuntu 20.04、Windows ARM64、32 位、NativeAOT 和单文件发布不属于验证矩阵。</p>
+<p><code>Test-Package.ps1</code> 调用 <code>test_package.py</code>，在 <code>artifacts/smoke-&lt;GUID&gt;/</code> 建立独立应用与包缓存。从项目元数据读取版本，检查所有原生资产的架构，仅从指定包目录还原，并验证普通运行和显式 RID 的 framework-dependent publish 后运行，均覆盖全部压缩模式。可通过 <code>-PackageDirectory</code> 或 <code>--package-directory</code> 指定包目录。这验证本地包，不代表 NuGet.org 上的包已验证。</p>
+<p>现有 xUnit 覆盖三种压缩、时间与 Topic 过滤、元数据与附件、无索引读取、未完成文件、CRC 损坏、恢复结果、写入失败终止、不覆盖文件、枚举释放与无消息声明。测试使用临时文件，无需设备。</p>
+<h3 id="分配验收">分配验收</h3>
+<p><code>Build.ps1 -Test</code> 还会运行 <code>dotnet run --project tests/Allocations -c Release</code>。门禁在 Writer/Reader 预热后测量 GC.GetAllocatedBytesForCurrentThread，排除准备和报告，要求消息循环托管分配严格为零，这是库热路径的强制契约。覆盖 None/Lz4/Zstd、原生文件 I/O、实际 FileStream、可寻址/非寻址 span 流，以及跨 Chunk、多 Channel、中途声明、空/大消息、缓冲不足重试、重复 EOF 和查询。程序报告吞吐量及平均每条耗时，这是特定负载测量，不是延迟分位数或通用性能保证。功能测试另外检查重试正确性和回调失败。</p>
+<p>只使用 Release。调用方扩容、初始化、描述/摘要快照、错误及自有记录便利 API 不属于门禁范围。用户 Stream 可能分配；桥接专用测试使用预分配 span 流，并在数组回退时抛异常。原生分配需另用原生分析器。基线数据保存在忽略的 artifacts 中，不写入 API 文档。</p>
+<p>分类枚举验收在三种压缩模式下比较 32 条与 4096 条固定大小的无关消息，目标记录集合保持不变。测量覆盖完整枚举，允许的额外托管分配最多为 4096 字节，以拒绝逐记录分配增长；自有结果不要求零分配。</p>
+<p>完成测试区分普通刷新与显式文件同步，覆盖保留句柄的所有权及同步失败后的终止状态，使用仅测试启用的原生故障注入和 FileStream 重写。测试验证调用路径与失败契约，不证明断电持久性。ABI 变化后须从相同源码重建三个平台的原生资产，再验证完整包。</p>
+<h3 id="单文件-writer-内存诊断">单文件 writer 内存诊断</h3>
+<p>运行 <code>dotnet run --project tests/Allocations -c Release -- memory-profile 65536</code> 和 <code>cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture</code>，将报告重定向到已忽略的 <code>artifacts/</code>。托管诊断使用计数 Stream，不保留输出；比较 None／Lz4／Zstd、可定位／不可定位输出、1／4／16 MiB chunk 目标和频繁 Flush，并分别关闭各类索引。采样阶段包含写入、完成、持有 GetSummary 结果、回收结果和释放 writer，报告私有字节、工作集、托管堆、输出长度、耗时及最终 chunk 数。增加消息数可观察更长录制。采样和强制 GC 会影响计时；各配置的进程采样不是隔离的分配器测量。</p>
+<p>原生 fixture 对相同的 64-chunk 录制比较提前构建 summary JSON 与生产按需路径，在 16／32／48／64 个 chunk 时采样 Rust 存活字节，断言完成后的保留量和峰值降低，检查响应等价与内存释放，并报告累计分配。峰值指测试线程跟踪到的存活分配请求大小，不是进程 RSS，也不包含分配器内部 realloc 重叠。Rust 分配器之外的 codec 分配及分配器缓存不计入。测试约束存储性质，不设置固定字节数或吞吐门槛。托管临时文件测试验证格式、索引及 summary 游标生命周期。上游 chunk 索引仍会增长；这些诊断不证明录制具有恒定内存。</p>
+<h3 id="python-双向互操作">Python 双向互操作</h3>
+<p>在准备好 Python 的环境中执行（CI 使用 Python 3.12）：</p>
+<pre><code class="lang-powershell">python -m pip install mcap==1.3.1 lz4==4.4.5 zstandard==0.25.0
+$interopDirectory = Join-Path 'artifacts' ('interop-' + [Guid]::NewGuid().ToString('N'))
+dotnet run --project tests/Interop -c Release -- write $interopDirectory
+python tests/interop.py $interopDirectory
+dotnet run --project tests/Interop -c Release -- read $interopDirectory
+</code></pre>
+<p>顺序不能交换：先由 .NET 写文件，再由 Python 校验并生成文件，最后由 .NET 校验 Python 输出。覆盖 None、Lz4、Zstd，以及查询、元数据和附件。每次使用新目录，因为 Writer 的路径重载仅创建新文件。<code>Build.ps1 -Test</code> 本身不包含互操作测试。</p>
+<h2 id="包内容">包内容</h2>
+<p>包 ID 为 <code>Fizzy.McapSharp</code>，目标框架为 net8.0。同一包包含托管程序集、README、官方 MCAP 图标及其 MIT 许可证、第三方声明及以下资产：</p>
+<pre><code class="lang-text">runtimes/win-x64/native/fizzy_mcap_native.dll
+runtimes/linux-x64/native/libfizzy_mcap_native.so
+runtimes/linux-arm64/native/libfizzy_mcap_native.so
+</code></pre>
+<p><code>RequireNativeForPackage</code> 拒绝资产或清单缺失，以及架构、二进制哈希、提交或源码指纹不匹配的情况。本地 <code>-Pack</code> 同样要求三平台资产齐全。从一次匹配的 CI 运行下载各个 <code>native-&lt;rid&gt;</code> artifact 到 <code>artifacts/native/&lt;rid&gt;/</code>，保留清单；不要混用不同运行的资产，收集后不要修改源码。源码指纹会归一化 Windows/Linux 文本换行。输出目录为 <code>artifacts/packages/</code>，脚本不发布或修改版本。</p>
+<h3 id="ci-与发布验证">CI 与发布验证</h3>
+<p>可复用验证工作流在三个原生 runner 上构建，运行 xUnit 和 Python 双向互操作，再统一打包一次。五个包验证任务分别在 Windows 2022、Ubuntu 22.04/24.04 x64/ARM64 上执行，使用独立缓存还原完整包，验证普通运行和 RID 发布运行，并读取所有构建平台生成的样例；缺少样例即失败。Ubuntu 是已配置的验证发行版；其他 glibc 发行版还需具备兼容系统库和 .NET 8。</p>
+<p>PR、推送到 <code>main</code> 和手动触发均运行该流程，同一 PR/ref 的旧构建自动取消。中间产物保留一天，只有通过全部任务的完整包保留七天。Cargo 缓存按系统、架构、工具链、锁文件和原生源码区分。只使用标准托管 runner，不配置付费 larger runner 或额外缓存额度。按 GitHub 当前规则，公开仓库的标准 runner 运行时间免费，存储仍受账户额度约束。</p>
+<p>手动发布工作流运行相同验证，将已验证的同一包交给受保护的发布任务，不重新打包。推包前持久保存包和对应文档；随后独立验证公开 NuGet 源上的包（三个 RID），再部署版本归档。Resume 复用原始已验证候选产物。操作遵循<a href="release.html">发布 SOP</a>和 <a href="../../AGENTS.html#publishing">AGENTS.md</a>。普通 build CI 仍仅验证本地候选包，不证明 NuGet.org 可用。</p>
+<h2 id="消费者集成">消费者集成</h2>
+<p>默认使用 <code>PackageReference</code>。本地源码开发时，消费项目可以改用指向本仓库项目的 <code>ProjectReference</code>。同一项目只能选择一种引用类型。引用选择属性、路径和构建入口由消费项目定义，本库不配置这些内容。</p>
+<p>源码模式先运行本仓库 <code>./scripts/Build.ps1</code>，再 restore/build 消费者。托管项目优先使用显式 <code>RuntimeIdentifier</code>，否则使用 SDK 宿主 RID，只将对应的已有原生库传播到源码消费者输出；直接 <code>dotnet build</code> 不会编译 Rust。使用当前 checkout，不擅自拉取或切换分支；切换 Source/Package 模式后重新 restore，共享输出串行构建。本机路径和切换配置不提交。</p>
+<p>报告需区分源码、本地包和已发布包的验证范围。测试已发布依赖不能验证当前源码。</p>
+<h3 id="官方-api-与扩展分配门禁">官方 API 与扩展分配门禁</h3>
+<p><code>Build.ps1 -Test</code> 同时运行锁定依赖的 Release 原生差分测试和 <code>scripts/check_api_coverage.py</code>；<a href="coverage.html">覆盖清单</a> 对照实际 Cargo 源码，包含可选 Tokio 公共声明。清单检查不能替代行为测试。已有锁定版本的 binrw 增为直接依赖，用于编码上游自有记录，没有升级依赖版本。</p>
+<p>扩展分配测试在各压缩模式下覆盖完整预准备消息（含晚到声明）、控制记录、私有记录、附件、记录视图、直接缓冲区读取和随机索引/Metadata/Attachment。异步测试使用可复用源和专用 I/O 线程强制挂起，合计调用线程及工作线程分配，并覆盖内联完成通知下的直接 await。初始化、调用方扩容、自有便利对象和错误仍排除在外；原生快照内存不属于托管分配保证。</p>
+<p>原生差分测试在所有压缩模式下对比六种切片模式与锁定上游实现。惰性读取检查断言构造时未推进、最多保留一条待交付记录；状态及容量检查排除输入副本，不代表完整分配器或解压器内存测量。托管测试覆盖独立 Chunk 生命周期、延迟错误、调用者索引和禁止缓存排序。Release 分配门禁还测量独立惰性 Chunk 推进。</p>
+<h3 id="外部契约测试套件">外部契约测试套件</h3>
+<p>维护者验证互操作和错误处理时，应先构建本机原生 Release 库，安装互操作章节列出的 Python 依赖；conformance 另需 Node 24。每次使用新的输出目录，保留失败数据以便复现。</p>
+<pre><code class="lang-powershell">python scripts/test_suites.py conformance --output artifacts/check-conformance
+python scripts/test_abi.py
+python scripts/test_suites.py differential --no-build --seed 1 --samples 32 --output artifacts/check-differential
+python scripts/test_suites.py robustness --no-build --seed 1 --samples 32 --output artifacts/check-robustness
+python scripts/test_suites.py stress --no-build --budget 10 --output artifacts/check-stress
+</code></pre>
+<p>第一条命令构建托管契约执行器；<code>--no-build</code> 复用已有构建，两者均不构建 Rust。Conformance 下载 <code>tests/conformance-lock.json</code> 固定的提交，验证归档及每个 Git LFS 对象的 SHA-256，保留上游 MIT 许可证。Node 直接导入官方预期结果和 Rust 支持规则，无需构建上游多语言工程或安装 npm 依赖。清单要求 416 次顺序读取、32 次索引读取及 208 次逐字节写入比较。其余 384 个索引用例缺少官方 Rust runner 要求的前提；208 个带 padding 的写入变体无法由上游 Writer 生成。不支持项记录具体原因；数量变化、数据缺失和应支持项失败均阻断验证。</p>
+<p>差分测试采用固定 xorshift32 算法，32 个固定种子、三种压缩设置及 .NET/Python 两个写入端。每个文件最多 256 条消息，限制为 8 MiB。检查 payload、声明、metadata、附件、顺序/缓冲/异步读取、索引排序与随机访问。跨 chunk 的相同时间戳顺序未规定：结果必须时间单调且同时间组内消息完全匹配。奇数种子关闭 chunk，偶数种子覆盖压缩和索引。xUnit 还覆盖小文件的每个截断位置、极值字段、长度限制、短读、I/O 故障注入和会话隔离；原有异步取消及所有权测试继续保留。</p>
+<p>Robustness 从合法文件生成变异，每个解析探针在独立进程中运行，超时为 30 秒。预期 MCAP 错误可以接受，非预期异常、panic、崩溃和超时均失败；严格解析设置 8 MiB 记录长度限制。<code>--samples</code> 控制用例数，正数 <code>--budget</code> 则改为按秒运行。<code>report.json</code> 保存配置、提交、RID、运行时版本和当前输入。按记录的种子和配置重放时必须换用新输出目录，不直接复用报告中的旧目录。</p>
+<p><code>test_abi.py</code> 核对所有托管 P/Invoke 的原生导出名，并在独立进程中用注入的缺失库解析器及测试专用的不兼容 Rust 库检查拒绝行为。伪库仅位于被忽略的 artifacts 中，不进入包资产。</p>
+<h3 id="每周及手动深度检查">每周及手动深度检查</h3>
+<p>PR 和 main 提交在三个原生平台运行固定套件。每周日 02:00 UTC 额外运行 Linux x64 原生变异 20 分钟、Valgrind 10 分钟、生命周期压力 10 分钟和真实超过 4 GiB 的文件检查。手动触发支持 <code>deep</code>、<code>seed</code>、变异 <code>budget</code>（1–1800 秒）。发布要求同提交的深度检查通过，仍发布同一个候选包。定时运行以 workflow 运行编号作为轮换种子并记录。没有每日任务；托管定时任务实际启动时间可能延后。</p>
+<p>Linux x64 已安装固定 Rust 工具链、.NET、Valgrind 并完成原生库构建后运行：</p>
+<pre><code class="lang-sh">python scripts/test_deep.py --seed 1 --budget 1200 --valgrind-budget 600 --stress-budget 600 --output artifacts/deep-check
+</code></pre>
+<p>损坏输入的变异测试对所有压缩模式使用统一归因规则。FFI 出现可归因的失败后，独立编译、未修改的官方 registry <code>mcap</code> 探针使用相同输入、等价解析选项、相同的 30 秒时限和 1 GiB 地址空间限制重放。两个探针记录读取模式、已交付记录数及此前记录的滚动摘要；变异测试开始前，合法夹具必须产生一致的进度轨迹。只有配置、最后读取阶段和失败证据均匹配才允许归因：无 panic／分配终止诊断的超时；申请字节数及退出码相同的分配终止；或由 ABI 捕获、且源文件名和完整首行诊断与参考探针相同的 panic。仅有相同退出码或信号不构成证据。逃逸出 ABI 的 panic 及测试驱动自身的断言仍判失败。</p>
+<p>参考探针当前覆盖顶层及解压后的记录读取（缓冲读取模式 0 和 2）。其他模式、快照、初始化或交付阶段的失败不自动豁免；不支持的操作、缺失参考程序、结果不一致及证据不足均阻断。这是对上游行为的有限诊断证据，不是任意崩溃同源的证明；它不改变运行时行为，也不使损坏输入变得安全。需要硬性截止时间时应使用进程隔离。</p>
+<p>报告分别统计正常完成的变异（含预期解析错误）、已归因上游失败、本库失败和未归因失败。每次失败均按 SHA-256 保留输入，并在 JSON 证据文件中保存双方日志、命令、限制、进度和退出结果。发布门禁仅允许此变异套件中已归因的上游失败；合法输入互操作、ABI／布局断言、所有权与生命周期、缓冲区契约、重试、并发、零托管分配、Valgrind 及包完整性仍是严格门禁。</p>
+<p>独立 Rust 驱动链接真实私有 C ABI，检查布局，并以有效句柄覆盖记录/chunk 解析、待交付缓冲读取、快照和索引操作。原生变异子进程限制 1 GiB 地址空间及 30 秒执行时间。变异失败会保留原输入和诊断证据；归因前不进行缩减。Valgrind 拒绝非法内存访问及确定/间接泄漏。这是变异测试，不是覆盖率引导的 fuzz，也不构成内存安全证明。</p>
+<p>生命周期压力在 GC 后采样私有内存和句柄；至少 30 个样本时丢弃前 1/3，比较中段及末段中位数。增长超过 32 个句柄或 256 MiB 时失败并要求排查；更小增长仅供诊断，原生分配器缓存也可能保留内存。大文件检查用有界缓冲写入 4097 MiB 未压缩 payload，完整校验并通过索引查询尾部，结束后删除文件。至少预留 6 GiB 磁盘空间；不要求自有快照 API 恒定内存。</p>
+<p>报告保留 7 天，失败输入保留 14 天，成功的压力文件不上传。分配仍严格要求 0 B，吞吐不设置托管 runner 硬门槛；深度 job 超时 90 分钟。先检查失败报告并重放输入，再考虑修改预期。</p>
+<p><code>validate / verified</code> 是最终门禁，要求所有启用的 job 成功，包括发布启用的深度检查；建议将该检查设为分支保护必需项。取消或意外跳过不能生成已验证包。包任务只从候选 nupkg 恢复到隔离缓存，除普通/RID 发布 smoke 测试外，还针对包编译共享公共契约执行器，并用 <code>python scripts/test_package.py --fixtures artifacts/exchanged</code> 读取全部 18 个跨平台文件。此阶段不下载源码原生资产，也不使用源码 ProjectReference。仍需三个平台同源资产，本机单平台构建不能替代包验证。</p>
+<h3 id="原生存储与补丁验证">原生存储与补丁验证</h3>
+<table>
+<thead>
+<tr>
+<th>审查的契约</th>
+<th>证据</th>
+<th>不能证明的性质</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>预热后的托管分配</td>
+<td>Release 分配门禁；异步 lease 门禁比较内联与真实挂起的结果对象基线</td>
+<td>零原生分配、零 payload 复制或 RSS 上限</td>
+</tr>
+<tr>
+<td>共享存储寿命与交付</td>
+<td>指针一致性、重试、释放和淘汰测试</td>
+<td>小 payload 必然只保留小 backing</td>
+</tr>
+<tr>
+<td>局部收集／缓存额度</td>
+<td>额度边界测试与 backing 去重诊断</td>
+<td>进程总堆上限；诊断阈值仅适用于对应负载</td>
+</tr>
+<tr>
+<td>随机访问复用</td>
+<td>批量、缓存和游标路径的 chunk 加载／命中计数</td>
+<td>任意请求在缓存未命中时也不重复解压</td>
+</tr>
+</tbody>
+</table>
+<p>Release 原生测试以指针一致性、释放后的租约有效性及测试专用线程局部分配计数检查交付路径。计数器不进入生产构建，也不代表原生总内存上限或 codec 分配统计。</p>
+<p>输入预留测试使用 1/8/32 MiB 记录比较完整需求预留与 64 KiB 增量预留；托管测试覆盖所有压缩模式下的短读、重试及严格验证。Lease 存储诊断推进 512 批，固定保留 1/4/16 批在途窗口，按地址去重底层分配并比较中段与尾段保留容量。复制输入容量与映射地址空间分别报告。这是固定夹具的保留检查，不是进程 RSS 上限；分配计数覆盖被测线程的 Rust 分配，不包含 codec 通过其他分配器申请的内存。指针测试覆盖 reader/snapshot 释放及实际缓存驱逐后的保留消息。Lease 批量写入另验证无压缩输出收到原有 payload 地址，以及两种 header 重载在预热后均为托管 0 B。</p>
+<p>默认分配 runner 包含异步 lease 门禁。专项运行：</p>
+<pre><code class="lang-powershell">dotnet run --project tests/Allocations -c Release -- lease-gate
+dotnet run --project tests/Allocations -c Release -- lease-profile
+cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- --nocapture
+</code></pre>
+<p><code>lease-gate</code> 固定每批一条消息和批次数，比较同步完成与 64 KiB、4 KiB、512 字节 I/O 下的真实挂起；汇总调用线程与工作线程分配，要求与同步完成的结果对象基线相等。另以直接 await 检查 I/O 线程上的 continuation 重入。<code>lease-profile</code> 输出相同测量而不强制分配相等，包含吞吐及批次延迟中位数/p95。原生诊断另报告分配次数、字节数和可识别的保留存储。报告放在忽略的 artifacts 下；诊断计时包含观测开销，不设性能通过阈值。</p>
+<p>原生 Release 测试提供存储策略专项诊断：</p>
+<pre><code class="lang-powershell">cargo test --manifest-path native/Cargo.toml --release --locked sort_compaction_profile -- --nocapture
+cargo test --manifest-path native/Cargo.toml --release --locked random_access_profile -- --nocapture
+</code></pre>
+<p>排序夹具对相同密集／稀疏选中数据比较共享与自适应存储，报告去重 backing 保留容量、实际 payload 复制字节、紧凑组内新旧容量并存峰值、测试线程累计分配、结果就绪时间和吞吐。组内重叠不是进程总峰值；活动 parser 和已完成组需另计。计时及分配包含源准备，此夹具不测压缩与 RSS。阈值测试覆盖四倍比例及 256 KiB 节省规则两侧；托管回退测试覆盖压缩、短读、映射、超大／空消息、同时间戳、重试及释放后 lease。</p>
+<p>随机访问夹具在 None/Lz4/Zstd 下重复读取四个 chunk，比较关闭缓存、工作集超过缓存及缓存容纳整个工作集。断言加载／命中次数，报告缓存额度计费、去重 payload backing 容量、输入容量、分配和查询延迟中位数/p95。未压缩 chunk 的保留 backing 容量可能包含输入容量，不可重复相加。Chunk 游标遍历相同消息并单独报告分配与耗时；它包含向调用方缓冲的交付复制，缓存查找测量的是共享消息交付。测量包含测试观测开销，不包含初始化索引／摘要，也不覆盖绕过 Rust allocator 的 codec 分配。计时不设 CI 硬门槛，缓存默认值保持不变。</p>
+<p><code>python scripts/test_upstream.py</code> 分别编译未修改的 registry mcap 和本地补丁版本，以独立进程比较写入字节、顺序与索引读取、截断及损坏输入。两者使用相同固定依赖版本；未修改参考工程有独立 Cargo.lock，不继承本地补丁。相同补丁源码之间的测试只证明内部一致性。</p>
+<p><code>python scripts/check_vendor.py</code> 检查原始文件清单与本地补丁哈希。更新补丁时保持 UPSTREAM.json 不变，审阅差异后更新 PATCHES.json。允许范围、替代方案及验证要求见<a href="patches.html">本地补丁</a>；不向上游提交。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../../version.js" data-doc-root="../../"></script></body>
+</html>

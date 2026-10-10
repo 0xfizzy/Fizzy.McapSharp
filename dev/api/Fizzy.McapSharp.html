@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Namespace Fizzy.McapSharp | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Namespace Fizzy.McapSharp | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Fizzy.McapSharp">
+
+  <h1 id="Fizzy_McapSharp" data-uid="Fizzy.McapSharp" class="text-break">Namespace Fizzy.McapSharp</h1>
+  <div class="markdown level0 summary"></div>
+  <div class="markdown level0 conceptual"></div>
+  <div class="markdown level0 remarks"></div>
+
+    <h3 id="classes">
+Classes
+</h3>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapAsyncReader.html">McapAsyncReader</a></dt>
+      <dd><p>One incremental asynchronous read session backed by the official Sans-I/O parser. Owns its Stream unless leaveOpen is true. Consume each ValueTask exactly once before another operation; I/O, parsing and cancellation failures terminate the session. Record and lease consumption cannot be mixed. Strict record delivery validates each complete body and attachment CRC before reporting Success, but does not validate cross-record declaration references or establish full-file validation.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapAttachment.html">McapAttachment</a></dt>
+      <dd><p>Owned attachment payload and fields. Times use caller-defined nanoseconds.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapAttachmentHeader.html">McapAttachmentHeader</a></dt>
+      <dd><p>Attachment fields. LogTime and CreateTime use caller-defined nanoseconds.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapAttachmentIndex.html">McapAttachmentIndex</a></dt>
+      <dd><p>Owned attachment index with byte Offset from the MCAP origin (the initial Stream position for Stream inputs) and record Length; DataSize counts payload bytes and times are nanoseconds.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapAttachmentRecord.html">McapAttachmentRecord</a></dt>
+      <dd><p>Owned attachment body and stored CRC.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapBatchWriteException.html">McapBatchWriteException</a></dt>
+      <dd><p>A failed batch may have written a prefix and part of its failing record.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a></dt>
+      <dd><p>Resolved channel declaration with optional schema and metadata. Reader results own their data; direct construction retains supplied references.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapChannelDescription.html">McapChannelDescription</a></dt>
+      <dd><p>Immutable resolved channel declaration shareable across messages and threads; survives reader disposal.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapChannelRecord.html">McapChannelRecord</a></dt>
+      <dd><p>Owned channel record retaining the schema ID rather than resolving the schema object.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapChunkHeader.html">McapChunkHeader</a></dt>
+      <dd><p>Chunk descriptor. Times are nanoseconds; sizes are bytes; UncompressedCrc covers expanded record bytes.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+      <dd><p>Owned chunk index. ChunkStartOffset and MessageIndexOffsets are byte offsets from the MCAP origin (the initial Stream position for Stream inputs); lengths and sizes are bytes; times are nanoseconds.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapChunkRecord.html">McapChunkRecord</a></dt>
+      <dd><p>Owned chunk record. Data contains the compressed bytes described by Header.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapException.html">McapException</a></dt>
+      <dd><p>A structured MCAP failure. Reader sessions normally become terminal; writer continuation is limited to CanContinueWriting.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapFormat.html">McapFormat</a></dt>
+      <dd><p>Constants identifying the MCAP wire format and bundled upstream implementation.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapHeader.html">McapHeader</a></dt>
+      <dd><p>Owned file header containing the profile and writer library identifier.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapIndexSnapshot.html">McapIndexSnapshot</a></dt>
+      <dd><p>Owns copied or explicitly mapped input and its official summary, independently of the originating session.
+Snapshot message callbacks must not invoke operations on any snapshot or prepared chunk index, including disposal.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapIndexSnapshotOptions.html">McapIndexSnapshotOptions</a></dt>
+      <dd><p>Limits only the snapshot cache, not upstream allocations or live leases.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a></dt>
+      <dd><p>Message with resolved declarations and payload bytes. Reader results own independent data; direct construction retains supplied references. Times use caller-defined nanoseconds.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessageBatchLease.html">McapMessageBatchLease</a></dt>
+      <dd><p>Owns stable native message storage. Keep this lease alive until all payload access
+has finished. Access and disposal must not overlap. Payload spans expire on disposal.
+A payload slice can retain an entire chunk, copied input or mapping; payload length is not retained capacity.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessageIndex.html">McapMessageIndex</a></dt>
+      <dd><p>Owned per-channel message index, including channels with an empty Records collection.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessageLease.html">McapMessageLease</a></dt>
+      <dd><p>An independently retained message. Do not dispose concurrently with payload access.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessageRecord.html">McapMessageRecord</a></dt>
+      <dd><p>Owned message record with an independent payload array.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMetadata.html">McapMetadata</a></dt>
+      <dd><p>Owned named string metadata record.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMetadataIndex.html">McapMetadataIndex</a></dt>
+      <dd><p>Owned metadata index with byte Offset from the MCAP origin (the initial Stream position for Stream inputs) and complete record Length in bytes.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapPreparedChannel.html">McapPreparedChannel</a></dt>
+      <dd><p>An immutable native snapshot. Preparing does not register or write declarations.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+      <dd><p>An immutable, native-owned copy of a Chunk index for repeated operations across snapshots.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapPreparedOperation.html">McapPreparedOperation</a></dt>
+      <dd><p>Immutable owned descriptor prepared once for repeated control writes. Factories copy descriptor values and schema bytes; preparation does not register or write anything. Dispose after the last synchronous use.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapQuery.html">McapQuery</a></dt>
+      <dd><p>Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. A null query uses file order; an explicit query defaults to ascending log time.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapRawRecord.html">McapRawRecord</a></dt>
+      <dd><p>An independently owned opcode and unparsed record body. Data excludes the opcode and length prefix. Use McapRecords.Parse for typed fields.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReadCursor.html">McapReadCursor</a></dt>
+      <dd><p>One disposable cursor over copied/mapped input, a summary, or a retained chunk. Adapts official slice-reader semantics. Construction copies input; advancement parses records.
+Unsupported message delivery is rejected without advancement or terminal failure. Summary cursors support records only;
+snapshot Chunk cursors support messages as well as records.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReadSession.html">McapReadSession</a></dt>
+      <dd><p>Owns one native reader. Calls are serialized and cannot be reentered from Stream callbacks.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReaderFactory.html">McapReaderFactory</a></dt>
+      <dd><p>Reusable reader factory with instance methods for a file path and static methods for Streams; construction validates the path but does not open the file. This factory owns no disposable resources. Each opened session or enumeration owns an independent native reader and its input.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+      <dd><p>Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded McapReadSession scan provides full-file validation. Adapter-specific validation scopes are described by Strict.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapRecords.html">McapRecords</a></dt>
+      <dd><p>Parses record bodies into independent owned models and exposes MCAP layout helpers.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapRecoveryResult.html">McapRecoveryResult</a></dt>
+      <dd><p>Result of explicit prefix salvage. IsFullyValidated is true only after a strict complete scan; Error describes the failure that ended salvage, if any.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapSansIoReader.html">McapSansIoReader</a></dt>
+      <dd><p>Caller-driven official Rust parser. No I/O or borrowed native memory is exposed. Positions are measured from the MCAP origin; when servicing requests on a Stream containing a prefix, translate between these positions and the Stream position using its initial MCAP position.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapSchema.html">McapSchema</a></dt>
+      <dd><p>Schema declaration. Reader results own independent mutable schema bytes; direct construction retains the supplied array.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapSchemaDescription.html">McapSchemaDescription</a></dt>
+      <dd><p>An immutable declaration snapshot that can be shared across messages and threads.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapStatistics.html">McapStatistics</a></dt>
+      <dd><p>Owned summary statistics. Message times are nanoseconds; counts describe the recorded data section.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapSummary.html">McapSummary</a></dt>
+      <dd><p>Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Size grows with file indexes and declarations.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapSummaryReaderOptions.html">McapSummaryReaderOptions</a></dt>
+      <dd><p>Options for direct Sans-I/O summary reading. FileSize permits end-relative seeks to be resolved against the caller-provided source length.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapWriter.html">McapWriter</a></dt>
+      <dd><p>A serialized MCAP writer. Complete explicitly to finish the format; disposal only releases resources. Native or I/O failures are terminal except for configured audited pre-mutation rejections.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions</a></dt>
+      <dd><p>Writer configuration fixed at construction. Null emission/CRC switches retain upstream settings; other nullable settings have the semantics documented on their properties. Input payloads are consumed synchronously; Complete must be called explicitly.</p>
+</dd>
+    </dl>
+    <h3 id="structs">
+Structs
+</h3>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapBatchReadResult.html">McapBatchReadResult</a></dt>
+      <dd><p>A successful batch result. Count identifies valid header/range entries and BytesWritten the valid payload prefix. On BufferTooSmall, RequiredLength is the entire pending message payload size; retry preserves that message. No result is published on exception.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapCacheStatistics.html">McapCacheStatistics</a></dt>
+      <dd><p>Cumulative snapshot diagnostics: Hits counts cache reuse and ChunkLoads counts actual chunk loads, including loads not retained by the cache. Not allocation or memory statistics.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapDataEnd.html">McapDataEnd</a></dt>
+      <dd><p>Data-section end marker containing its stored CRC.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapFooter.html">McapFooter</a></dt>
+      <dd><p>Footer fields: summary offsets are byte positions from the MCAP origin (the initial Stream position for Stream inputs); SummaryCrc is the stored summary checksum.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a></dt>
+      <dd><p>Message descriptor. LogTime and PublishTime are caller-defined nanoseconds; ChannelId refers to a declared channel.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
+      <dd><p>Message log time in nanoseconds and byte offset within the uncompressed chunk record stream, not an offset from the MCAP origin.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapPayloadRange.html">McapPayloadRange</a></dt>
+      <dd><p>Byte offset and length within the payload storage passed to the same batch operation; not a file offset.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReadEvent.html">McapReadEvent</a></dt>
+      <dd><p>A parser request or delivered item; interpret fields according to Kind, not merely a successful read status.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapRecordFields.html">McapRecordFields</a></dt>
+      <dd><p>Allocation-free typed field cursor. Length-prefixed collections can be traversed with another cursor.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapRecordReadResult.html">McapRecordReadResult</a></dt>
+      <dd><p>Caller-buffer read outcome. On Success, Opcode identifies the record and Length is the body bytes copied; on BufferTooSmall, Length is the required capacity and the same record remains pending. EOF does not prove full-file integrity.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapRecordView.html">McapRecordView</a></dt>
+      <dd><p>A record body validated at Parse time over caller-owned memory. Keep the underlying bytes unchanged for the entire lifetime of this view and all derived field cursors or spans. Read-only spans do not prevent mutation through other aliases. UTF-8 and collection fields remain borrowed spans; ToOwned creates an independent copy.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a></dt>
+      <dd><p>One random message lookup. Index must remain undisposed during the call; Entry.Offset is relative to expanded chunk bytes.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapSummaryOffset.html">McapSummaryOffset</a></dt>
+      <dd><p>Summary group descriptor with byte start from the MCAP origin (the initial Stream position for Stream inputs) and byte length.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapVisitResult.html">McapVisitResult</a></dt>
+      <dd><p>Number of completed visitor calls and why traversal stopped. VisitorStopped includes the message whose callback returned false; callback exceptions publish no result.</p>
+</dd>
+    </dl>
+    <h3 id="interfaces">
+Interfaces
+</h3>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.IMcapRecord.html">IMcapRecord</a></dt>
+      <dd><p>A record model. Results returned by <a class="xref" href="Fizzy.McapSharp.McapRecords.html#Fizzy_McapSharp_McapRecords_Parse_System_Byte_System_ReadOnlySpan_System_Byte__">Parse(byte, ReadOnlySpan&lt;byte&gt;)</a> are independently owned. Pattern match the concrete record type to access its fields. Unknown opcodes return <a class="xref" href="Fizzy.McapSharp.McapRawRecord.html">McapRawRecord</a>; no payload or collection borrows the input span.</p>
+</dd>
+    </dl>
+    <h3 id="enums">
+Enums
+</h3>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapBatchStopReason.html">McapBatchStopReason</a></dt>
+      <dd><p>Why a successful batch read or visit stopped; errors throw instead of returning this status.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapCompression.html">McapCompression</a></dt>
+      <dd><p>Compression codec used for chunks; None leaves record bytes uncompressed.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapCursorMode.html">McapCursorMode</a></dt>
+      <dd><p>Selects slice-parser semantics. Every mode supports record delivery; only RawMessages and Messages support message delivery.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapErrorKind.html">McapErrorKind</a></dt>
+      <dd><p>Structured MCAP or binding failure classification. Consult Details for kind-specific native fields; this is not a retry policy.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapOpcode.html">McapOpcode</a></dt>
+      <dd><p>Standard MCAP record opcodes. Private records use byte values 0x80-0xFF.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReadEventKind.html">McapReadEventKind</a></dt>
+      <dd><p>Discriminates parser input requests, delivered records and completion.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReadOrder.html">McapReadOrder</a></dt>
+      <dd><p>Message traversal ordering; equal log-time ordering is unspecified.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+      <dd><p>Outcome of a caller-buffer read or Sans-I/O event poll. Success describes availability, not a particular MCAP opcode.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapRecordMode.html">McapRecordMode</a></dt>
+      <dd><p>Whether sequential record scans expose chunks or expand their contents.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapWriterSafeRejections.html">McapWriterSafeRejections</a></dt>
+      <dd><p>Audited pre-mutation native rejections that may leave the writer usable. I/O and cleanup failures remain terminal.</p>
+</dd>
+    </dl>
+    <h3 id="delegates">
+Delegates
+</h3>
+    <dl class="jumplist">
+      <dt><a class="xref" href="Fizzy.McapSharp.McapMessageVisitor.html">McapMessageVisitor</a></dt>
+      <dd><p>Consumes a borrowed payload synchronously. Return false to stop after this message.
+The span expires on return. Do not call back into the originating reader.</p>
+</dd>
+    </dl>
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>
