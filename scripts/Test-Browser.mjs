@@ -5,7 +5,11 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 const repo = path.resolve(import.meta.dirname, '..');
 const site = path.join(repo, 'artifacts/docs/site');
-const info = JSON.parse(await readFile(path.join(site, 'doc-info.json'), 'utf8'));
+const urlIndex = process.argv.indexOf('--url');
+const liveUrl = urlIndex >= 0 ? new URL(process.argv[urlIndex + 1]).href.replace(/\/?$/, '/') : null;
+const info = liveUrl
+  ? await fetch(new URL('doc-info.json', liveUrl)).then(response => { assert(response.ok, 'Live documentation identity'); return response.json(); })
+  : JSON.parse(await readFile(path.join(site, 'doc-info.json'), 'utf8'));
 const prefix = '/Fizzy.McapSharp/';
 const mounts = ['dev', 'v0.0.0/r0'];
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
@@ -31,10 +35,9 @@ const server = createServer(async (req, res) => {
     res.end(await readFile(file));
   } catch { res.writeHead(404).end(); }
 });
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const origin = `http://127.0.0.1:${server.address().port}`;
-const base = `${origin}${prefix}dev/`;
-const output = path.join(repo, 'artifacts/docs/browser');
+if (!liveUrl) await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const base = liveUrl || `http://127.0.0.1:${server.address().port}${prefix}dev/`;
+const output = path.join(repo, liveUrl ? 'artifacts/docs/browser-live' : 'artifacts/docs/browser');
 let browser, page;
 try {
   browser = await chromium.launch({ headless: true });
@@ -48,11 +51,13 @@ try {
     await page.getByLabel('Switch documentation version').waitFor();
     assert.match(await page.getByLabel('Documentation version', { exact: true }).innerText(), /dev — unreleased/);
   }
-  await page.getByLabel('Switch documentation version').selectOption('0.0.0/r0/');
-  await page.waitForURL('**/v0.0.0/r0/api/Fizzy.McapSharp.McapWriter.html');
-  await page.goto(base + 'docs/zh-CN/usage.html');
-  await page.getByLabel('Switch documentation version').selectOption('0.0.0/r0/');
-  await page.waitForURL('**/v0.0.0/r0/docs/zh-CN/index.html');
+  if (!liveUrl) {
+    await page.getByLabel('Switch documentation version').selectOption('0.0.0/r0/');
+    await page.waitForURL('**/v0.0.0/r0/api/Fizzy.McapSharp.McapWriter.html');
+    await page.goto(base + 'docs/zh-CN/usage.html');
+    await page.getByLabel('Switch documentation version').selectOption('0.0.0/r0/');
+    await page.waitForURL('**/v0.0.0/r0/docs/zh-CN/index.html');
+  }
   await page.goto(base + 'docs/index.html');
   await page.locator('article').getByRole('link', { name: '简体中文', exact: true }).click();
   await page.waitForURL('**/docs/zh-CN/index.html');
@@ -76,14 +81,14 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(resources, []);
   await mkdir(output, { recursive: true });
-  await writeFile(path.join(output, 'result.json'), JSON.stringify({ passed: true, chromium: browser.version(), sourceCommit: info.docs_commit }));
-  console.log('PASS: bilingual navigation, API/search, versions, fallback and page/resource errors.');
+  await writeFile(path.join(output, 'result.json'), JSON.stringify({ passed: true, chromium: browser.version(), sourceCommit: info.docs_commit, url: liveUrl, syntheticVersions: !liveUrl }));
+  console.log(liveUrl ? 'PASS: live bilingual navigation, API/search and page/resource errors.' : 'PASS: bilingual navigation, API/search, versions, fallback and page/resource errors.');
 } catch (error) {
   await mkdir(output, { recursive: true });
   await page?.screenshot({ path: path.join(output, 'failure.png'), fullPage: true });
-  await writeFile(path.join(output, 'result.json'), JSON.stringify({ passed: false, error: String(error), sourceCommit: info.docs_commit }));
+  await writeFile(path.join(output, 'result.json'), JSON.stringify({ passed: false, error: String(error), sourceCommit: info.docs_commit, url: liveUrl, syntheticVersions: !liveUrl }));
   throw error;
 } finally {
   await browser?.close();
-  await new Promise(resolve => server.close(resolve));
+  if (!liveUrl) await new Promise(resolve => server.close(resolve));
 }
