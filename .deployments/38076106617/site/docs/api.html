@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>API, lifetime, and data ownership | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="API, lifetime, and data ownership | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="api-lifetime-and-data-ownership">API, lifetime, and data ownership</h1>
+
+<p>English | <a href="zh-CN/api.html">简体中文</a></p>
+<p><code>Fizzy.McapSharp</code> provides MCAP file, Stream, buffer and Sans-I/O operations on .NET 8: Windows x64 and glibc Linux x64/ARM64, built against Ubuntu 22.04. macOS, musl and 32-bit processes are unsupported. Applications define payload encodings and nanosecond clock semantics. Cancellable asynchronous record reading and time sorting are available; payload decoding remains application-defined. See the <a href="coverage.html">official API coverage map</a>.</p>
+<h2 id="readwrite-capabilities">Read/write capabilities</h2>
+<p>Find the capability first, then choose input/output, delivery ownership and access pattern. These are library capabilities; their relationship to official Rust APIs is documented in the <a href="coverage.html">coverage map</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Writing paths</th>
+<th>Reading paths</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Messages</td>
+<td>Header + span, complete message, prepared channel, batch and lease forwarding</td>
+<td>Owned enumeration, caller buffer, borrowed callback, batch lease</td>
+</tr>
+<tr>
+<td>Schemas and channels</td>
+<td>Explicit registration or automatic declarations with complete messages</td>
+<td>Encountered declaration lookup, immutable descriptions, owned enumeration</td>
+</tr>
+<tr>
+<td>Metadata</td>
+<td><code>WriteMetadata</code>, prepared operation</td>
+<td>Enumeration or indexed <code>ReadMetadata</code></td>
+</tr>
+<tr>
+<td>Attachments</td>
+<td>Whole payload, prepared operation, segmented attachment</td>
+<td>Enumeration or indexed <code>ReadAttachment</code></td>
+</tr>
+<tr>
+<td>Raw records</td>
+<td><code>WritePrivateRecord</code> for private opcodes</td>
+<td>Top-level/expanded records, caller buffer, owned records and record views</td>
+</tr>
+<tr>
+<td>Summary and indexes</td>
+<td>Writer options control generation; <code>Complete</code> then summary access</td>
+<td>Summary snapshot/cursor, indexed queries, chunk cursors and random seek</td>
+</tr>
+</tbody>
+</table>
+<p>Reading arbitrary records does not imply a generic arbitrary-record writer. Writing uses a file or Stream; reading also offers copied/mapped buffers and direct Sans-I/O. See <a href="#write-a-recording">writing details</a>, <a href="#owned-records-summaries-and-raw-records">owned/raw reading</a> and <a href="#direct-reader-adapters">reader adapters</a>.</p>
+<h2 id="choose-a-writing-path">Choose a writing path</h2>
+<p>All payload inputs are consumed synchronously. Choose based on how declarations and payload storage are already represented; batching reduces call overhead but is not atomic.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Declarations and preparation</th>
+<th>Suitable use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WriteMessage(in header, span)</code></td>
+<td>Register the channel first; warmed path allocates 0 B managed</td>
+<td>Repeated messages on known channels, reusable payload buffers</td>
+</tr>
+<tr>
+<td><code>WriteMessage(McapMessage)</code></td>
+<td>Observes current descriptions and invokes automatic declarations; convenience work may allocate</td>
+<td>Writing existing owned message objects</td>
+</tr>
+<tr>
+<td>Prepared-channel <code>WriteMessage</code></td>
+<td>Prepare an immutable description once; automatic declarations at writing; warmed writes allocate 0 B managed</td>
+<td>Repeated full-message writes without repeated description serialization</td>
+</tr>
+<tr>
+<td><code>WriteBatch(headers, storage, ranges)</code></td>
+<td>Register channels first; caller supplies contiguous payload storage and ranges</td>
+<td>Payloads already share one storage region; avoid repacking solely to batch</td>
+</tr>
+<tr>
+<td><code>WriteBatch(lease[, headers])</code></td>
+<td>Register destination channels; optionally replace headers; shares retained payloads across owners</td>
+<td>Forwarding a read batch without concatenating payloads</td>
+</tr>
+</tbody>
+</table>
+<p>Preparation may allocate. <code>McapPreparedOperation</code> similarly reuses schema/channel/metadata/attachment control descriptions. Native writer, codec and Stream costs still apply. Detailed contracts: <a href="#complete-messages-and-prepared-writes">prepared writes</a>, <a href="#borrowing-batches-and-leases">batch forwarding</a>.</p>
+<h2 id="choose-message-ownership">Choose message ownership</h2>
+<p>Choose delivery ownership before tuning allocations. A message session applies its query and ordering independently of the delivery method; the methods below expose the selected messages with different result forms and lifetimes. Availability depends on the reader type.</p>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>API</th>
+<th>Managed allocation and payload delivery</th>
+<th>Lifetime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Independent, mutable results</td>
+<td><code>ReadMessages()</code></td>
+<td>Allocates result objects and final payload arrays; copies mutable schema bytes and metadata for each result</td>
+<td>Independent of the reader</td>
+</tr>
+<tr>
+<td>Reuse caller storage</td>
+<td><code>ReadNext(buffer, ...)</code>, <code>ReadBatch(...)</code></td>
+<td>Warmed library path allocates 0 B managed; copies payload into caller buffers</td>
+<td>Caller owns buffers and decides when to overwrite them</td>
+</tr>
+<tr>
+<td>Process synchronously</td>
+<td><code>ReadNext(visitor)</code>, <code>VisitMessages(...)</code></td>
+<td>Warmed library path allocates 0 B managed; no final payload delivery copy</td>
+<td>Span expires when the callback returns; no reader reentry</td>
+</tr>
+<tr>
+<td>Retain across operations or forward</td>
+<td><code>ReadBatchLease(...)</code></td>
+<td>Allocates lease control objects; shares payload backing without batch repacking</td>
+<td>Keep the lease alive throughout access; never dispose concurrently</td>
+</tr>
+</tbody>
+</table>
+<p><code>ReadMessages()</code> copies to provide independent mutable results, not because message reading requires owned arrays. Buffer and borrowed paths return headers; retrieve declarations separately when needed. Shared immutable declarations are available through <code>GetChannelDescription</code>. Choosing a delivery method does not remove parser input, decompression, query sorting or index costs. See <a href="#validation-recovery-and-allocation-guarantees">allocation guarantees</a>.</p>
+<p>Long-lived leases and individual random seeks are valid uses. The <a href="#choosing-storage-for-retained-results">retention guidance</a> and <a href="#complete-chunk-random-access">access patterns</a> describe performance choices; the lifetime and concurrency rules are correctness requirements.</p>
+<h2 id="choose-an-access-pattern">Choose an access pattern</h2>
+<p>Access selects where and in what order to read; delivery ownership selects how results are handed to the caller. They are separate choices, not competing API families. Available combinations depend on the reader.</p>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Path</th>
+<th>Main tradeoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Process a recording in file order</td>
+<td>Sequential message/record session</td>
+<td>Incremental input; no global result collection for sorting</td>
+</tr>
+<tr>
+<td>Filter by topic/time in time order</td>
+<td>Query with usable indexes</td>
+<td>May buffer overlapping chunks; fallback can collect all matches when indexes are insufficient</td>
+</tr>
+<tr>
+<td>Require indexes, reject scan-and-sort</td>
+<td><code>OpenIndexedMessages</code> or disable buffered fallback</td>
+<td>Fails when required query support is unavailable</td>
+</tr>
+<tr>
+<td>Read many messages in one chunk</td>
+<td>One <code>OpenChunkReader</code> cursor</td>
+<td>Reuses traversal within that cursor</td>
+</tr>
+<tr>
+<td>Fetch a known set of discrete messages</td>
+<td><code>SeekMessages</code></td>
+<td>Groups chunk loads within one call; returns a shared batch</td>
+</tr>
+<tr>
+<td>Revisit chunks across calls</td>
+<td>Reuse a snapshot with a cache allowance</td>
+<td>Trades retained storage for fewer repeated loads/decompressions</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="#choosing-a-query-path">query selection</a>, <a href="#complete-chunk-random-access">random access</a> and <a href="#binding-performance-and-local-limits">local allowances</a>. The following sections define the operations and their lifetime, failure and validation contracts.</p>
+<h2 id="write-a-recording">Write a recording</h2>
+<p>File creation semantics: <code>McapWriter(path, options)</code> atomically creates a new file and fails if the path already exists, leaving the existing file unchanged. This is the path overload's default protection against accidental overwrites, not a requirement of the MCAP format.</p>
+<p><code>McapWriter(stream, options, leaveOpen: false)</code> accepts writable seekable or non-seekable streams. The caller chooses creation or truncation when opening the stream. To explicitly overwrite a file, open a <code>FileStream</code> with <code>FileMode.Create</code> and <code>FileAccess.Write</code>, then pass it to the writer; opening that stream immediately truncates any existing file. A seekable output must be positioned at its end; its current position becomes MCAP offset zero. Non-seekable output uses native chunk buffering.</p>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+
+using var writer = new McapWriter(path, new() { Compression = McapCompression.Zstd });
+var schema = writer.RegisterSchema(&quot;sample&quot;, &quot;jsonschema&quot;, &quot;{}&quot;u8);
+var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;json&quot;, schema);
+var header = new McapMessageHeader(channel, Sequence: 0, LogTime: 1000, PublishTime: 900);
+writer.WriteMessage(in header, &quot;{\&quot;value\&quot;:42}&quot;u8);
+writer.Complete();
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RegisterSchema(name, encoding, data)</code></td>
+<td>Returns a native-allocated <code>ushort</code> ID; overload with leading <code>id</code> requests an explicit nonzero ID. Equivalent content can deduplicate.</td>
+</tr>
+<tr>
+<td><code>RegisterChannel(topic, messageEncoding, schemaId, metadata)</code></td>
+<td>Returns a channel ID; overload with leading <code>id</code> supports explicit IDs, including zero. Schema ID zero means no schema. Conflicting content for an existing ID fails.</td>
+</tr>
+<tr>
+<td><code>WriteMessage(in header, data)</code></td>
+<td>Writes to a registered channel using a message header and payload span. Consumes the input synchronously without a managed payload copy.</td>
+</tr>
+<tr>
+<td><code>WriteMetadata(name, metadata)</code></td>
+<td>Writes string key/value metadata.</td>
+</tr>
+<tr>
+<td><code>WriteAttachment(name, mediaType, logTime, createTime, data)</code></td>
+<td>Writes one attachment.</td>
+</tr>
+<tr>
+<td><code>StartAttachment(..., length)</code>, <code>WriteAttachmentBytes(data)</code>, <code>FinishAttachment()</code></td>
+<td>Writes an attachment in parts with an exact declared length. Other writer operations are rejected until completion. Length mismatch is terminal.</td>
+</tr>
+<tr>
+<td><code>WritePrivateRecord(opcode, data, includeInChunks)</code></td>
+<td>Accepts opcodes 0x80–0xFF; optionally writes inside chunks.</td>
+</tr>
+<tr>
+<td><code>Flush()</code></td>
+<td>Flushes the upstream writer, without completing the MCAP footer or guaranteeing durable storage.</td>
+</tr>
+<tr>
+<td><code>Complete()</code></td>
+<td>Finishes MCAP and flushes output buffers without requesting file persistence. Repeated successful calls are no-ops; the output remains owned until disposal or Stream transfer.</td>
+</tr>
+<tr>
+<td><code>FlushToDisk()</code></td>
+<td>After successful Complete, requests file persistence for path outputs or directly supplied FileStream; other Streams throw NotSupportedException.</td>
+</tr>
+<tr>
+<td><code>GetSummary()</code></td>
+<td>Copies the upstream finish result after successful Complete; may allocate.</td>
+</tr>
+<tr>
+<td><code>Dispose()</code></td>
+<td>Releases resources without implicit Complete.</td>
+</tr>
+</tbody>
+</table>
+<p>Writer calls are serialized. Applications determine cross-thread business ordering. Native failures outside the configured safe-rejection whitelist and all Stream callback failures make the writer terminal: dispose it and begin a new recording. Argument/state checks before native operations do not by themselves fail a writer. Required strings, dictionaries and owned payload arrays are checked before native writing; null metadata on channel registration means an empty map. Metadata keys and values must be non-null. Input buffers can be reused immediately after return.</p>
+<h3 id="completion-and-file-persistence">Completion and file persistence</h3>
+<p>Complete the format, then optionally request operating-system file synchronization:</p>
+<pre><code class="lang-csharp">using var writer = new McapWriter(path);
+// Register channels and write messages.
+writer.Complete();
+writer.FlushToDisk(); // Optional; omit when only format completion is required.
+</code></pre>
+<p>A caller-owned file uses the same two actions:</p>
+<pre><code class="lang-csharp">using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+using var writer = new McapWriter(stream, leaveOpen: true);
+// Register channels and write messages.
+writer.Complete();
+writer.FlushToDisk();
+</code></pre>
+<p><code>Complete()</code> finishes Chunk, Summary, Footer and end magic, then performs ordinary output flushing. <code>Flush()</code> during writing does not complete the format. Neither requests file persistence. <code>FlushToDisk()</code> calls Rust <code>File::sync_all()</code> for path outputs or <code>FileStream.Flush(true)</code> for a directly supplied FileStream. Wrapped FileStreams and other Streams are not unwrapped.</p>
+<p>Call <code>FlushToDisk()</code> only after successful completion and before disposal. Every valid invocation performs synchronization again. Calling before completion throws InvalidOperationException; after disposal it throws ObjectDisposedException. Unsupported Streams throw NotSupportedException without failing the writer. Actual synchronization failures terminate the writer: completion, synchronization and summary access then fail; disposal and Stream ownership transfer remain available. Stream exceptions retain their original type and instance. Previously opened independent summary cursors remain usable.</p>
+<p>The path file handle stays open after completion until disposal. <code>leaveOpen</code> and <code>IntoInner()</code> control Stream ownership as usual. Neither disposal nor ownership transfer implicitly completes or synchronizes the recording. Successful synchronization means the operating-system request succeeded; it is not an unconditional guarantee about hardware, filesystem or directory-entry persistence.</p>
+<h3 id="writer-options">Writer options</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default / meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Compression</code>, <code>ChunkSize</code>, <code>UseChunks</code></td>
+<td>Zstd, 1 MiB, true. ChunkSize follows upstream semantics, including zero; null disables the target-size cutoff.</td>
+</tr>
+<tr>
+<td><code>Profile</code>, <code>Library</code></td>
+<td>Empty profile; null Library selects the official Rust library identifier.</td>
+</tr>
+<tr>
+<td><code>EmitSummaryOffsets</code>, <code>EmitStatistics</code></td>
+<td>true; independently control summary offsets and statistics.</td>
+</tr>
+<tr>
+<td><code>EmitMessageIndexes</code>, <code>EmitChunkIndexes</code>, <code>EmitAttachmentIndexes</code>, <code>EmitMetadataIndexes</code></td>
+<td>true; independently control each index type.</td>
+</tr>
+<tr>
+<td><code>RepeatChannels</code>, <code>RepeatSchemas</code></td>
+<td>null; upstream defaults (true). Control declarations repeated in the summary.</td>
+</tr>
+<tr>
+<td><code>CalculateChunkCrcs</code>, <code>CalculateDataSectionCrc</code>, <code>CalculateSummarySectionCrc</code>, <code>CalculateAttachmentCrcs</code></td>
+<td>true; independently control CRC computation.</td>
+</tr>
+<tr>
+<td><code>CompressionLevel</code>, <code>CompressionThreads</code></td>
+<td>null; upstream defaults and algorithm support.</td>
+</tr>
+</tbody>
+</table>
+<p>Nullable flags use upstream behavior when null. <code>EmitSummaryRecords</code> applies first; explicitly supplied individual switches override it. <code>DisableSeeking</code> defaults to false for seekable output and true for non-seekable output; explicit false on non-seekable output fails. To omit summary records, disable statistics, chunk/attachment/metadata indexes and repeated declarations. Disable summary offsets separately. No chunks means no chunk compression or chunk message indexes, regardless of their requested settings.</p>
+<h3 id="long-recordings-in-one-file">Long recordings in one file</h3>
+<p>A single file can retain compression and complete indexes without retaining all message payloads. Writer memory includes active chunk/codec storage, declarations and file-level indexes. The upstream writer accumulates a ChunkIndex for every finished chunk even when <code>EmitChunkIndexes=false</code>; that option controls emission, not accumulation. <code>EmitMessageIndexes=false</code> omits per-chunk message indexes, while <code>EmitAttachmentIndexes=false</code> and <code>EmitMetadataIndexes=false</code> stop retaining their respective indexes. Disabling indexes reduces indexed-query capabilities. Reuse declarations instead of continually adding distinct schemas/channels.</p>
+<p>Choose <code>ChunkSize</code> using recording duration, throughput and random-read latency. Larger chunks reduce chunk-index counts but can increase active storage and the cost of reading/decompressing a chunk. The size is a target, not a memory ceiling. Avoid unnecessary <code>Flush()</code> calls: they finish the active chunk and can increase index counts. Use file or draining Stream output and bound the caller's pending-write queue; a growing MemoryStream retains the recording itself. No automatic segmentation or index spill is performed.</p>
+<p><code>Complete()</code> releases the upstream writer after finishing and retains one shared native summary plus the output. It does not build a persistent JSON summary. <code>GetSummary()</code> encodes the response on demand and returns an independent managed result; requesting the whole summary still requires response and result memory proportional to its contents. <code>OpenSummaryRecords()</code> shares the native summary without whole-summary JSON encoding. Independent cursors can retain it after writer disposal. Upstream finish-time summary cloning remains a transient cost. Dispose the writer when summary/persistence/Stream-transfer operations are finished; single-file recording still has file-level index growth, not constant memory.</p>
+<h3 id="complete-messages-and-prepared-writes">Complete messages and prepared writes</h3>
+<p><code>WriteMessage(McapMessage)</code> invokes upstream <code>Writer::write</code>, including automatic declarations using supplied IDs. The prepared overload takes <code>McapPreparedChannel</code>, a matching header and payload span, avoiding repeated managed serialization. Preparation snapshots schema bytes and metadata without registering declarations. Prepared descriptors are immutable; convenience calls observe current inputs.</p>
+<p><code>McapPreparedOperation</code> provides reusable schema, channel, metadata and attachment descriptors. <code>WritePrepared</code> executes without managed allocation and returns a nullable <code>ushort</code>: schema/channel registration returns its ID (including channel zero), while metadata and attachment operations return null; payloads remain separate spans. Only prepared Attachment accepts a payload. Other prepared operations reject nonempty payload before writing without terminating the writer; prepared Schema uses its captured bytes. Attachment continuation, private records and Flush also provide allocation-free paths. <code>Complete()</code> explicitly finishes the format; <code>GetSummary()</code> returns an owned summary and <code>OpenSummaryRecords()</code> a buffer cursor. <code>IntoInner()</code> releases native state and transfers Stream ownership without implicit completion.</p>
+<h3 id="safe-writer-rejections">Safe writer rejections</h3>
+<p><code>McapWriterOptions.SafeRejections</code> is a fixed flags policy captured at construction. By default it enables all five audited pre-mutation rejections: explicit schema registration with ID zero (<code>InvalidSchemaIdOnRegistration</code>), explicit schema conflicts (<code>ConflictingSchemaOnRegistration</code>), either channel registration referencing an unknown schema (<code>UnknownSchemaOnChannelRegistration</code>), explicit channel conflicts (<code>ConflictingChannelOnRegistration</code>), and header/payload writes referencing an unknown channel (<code>UnknownChannelOnMessageWrite</code>). Prepared schema/channel registration follows the same policy. Choose any subset; unknown bits are rejected before file creation or Stream ownership acquisition.</p>
+<p>A rejected call still throws <code>McapException</code>. <code>CanContinueWriting</code> is true only when this writer was usable after that rejection; correct the input before retrying. It is not a guarantee about subsequent operations or concurrent callers. Full-message writes with automatic declarations, attachment length errors, ID exhaustion, I/O, callbacks, compression failures and panics remain terminal. The library does not retry automatically. Managed argument/state checks retain their existing behavior.</p>
+<p>To make every native writer failure terminal, configure:</p>
+<pre><code class="lang-csharp">var options = new McapWriterOptions { SafeRejections = McapWriterSafeRejections.None };
+</code></pre>
+<p>Successful message writes retain the zero-managed-allocation contract; error handling is outside that contract.</p>
+<h2 id="read-messages-into-reusable-buffers">Read messages into reusable buffers</h2>
+<p>A file <code>McapReaderFactory</code> is a factory; constructing it does not open the file. Every <code>OpenMessages</code> or <code>OpenRecords</code> call owns a separate disposable <code>McapReadSession</code> and native handle. Dispose sessions or use <code>using</code>.</p>
+<pre><code class="lang-csharp">using var session = new McapReaderFactory(path).OpenMessages(new() { Topic = &quot;/sample&quot; });
+byte[] buffer = new byte[64 * 1024];
+while (true)
+{
+    var status = session.ReadNext(buffer, out var header, out var length);
+    if (status == McapReadStatus.EndOfStream) break;
+    if (status == McapReadStatus.BufferTooSmall)
+    {
+        buffer = new byte[checked((int)length)]; // caller-chosen growth, outside zero-allocation contract
+        continue;
+    }
+    // Process buffer.AsSpan(0, checked((int)length)) before reusing it.
+}
+</code></pre>
+<p><code>BufferTooSmall</code> returns the required payload length and message header, leaves the destination untouched and keeps the same record pending. Successful empty messages return <code>Success</code> with length zero. <code>McapReadStatus.Success</code> means an operation produced a result or event; inspect the opcode or event kind to determine its content. EOF is repeatable. Errors terminate message/record advancement. Caller-buffer methods expose no native addresses; separate borrowed methods follow the lifecycle contract below.</p>
+<p>Queries accept either one exact <code>Topic</code> or a <code>Topics</code> collection and apply <code>[StartTime, EndTime)</code> to LogTime. Null boundaries are unbounded; reversed boundaries throw, equal boundaries select nothing. Queries default to <code>LogTime</code> order, with <code>ReverseLogTime</code> and <code>File</code> available. Time ordering guarantees monotonic LogTime and delivery of every selected message; the order among messages with equal LogTime is unspecified, including across chunks. Use File order when physical recording order is required. Opening messages without a query uses sequential file order, matching the official message stream.</p>
+<p>Seekable time-ordered queries use the official <code>IndexedReader</code> when summary declarations and chunk coverage suffice and there are no top-level messages. Non-default linear parser flags force high-level queries to scan; explicit indexed reading rejects these unsupported flags. Direct Sans-I/O indexed readers never use scan-and-sort fallback.</p>
+<h3 id="choosing-a-query-path">Choosing a query path</h3>
+<table>
+<thead>
+<tr>
+<th>Requested behavior</th>
+<th>Execution</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No query, or File order</td>
+<td>Incremental sequential scan</td>
+<td>No collection of all matching messages for sorting</td>
+</tr>
+<tr>
+<td>Time order with sufficient indexes and supported options</td>
+<td>Official IndexedReader</td>
+<td>May buffer overlapping Chunks</td>
+</tr>
+<tr>
+<td>Time order without sufficient indexes</td>
+<td>Wrapper scan-and-sort fallback</td>
+<td>Collects matching messages in native memory before returning the session</td>
+</tr>
+</tbody>
+</table>
+<p>The fallback is a high-level binding capability, not sorting provided by official MessageStream. File order need not follow LogTime: after reading time 30, a later record can still have time 10. Without sufficient indexes or an ordering guarantee, the scan must finish before it can establish global time order. This increases time to the first result and memory use in proportion to selected payloads and sorting data; there is no automatic disk spill.</p>
+<p><code>AllowBufferedSort</code> defaults to true, including for non-seekable sources. Set it to false to reject fallback with NotSupportedException before collection while retaining index probing, supported indexed queries and file-order scans. Use <code>OpenIndexedMessages()</code> to require usable indexes. The fallback collection allowance is defined under <a href="#binding-performance-and-local-limits">local limits</a>. A successful indexed query is not full-file validation.</p>
+<p><code>GetChannel(id)</code> and <code>GetSchema(id)</code> copy descriptions already encountered or loaded from a summary. New declarations can appear during reading without creating managed objects in the message loop. IDs alone are returned on the hot path. Description lookup and summary operations allocate.</p>
+<h2 id="owned-records-summaries-and-raw-records">Owned records, summaries and raw records</h2>
+<p><code>ReadMessages</code>, <code>ReadSchemas</code>, <code>ReadChannels</code>, <code>ReadMetadata</code> and <code>ReadAttachments</code> provide convenient owned records. File-factory methods open independent sessions. Each file-level classification call scans independently. Classification scans validate and observe every record, but deliver only matching records. Owned message/record enumeration copies directly into its final managed array; schema/attachment classification copies only final binary fields. These paths do not use a managed payload scratch buffer. Indexed <code>ReadAttachment</code> similarly copies the payload directly into one final owned array, without a managed copy of the whole attachment record body. Parser feeding and decompression still occur. Session convenience methods consume the current cursor; schema/channel/metadata/attachment methods require a record session. Message data and schema/attachment data are managed arrays and remain valid after disposal. Arrays are mutable. Message enumeration caches descriptions privately and copies mutable schema bytes and metadata for each result; modifying one result does not affect subsequent messages.</p>
+<p><code>GetSummary()</code> returns a managed snapshot of statistics, chunk/attachment/metadata indexes and schema/channel IDs, or null if the file has no summary. Retrieve full declarations with session lookup methods. A writer's finish summary describes its in-memory recording result, even when summary records were disabled in the output.</p>
+<p><code>OpenRecords(McapRecordMode.TopLevel)</code> yields top-level records including encoded Chunk bodies. <code>ExpandChunks</code> replaces chunks with their decompressed records. <code>ReadNextRecord(destination, out opcode, out length)</code> follows the same retry contract as messages; <code>ReadRecords()</code> returns allocated <code>McapRawRecord</code> objects. The body excludes the opcode and eight-byte length prefix. Unknown/private record bodies are preserved.</p>
+<p>On seekable sources, <code>ReadRecordAt(offset)</code>, <code>ReadChunk(index)</code> and <code>ReadMessageIndexes(index)</code> perform random reads without consuming the sequential cursor or pending record. Offsets are relative to the MCAP start. <code>ReadChunk</code> returns the raw Chunk record; <code>OpenRecords(ExpandChunks)</code> provides sequential decompression. Index entries contain chunk-relative message offsets. Raw random reads do not validate the whole file.</p>
+<h2 id="stream-sessions-and-ownership">Stream sessions and ownership</h2>
+<p>Use <code>McapReaderFactory.OpenMessages(stream, query, leaveOpen)</code> or <code>OpenRecords(stream, mode, leaveOpen)</code> for Stream input. The current stream position is MCAP offset zero. Sessions consume streams incrementally without a whole-stream copy or temporary file. A stream must contain exactly one MCAP from that position to its end.</p>
+<p>Only one MCAP session can own a Stream at a time. Do not reposition, truncate, read, write or dispose it externally while the session is active. Stream callbacks run synchronously on the initiating thread; reentry into the same writer/session is rejected. Callback exceptions propagate after leaving native code. <code>leaveOpen</code> defaults to false; disposing a session closes its stream unless true.</p>
+<p>Explicit disposal reports owned Stream and native release failures. Cleanup is attempted once; later Dispose calls do not retry it. Stream exclusion ends only after successful release or ownership transfer. A failed owned Stream release keeps that Stream unavailable for another MCAP session. IntoInner returns the Stream only after native state has been released successfully; it neither completes the format nor disposes the transferred Stream. Finalization is a nonthrowing fallback, not the explicit-disposal error policy.</p>
+<p>Summary, random-record and snapshot operations share the session failure boundary with sequential reading. I/O, parsing and in-reader callback failures (including Stream callbacks and borrowed delivery sinks) terminate the session; argument/state checks before an operation and pending-record buffer negotiation do not. If an operation and restoration of the source position both fail, both errors are reported. Repeat work through a new session after safe release rather than retrying the failed session.</p>
+<p>Non-seekable streams do not support random reads or an early summary: those calls throw <code>NotSupportedException</code>. After a complete sequential scan, <code>GetSummary</code> returns the actual summary encountered, including null when absent. To restart or change reading modes, dispose the session and reopen/reposition the source yourself.</p>
+<p>Mapped files must remain unchanged across reads, validation and recovery. Windows denies ordinary concurrent write/delete opens while mapped; pre-existing writable mappings are not covered. Linux does not enforce this exclusion. Concurrent truncation of a mapped file can terminate the process.</p>
+<h2 id="validation-recovery-and-allocation-guarantees">Validation, recovery and allocation guarantees</h2>
+<p>File length is not used as a record or decompressed-chunk size limit. Highly compressed chunks can expand beyond the file size; native memory and upstream parser limits still apply.</p>
+<p><code>McapReaderFactory.Validate()</code> scans the whole file and checks record parsing, present Chunk/Attachment/Data/Summary CRCs, framing and final magic. Expanded validation rejects invalid/conflicting declaration IDs, channels referencing undeclared nonzero schemas, and messages referencing undeclared channels. It returns a scan record count, not a message count. CRC zero means no checksum was supplied; payload schema semantics are not checked.</p>
+<p><code>McapReaderOptions</code> mirrors official Sans-I/O options: magic handling, trailing-byte checks, chunk emission, CRC checks/prevalidation and record length limits. Optional CRC and trailing-byte checks default to false. <code>IsScanComplete</code> reports cursor EOF without an integrity claim. <code>IsFullyValidated</code> requires a successful full sequential scan with strict options. Open with <code>McapReaderOptions.Strict</code> and expanded records/messages to call <code>ValidateRemaining()</code>. Non-strict sessions reject this operation rather than claiming to validate previously consumed data. Indexed queries, sorted fallback and raw top-level scans do not claim full validation. <code>GetSchema</code>, <code>GetChannel</code> and <code>GetChannelDescription</code> can resolve declarations encountered by scanning or supplied by a summary. <code>GetSummary</code> can populate this lookup state, and indexed sessions preload summary declarations. Neither makes those declarations count as encountered during the sequential validation scan. Validation retains each distinct schema body and channel description plus scanned-ID sets to detect conflicts and declaration order. Session state is released on disposal; standalone <code>Validate</code> releases it when the call ends. ID counts are limited by their 16-bit domain, but schema bytes and metadata grow with declarations; this is not constant-memory validation.</p>
+<p><code>RecoverMessages(accept)</code> requires a strict message session; non-strict and record sessions throw <code>InvalidOperationException</code> before reading. For file-prefix salvage, use a null query or <code>new McapQuery { Order = McapReadOrder.File }</code>. <code>new McapQuery()</code> defaults to log-time order; strict time sorting may buffer a full scan and fail while opening the session, before recovery can begin. The factory convenience method opens a strict session automatically. Recovery delivers the valid prefix and stops at the first malformed record or chunk. Check its <code>IsFullyValidated</code> and <code>Error</code>; delivered messages alone do not establish integrity. <code>Error</code> retains the original <code>McapException</code>, including <code>Kind</code> and structured <code>Details</code>; use <code>Error.Message</code> for display. Stream, sink and visitor callback exceptions, native I/O failures and binding failures propagate directly and are not recovery results, even when the exception is an <code>McapException</code>. Recovery classifies errors by their operation origin rather than exception type; parsing, native I/O and in-reader callback failures leave the session terminal. The owned-result <code>accept</code> delegate is caller consumption outside the reader operation: its original exception (including <code>McapException</code>) propagates without terminating an otherwise usable session. Its current message has already been consumed; subsequent reads start with the next message. Buffers never written to the underlying stream cannot be recovered.</p>
+<p>After initialization, registration and warm-up, normal <code>WriteMessage</code> and buffered <code>ReadNext</code> calls are required to allocate exactly zero managed bytes. This hard hot-path contract includes chunk/compression boundaries, newly encountered declarations, insufficient-buffer retries and EOF. This is not zero-copy reading: native data is copied into caller memory. It is not a promise that the process never collects or that Rust never allocates. Buffer growth, owned-record enumeration, description access, startup and errors are outside the guarantee. Arbitrary user Stream implementations can allocate internally; the guarantee covers the library's bridge, not those implementations.</p>
+<p>Unsupported platforms throw <code>PlatformNotSupportedException</code>; native loading errors retain their .NET type. Native operation/ABI failures throw <code>McapException</code> (an <code>IOException</code>). Managed parameter/state checks use standard exceptions, and disposed objects throw <code>ObjectDisposedException</code>. See <a href="native.html">ABI details</a> and <a href="development.html">allocation acceptance and builds</a>.</p>
+<h2 id="direct-reader-adapters">Direct reader adapters</h2>
+<p><code>McapReaderFactory</code> owns no resources: its instance methods create independent file sessions and its static methods create Stream sessions. <code>McapReadSession</code> and <code>McapAsyncReader</code> each own one advancing session. <code>McapReadCursor</code> owns one disposable cursor over copied or mapped input, an independent summary, or a retained chunk; its name does not imply caller-buffer-only delivery.</p>
+<p><code>McapReadCursor</code> directly adapts official <code>LinearReader</code>, <code>sans_magic</code>, <code>ChunkReader</code>, <code>ChunkFlattener</code>, <code>RawMessageStream</code> and <code>MessageStream</code>. Select <code>McapCursorMode</code>; <code>ChunkRecords</code> accepts a Chunk record body. <code>ignoreEndMagic</code> maps to the slice-reader option. Construction copies input once; advancement drives the official Sans-I/O parser and retains one pending result. GetChannel exposes only encountered declarations, including those without messages. Errors are reported when reached; failed advancement leaves previously encountered descriptions available. Use Stream or Sans-I/O sessions for incremental ingestion. <code>ReadNextRecord</code> copies record bodies. RawMessages and Messages modes also support message delivery (buffer, visitor, batch, lease and owned enumeration). <code>TopLevelRecords</code>, <code>ExpandedRecordsWithoutMagic</code>, <code>ExpandedRecords</code>, <code>ChunkRecords</code> and summary cursors are record-only: message methods reject before advancement, preserving pending records and cursor usability. A snapshot's <code>OpenChunkReader</code> cursor additionally has summary declarations and supports message delivery. In RawMessages mode, header/payload and raw-record delivery allow undeclared channels, but owned <code>ReadMessages()</code> results require a resolvable channel. A missing channel throws after that message has been consumed; the cursor remains usable for subsequent reads. <code>GetChannel</code> retains every declaration successfully encountered by the upstream iterator, including channels without messages and declarations before a deferred error. Descriptions and owned enumeration allocate.</p>
+<p><code>McapRecords.Parse</code> returns <code>IMcapRecord</code>: a typed owned model for each standard record or <code>McapRawRecord</code> for unknown records. Match the concrete result type to access its fields; the interface alone does not imply a known or interpreted record. <code>McapRawRecord</code> explicitly represents an opcode and uninterpreted owned body. <code>McapRecordView.Parse</code> validates through official <code>parse_record</code> and views caller-owned managed memory. Validation applies to the bytes at the time of Parse: keep the backing contents unchanged throughout view and field-cursor use, including through other mutable aliases. Scalar properties and the <code>Fields</code> cursor read UTF-8, maps, arrays and binary fields without creating strings/arrays. <code>ToOwned</code> copies explicitly. <code>ReadFooter</code> and <code>GetCompressedDataOffset</code> directly call the upstream helpers.</p>
+<p><code>OpenIndexSnapshot()</code> copies a seekable source and reads its official summary without moving the sequential cursor. <code>new McapIndexSnapshot(bytes)</code> also accepts caller bytes. The snapshot owns memory proportional to the file, independently of its original session. It exposes <code>SeekMessage</code>, <code>OpenChunkReader</code>/<code>ReadChunkMessages</code>, message indexes, indexed metadata/attachments, footer, descriptions and summary. Random operations use the supplied index fields, including lengths and channel-offset maps; they do not replace the index with a summary entry having the same offset. Metadata and attachment reads accept caller-provided indexes even without a summary. Chunk message and message-index reads still require summary declarations. Index fields not used by the corresponding upstream helper do not add validation. Do not mutate an index's map while a call is in progress. <code>OpenChunkReader(index)</code> returns an independent disposable McapReadCursor that parses lazily and remains valid after snapshot disposal, sharing immutable native input and summary without another file copy. Each <code>ReadChunkMessages</code> enumeration owns an independent cursor. Random operations do not move these cursors. Buffer overloads allocate no managed memory; metadata/attachment buffers contain record bodies, while message indexes use 18-byte little-endian rows (u16 channel ID, u64 log time, u64 offset). Owned message-index results retain a group for each validated channel index, including empty groups. The row buffer represents entries only; use the owned result when empty group identity matters. Insufficient buffers remain untouched. <code>OpenSummaryRecords()</code> provides a buffer cursor for all summary fields and declarations.</p>
+<h3 id="prepared-chunk-indexes">Prepared Chunk indexes</h3>
+<p>For repeated random access, construct <code>McapPreparedChunkIndex(index)</code> once and dispose it when finished. Construction snapshots the index fields and channel-offset map, encodes once and parses once with the official Rust implementation. Do not mutate the map during construction; later mutations do not affect the prepared index. Prepared overloads of <code>SeekMessage</code>, <code>OpenChunkReader</code>, <code>ReadChunkMessages</code>, <code>ReadMessageIndexes</code> and <code>GetCompressedDataOffset</code> avoid repeated index encoding, temporary native scratch and index parsing. Existing index overloads continue to observe current caller fields. The encoder enumerates concrete <code>Dictionary</code> maps without boxing and reads concrete <code>SortedList</code> maps by key/value index; both paths visit only existing entries. Other implementations, including <code>ReadOnlyDictionary</code> and <code>SortedDictionary</code>, use the generic lookup fallback. For repeated calls using sparse high-ID maps behind general <code>IReadOnlyDictionary</code> implementations, prefer a prepared index: the nonprepared encoder may probe the ushort key domain (up to 65,536 lookups per call) to avoid enumerator allocations. Preparation snapshots the map once and avoids that repeated work. The fallback avoids allocating an enumerator, but a supplied map or comparer may allocate during lookup; the library does not control those allocations.</p>
+<p>Each prepared descriptor retains a managed channel-ID array (2 bytes per channel, excluding the array header) to reconstruct empty owned index groups; native storage retains the full parsed index and encoded cache key. Disposal releases native ownership. The managed ID array remains attached to the descriptor until garbage collection.</p>
+<p>A prepared index can be shared across snapshots. Every operation still applies the original file-range and summary requirements; preparation does not validate a particular file. Calls, including <code>SeekMessages</code> batches, and disposal are serialized for each involved descriptor. A borrowed snapshot message callback must not invoke operations on any snapshot instance (including <code>Dispose</code>) or use/dispose any prepared index; this prevents reversing the descriptor-before-snapshot lock order. Child cursors remain usable after the prepared index and snapshot are disposed. Message-index helper allocations, cache misses and decompression remain possible; preparation does not guarantee zero total native allocation.</p>
+<p><code>McapSansIoReader.CreateLinear/CreateSummary</code> and a completed summary reader's <code>CreateIndexed</code> expose value-type events. <code>SupplyInput</code> supplies bytes, <code>NotifySeeked</code> confirms seeks, and <code>InsertChunkData</code> inserts indexed compressed data. Indexed readers also expose <code>SetRecordLengthLimit</code>. Payloads copy into caller spans; no native pointer escapes. <code>GetSummary</code> returns an owned snapshot; <code>OpenSummaryRecords</code> returns a reusable-buffer cursor. Custom decompressor interfaces are not exposed because upstream provides no registration hook. Built-in Lz4/Zstd decompression is handled by the official Rust library.</p>
+<h2 id="asynchronous-records-and-errors">Asynchronous records and errors</h2>
+<p><code>McapAsyncReader.ReadNextRecordAsync(Memory&lt;byte&gt;, CancellationToken)</code> returns <code>ValueTask&lt;McapRecordReadResult&gt;</code>. .NET asynchronous Stream I/O drives the official linear parser, matching the optional Tokio capability without hosting Tokio. It retains pending-record retries. With <code>Strict</code>, complete record bodies are validated through upstream <code>parse_record</code>, including attachment CRCs, before reporting success; an insufficient buffer only requests a retry. This record adapter does not check cross-record declaration references and does not report full-file validation. Direct Sans-I/O events remain raw and require explicit body parsing when needed. Each session permits one operation at a time; consume each ValueTask exactly once before another operation, ownership transfer or disposal. Cancellation and I/O/parser errors terminate the session. Stream exclusion, <code>leaveOpen</code> and <code>IntoInner</code> follow the synchronous ownership rules. <code>DisposeAsync</code> is a synchronous release adapter: it performs the same one-shot cleanup as <code>Dispose</code>, calls an owned Stream's synchronous <code>Dispose</code>, and returns a completed ValueTask. It does not wait for an outstanding operation or invoke Stream.DisposeAsync; complete and consume the operation first.</p>
+<p>The reusable completion source and cached continuation provide a warmed 0 B managed-allocation path even when I/O suspends. The gate measures both calling and dedicated I/O threads, including a direct-await loop. Completion may resume the consumer inline on the I/O thread; the library does not force a ThreadPool dispatch. Arbitrary Streams, consumer await machinery, initialization, errors, buffer growth and owned results are excluded. Native allocations are not constrained by this guarantee.</p>
+<p><code>McapException.Kind</code> identifies every upstream <code>McapError</code> variant; <code>Details</code> retains its structured fields. Wrapper-only failures use <code>Binding</code>. Original Stream exceptions remain preserved. Native error text is bounded: messages retain up to 256 UTF-8 bytes and textual detail values up to 128, ending at character boundaries. Shortened values carry <code>[truncated]</code>; object details also set <code>truncated: true</code>. Numeric fields remain exact. Native OS errors report <code>osCode</code> and a fixed message instead of allocating localized OS text. Parse errors retain the root cause text rather than the parser’s decorated backtrace.</p>
+<h2 id="borrowing-batches-and-leases">Borrowing, batches and leases</h2>
+<p>Owned results remain independent: <code>McapMessage.Data</code> is a <code>byte[]</code> copy and mutable declarations are defensively copied. <code>ReadNext(McapMessageVisitor)</code> and <code>VisitMessages(visitor, maxMessages)</code> receive an <code>in McapMessageHeader</code> and <code>ReadOnlySpan&lt;byte&gt;</code> without final delivery copying. Return false to stop normally after the current message. Spans expire on callback return. Reading, seeking, inspecting state or disposing the originating reader inside its callback is prohibited; writing to another writer is supported. Callback exceptions are rethrown after normal ABI return. Snapshot callbacks additionally prohibit operations on any snapshot instance or prepared chunk index, as described under <a href="#prepared-chunk-indexes">prepared Chunk indexes</a>. <code>GetChannelDescription</code> returns an immutable declaration snapshot shared by subsequent lookups.</p>
+<p><code>WriteBatch(headers, payloadStorage, ranges)</code> synchronously consumes contiguous shared storage with one lock and one ABI call. Counts, ranges and all Channels are checked before writing. Return value is the completed count; <code>McapBatchWriteException.CompletedCount</code> excludes the failing record, which may already be partly written. Batches are not atomic. Existing audited safe-rejection settings apply; I/O, compression and post-advancement failures terminate the writer. Input buffers may be reused after return.</p>
+<p><code>WriteBatch(batchLease)</code> writes the lease's original headers and payloads. <code>WriteBatch(batchLease, headers)</code> replaces the complete header of each message; the header count must equal <code>batchLease.Count</code>. Register destination schemas/channels first and supply replacement ChannelIds when remapping; no declarations or mappings are inferred. Both overloads use one writer lock and one ABI call, reference payloads across multiple storage owners without concatenating them, and retain the lease handle for the synchronous call. They do not transfer ownership or alter the lease. Do not dispose the lease concurrently with writing. Null/disposed leases and mismatched header counts are rejected before native writing without failing the writer. Channel preflight, safe rejections and completed-prefix failures follow the same batch contract above. Both overloads have a warmed zero-managed-allocation gate; allocating the input lease is a separate cost.</p>
+<p><code>ReadBatch(headers, ranges, payloadStorage)</code> fills caller-owned buffers with whole messages and returns count, used bytes, stop reason and the next required capacity. If a later record fails, the call throws and the session becomes terminal; buffers may contain an already written prefix, but no prefix count is returned, so discard the entire call's output. Visitor callbacks that already ran are not rolled back. A failing lease read publishes no partial batch; leases returned by earlier calls remain valid. It preserves the next message when space is insufficient. Borrowed, caller-buffer batch and batch-write paths have warmed Release zero-managed-allocation gates.</p>
+<p><code>ReadBatchLease</code> returns <code>McapMessageBatchLease</code>, by default up to 256 messages and a soft 4 MiB payload target. The target is checked after adding a whole message, so a batch may exceed it, including when a single message exceeds the target. <code>GetHeader</code>, <code>GetPayload</code>, <code>CopyTo</code> and <code>RetainMessage(index)</code> access or retain messages without per-message payload arrays. Batches may reference multiple chunks without repacking. Leases survive reader disposal; Dispose is idempotent, with private SafeHandle finalization fallback. Dispose retained message leases separately.</p>
+<p>Keep a lease in a using scope throughout span use. Access methods reject disposed owners, but an existing span cannot be revoked. Keep the owner alive and never overlap span access with concurrent disposal. Cross-thread transfer is supported with caller synchronization. Mapped files must remain unchanged until every reader, child cursor and lease referencing them is released.</p>
+<p><code>ReadBatchLease</code> returns a batch, or null at EOF. <code>ReadBatchLeaseAsync</code> awaits I/O and supports cancellation; consume its ValueTask before another operation or disposal. Cancellation terminates the reader; delivered leases remain valid. Record and lease consumption cannot be mixed on one async reader. In lease mode, <code>GetChannelDescription(id)</code> and <code>GetSchemaDescription(id)</code> return cached immutable declarations already encountered, including their encoding, topic and schema bytes. Consume the outstanding ValueTask before lookup. Lookup does not advance input; unknown IDs throw without terminating the reader. Record-mode, failed and disposed readers reject lookup. Returned descriptions remain valid after reader disposal. Message leases reject EmitChunks. No prefetch queue, spill file or automatic file segmentation is created.</p>
+<p>Async lease reading uses a reusable completion source and continuation. Each delivered batch may allocate its lease and SafeHandle objects; I/O suspension does not require another per-operation async state machine. A nonempty batch is returned when the parser next requests input, even below the message/payload target. This avoids waiting for extra I/O merely to fill a batch. Stream implementations may have their own allocations. Input completion is consumed before cancellation can release parser resources.</p>
+<h2 id="binding-performance-and-local-limits">Binding performance and local limits</h2>
+<p>Performance contracts concern binding-added allocations and payload copies, not allocations inside the official parser, writer or codecs. Borrowed callbacks and leases reference stable storage; caller-buffer reads copy to the caller, and convenience APIs return independent owned results. Copied constructors own an input copy; <code>OpenMapped</code> shares a mapping and Stream supports incremental input. Setup, descriptors, lease control objects and errors may allocate.</p>
+<p>Synchronous and asynchronous input reserve the parser's current complete requirement independently of the I/O transfer size, avoiding repeated expansion during short reads. This is not whole-source prebuffering or a total-memory bound. A retained slice can keep a complete chunk or mapping alive; limit outstanding work according to storage size as well as batch count. Cache allowances and batch payload targets do not account for every externally retained byte.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Counted quantity and default</th>
+<th>Boundary behavior and exclusions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>McapQuery.MaxBufferedSortBytes</code></td>
+<td>Sum of selected messages' logical payload lengths plus allocated descriptor-array capacity in bytes; null means no collection allowance</td>
+<td>Exceeding the allowance fails fallback construction/reading, without spilling or partial sorted results. Each selected range counts its length even if backing is shared. Excludes backing amplification, temporary compaction overlap, parser/codec memory and RSS; does not apply to indexed-reader chunk buffering.</td>
+</tr>
+<tr>
+<td><code>MaxRandomAccessCacheBytes</code> on reader/snapshot options</td>
+<td>Local LRU charge for retained chunk storage, descriptors, keys and index bytes; 0 disables retention</td>
+<td>Oversized entries load without cache retention. Eviction releases cache references, not caller leases. Excludes allocator overhead, parsing temporaries, snapshot input and externally retained owners. Uncompressed mapped chunks are charged their logical decompressed size.</td>
+</tr>
+<tr>
+<td><code>ReadBatchLease</code> count and payload target</td>
+<td>Default maximum 256 messages; soft target 4 MiB of logical payload</td>
+<td>Checks the byte target after each whole message, so it can overshoot. Does not limit backing capacity or all outstanding batches. Async batches may return earlier at an input request.</td>
+</tr>
+</tbody>
+</table>
+<p>Reader cache options apply to snapshots it creates; they have no effect on <code>McapAsyncReader</code> or <code>McapSansIoReader.CreateLinear</code>. Direct <code>CreateIndexed</code> uses query selection and order but has no fallback, so <code>AllowBufferedSort</code> and <code>MaxBufferedSortBytes</code> do not apply. <code>AllowBufferedSort=false</code> rejects fallback collection entirely. Record-length checks remain upstream parser options. None of these controls is a process-wide memory limit.</p>
+<h3 id="choosing-storage-for-retained-results">Choosing storage for retained results</h3>
+<p>Use borrowed callbacks for synchronous processing and leases for short asynchronous pipelines or forwarding. For a few messages kept long term, copy only the needed payloads into independent arrays and release the lease:</p>
+<pre><code class="lang-csharp">byte[] payload;
+using (var batch = session.ReadBatchLease(1))
+{
+    if (batch is null) return;
+    payload = new byte[batch.GetPayload(0).Length];
+    batch.CopyTo(0, payload);
+}
+// payload now has independent ownership.
+</code></pre>
+<p>A lease retains backing ownership, not just its visible payload range. <code>RetainMessage</code> shares that ownership; it does not trim the allocation. A small message can retain a full decompressed chunk, a complete copied input or a file mapping. A batch may retain several owners, and several batches may share one owner.</p>
+<p>Disposal releases that owner's reference; storage can be reclaimed only after all references are released. Other leases, parsers, snapshots, child cursors or caches may still retain it. Copying one slice therefore does not guarantee immediate reclamation. A snapshot itself retains its input until it and every dependent owner release it. Mapping size is address space, not a measurement of resident memory.</p>
+<p>For predictable pipeline retention, bound outstanding work using distinct backing sizes and retention duration as well as batch count. Long-term sharing remains valid when retaining the backing is acceptable; copying sparse results is a performance choice, not a lifetime requirement.</p>
+<p>Buffered sort chooses storage before publishing results. It groups selected messages by consecutive owned backing, retaining dense groups and compacting sparse groups at an owner change or end of scan. The current internal policy copies when capacity is at least four times selected payload bytes and saves at least 256 KiB of group backing capacity. Compact segments target 256 KiB at message boundaries; larger messages get their own segment. Empty payloads retain no backing. External storage, including mappings, stays shared. These thresholds are implementation choices, not public tuning options or performance guarantees.</p>
+<p>Compaction preserves message order, retries and lease lifetimes. It copies selected payloads once and temporarily holds old and new storage together. Other owners can delay actual reclamation. Sorting still collects results before delivery; its logical allowance does not cover transient copies, retained backing amplification, parser/codec memory or process RSS.</p>
+<h3 id="complete-chunk-random-access">Complete-chunk random access</h3>
+<p>Cache keys use complete caller-supplied index semantics; map insertion order does not change identity. Hits do not decompress again. Uncompressed mapped payloads reference mapping ranges; compressed payloads share decompressed storage. Insufficient-buffer retries retain shared slices.</p>
+<p><code>SeekMessages(ReadOnlySpan&lt;McapSeekRequest&gt;)</code> groups requests by chunk within that call, loads each different chunk once, and returns a batch in request order including duplicates. Failure delivers no partial batch. <code>SeekMessage(preparedIndex, entry, visitor)</code> provides borrowed delivery; its callback must not use or dispose any snapshot instance or prepared chunk index; buffer and owned-result APIs copy at final delivery. <code>GetCacheStatistics</code> reports hits and chunk loads.</p>
+<p>Choose the reuse scope that matches the access pattern:</p>
+<table>
+<thead>
+<tr>
+<th>Access pattern</th>
+<th>Method</th>
+<th>Reuse scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One isolated message</td>
+<td><code>SeekMessage</code></td>
+<td>Loads the complete target chunk on a cache miss; leaving caching disabled avoids cache retention</td>
+</tr>
+<tr>
+<td>Many messages in one chunk</td>
+<td><code>OpenChunkReader</code></td>
+<td>Traverse one cursor once; reopening a cursor starts a new traversal</td>
+</tr>
+<tr>
+<td>Known set of discrete requests</td>
+<td><code>SeekMessages</code></td>
+<td>Groups loads within one call, even with caching disabled; another call is a separate batch</td>
+</tr>
+<tr>
+<td>Repeated visits across calls</td>
+<td>Reuse a snapshot with <code>MaxRandomAccessCacheBytes</code></td>
+<td>Retains recent chunks until eviction or snapshot disposal</td>
+</tr>
+</tbody>
+</table>
+<p>The working set is the chunks revisited between cache reuses. Size the allowance for their decompressed storage and descriptors, not compressed file bytes. A working set larger than the allowance can cause eviction and repeated decompression; this remains a valid access pattern. Inspect <code>GetCacheStatistics()</code> hits and chunk loads to assess reuse. Prepared indexes avoid repeated descriptor encoding/parsing, not cache-miss decompression. Copying a returned payload does not cache its source chunk.</p>
+<p>Random reads validate the complete target chunk and may report tail corruption earlier than prefix reads. This is not full-file validation. See <a href="patches.html">local patches</a> for patch boundaries and evidence.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Class McapIndexSnapshot | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class McapIndexSnapshot | Fizzy.McapSharp ">
+      
+      <meta name="description" content="Owns copied or explicitly mapped input and its official summary, independently of the originating session. Snapshot message callbacks must not invoke operations on any snapshot or prepared chunk index, including disposal.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Fizzy.McapSharp.McapIndexSnapshot">
+
+
+
+  <h1 id="Fizzy_McapSharp_McapIndexSnapshot" data-uid="Fizzy.McapSharp.McapIndexSnapshot" class="text-break">
+Class McapIndexSnapshot  
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Fizzy.html">Fizzy</a>.<a class="xref" href="Fizzy.McapSharp.html">McapSharp</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Owns copied or explicitly mapped input and its official summary, independently of the originating session.
+Snapshot message callbacks must not invoke operations on any snapshot or prepared chunk index, including disposal.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class McapIndexSnapshot : IDisposable</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">McapIndexSnapshot</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.idisposable">IDisposable</a></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="constructors">Constructors
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot__ctor_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.#ctor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot__ctor_System_ReadOnlySpan_System_Byte__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.#ctor(System.ReadOnlySpan{System.Byte})">
+  McapIndexSnapshot(ReadOnlySpan&lt;byte&gt;)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the complete input into independent storage and reads its summary. Cache allowance excludes this input copy; summary success is not full-file validation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapIndexSnapshot(ReadOnlySpan&lt;byte&gt; data)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot__ctor_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.#ctor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot__ctor_System_ReadOnlySpan_System_Byte__Fizzy_McapSharp_McapIndexSnapshotOptions_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.#ctor(System.ReadOnlySpan{System.Byte},Fizzy.McapSharp.McapIndexSnapshotOptions)">
+  McapIndexSnapshot(ReadOnlySpan&lt;byte&gt;, McapIndexSnapshotOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the complete input into independent storage and reads its summary. Cache allowance excludes this input copy; summary success is not full-file validation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapIndexSnapshot(ReadOnlySpan&lt;byte&gt; data, McapIndexSnapshotOptions? options)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapIndexSnapshotOptions.html">McapIndexSnapshotOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_Dispose_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.Dispose*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_Dispose" data-uid="Fizzy.McapSharp.McapIndexSnapshot.Dispose">
+  Dispose()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Releases this owner once. Independently retained cursors and leases remain valid; repeated disposal does not replay release.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void Dispose()</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_GetCacheStatistics_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetCacheStatistics*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_GetCacheStatistics" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetCacheStatistics">
+  GetCacheStatistics()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns cumulative chunk-cache hits and loads for this snapshot. Counts do not measure bytes, resident memory or full-file validation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapCacheStatistics GetCacheStatistics()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapCacheStatistics.html">McapCacheStatistics</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_GetChannel_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetChannel*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_GetChannel_System_UInt16_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetChannel(System.UInt16)">
+  GetChannel(ushort)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns an independent owned channel declaration from the summary, including schema and metadata.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapChannel GetChannel(ushort id)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_GetChannelDescription_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetChannelDescription*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_GetChannelDescription_System_UInt16_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetChannelDescription(System.UInt16)">
+  GetChannelDescription(ushort)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns a cached immutable declaration from the summary. Its managed schema bytes and metadata remain valid after snapshot disposal.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapChannelDescription GetChannelDescription(ushort id)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapChannelDescription.html">McapChannelDescription</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_GetCompressedDataOffset_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetCompressedDataOffset*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_GetCompressedDataOffset_Fizzy_McapSharp_McapChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetCompressedDataOffset(Fizzy.McapSharp.McapChunkIndex)">
+  GetCompressedDataOffset(McapChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Calculates the chunk-data byte offset from the MCAP origin (the initial Stream position for Stream inputs) from the descriptor and its UTF-8 compression-name length. Does not validate source bytes.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ulong GetCompressedDataOffset(McapChunkIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_GetCompressedDataOffset_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetCompressedDataOffset*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_GetCompressedDataOffset_Fizzy_McapSharp_McapPreparedChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetCompressedDataOffset(Fizzy.McapSharp.McapPreparedChunkIndex)">
+  GetCompressedDataOffset(McapPreparedChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Calculates the chunk-data byte offset from the MCAP origin (the initial Stream position for Stream inputs) from the descriptor and its UTF-8 compression-name length. Does not validate source bytes.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ulong GetCompressedDataOffset(McapPreparedChunkIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_GetSummary_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetSummary*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_GetSummary" data-uid="Fizzy.McapSharp.McapIndexSnapshot.GetSummary">
+  GetSummary()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns an independent owned summary, or null when absent. Summary availability does not establish full-file validation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapSummary? GetSummary()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSummary.html">McapSummary</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_OpenChunkReader_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenChunkReader*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_OpenChunkReader_Fizzy_McapSharp_McapChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenChunkReader(Fizzy.McapSharp.McapChunkIndex)">
+  OpenChunkReader(McapChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent lazy cursor that remains valid after this snapshot is disposed. Traverse one cursor to reuse chunk parsing across messages; reopening starts a new traversal.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadCursor OpenChunkReader(McapChunkIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadCursor.html">McapReadCursor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_OpenChunkReader_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenChunkReader*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_OpenChunkReader_Fizzy_McapSharp_McapPreparedChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenChunkReader(Fizzy.McapSharp.McapPreparedChunkIndex)">
+  OpenChunkReader(McapPreparedChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent lazy message cursor that retains storage after the snapshot and prepared descriptor are disposed. The descriptor must identify a valid chunk.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadCursor OpenChunkReader(McapPreparedChunkIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadCursor.html">McapReadCursor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_OpenMapped_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenMapped*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_OpenMapped_System_String_Fizzy_McapSharp_McapIndexSnapshotOptions_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenMapped(System.String,Fizzy.McapSharp.McapIndexSnapshotOptions)">
+  OpenMapped(string, McapIndexSnapshotOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Maps a file without an owned input copy. Keep the file unchanged until this snapshot, all child cursors and all leases retaining its mapping are disposed.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapIndexSnapshot OpenMapped(string path, McapIndexSnapshotOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapIndexSnapshotOptions.html">McapIndexSnapshotOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapIndexSnapshot.html">McapIndexSnapshot</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_OpenSummaryRecords_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenSummaryRecords*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_OpenSummaryRecords" data-uid="Fizzy.McapSharp.McapIndexSnapshot.OpenSummaryRecords">
+  OpenSummaryRecords()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent summary-record cursor that retains the summary after this snapshot is disposed. Requires an available summary.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadCursor OpenSummaryRecords()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadCursor.html">McapReadCursor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadAttachment_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadAttachment*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadAttachment_Fizzy_McapSharp_McapAttachmentIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadAttachment(Fizzy.McapSharp.McapAttachmentIndex)">
+  ReadAttachment(McapAttachmentIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns an independent owned record after validating its indexed range. Copies the payload directly into its final array; no summary is required.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapAttachment ReadAttachment(McapAttachmentIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapAttachmentIndex.html">McapAttachmentIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapAttachment.html">McapAttachment</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadAttachment_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadAttachment*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadAttachment_Fizzy_McapSharp_McapAttachmentIndex_System_Span_System_Byte__System_UInt64__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadAttachment(Fizzy.McapSharp.McapAttachmentIndex,System.Span{System.Byte},System.UInt64@)">
+  ReadAttachment(McapAttachmentIndex, Span&lt;byte&gt;, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the complete indexed record body into caller storage. BufferTooSmall reports the required byte length without a partial copy; no summary is required.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus ReadAttachment(McapAttachmentIndex index, Span&lt;byte&gt; destination, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapAttachmentIndex.html">McapAttachmentIndex</a></dt>
+    <dd></dd>
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadChunkMessages_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadChunkMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadChunkMessages_Fizzy_McapSharp_McapChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadChunkMessages(Fizzy.McapSharp.McapChunkIndex)">
+  ReadChunkMessages(McapChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Enumerates independent owned messages from one chunk using a child cursor. Disposing the enumeration releases that cursor.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapMessage&gt; ReadChunkMessages(McapChunkIndex chunk)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>chunk</code> <a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadChunkMessages_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadChunkMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadChunkMessages_Fizzy_McapSharp_McapPreparedChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadChunkMessages(Fizzy.McapSharp.McapPreparedChunkIndex)">
+  ReadChunkMessages(McapPreparedChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Enumerates independent owned messages from one chunk using a child cursor. Disposing the enumeration releases that cursor.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapMessage&gt; ReadChunkMessages(McapPreparedChunkIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadFooter_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadFooter*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadFooter" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadFooter">
+  ReadFooter()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Reads the footer from the retained input. Does not validate the complete file.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapFooter ReadFooter()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapFooter.html">McapFooter</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_Fizzy_McapSharp_McapChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes(Fizzy.McapSharp.McapChunkIndex)">
+  ReadMessageIndexes(McapChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns independent owned message-index groups for every requested channel, including valid empty groups. Requires a summary and valid message-index offsets.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;McapMessageIndex&gt; ReadMessageIndexes(McapChunkIndex chunk)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>chunk</code> <a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessageIndex.html">McapMessageIndex</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_Fizzy_McapSharp_McapChunkIndex_System_Span_System_Byte__System_UInt64__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes(Fizzy.McapSharp.McapChunkIndex,System.Span{System.Byte},System.UInt64@)">
+  ReadMessageIndexes(McapChunkIndex, Span&lt;byte&gt;, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies packed entries: channel ID (u16), log time (u64), chunk-relative offset (u64), all little endian.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus ReadMessageIndexes(McapChunkIndex index, Span&lt;byte&gt; destination, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+    <dd></dd>
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_Fizzy_McapSharp_McapPreparedChunkIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes(Fizzy.McapSharp.McapPreparedChunkIndex)">
+  ReadMessageIndexes(McapPreparedChunkIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns independent owned message-index groups for every requested channel, including valid empty groups. Requires a summary and valid message-index offsets.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;McapMessageIndex&gt; ReadMessageIndexes(McapPreparedChunkIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessageIndex.html">McapMessageIndex</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadMessageIndexes_Fizzy_McapSharp_McapPreparedChunkIndex_System_Span_System_Byte__System_UInt64__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMessageIndexes(Fizzy.McapSharp.McapPreparedChunkIndex,System.Span{System.Byte},System.UInt64@)">
+  ReadMessageIndexes(McapPreparedChunkIndex, Span&lt;byte&gt;, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies packed little-endian entries: channel ID (u16), log time (u64), chunk-relative offset (u64). Empty channel groups have no rows; BufferTooSmall reports the required byte length.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus ReadMessageIndexes(McapPreparedChunkIndex index, Span&lt;byte&gt; destination, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadMetadata_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMetadata*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadMetadata_Fizzy_McapSharp_McapMetadataIndex_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMetadata(Fizzy.McapSharp.McapMetadataIndex)">
+  ReadMetadata(McapMetadataIndex)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns an independent owned record after validating its indexed range. No summary is required.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMetadata ReadMetadata(McapMetadataIndex index)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapMetadataIndex.html">McapMetadataIndex</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMetadata.html">McapMetadata</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_ReadMetadata_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMetadata*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_ReadMetadata_Fizzy_McapSharp_McapMetadataIndex_System_Span_System_Byte__System_UInt64__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.ReadMetadata(Fizzy.McapSharp.McapMetadataIndex,System.Span{System.Byte},System.UInt64@)">
+  ReadMetadata(McapMetadataIndex, Span&lt;byte&gt;, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the complete indexed record body into caller storage. BufferTooSmall reports the required byte length without a partial copy; no summary is required.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus ReadMetadata(McapMetadataIndex index, Span&lt;byte&gt; destination, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapMetadataIndex.html">McapMetadataIndex</a></dt>
+    <dd></dd>
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_Fizzy_McapSharp_McapChunkIndex_Fizzy_McapSharp_McapMessageIndexEntry_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage(Fizzy.McapSharp.McapChunkIndex,Fizzy.McapSharp.McapMessageIndexEntry)">
+  SeekMessage(McapChunkIndex, McapMessageIndexEntry)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns an independent owned message from its chunk-relative index entry. Requires a summary and a valid complete chunk descriptor.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMessage SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry entry)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>chunk</code> <a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+    <dd></dd>
+    <dt><code>entry</code> <a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_Fizzy_McapSharp_McapChunkIndex_Fizzy_McapSharp_McapMessageIndexEntry_System_Span_System_Byte__Fizzy_McapSharp_McapMessageHeader__System_UInt64__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage(Fizzy.McapSharp.McapChunkIndex,Fizzy.McapSharp.McapMessageIndexEntry,System.Span{System.Byte},Fizzy.McapSharp.McapMessageHeader@,System.UInt64@)">
+  SeekMessage(McapChunkIndex, McapMessageIndexEntry, Span&lt;byte&gt;, out McapMessageHeader, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the indexed message payload into caller storage. BufferTooSmall reports the required byte length without partial delivery; retries retain pending storage.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus SeekMessage(McapChunkIndex chunk, McapMessageIndexEntry message, Span&lt;byte&gt; destination, out McapMessageHeader header, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>chunk</code> <a class="xref" href="Fizzy.McapSharp.McapChunkIndex.html">McapChunkIndex</a></dt>
+    <dd></dd>
+    <dt><code>message</code> <a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
+    <dd></dd>
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>header</code> <a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a></dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_Fizzy_McapSharp_McapPreparedChunkIndex_Fizzy_McapSharp_McapMessageIndexEntry_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage(Fizzy.McapSharp.McapPreparedChunkIndex,Fizzy.McapSharp.McapMessageIndexEntry)">
+  SeekMessage(McapPreparedChunkIndex, McapMessageIndexEntry)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns an independent owned message from its chunk-relative index entry. Requires a summary and a valid complete chunk descriptor.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMessage SeekMessage(McapPreparedChunkIndex index, McapMessageIndexEntry entry)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+    <dt><code>entry</code> <a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_Fizzy_McapSharp_McapPreparedChunkIndex_Fizzy_McapSharp_McapMessageIndexEntry_Fizzy_McapSharp_McapMessageVisitor_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage(Fizzy.McapSharp.McapPreparedChunkIndex,Fizzy.McapSharp.McapMessageIndexEntry,Fizzy.McapSharp.McapMessageVisitor)">
+  SeekMessage(McapPreparedChunkIndex, McapMessageIndexEntry, McapMessageVisitor)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Synchronously visits the indexed message. The payload expires when the callback returns; the callback must not invoke operations on any snapshot or prepared chunk index, including disposal.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void SeekMessage(McapPreparedChunkIndex index, McapMessageIndexEntry entry, McapMessageVisitor visitor)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+    <dt><code>entry</code> <a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
+    <dd></dd>
+    <dt><code>visitor</code> <a class="xref" href="Fizzy.McapSharp.McapMessageVisitor.html">McapMessageVisitor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessage_Fizzy_McapSharp_McapPreparedChunkIndex_Fizzy_McapSharp_McapMessageIndexEntry_System_Span_System_Byte__Fizzy_McapSharp_McapMessageHeader__System_UInt64__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessage(Fizzy.McapSharp.McapPreparedChunkIndex,Fizzy.McapSharp.McapMessageIndexEntry,System.Span{System.Byte},Fizzy.McapSharp.McapMessageHeader@,System.UInt64@)">
+  SeekMessage(McapPreparedChunkIndex, McapMessageIndexEntry, Span&lt;byte&gt;, out McapMessageHeader, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the indexed message payload into caller storage. BufferTooSmall reports the required byte length without partial delivery; retries retain pending storage.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus SeekMessage(McapPreparedChunkIndex index, McapMessageIndexEntry entry, Span&lt;byte&gt; destination, out McapMessageHeader header, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dd></dd>
+    <dt><code>entry</code> <a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
+    <dd></dd>
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>header</code> <a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a></dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessages_" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapIndexSnapshot_SeekMessages_System_ReadOnlySpan_Fizzy_McapSharp_McapSeekRequest__" data-uid="Fizzy.McapSharp.McapIndexSnapshot.SeekMessages(System.ReadOnlySpan{Fizzy.McapSharp.McapSeekRequest})">
+  SeekMessages(ReadOnlySpan&lt;McapSeekRequest&gt;)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Within this call, loads each distinct chunk once and returns a shared batch in request order. Cross-call reuse depends on the snapshot cache; returned leases may retain whole chunks or input storage.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMessageBatchLease SeekMessages(ReadOnlySpan&lt;McapSeekRequest&gt; requests)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>requests</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageBatchLease.html">McapMessageBatchLease</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

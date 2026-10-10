@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Class McapReadCursor | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class McapReadCursor | Fizzy.McapSharp ">
+      
+      <meta name="description" content="One disposable cursor over copied/mapped input, a summary, or a retained chunk. Adapts official slice-reader semantics. Construction copies input; advancement parses records. Unsupported message delivery is rejected without advancement or terminal failure. Summary cursors support records only; snapshot Chunk cursors support messages as well as records.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Fizzy.McapSharp.McapReadCursor">
+
+
+
+  <h1 id="Fizzy_McapSharp_McapReadCursor" data-uid="Fizzy.McapSharp.McapReadCursor" class="text-break">
+Class McapReadCursor  
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Fizzy.html">Fizzy</a>.<a class="xref" href="Fizzy.McapSharp.html">McapSharp</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>One disposable cursor over copied/mapped input, a summary, or a retained chunk. Adapts official slice-reader semantics. Construction copies input; advancement parses records.
+Unsupported message delivery is rejected without advancement or terminal failure. Summary cursors support records only;
+snapshot Chunk cursors support messages as well as records.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class McapReadCursor : IDisposable</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">McapReadCursor</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.idisposable">IDisposable</a></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="constructors">Constructors
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor__ctor_" data-uid="Fizzy.McapSharp.McapReadCursor.#ctor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor__ctor_System_ReadOnlySpan_System_Byte__Fizzy_McapSharp_McapCursorMode_System_Boolean_" data-uid="Fizzy.McapSharp.McapReadCursor.#ctor(System.ReadOnlySpan{System.Byte},Fizzy.McapSharp.McapCursorMode,System.Boolean)">
+  McapReadCursor(ReadOnlySpan&lt;byte&gt;, McapCursorMode, bool)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies input and opens one lazy cursor in the selected mode. ignoreEndMagic permits input without end magic where the mode reads a complete file.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadCursor(ReadOnlySpan&lt;byte&gt; data, McapCursorMode mode = McapCursorMode.Messages, bool ignoreEndMagic = false)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>mode</code> <a class="xref" href="Fizzy.McapSharp.McapCursorMode.html">McapCursorMode</a></dt>
+    <dd></dd>
+    <dt><code>ignoreEndMagic</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_Dispose_" data-uid="Fizzy.McapSharp.McapReadCursor.Dispose*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_Dispose" data-uid="Fizzy.McapSharp.McapReadCursor.Dispose">
+  Dispose()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Releases parser state and its retained input; independently retained leases remain valid. Repeated disposal is a no-op.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void Dispose()</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_GetChannel_" data-uid="Fizzy.McapSharp.McapReadCursor.GetChannel*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_GetChannel_System_UInt16_" data-uid="Fizzy.McapSharp.McapReadCursor.GetChannel(System.UInt16)">
+  GetChannel(ushort)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns an independent copy of an encountered or snapshot-provided channel and schema. Unknown IDs fail lookup without advancing or terminating the cursor.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapChannel GetChannel(ushort id)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_GetChannelDescription_" data-uid="Fizzy.McapSharp.McapReadCursor.GetChannelDescription*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_GetChannelDescription_System_UInt16_" data-uid="Fizzy.McapSharp.McapReadCursor.GetChannelDescription(System.UInt16)">
+  GetChannelDescription(ushort)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns a cached immutable encountered or snapshot-provided channel and schema. The result survives cursor disposal; unknown IDs do not advance or terminate the cursor.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapChannelDescription GetChannelDescription(ushort id)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapChannelDescription.html">McapChannelDescription</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_OpenMapped_" data-uid="Fizzy.McapSharp.McapReadCursor.OpenMapped*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_OpenMapped_System_String_Fizzy_McapSharp_McapCursorMode_System_Boolean_" data-uid="Fizzy.McapSharp.McapReadCursor.OpenMapped(System.String,Fizzy.McapSharp.McapCursorMode,System.Boolean)">
+  OpenMapped(string, McapCursorMode, bool)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Maps file contents without copying. Keep the file unchanged until this reader and every lease retaining the mapping are disposed.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapReadCursor OpenMapped(string path, McapCursorMode mode = McapCursorMode.Messages, bool ignoreEndMagic = false)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>mode</code> <a class="xref" href="Fizzy.McapSharp.McapCursorMode.html">McapCursorMode</a></dt>
+    <dd></dd>
+    <dt><code>ignoreEndMagic</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadCursor.html">McapReadCursor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_ReadBatch_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadBatch*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_ReadBatch_System_Span_Fizzy_McapSharp_McapMessageHeader__System_Span_Fizzy_McapSharp_McapPayloadRange__System_Span_System_Byte__" data-uid="Fizzy.McapSharp.McapReadCursor.ReadBatch(System.Span{Fizzy.McapSharp.McapMessageHeader},System.Span{Fizzy.McapSharp.McapPayloadRange},System.Span{System.Byte})">
+  ReadBatch(Span&lt;McapMessageHeader&gt;, Span&lt;McapPayloadRange&gt;, Span&lt;byte&gt;)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies messages into caller-owned buffers. On exception discard all output from this call: buffers may contain an unreported prefix and cannot be retried. BufferTooSmall is a successful negotiation result with a valid reported prefix and a retained pending message.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapBatchReadResult ReadBatch(Span&lt;McapMessageHeader&gt; headers, Span&lt;McapPayloadRange&gt; ranges, Span&lt;byte&gt; payloadStorage)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>headers</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>ranges</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapPayloadRange.html">McapPayloadRange</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>payloadStorage</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapBatchReadResult.html">McapBatchReadResult</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_ReadBatchLease_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadBatchLease*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_ReadBatchLease_System_Int32_System_Int32_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadBatchLease(System.Int32,System.Int32)">
+  ReadBatchLease(int, int)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns a stable shared batch, or null at EOF. Failure publishes no partial lease and terminates the read. Retain the lease throughout access, including after reader disposal; do not dispose concurrently.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMessageBatchLease? ReadBatchLease(int maxMessages = 256, int targetPayloadBytes = 4194304)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>maxMessages</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>targetPayloadBytes</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageBatchLease.html">McapMessageBatchLease</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_ReadMessages_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_ReadMessages" data-uid="Fizzy.McapSharp.McapReadCursor.ReadMessages">
+  ReadMessages()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Consumes a message-capable cursor and returns independent mutable message and declaration copies. Record-only modes reject enumeration before advancing. RawMessages still requires channel declarations for these resolved results: a missing channel throws after consuming that message, without terminating the cursor. Use header/payload or raw-record delivery for undeclared channels.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapMessage&gt; ReadMessages()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_ReadNext_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadNext*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_ReadNext_Fizzy_McapSharp_McapMessageVisitor_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadNext(Fizzy.McapSharp.McapMessageVisitor)">
+  ReadNext(McapMessageVisitor)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Visits one message synchronously on a message-capable cursor. The payload span expires on return; reader reentry is prohibited.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus ReadNext(McapMessageVisitor visitor)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>visitor</code> <a class="xref" href="Fizzy.McapSharp.McapMessageVisitor.html">McapMessageVisitor</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_ReadNext_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadNext*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_ReadNext_System_Span_System_Byte__Fizzy_McapSharp_McapMessageHeader__System_UInt64__" data-uid="Fizzy.McapSharp.McapReadCursor.ReadNext(System.Span{System.Byte},Fizzy.McapSharp.McapMessageHeader@,System.UInt64@)">
+  ReadNext(Span&lt;byte&gt;, out McapMessageHeader, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies one message payload into caller storage. BufferTooSmall reports the required byte length and preserves the pending message for retry; EOF is not proof of complete validation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus ReadNext(Span&lt;byte&gt; destination, out McapMessageHeader header, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>header</code> <a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a></dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_ReadNextRecord_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadNextRecord*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_ReadNextRecord_System_Span_System_Byte__System_Byte__System_UInt64__" data-uid="Fizzy.McapSharp.McapReadCursor.ReadNextRecord(System.Span{System.Byte},System.Byte@,System.UInt64@)">
+  ReadNextRecord(Span&lt;byte&gt;, out byte, out ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies one raw record body into caller storage. BufferTooSmall retains the record and reports required capacity. The returned opcode identifies the body; length excludes the record header.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus ReadNextRecord(Span&lt;byte&gt; destination, out byte opcode, out ulong length)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>opcode</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a></dt>
+    <dd></dd>
+    <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_ReadRecords_" data-uid="Fizzy.McapSharp.McapReadCursor.ReadRecords*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_ReadRecords" data-uid="Fizzy.McapSharp.McapReadCursor.ReadRecords">
+  ReadRecords()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Advances this session and yields independently owned copies of raw record bodies.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapRawRecord&gt; ReadRecords()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapRawRecord.html">McapRawRecord</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReadCursor_VisitMessages_" data-uid="Fizzy.McapSharp.McapReadCursor.VisitMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReadCursor_VisitMessages_Fizzy_McapSharp_McapMessageVisitor_System_Int32_" data-uid="Fizzy.McapSharp.McapReadCursor.VisitMessages(Fizzy.McapSharp.McapMessageVisitor,System.Int32)">
+  VisitMessages(McapMessageVisitor, int)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Invokes the visitor synchronously without reader reentry. On failure previously executed callback effects are not rolled back; no successful prefix count is returned and the failed read cannot continue.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapVisitResult VisitMessages(McapMessageVisitor visitor, int maxMessages = 256)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>visitor</code> <a class="xref" href="Fizzy.McapSharp.McapMessageVisitor.html">McapMessageVisitor</a></dt>
+    <dd></dd>
+    <dt><code>maxMessages</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapVisitResult.html">McapVisitResult</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

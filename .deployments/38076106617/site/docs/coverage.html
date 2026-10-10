@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Official Rust API coverage | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Official Rust API coverage | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="official-rust-api-coverage">Official Rust API coverage</h1>
+
+<p>English | <a href="zh-CN/coverage.html">简体中文</a></p>
+<p>Use this guide to locate the .NET entry for an official Rust capability and understand its adaptation. The baseline is the exact <code>mcap</code> dependency in <a href="../native/Cargo.toml">Cargo.toml</a>. For ownership, allocation and usage choices, start with the <a href="api.html#choose-message-ownership">API guide</a>.</p>
+<h2 id="reading-the-map">Reading the map</h2>
+<p>The tables group capabilities, not individual declarations. One managed entry can cover several Rust constructors, builder methods or iterator operations. <strong>Adapted</strong> means the official capability is exposed through managed types or composed operations; it does not claim identical signatures, ownership or all behavior. <strong>Alternative</strong> means a comparable managed capability uses another official surface. <strong>Not exposed</strong> is an explicit exclusion, not a covered implementation.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="upstream-api.json">upstream-api.json</a></td>
+<td>Fixed inventory of declarations from unmodified upstream; do not change it to accept local extensions</td>
+</tr>
+<tr>
+<td><a href="api-coverage.json">api-coverage.json</a></td>
+<td>Symbol-level mappings, capability group, mapping category, origin, implementation/test references and exclusion reasons</td>
+</tr>
+<tr>
+<td>This guide</td>
+<td>Capability navigation and material adaptation differences; detailed usage stays in the API guide</td>
+</tr>
+</tbody>
+</table>
+<p>The reviewed inventory contains 344 official declarations and 18 local extension declarations. These include types, methods, fields, constants and error variants; the counts are not counts of implemented operations or passing tests. Optional Tokio declarations are included even though the binding does not invoke Tokio.</p>
+<h2 id="writing-writing">Writing (<code>writing</code>)</h2>
+<p>Managed entry points are on <a href="../src/McapWriter.cs">McapWriter</a> and its partial implementations.</p>
+<table>
+<thead>
+<tr>
+<th>Official Rust API</th>
+<th>.NET entry</th>
+<th>Mapping</th>
+<th>Key difference or constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WriteOptions</code>, <code>Writer::new/with_options</code></td>
+<td><code>McapWriterOptions</code>, <code>McapWriter</code> constructors</td>
+<td>Adapted</td>
+<td>Builder settings become properties; aggregate summary switch applies before explicit individual overrides</td>
+</tr>
+<tr>
+<td><code>Writer::add_schema/add_schema_with_id</code>, <code>add_channel/add_channel_with_id</code></td>
+<td><code>RegisterSchema</code>, <code>RegisterChannel</code> overloads</td>
+<td>Adapted</td>
+<td>IDs and binary payload remain separate; prepared descriptors are binding additions</td>
+</tr>
+<tr>
+<td><code>Writer::write</code></td>
+<td><code>WriteMessage(McapMessage)</code>, prepared-channel overload</td>
+<td>Adapted</td>
+<td>Invokes upstream automatic declarations; preparation snapshots mutable descriptions</td>
+</tr>
+<tr>
+<td><code>Writer::write_to_known_channel</code></td>
+<td><code>WriteMessage(in header, span)</code></td>
+<td>Adapted</td>
+<td>Synchronously consumes borrowed payload; no managed payload copy</td>
+</tr>
+<tr>
+<td><code>Writer::attach</code>, <code>start_attachment/put_attachment_bytes/finish_attachment</code></td>
+<td><code>WriteAttachment</code>, <code>StartAttachment/WriteAttachmentBytes/FinishAttachment</code></td>
+<td>Adapted</td>
+<td>Segmented attachment requires exact declared length</td>
+</tr>
+<tr>
+<td><code>Writer::write_metadata</code>, <code>write_private_record</code>, <code>PrivateRecordOptions</code></td>
+<td><code>WriteMetadata</code>, <code>WritePrivateRecord</code></td>
+<td>Adapted</td>
+<td>Private-record placement becomes <code>includeInChunks</code></td>
+</tr>
+<tr>
+<td><code>Writer::flush</code>, <code>finish</code>, <code>into_inner</code></td>
+<td><code>Flush</code>, <code>Complete/GetSummary</code>, <code>IntoInner</code></td>
+<td>Adapted</td>
+<td>Completion and summary retrieval are separate; disposal does not implicitly complete. <code>FlushToDisk</code> is a binding addition</td>
+</tr>
+</tbody>
+</table>
+<p>Defaults follow upstream writer settings, including Zstd, 1 MiB target chunks and the upstream library identifier. Path creation protection and terminal failure outside the configured safe-rejection whitelist are managed contracts. See <a href="api.html#write-a-recording">writing</a> for the complete rules.</p>
+<h2 id="sequential-reading-sequential-reading">Sequential reading (<code>sequential-reading</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Official Rust API</th>
+<th>.NET entry</th>
+<th>Mapping</th>
+<th>Key difference or constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read::LinearReader</code>, <code>Options</code>, <code>sans_magic</code></td>
+<td><code>McapReadCursor</code> TopLevelRecords/ExpandedRecordsWithoutMagic modes</td>
+<td>Adapted</td>
+<td>Official Sans-I/O with matching slice-reader configuration; copied or explicitly mapped input</td>
+</tr>
+<tr>
+<td><code>read::ChunkReader</code></td>
+<td><code>McapReadCursor</code> ChunkRecords mode</td>
+<td>Adapted</td>
+<td>Takes a Chunk record body and advances lazily</td>
+</tr>
+<tr>
+<td><code>read::ChunkFlattener</code></td>
+<td><code>McapReadCursor</code> ExpandedRecords mode</td>
+<td>Adapted</td>
+<td>Expands chunks into records</td>
+</tr>
+<tr>
+<td><code>read::RawMessageStream</code>, <code>RawMessage</code>, <code>get_channel</code></td>
+<td>RawMessages mode, header/payload reads, <code>GetChannel</code></td>
+<td>Adapted</td>
+<td>Retains encountered declarations; no borrowed Rust iterator crosses the ABI</td>
+</tr>
+<tr>
+<td><code>read::MessageStream</code></td>
+<td>Messages mode and owned message enumeration</td>
+<td>Adapted</td>
+<td>Owned results copy payload and mutable declarations; other delivery forms have different ownership</td>
+</tr>
+</tbody>
+</table>
+<p><a href="../src/McapReadCursor.cs">McapReadCursor</a> consolidates these slice-reader interfaces. <code>McapReaderFactory.OpenMessages/OpenRecords</code> additionally provides file/Stream sessions driven by official parsing. Sequential file order, input ownership and delivery ownership are separate choices; see <a href="api.html#read-messages-into-reusable-buffers">reading</a>.</p>
+<h2 id="summary-and-random-access-random-access">Summary and random access (<code>random-access</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Official Rust API</th>
+<th>.NET entry</th>
+<th>Mapping</th>
+<th>Key difference or constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Summary</code>, <code>Summary::read</code> and summary fields</td>
+<td><code>McapIndexSnapshot</code>, <code>GetSummary</code>, <code>OpenSummaryRecords</code></td>
+<td>Adapted</td>
+<td>Snapshot owns copied or mapped input; managed summary and record cursor are different representations</td>
+</tr>
+<tr>
+<td><code>Summary::stream_chunk</code></td>
+<td><code>OpenChunkReader</code>, <code>ReadChunkMessages</code></td>
+<td>Adapted</td>
+<td>Independent lazy cursor shares input and summary, surviving snapshot disposal</td>
+</tr>
+<tr>
+<td><code>Summary::seek_message</code></td>
+<td><code>SeekMessage</code> overloads</td>
+<td>Adapted</td>
+<td>Binding loads/validates the complete chunk; tail corruption can be reported earlier than upstream prefix seek</td>
+</tr>
+<tr>
+<td><code>Summary::read_message_indexes</code></td>
+<td><code>ReadMessageIndexes</code></td>
+<td>Adapted</td>
+<td>Caller-buffer form uses packed 18-byte rows</td>
+</tr>
+<tr>
+<td><code>read::attachment</code>, <code>read::metadata</code></td>
+<td><code>ReadAttachment</code>, <code>ReadMetadata</code></td>
+<td>Adapted</td>
+<td>Uses caller-supplied indexes and validates source ranges</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../src/McapIndexSnapshot.cs">McapIndexSnapshot</a>. Prepared indexes, grouped seeks and cache retention are binding additions, not additional official methods. Their reuse scopes are described under <a href="api.html#complete-chunk-random-access">random access</a>. Successful indexed reading does not establish full-file validation.</p>
+<h2 id="sans-io-sans-io">Sans-I/O (<code>sans-io</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Official Rust API</th>
+<th>.NET entry</th>
+<th>Mapping</th>
+<th>Key difference or constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sans_io::LinearReader</code>, <code>LinearReaderOptions</code>, <code>LinearReadEvent</code></td>
+<td><code>McapSansIoReader.CreateLinear</code>, <code>McapReaderOptions</code>, <code>NextEvent/SupplyInput</code></td>
+<td>Adapted</td>
+<td>Value events and caller buffers replace Rust event borrows and writable input slices</td>
+</tr>
+<tr>
+<td><code>sans_io::SummaryReader</code>, options and events</td>
+<td><code>CreateSummary</code>, <code>McapSummaryReaderOptions</code>, input/seek notification and summary access</td>
+<td>Adapted</td>
+<td>Caller drives I/O; completion makes summary available for indexed reading</td>
+</tr>
+<tr>
+<td><code>sans_io::IndexedReader</code>, options, events and <code>ReadOrder</code></td>
+<td><code>CreateIndexed</code>, <code>McapQuery</code>, <code>McapReadOrder</code>, indexed control operations</td>
+<td>Adapted</td>
+<td>Direct indexed engine requires indexes and has no scan-and-sort fallback</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../src/SansIo.cs">SansIo.cs</a> and the symbol inventory for individual events and controls. Optional CRC checks default to upstream settings. Shared-event and direct-fill ownership extensions are listed separately below.</p>
+<h2 id="records-utilities-and-errors-records-and-errors">Records, utilities and errors (<code>records-and-errors</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Official Rust API</th>
+<th>.NET entry</th>
+<th>Mapping</th>
+<th>Key difference or constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Schema</code>, <code>Channel</code>, <code>Message</code>, <code>Attachment</code>, <code>Compression</code></td>
+<td>Corresponding <code>Mcap*</code> models and <code>McapCompression</code></td>
+<td>Adapted</td>
+<td>Managed ownership replaces <code>Cow</code>, <code>Arc</code> and Rust lifetimes</td>
+</tr>
+<tr>
+<td><code>records::*</code>, opcodes and format constants</td>
+<td>Owned record models, <code>McapRecordView.Fields</code>, <code>McapOpcode</code>, <code>McapFormat</code></td>
+<td>Adapted</td>
+<td>Fields and variants may be reached through a view or owned model rather than a separate method</td>
+</tr>
+<tr>
+<td><code>read::parse_record</code>, <code>read::footer</code>, chunk data-offset helper</td>
+<td><code>McapRecords.Parse</code>, <code>McapRecordView.Parse</code>, <code>ReadFooter</code>, <code>GetCompressedDataOffset</code></td>
+<td>Adapted</td>
+<td>Owned parsing copies; views retain caller-memory lifetime rules</td>
+</tr>
+<tr>
+<td><code>McapError</code>, <code>McapResult</code></td>
+<td><code>McapErrorKind</code>, <code>McapException.Kind/Details</code>, return values and exceptions</td>
+<td>Adapted</td>
+<td>Structured error conversion replaces Rust results; .NET argument/disposal/Stream exceptions retain their own contracts</td>
+</tr>
+</tbody>
+</table>
+<h2 id="asynchronous-and-unexposed-surfaces">Asynchronous and unexposed surfaces</h2>
+<table>
+<thead>
+<tr>
+<th>Official Rust API</th>
+<th>.NET entry</th>
+<th>Mapping</th>
+<th>Reason or constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Optional <code>tokio::LinearReader</code> (<code>async</code>)</td>
+<td><code>McapAsyncReader.ReadNextRecordAsync</code></td>
+<td>Alternative</td>
+<td>.NET asynchronous I/O drives official Sans-I/O; Tokio itself is not invoked. Cancellation and suspension follow managed contracts</td>
+</tr>
+<tr>
+<td><code>sans_io::Decompressor</code>, <code>DecompressResult</code> (<code>unexposed</code>)</td>
+<td>None</td>
+<td>Not exposed</td>
+<td>Upstream has no custom-decompressor registration hook; there is no managed implementation of the trait</td>
+</tr>
+</tbody>
+</table>
+<p>Functional alternatives do not imply a port of runtime-specific interfaces. See <a href="../src/McapAsyncReader.cs">asynchronous reader</a>.</p>
+<p>Async message leases are a binding capability over the linear engine. <code>GetChannelDescription</code> and <code>GetSchemaDescription</code> expose immutable declarations encountered in lease mode after the outstanding read has been consumed; this adds no upstream API or patch.</p>
+<h2 id="local-extensions-and-binding-capabilities">Local extensions and binding capabilities</h2>
+<p>Inventory entries with <code>origin: local-extension</code> and group <code>local-extensions</code> identify patched native declarations. They are excluded from official counts. Binding-only managed capabilities need not introduce a Rust public declaration and are not added to the official baseline.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Capability</th>
+<th>Contract and evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Local native patch</td>
+<td>Shared storage/events, direct-fill ownership, <code>shares_backing</code></td>
+<td>Immutable published ranges and retained ownership; pointer, advancement, disposal and eviction checks</td>
+</tr>
+<tr>
+<td>Local native patch</td>
+<td><code>Writer::contains_channel</code>; disposal after output extraction</td>
+<td>Batch preflight and disposal without implicit completion; writer/lease tests</td>
+</tr>
+<tr>
+<td>Managed/native binding</td>
+<td>Prepared descriptors, borrowed delivery, batches, leases and lease forwarding</td>
+<td>Explicit ownership and completed-prefix failure rules; <code>BatchTests</code>, <code>LeaseTests</code>, <code>LeaseWriteTests</code>, allocation gates</td>
+</tr>
+<tr>
+<td>Managed/native binding</td>
+<td>Cache, grouped seek, fallback sorting and adaptive storage</td>
+<td>Local allowances, reuse scopes and retention; <code>BatchSeekTests</code>, <code>SortStorageTests</code>, native diagnostics</td>
+</tr>
+<tr>
+<td>Managed/native binding</td>
+<td>Async scheduling, input reservation, <code>Complete</code>/<code>FlushToDisk</code> separation</td>
+<td>Managed suspension/lifetime and persistence contracts; async, reservation and writer completion tests</td>
+</tr>
+</tbody>
+</table>
+<p>Patch motivation and permitted scope belong in <a href="patches.html">patches.md</a>; ABI ownership belongs in <a href="native.html">native.md</a>. Public usage and performance guarantees belong in <a href="api.html">api.md</a>.</p>
+<h2 id="verification-and-maintenance">Verification and maintenance</h2>
+<p>Run <code>python scripts/check_api_coverage.py</code> after changing the map. It compares symbol sets and kinds with the selected native source, checks official/local origin against the fixed baseline, and validates mapping categories, groups, required reasons and referenced files. It does not verify that every mapping description is semantically correct or that the two implementations behave identically; those require review and behavioral tests.</p>
+<p>Behavioral evidence is separate: pinned conformance cases, .NET/Python interoperability, independent unmodified-upstream comparison, lifetime/retry tests and allocation gates address different properties. Tests against the patched source alone are not independent upstream evidence. Binding diagnostics do not establish total-memory bounds or constrain codec allocations. Commands, fixture counts and limitations are maintained in <a href="development.html#external-contract-suites">development.md</a>.</p>
+<p>To review one capability, locate its group above, find its exact <code>rust</code> symbol in the reviewed inventory, then inspect the mapped source and evidence. Preserve the official baseline when adding local capabilities; record alternatives and exclusions explicitly instead of counting them as direct implementations.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

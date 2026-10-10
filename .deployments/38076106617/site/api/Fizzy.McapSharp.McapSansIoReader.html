@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Class McapSansIoReader | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class McapSansIoReader | Fizzy.McapSharp ">
+      
+      <meta name="description" content="Caller-driven official Rust parser. No I/O or borrowed native memory is exposed. Positions are measured from the MCAP origin; when servicing requests on a Stream containing a prefix, translate between these positions and the Stream position using its initial MCAP position.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Fizzy.McapSharp.McapSansIoReader">
+
+
+
+  <h1 id="Fizzy_McapSharp_McapSansIoReader" data-uid="Fizzy.McapSharp.McapSansIoReader" class="text-break">
+Class McapSansIoReader  
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Fizzy.html">Fizzy</a>.<a class="xref" href="Fizzy.McapSharp.html">McapSharp</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Caller-driven official Rust parser. No I/O or borrowed native memory is exposed. Positions are measured from the MCAP origin; when servicing requests on a Stream containing a prefix, translate between these positions and the Stream position using its initial MCAP position.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class McapSansIoReader : IDisposable</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">McapSansIoReader</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.idisposable">IDisposable</a></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_CreateIndexed_" data-uid="Fizzy.McapSharp.McapSansIoReader.CreateIndexed*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_CreateIndexed_Fizzy_McapSharp_McapQuery_System_Nullable_System_UInt64__" data-uid="Fizzy.McapSharp.McapSansIoReader.CreateIndexed(Fizzy.McapSharp.McapQuery,System.Nullable{System.UInt64})">
+  CreateIndexed(McapQuery?, ulong?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Creates an independent indexed parser from this completed summary. Uses topic/time/order filters;
+AllowBufferedSort and MaxBufferedSortBytes do not apply because this path never performs buffered fallback.
+recordLengthLimit is an optional maximum encoded record-body length in bytes.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapSansIoReader CreateIndexed(McapQuery? query = null, ulong? recordLengthLimit = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>query</code> <a class="xref" href="Fizzy.McapSharp.McapQuery.html">McapQuery</a></dt>
+    <dd></dd>
+    <dt><code>recordLengthLimit</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a>?</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSansIoReader.html">McapSansIoReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_CreateLinear_" data-uid="Fizzy.McapSharp.McapSansIoReader.CreateLinear*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_CreateLinear_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapSansIoReader.CreateLinear(Fizzy.McapSharp.McapReaderOptions)">
+  CreateLinear(McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Creates an incremental linear parser. MaxRandomAccessCacheBytes is a session-snapshot setting and has no effect here.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapSansIoReader CreateLinear(McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSansIoReader.html">McapSansIoReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_CreateSummary_" data-uid="Fizzy.McapSharp.McapSansIoReader.CreateSummary*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_CreateSummary_Fizzy_McapSharp_McapSummaryReaderOptions_" data-uid="Fizzy.McapSharp.McapSansIoReader.CreateSummary(Fizzy.McapSharp.McapSummaryReaderOptions)">
+  CreateSummary(McapSummaryReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Creates a summary parser whose Seek and Read requests the caller services against a seekable input.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapSansIoReader CreateSummary(McapSummaryReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapSummaryReaderOptions.html">McapSummaryReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSansIoReader.html">McapSansIoReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_Dispose_" data-uid="Fizzy.McapSharp.McapSansIoReader.Dispose*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_Dispose" data-uid="Fizzy.McapSharp.McapSansIoReader.Dispose">
+  Dispose()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Releases parser state and reports native cleanup failures. Repeated disposal is a no-op.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void Dispose()</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_GetSummary_" data-uid="Fizzy.McapSharp.McapSansIoReader.GetSummary*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_GetSummary" data-uid="Fizzy.McapSharp.McapSansIoReader.GetSummary">
+  GetSummary()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the completed summary into independent managed objects, or returns null when the input has no summary.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapSummary? GetSummary()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSummary.html">McapSummary</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_InsertChunkData_" data-uid="Fizzy.McapSharp.McapSansIoReader.InsertChunkData*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_InsertChunkData_System_UInt64_System_ReadOnlySpan_System_Byte__" data-uid="Fizzy.McapSharp.McapSansIoReader.InsertChunkData(System.UInt64,System.ReadOnlySpan{System.Byte})">
+  InsertChunkData(ulong, ReadOnlySpan&lt;byte&gt;)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Supplies indexed compressed Chunk bytes at their byte offset from the MCAP origin. Input is consumed synchronously; protocol errors terminate the parser.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void InsertChunkData(ulong offset, ReadOnlySpan&lt;byte&gt; compressedData)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>offset</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+    <dt><code>compressedData</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_NextEvent_" data-uid="Fizzy.McapSharp.McapSansIoReader.NextEvent*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_NextEvent_System_Span_System_Byte__Fizzy_McapSharp_McapReadEvent__" data-uid="Fizzy.McapSharp.McapSansIoReader.NextEvent(System.Span{System.Byte},Fizzy.McapSharp.McapReadEvent@)">
+  NextEvent(Span&lt;byte&gt;, out McapReadEvent)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Advances the protocol and copies delivered record/message bytes into caller storage. Read/Seek/ReadChunk requests require the corresponding input notification before advancing. BufferTooSmall retains the same pending delivery for retry.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadStatus NextEvent(Span&lt;byte&gt; destination, out McapReadEvent readEvent)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>destination</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.span-1">Span</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>readEvent</code> <a class="xref" href="Fizzy.McapSharp.McapReadEvent.html">McapReadEvent</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadStatus.html">McapReadStatus</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_NotifySeeked_" data-uid="Fizzy.McapSharp.McapSansIoReader.NotifySeeked*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_NotifySeeked_System_UInt64_" data-uid="Fizzy.McapSharp.McapSansIoReader.NotifySeeked(System.UInt64)">
+  NotifySeeked(ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Completes a pending Seek request with the actual byte position from the MCAP origin. Subtract any source prefix from the underlying Stream position.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void NotifySeeked(ulong position)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>position</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_OpenSummaryRecords_" data-uid="Fizzy.McapSharp.McapSansIoReader.OpenSummaryRecords*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_OpenSummaryRecords" data-uid="Fizzy.McapSharp.McapSansIoReader.OpenSummaryRecords">
+  OpenSummaryRecords()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent record-only cursor over a completed summary, retaining it after parser disposal.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReadCursor OpenSummaryRecords()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapReadCursor.html">McapReadCursor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_SetRecordLengthLimit_" data-uid="Fizzy.McapSharp.McapSansIoReader.SetRecordLengthLimit*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_SetRecordLengthLimit_System_Nullable_System_UInt64__" data-uid="Fizzy.McapSharp.McapSansIoReader.SetRecordLengthLimit(System.Nullable{System.UInt64})">
+  SetRecordLengthLimit(ulong?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Sets the indexed parser's maximum encoded record-body length in bytes; null removes the limit. Requires an indexed parser.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void SetRecordLengthLimit(ulong? limit)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>limit</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapSansIoReader_SupplyInput_" data-uid="Fizzy.McapSharp.McapSansIoReader.SupplyInput*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapSansIoReader_SupplyInput_System_ReadOnlySpan_System_Byte__System_UInt64_" data-uid="Fizzy.McapSharp.McapSansIoReader.SupplyInput(System.ReadOnlySpan{System.Byte},System.UInt64)">
+  SupplyInput(ReadOnlySpan&lt;byte&gt;, ulong)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies supplied bytes synchronously for the pending request. For Read, supply at most the requested count and an empty span signals EOF. For Seek, pass empty data and the actual new byte position from the MCAP origin. For ReadChunk, pass compressed data and its requested byte offset from the same origin.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void SupplyInput(ReadOnlySpan&lt;byte&gt; data, ulong position = 0)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>position</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

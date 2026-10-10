@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Class McapWriterOptions | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class McapWriterOptions | Fizzy.McapSharp ">
+      
+      <meta name="description" content="Writer configuration fixed at construction. Null emission/CRC switches retain upstream settings; other nullable settings have the semantics documented on their properties. Input payloads are consumed synchronously; Complete must be called explicitly.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Fizzy.McapSharp.McapWriterOptions">
+
+
+
+  <h1 id="Fizzy_McapSharp_McapWriterOptions" data-uid="Fizzy.McapSharp.McapWriterOptions" class="text-break">
+Class McapWriterOptions  
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Fizzy.html">Fizzy</a>.<a class="xref" href="Fizzy.McapSharp.html">McapSharp</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Writer configuration fixed at construction. Null emission/CRC switches retain upstream settings; other nullable settings have the semantics documented on their properties. Input payloads are consumed synchronously; Complete must be called explicitly.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed record McapWriterOptions : IEquatable&lt;McapWriterOptions&gt;</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">McapWriterOptions</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions</a>&gt;</div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="constructors">Constructors
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions__ctor_" data-uid="Fizzy.McapSharp.McapWriterOptions.#ctor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions__ctor" data-uid="Fizzy.McapSharp.McapWriterOptions.#ctor">
+  McapWriterOptions()
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapWriterOptions()</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="fields">Fields
+</h2>
+
+
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_DefaultChunkSize" data-uid="Fizzy.McapSharp.McapWriterOptions.DefaultChunkSize">
+  DefaultChunkSize
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Default target uncompressed chunk size in bytes, not a hard size or memory limit.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public const ulong DefaultChunkSize = 1048576</code></pre>
+  </div>
+
+
+
+
+  <h4 class="section">Field Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="properties">Properties
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_CalculateAttachmentCrcs_" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateAttachmentCrcs*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_CalculateAttachmentCrcs" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateAttachmentCrcs">
+  CalculateAttachmentCrcs
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Calculates attachment CRCs, enabled by the binding default. False omits the checksum; null retains the upstream default.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? CalculateAttachmentCrcs { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_CalculateChunkCrcs_" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateChunkCrcs*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_CalculateChunkCrcs" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateChunkCrcs">
+  CalculateChunkCrcs
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Calculates uncompressed chunk CRCs, enabled by the binding default. False omits the checksum; null retains the upstream default.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? CalculateChunkCrcs { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_CalculateDataSectionCrc_" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateDataSectionCrc*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_CalculateDataSectionCrc" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateDataSectionCrc">
+  CalculateDataSectionCrc
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Calculates the data-section CRC, enabled by the binding default. False omits the checksum; null retains the upstream default.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? CalculateDataSectionCrc { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_CalculateSummarySectionCrc_" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateSummarySectionCrc*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_CalculateSummarySectionCrc" data-uid="Fizzy.McapSharp.McapWriterOptions.CalculateSummarySectionCrc">
+  CalculateSummarySectionCrc
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Calculates the summary-section CRC, enabled by the binding default. False omits the checksum; null retains the upstream default.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? CalculateSummarySectionCrc { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_ChunkSize_" data-uid="Fizzy.McapSharp.McapWriterOptions.ChunkSize*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_ChunkSize" data-uid="Fizzy.McapSharp.McapWriterOptions.ChunkSize">
+  ChunkSize
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Target uncompressed chunk bytes, default 1 MiB; null disables automatic size-based chunk flushing. Whole records may exceed the target; it is not a total-memory bound.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ulong? ChunkSize { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_Compression_" data-uid="Fizzy.McapSharp.McapWriterOptions.Compression*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_Compression" data-uid="Fizzy.McapSharp.McapWriterOptions.Compression">
+  Compression
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Chunk compression codec, Zstd by default. Has no effect when chunks are disabled.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapCompression Compression { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapCompression.html">McapCompression</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_CompressionLevel_" data-uid="Fizzy.McapSharp.McapWriterOptions.CompressionLevel*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_CompressionLevel" data-uid="Fizzy.McapSharp.McapWriterOptions.CompressionLevel">
+  CompressionLevel
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Codec-specific compression level; zero chooses the codec default and null retains upstream configuration.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public uint? CompressionLevel { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint32">uint</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_CompressionThreads_" data-uid="Fizzy.McapSharp.McapWriterOptions.CompressionThreads*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_CompressionThreads" data-uid="Fizzy.McapSharp.McapWriterOptions.CompressionThreads">
+  CompressionThreads
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Zstd worker count; zero disables multithreaded compression. Null uses the upstream physical-CPU-count default. Does not control reader or binding threads.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public uint? CompressionThreads { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint32">uint</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_DisableSeeking_" data-uid="Fizzy.McapSharp.McapWriterOptions.DisableSeeking*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_DisableSeeking" data-uid="Fizzy.McapSharp.McapWriterOptions.DisableSeeking">
+  DisableSeeking
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Null chooses based on output seekability. True uses buffered chunk writing; false requires a seekable output.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? DisableSeeking { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_EmitAttachmentIndexes_" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitAttachmentIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_EmitAttachmentIndexes" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitAttachmentIndexes">
+  EmitAttachmentIndexes
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Emits attachment indexes in the summary. Null keeps EmitSummaryRecords or the upstream default (enabled).</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? EmitAttachmentIndexes { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_EmitChunkIndexes_" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitChunkIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_EmitChunkIndexes" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitChunkIndexes">
+  EmitChunkIndexes
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Emits chunk indexes in the summary. Null keeps EmitSummaryRecords or the upstream default (enabled).</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? EmitChunkIndexes { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_EmitMessageIndexes_" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitMessageIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_EmitMessageIndexes" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitMessageIndexes">
+  EmitMessageIndexes
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Emits per-channel message indexes after chunks. Null retains the upstream default (enabled); has no effect without chunks.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? EmitMessageIndexes { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_EmitMetadataIndexes_" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitMetadataIndexes*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_EmitMetadataIndexes" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitMetadataIndexes">
+  EmitMetadataIndexes
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Emits metadata indexes in the summary. Null keeps EmitSummaryRecords or the upstream default (enabled).</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? EmitMetadataIndexes { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_EmitStatistics_" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitStatistics*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_EmitStatistics" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitStatistics">
+  EmitStatistics
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Emits summary statistics. Null keeps the setting selected by EmitSummaryRecords, or the upstream default (enabled).</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? EmitStatistics { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_EmitSummaryOffsets_" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitSummaryOffsets*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_EmitSummaryOffsets" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitSummaryOffsets">
+  EmitSummaryOffsets
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Emits summary-group location records; null retains the upstream default (enabled). Independent of EmitSummaryRecords.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? EmitSummaryOffsets { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_EmitSummaryRecords_" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitSummaryRecords*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_EmitSummaryRecords" data-uid="Fizzy.McapSharp.McapWriterOptions.EmitSummaryRecords">
+  EmitSummaryRecords
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Sets statistics, summary indexes and repeated declarations together. Individual non-null flags below override it. Does not control summary-offset or message-index records; null retains upstream defaults.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? EmitSummaryRecords { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_Library_" data-uid="Fizzy.McapSharp.McapWriterOptions.Library*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_Library" data-uid="Fizzy.McapSharp.McapWriterOptions.Library">
+  Library
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Header library identifier; null uses the bundled Rust MCAP identifier.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string? Library { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_Profile_" data-uid="Fizzy.McapSharp.McapWriterOptions.Profile*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_Profile" data-uid="Fizzy.McapSharp.McapWriterOptions.Profile">
+  Profile
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>File profile identifier, empty by default; must be non-null.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string Profile { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_RepeatChannels_" data-uid="Fizzy.McapSharp.McapWriterOptions.RepeatChannels*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_RepeatChannels" data-uid="Fizzy.McapSharp.McapWriterOptions.RepeatChannels">
+  RepeatChannels
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Repeats channel declarations in the summary. Null keeps EmitSummaryRecords or the upstream default (enabled).</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? RepeatChannels { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_RepeatSchemas_" data-uid="Fizzy.McapSharp.McapWriterOptions.RepeatSchemas*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_RepeatSchemas" data-uid="Fizzy.McapSharp.McapWriterOptions.RepeatSchemas">
+  RepeatSchemas
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Repeats schema declarations in the summary. Null keeps EmitSummaryRecords or the upstream default (enabled).</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool? RepeatSchemas { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_SafeRejections_" data-uid="Fizzy.McapSharp.McapWriterOptions.SafeRejections*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_SafeRejections" data-uid="Fizzy.McapSharp.McapWriterOptions.SafeRejections">
+  SafeRejections
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Audited errors rejected before mutation that permit continued writing; defaults to all five flags. None makes every writer error terminal. I/O and cleanup failures are never recoverable.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapWriterSafeRejections SafeRejections { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapWriterSafeRejections.html">McapWriterSafeRejections</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_UseChunks_" data-uid="Fizzy.McapSharp.McapWriterOptions.UseChunks*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_UseChunks" data-uid="Fizzy.McapSharp.McapWriterOptions.UseChunks">
+  UseChunks
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Enables chunk grouping, true by default. Disabling chunks prevents chunk compression and chunk/message indexes.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool UseChunks { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Property Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_Equals_" data-uid="Fizzy.McapSharp.McapWriterOptions.Equals*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_Equals_Fizzy_McapSharp_McapWriterOptions_" data-uid="Fizzy.McapSharp.McapWriterOptions.Equals(Fizzy.McapSharp.McapWriterOptions)">
+  Equals(McapWriterOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool Equals(McapWriterOptions? other)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>other</code> <a class="xref" href="Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_Equals_" data-uid="Fizzy.McapSharp.McapWriterOptions.Equals*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_Equals_System_Object_" data-uid="Fizzy.McapSharp.McapWriterOptions.Equals(System.Object)">
+  Equals(object?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override bool Equals(object? obj)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>obj</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_GetHashCode_" data-uid="Fizzy.McapSharp.McapWriterOptions.GetHashCode*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_GetHashCode" data-uid="Fizzy.McapSharp.McapWriterOptions.GetHashCode">
+  GetHashCode()
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override int GetHashCode()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_ToString_" data-uid="Fizzy.McapSharp.McapWriterOptions.ToString*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_ToString" data-uid="Fizzy.McapSharp.McapWriterOptions.ToString">
+  ToString()
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override string ToString()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="operators">Operators
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_op_Equality_" data-uid="Fizzy.McapSharp.McapWriterOptions.op_Equality*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_op_Equality_Fizzy_McapSharp_McapWriterOptions_Fizzy_McapSharp_McapWriterOptions_" data-uid="Fizzy.McapSharp.McapWriterOptions.op_Equality(Fizzy.McapSharp.McapWriterOptions,Fizzy.McapSharp.McapWriterOptions)">
+  operator ==(McapWriterOptions?, McapWriterOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool operator ==(McapWriterOptions? left, McapWriterOptions? right)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>left</code> <a class="xref" href="Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions</a></dt>
+    <dd></dd>
+    <dt><code>right</code> <a class="xref" href="Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriterOptions_op_Inequality_" data-uid="Fizzy.McapSharp.McapWriterOptions.op_Inequality*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriterOptions_op_Inequality_Fizzy_McapSharp_McapWriterOptions_Fizzy_McapSharp_McapWriterOptions_" data-uid="Fizzy.McapSharp.McapWriterOptions.op_Inequality(Fizzy.McapSharp.McapWriterOptions,Fizzy.McapSharp.McapWriterOptions)">
+  operator !=(McapWriterOptions?, McapWriterOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool operator !=(McapWriterOptions? left, McapWriterOptions? right)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>left</code> <a class="xref" href="Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions</a></dt>
+    <dd></dd>
+    <dt><code>right</code> <a class="xref" href="Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../version.js" data-doc-root="../"></script></body>
+</html>

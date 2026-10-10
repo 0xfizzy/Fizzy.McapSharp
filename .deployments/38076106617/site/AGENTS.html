@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Repository guidelines | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Repository guidelines | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="favicon.ico">
+      <link rel="stylesheet" href="public/docfx.min.css">
+      <link rel="stylesheet" href="public/main.css">
+      <meta name="docfx:navrel" content="toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="index.html">
+            <img id="logo" class="svg" src="logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+
+      <div class="content">
+        <div class="actionbar">
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="repository-guidelines">Repository guidelines</h1>
+
+<h2 id="before-making-changes">Before making changes</h2>
+<ul>
+<li>Read <a href="README.html">README.md</a>, applicable parent workspace rules, and the relevant documents in <code>docs/</code>. This repository has its own Git history; check the path, branch, status, and diff before working, and preserve unrelated changes.</li>
+<li>Keep changes within the task scope. Consumer repositories, parent workspace scripts, and local tool configuration are outside this repository.</li>
+<li>Commits, pushes, version changes, and publishing require user authorization. Do not fetch or switch checkouts just to enable source integration.</li>
+</ul>
+<h2 id="implementation-boundaries">Implementation boundaries</h2>
+<ul>
+<li>Keep this library focused on general MCAP file operations. Do not depend on application frameworks, UI frameworks, devices, or business payload protocols. Consumers define payload encoding and clock semantics. Keep consumer identities, repository layouts and project-specific integration rules outside this repository.</li>
+<li>Breaking refactors are allowed within the task scope. Make contract changes explicit and update affected callers within scope, XML, guides, API inventories and tests together; report external impact without modifying other repositories outside scope. Remove obsolete APIs, compatibility layers and transitional implementations instead of preserving parallel old and new paths. This does not relax format correctness, lifetime safety, the hard allocation gates or other explicit implementation boundaries.</li>
+<li>Add API variants only for concrete use cases. A new capability does not require every synchronous, asynchronous, callback, caller-buffer, lease and mapped-input variant. Preserve supported contracts unless explicitly changed; do not expand the ownership or execution model merely for API symmetry.</li>
+<li>Use the official Rust <code>mcap</code> crate through the private C ABI and .NET <code>SafeHandle</code>. Do not expose Rust layouts or native handles. Borrowed spans are restricted to synchronous non-reentrant callbacks or explicitly retained storage leases. Preserve independent owned results.</li>
+<li>Optimize allocations and payload copies introduced by the binding according to the memory tradeoffs below; do not impose allocation accounting, heap budgets, or allocator policies on upstream parsing, compression, or storage.</li>
+<li>Prefer unmodified upstream APIs. A local patch is permitted only when an explicit binding ownership or performance contract cannot be met through upstream APIs or reasonable binding-only adaptation. If adaptation requires disproportionate duplicated state or lifetime machinery, compare it with the smallest necessary access or storage ownership extension, including correctness, maintenance and upstream-update costs; document why the adaptation is insufficient. Complexity alone does not justify unrelated extensions. Preserve format semantics and state machines. Convenience, style consistency, and optimization or resource restriction of upstream internals do not justify a patch. Do not submit patches upstream.</li>
+<li>Follow <a href="docs/patches.html">local patch boundaries</a>. Document each local patch's upstream limitation, why binding-only alternatives are insufficient, affected surface, extension contract, and independent correctness/lifetime/performance evidence. Distinguish upstream behavior, local patch extensions, and managed binding behavior in implementation, documentation, and API inventories. Compare format behavior against an unmodified upstream implementation; tests against the same patched source are not independent upstream evidence.</li>
+<li>Keep struct layouts, calling conventions, operation codes, and ownership consistent across the ABI. Update the ABI version and managed check together for incompatible changes. Catch panics in fallible native operations; unwinding must not cross FFI.</li>
+<li>Serialize writer calls and consume input buffers before returning. Preserve file creation semantics: the path overload creates a new file and fails if it already exists; callers choose creation or truncation when opening a Stream. Preserve terminal failure except for the five configured, audited pre-mutation writer rejections; default to all five and retain None for strict failure. Preserve explicit <code>Complete</code>, and disposal without implicit completion.</li>
+<li>The warmed normal message hot paths are a hard zero-allocation contract: <code>WriteMessage(in McapMessageHeader, ReadOnlySpan&lt;byte&gt;)</code> and caller-buffer <code>ReadNext</code> must produce exactly 0 B of managed allocation, including chunk/compression boundaries, late declarations, retries and EOF. Any change to these paths requires the Release allocation gate before merge.</li>
+<li>Each reader handle belongs to one read session (or one convenience enumerator). Release parser/iterator state before any mapping or file it borrows. Convenience records own managed copies; caller-buffer APIs copy into caller-owned spans; callbacks and leases follow docs/api.md. Leases retain storage and mapped files after reader disposal. A successful indexed query is not full-file validation.</li>
+<li>Support .NET 8 / win-x64, linux-x64 and linux-arm64. Linux uses glibc with an Ubuntu 22.04 build baseline and native ARM64 runners; macOS and musl are out of scope. Pin native dependencies exactly in <code>native/Cargo.toml</code>, retain <code>Cargo.lock</code>, and build with <code>--locked</code>. Use the toolchain specified in <code>rust-toolchain.toml</code>.</li>
+</ul>
+<h2 id="lifetime-and-failure-handling">Lifetime and failure handling</h2>
+<ul>
+<li>Prioritize explicit ownership, safe termination and visible failure rather than general reuse after failure. Keep reader factories reusable and each writer, read session and cursor limited to its own lifetime. Repeat work through a new session; do not add session resets, recovery phases or generic recovery frameworks without a concrete capability requirement.</li>
+<li>Give each resource one cleanup owner and each lifetime one authoritative disposal flow. Attempt necessary, safe cleanup and report cleanup failures without discarding an operation error. Repeated disposal may be a no-op after the first attempt; it must not replay destructive cleanup or make a failed object usable again. Retain a fixed disposal result only when required by an existing contract or a concrete need to observe or share shutdown completion. Synchronous owners need no shutdown Task; share one completion task only where asynchronous shutdown is actually required.</li>
+<li>Keep explicit disposal separate from nonthrowing SafeHandle finalization fallback. Explicit disposal must report owned Stream or native release failures; finalizer constraints do not justify swallowing them for callers. Do not require every owner to cache and rethrow a reported exception on subsequent disposal. Never replay destructive release without an explicit safe retry contract, or admit the same Stream into a new session while safe release or ownership transfer remains unproven.</li>
+<li>Preserve simultaneous operation and cleanup errors at the boundary that owns both. Failure visibility does not require a failure history, an exception collection on every object, or repeated wrapping and logging. Store only the state needed for safe ownership, terminal behavior and explicitly observable results.</li>
+<li>Preserve parser-before-storage release ordering and retain dependencies until accepted calls, callbacks and native operations finish. A disposal exception alone proves neither release nor continued access. Retain dependencies only where outstanding native, callback or borrowed access cannot be ruled out, and prohibit reuse while release or ownership transfer remains unproven. Release other resources when independently safe; do not add global quarantine or background cleanup machinery without a concrete lifetime requirement. Independently retained child cursors and leases keep their backing storage alive after parent disposal and release their own references.</li>
+<li>Coordinate required concurrency at public capability boundaries; helpers rely on their owner's serialization unless their role requires otherwise. Preserve serialized writer calls, synchronous callback non-reentry and the async reader's single outstanding operation/ValueTask consumption contract. Do not add concurrent disposal support, background draining queues or general thread safety without a concrete need.</li>
+<li>Distinguish safe protocol continuation from recovery of a failed object. Preserve audited pre-mutation writer rejections, pending-record buffer-size retries and explicit file-prefix salvage through RecoverMessages; none permits retrying arbitrary I/O, callback or disposal failures. Keep format completion, persistence and resource disposal separate, and keep terminal session faults terminal.</li>
+<li>Apply the breaking-refactor policy to retry, failure and concurrency changes; do not erase promises only from documentation. Remove obsolete behavior and its tests together, and verify the resulting ownership transfer, native/callback lifetime, one-shot release, visible cleanup failures and specified repeated-disposal behavior. Retain tests for supported buffer negotiation, safe rejection and file salvage. Keep lifecycle bookkeeping off warmed hot paths unless it satisfies their zero-allocation contract.</li>
+</ul>
+<h2 id="memory-and-copy-tradeoffs">Memory and copy tradeoffs</h2>
+<ul>
+<li>Preserve format correctness, ownership, lifetime safety and the chosen API contracts, including the hard zero-managed-allocation hot paths. API changes follow the breaking-refactor policy; performance work must not silently change ownership or behavior. Treat zero-copy as a means to meet throughput, latency and ownership requirements, not as a universal objective. Balance binding-added copy volume, repeated decompression, retained capacity and retention duration; zero native allocation and minimum resident memory are not general goals.</li>
+<li>Apply the optimization preferences below to demonstrated costs, not as requirements to build every mechanism into a new path. Beyond existing hard contracts, identify a concrete representative workload and compare a simple baseline with the proposed optimization using relevant measurements. Added pooling, prepared state, caching, compaction or zero-copy machinery must show a useful benefit that justifies its implementation and maintenance cost; otherwise keep the simpler design. Do not extend zero-allocation requirements to setup, owned results, lease control objects or other excluded paths merely for consistency.</li>
+<li>Prefer borrowing for synchronous consumption and sharing for short-lived pipelines and synchronous forwarding. Use direct input into parser storage and reuse prepared descriptors. Keep shared payloads separate from headers and control descriptors; copying small descriptors is acceptable when it avoids payload repacking or repeated interop calls. Setup, cold operations, errors and explicit owned-result/lease control objects may allocate. Do not add pooling or unsafe complexity solely to eliminate these permitted allocations.</li>
+<li>Justify new binding-controlled retention by naming the storage unit, its size or workload-dependent growth, the number of simultaneously retained owners, and the release/reuse condition. Distinguish active parser storage, cache retention, sorting state and caller-held leases. A finite file or a count-limited queue alone does not establish a useful byte bound. Do not describe file-proportional snapshots, buffered sorting or upstream index accumulation as constant-memory operations.</li>
+<li>For sparse, long-lived retention, an explicit copy or binding-internal compaction is appropriate when it materially reduces retained backing storage. Evaluate savings per distinct backing owner; copying one slice does not release storage still referenced elsewhere. Retaining a complete chunk or mapping requires considering selected payload bytes and retention duration, not just avoided copies. Consumer backpressure controls outstanding work. When measuring storage, count shared backing owners once and distinguish logical payload bytes, allocated capacity, mapped address space and resident memory. Existing cache/sort allowances and soft batch targets are local controls, not total-memory guarantees; specify their exclusions and oversized-item behavior when changing them. Do not require a production-wide memory ledger.</li>
+<li>Reserve input storage for the parser's known current requirement when this avoids repeated growth and copying during short reads; the I/O transfer size may remain smaller. Respect existing length checks and failure behavior. Do not prebuffer an entire source merely to optimize incremental reads, or eagerly allocate for speculative future records. Prefer binding-only adaptation through existing upstream APIs.</li>
+<li>Preserve zero-copy paths across operation boundaries: retries retain the pending storage, batches may reference multiple owners without concatenating payloads, and forwarding should reuse retained payloads where the destination can consume them synchronously. Published ranges must remain immutable. Reuse or return storage to a pool only after all users of that storage have released it; cache eviction and reader disposal must not invalidate a lease.</li>
+<li>Keep ownership choices explicit. Caller-buffer APIs copy into caller storage; owned results and copied snapshots remain independent. Never silently replace these contracts with borrowing, shared mutable results or mapping, or change shared leases into copied results. Internal buffering may choose shared or compact storage before publication, provided ordering, immutability, lifetime and failure contracts remain intact. A new shared alternative must define lifetime, source immutability, concurrency and disposal. Prefer an explicit copy when the caller needs independent ownership or chooses to detach sparse results from larger storage.</li>
+<li>Prioritize measured binding-added payload movement, repeated decompression and retention amplification before control-object micro-optimizations. Address repeated random-access decompression through bounded caching or chunk-local access before adding payload copies. Cache defaults, compaction thresholds, storage pooling, prefetch and batch aggregation need workload evidence, a retention/release policy and latency tradeoffs. Distinguish logical payload limits, retained backing capacity, transient allocation peaks, mapped address space and resident memory. These preferences do not expand the permitted upstream patch scope in <a href="docs/patches.html">patches.md</a>.</li>
+<li>Validate the property being optimized: managed allocation gates do not prove zero native allocation, zero payload copying or bounded memory. For affected paths, use focused tests or diagnostic benchmarks for copy volume, allocation counts, retained capacity, chunk loads and throughput/latency as relevant. Cover short reads, large records, retries, chunk boundaries and applicable compression modes; sharing changes also require lifetime checks across advancement, disposal and eviction. Measure asynchronous lease paths separately under real suspension; record-reader results do not establish lease allocation costs. Keep diagnostics scoped to the binding or test instrumentation, and report unmeasured costs explicitly.</li>
+</ul>
+<h2 id="review-criteria">Review criteria</h2>
+<ul>
+<li>Classify memory observations by ownership contract, access pattern, binding overhead and upstream behavior before reporting defects. Documented allocation, copying or growth with input size alone does not establish a defect. For each finding, identify the triggering workload, cost source and impact, and the violated contract or avoidable binding overhead. Distinguish measured evidence from inference and performance tradeoffs from required fixes.</li>
+<li>Check the available paths in <a href="docs/api.html">api.md</a> before treating buffered sorting or copied snapshots as problems. Verify that file-order scanning, indexed-only queries, rejection of buffered fallback and explicitly mapped input honor their contracts. Full collection for unindexed global time ordering and full input copies for independent snapshots are intentional costs; alternatives are relevant only when their ordering, ownership and source-lifetime requirements fit the use case. Missing or misleading guidance, ineffective controls, unexpected copies and regressions remain valid findings.</li>
+<li>Attribute upstream parser, codec and writer costs to their actual owner. Documented upstream index accumulation and finish-time summary cloning are capability boundaries, not binding defects by themselves. Report binding amplification, incorrect upstream API use or broken public promises when supported by evidence. Any proposed upstream change must satisfy <a href="docs/patches.html">local patch boundaries</a>; a memory review does not expand that scope.</li>
+<li>Evaluate an optimization against its stated contract and affected paths. Remaining costs outside that target do not establish that the fix failed. Describe relevant residual limitations separately, and keep ownership, lifetime safety and the hard managed-allocation gates subject to review regardless of documented tradeoffs.</li>
+</ul>
+<h2 id="validation-and-delivery">Validation and delivery</h2>
+<ul>
+<li>Follow <a href="docs/development.html">development.md</a>. Build the native Release library before managed projects, and serialize builds that share output directories.</li>
+<li>For managed or native behavior changes, run <code>./scripts/Build.ps1 -Test -Pack</code> after collecting all three native assets from the same source, or the equivalent Python commands in CI. Local host-only validation uses <code>./scripts/Build.ps1 -Test</code>; report missing platform assets rather than manufacturing or bypassing them. Also run Python interoperability checks for format, compression, ABI, or read/write changes. Run <code>./scripts/Test-Package.ps1</code> for packaging or runtime asset changes.</li>
+<li>Distinguish current-source, local-package and published-package validation; testing a published dependency does not validate current source. For documentation-only changes, check links, commands, and implementation contracts without claiming unperformed tests.</li>
+<li>Default to NuGet. For source integration, select exactly one reference type per project and restore after switching modes. Reference-selection configuration belongs to the consuming project; do not commit local paths or source configuration here.</li>
+<li>Do not commit <code>.tools/</code>, <code>native/target/</code>, <code>bin/</code>, <code>obj/</code>, <code>artifacts/</code>, or credentials. Publish only through GitHub Actions Trusted Publishing; follow the publishing rules below.</li>
+<li>Tests use temporary files and require no hardware. Do not operate devices without authorization. Report actual checks, unverified areas, and limitations; a successful build does not validate UI or device behavior.</li>
+</ul>
+<h2 id="publishing">Publishing</h2>
+<ul>
+<li>Version changes, commits, pushes, and publishing require user authorization. Check the working tree and release ref, complete applicable validation, and verify the package version and all three RID native assets before manually triggering <code>.github/workflows/publish.yml</code>.</li>
+<li>Before publishing, configure a NuGet Trusted Publisher matching this repository, publishing workflow, and GitHub <code>nuget</code> environment. Configure the environment's protection rules and the <code>NUGET_USER</code> variable used by <code>NuGet/login@v1</code>. The workflow uses <code>id-token: write</code> for OIDC and obtains a temporary API key; do not store long-lived publishing credentials.</li>
+<li><code>.github/workflows/build.yml</code> runs on pushes to main, pull requests, or manual dispatch. It calls <code>validate.yml</code> to build native and managed code on three platforms, run xUnit and bidirectional Python interoperability, pack once, validate the identical complete package on five OS/architecture combinations, and exchange platform fixtures. Confirm it passed for the release commit.</li>
+<li>The manual publish workflow calls the same reusable validation, then publishes its verified package without rebuilding or repacking in the publish job. Both workflows run the cross-platform <code>test_package.py</code> implementation behind <code>Test-Package.ps1</code>. The publish workflow additionally verifies the public NuGet package on all supported RIDs and archives/deploys matching documentation. Consumer Source builds and hardware/UI checks are not covered.</li>
+<li>For an authorized version update, check the managed project, native <code>Cargo.toml</code> / <code>Cargo.lock</code>, native library identifier and metadata-driven package tests for consistency. Retain the lockfile and exact native dependency versions.</li>
+<li>After publication, confirm the workflow result and NuGet availability, then validate consumers using the published package source. Local nupkg test success is not published-package validation.</li>
+</ul>
+<h2 id="documentation">Documentation</h2>
+<ul>
+<li>Public API/XML, README, guide, navigation, and documentation-tool changes require <code>./scripts/Build-Docs.ps1</code>; run <code>./scripts/Test-Samples.ps1</code> for affected examples and <code>./scripts/Test-Release.ps1</code> for release/archive logic. Follow <code>docs/documentation.md</code> and <code>docs/release.md</code>. These commands do not authorize publication. Preserve archive Git history and original Release assets; never force-push archive history. Documentation updates replace the same package-version directory after validation; use Update-Docs.ps1.</li>
+<li>Keep README limited to an introduction, quick start, and links. Maintain public contracts in <code>docs/api.md</code>, the ABI in <code>docs/native.md</code>, and builds, package contents, and integration in <code>docs/development.md</code>. Keep maintainer publishing rules in this file.</li>
+<li>AGENTS.md is English-only. English is the default for README and the guides in docs/; guides have same-name translations under <code>docs/zh-CN/</code> with an independent navigation; the root README uses <code>README.zh-CN.md</code> with a language switch. Update both versions together when behavior, commands, or support changes. Keep links within the selected language where a translation exists.</li>
+<li>Do not hard-code the current package version in documentation or installation examples; refer to project metadata and omit the version option for normal NuGet installation.</li>
+<li>Identify the audience, use case, core question, and expected action before deciding on the main message and structure.</li>
+<li>Organize content in the order readers need to understand or act on it. Explain its purpose, cover necessary concepts, steps, and exceptions, and provide a conclusion or next step.</li>
+<li>Describe the current implementation and present only final conclusions, necessary supporting evidence, and required actions. Do not introduce conversation content as assumptions or body text, or include conversation summaries, migration histories, one-off incident reports, or the process of generating or revising the document.</li>
+<li>Make every section serve the document's overall goal. Consolidate repetition and remove irrelevant details so readers can understand and use the document without knowing how it was produced.</li>
+<li>For complex documents, review structure, organize content, refine language, and perform a final review in that order. Unless explicitly requested, do not make major changes to structure, scope, and tone at the same time.</li>
+<li>When finished, check that the main message can be stated in one sentence, and look for repetition, abrupt transitions, excessive explanation, and process narratives.</li>
+</ul>
+<h2 id="commit-messages">Commit messages</h2>
+<ul>
+<li>Use the <code>type(scope): description</code> format; scope is optional. Start the type, scope, and English description with lowercase letters, and mark breaking changes with <code>!</code>.</li>
+<li>Examples: <code>refactor(viewer): simplify frame ownership</code>, <code>chore: update dependencies</code>, <code>refactor(api)!: remove legacy interface</code>.</li>
+</ul>
+<h2 id="temporary-files-and-task-artifacts">Temporary files and task artifacts</h2>
+<ul>
+<li>Put temporary development logs, backups, validation reports and one-off scripts under this repository's <code>artifacts/</code>. Do not create <code>.log</code>, <code>.bak</code> or similar temporary files at the repository root. Apply this rule to command redirection and default output paths in new or modified scripts.</li>
+<li>Treat <code>artifacts/</code> as disposable output. Do not keep the only copy of work, long-term records or machine-local configuration there. Preserve needed patches, benchmark data and experiment records in an appropriate version-controlled location or durable storage outside the repository.</li>
+<li>This rule does not relocate existing <code>bin/</code>, <code>obj/</code>, <code>build/</code>, application runtime logs or local configuration, and does not itself authorize deleting existing files. Check cleanup scope and outputs still in use before deletion.</li>
+</ul>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="./version.js" data-doc-root="./"></script></body>
+</html>

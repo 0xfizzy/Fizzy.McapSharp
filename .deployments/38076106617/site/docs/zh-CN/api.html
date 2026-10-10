@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>API、生命周期与数据所有权 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="API、生命周期与数据所有权 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../favicon.ico">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="api生命周期与数据所有权">API、生命周期与数据所有权</h1>
+
+<p><a href="../api.html">English</a> | 简体中文</p>
+<p><code>Fizzy.McapSharp</code> 提供 MCAP 文件、Stream、缓冲区和 Sans-I/O 操作，支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；支持可取消的异步记录读取和时间排序；业务解码由应用实现。参见<a href="coverage.html">官方 API 覆盖表</a>。</p>
+<h2 id="读写能力总览">读写能力总览</h2>
+<p>先找到所需能力，再选择输入／输出、交付所有权及访问模式。下表列出本库能力；与官方 Rust API 的对应关系见<a href="coverage.html">覆盖指南</a>。</p>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>写入路径</th>
+<th>读取路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>消息</td>
+<td>header＋span、完整消息、prepared channel、批量及 lease 转写</td>
+<td>自有结果枚举、调用方缓冲、借用回调、批次 lease</td>
+</tr>
+<tr>
+<td>Schema 与 Channel</td>
+<td>显式注册，或完整消息自动声明</td>
+<td>已遇声明查询、不可变描述、自有枚举</td>
+</tr>
+<tr>
+<td>Metadata</td>
+<td><code>WriteMetadata</code>、prepared operation</td>
+<td>枚举或索引 <code>ReadMetadata</code></td>
+</tr>
+<tr>
+<td>附件</td>
+<td>完整 payload、prepared operation、分段附件</td>
+<td>枚举或索引 <code>ReadAttachment</code></td>
+</tr>
+<tr>
+<td>原始记录</td>
+<td><code>WritePrivateRecord</code> 写入私有操作码</td>
+<td>顶层／展开记录、调用方缓冲、自有记录及记录视图</td>
+</tr>
+<tr>
+<td>摘要与索引</td>
+<td>writer 选项控制生成；<code>Complete</code> 后访问摘要</td>
+<td>摘要快照／游标、索引查询、chunk 游标及随机 seek</td>
+</tr>
+</tbody>
+</table>
+<p>可以读取任意记录，不代表提供通用的任意记录写入器。写入支持文件或 Stream；读取还支持复制／映射缓冲及直接 Sans-I/O。详见<a href="#%E5%86%99%E5%85%A5%E5%BD%95%E5%88%B6">写入</a>、<a href="#%E8%87%AA%E6%9C%89%E8%AE%B0%E5%BD%95%E6%91%98%E8%A6%81%E5%92%8C%E5%8E%9F%E5%A7%8B%E8%AE%B0%E5%BD%95">自有与原始记录读取</a>及<a href="#%E5%AE%98%E6%96%B9%E8%AF%BB%E5%8F%96%E5%99%A8%E7%9B%B4%E6%8E%A5%E9%80%82%E9%85%8D">读取器适配</a>。</p>
+<h2 id="选择写入路径">选择写入路径</h2>
+<p>所有 payload 输入都在调用返回前同步消费。根据声明和载荷已有的表示形式选择路径；批量减少调用开销，但不提供原子性。</p>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>声明与准备</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WriteMessage(in header, span)</code></td>
+<td>先注册 channel；预热路径托管分配为 0 B</td>
+<td>已知 channel 上重复写入，复用 payload 缓冲</td>
+</tr>
+<tr>
+<td><code>WriteMessage(McapMessage)</code></td>
+<td>读取当前描述并自动声明；便利处理允许分配</td>
+<td>写入已有自有消息对象</td>
+</tr>
+<tr>
+<td>Prepared channel 的 <code>WriteMessage</code></td>
+<td>一次准备不可变描述；写入时自动声明；预热写入托管分配为 0 B</td>
+<td>重复完整消息写入，避免反复序列化描述</td>
+</tr>
+<tr>
+<td><code>WriteBatch(headers, storage, ranges)</code></td>
+<td>先注册 channel；调用方提供连续 payload 存储与范围</td>
+<td>Payload 已位于同一存储区；不必仅为批量而重新拼接</td>
+</tr>
+<tr>
+<td><code>WriteBatch(lease[, headers])</code></td>
+<td>先注册目标 channel；可替换 header；跨 owner 共享保留载荷</td>
+<td>不拼接 payload 地转发读取批次</td>
+</tr>
+</tbody>
+</table>
+<p>准备操作允许分配。<code>McapPreparedOperation</code> 同样可复用 schema/channel/metadata/attachment 控制描述。原生 writer、codec 和 Stream 成本仍存在。具体契约见<a href="#%E5%AE%8C%E6%95%B4%E6%B6%88%E6%81%AF%E4%B8%8E%E9%A2%84%E5%87%86%E5%A4%87%E5%86%99%E5%85%A5">预准备写入</a>、<a href="#%E5%80%9F%E7%94%A8%E6%89%B9%E6%AC%A1%E4%B8%8E-lease">批量转写</a>。</p>
+<h2 id="选择消息所有权">选择消息所有权</h2>
+<p>先选择交付所有权，再优化分配。消息会话的查询与排序独立于交付方式；下列方法交付选中的消息，但结果形式和生命周期不同。具体可用方法取决于 reader 类型。</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>API</th>
+<th>托管分配与 payload 交付</th>
+<th>生命周期</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>独立、可修改的结果</td>
+<td><code>ReadMessages()</code></td>
+<td>分配结果对象和最终 payload 数组；每条结果复制可变 schema 字节与 metadata</td>
+<td>独立于 reader</td>
+</tr>
+<tr>
+<td>复用调用方存储</td>
+<td><code>ReadNext(buffer, ...)</code>、<code>ReadBatch(...)</code></td>
+<td>库预热路径托管分配为 0 B；payload 复制到调用方缓冲</td>
+<td>调用方拥有缓冲并决定覆盖时机</td>
+</tr>
+<tr>
+<td>同步处理</td>
+<td><code>ReadNext(visitor)</code>、<code>VisitMessages(...)</code></td>
+<td>库预热路径托管分配为 0 B；无最终 payload 交付复制</td>
+<td>Span 在回调返回时失效；禁止重入 reader</td>
+</tr>
+<tr>
+<td>跨操作保留或转写</td>
+<td><code>ReadBatchLease(...)</code></td>
+<td>分配 lease 控制对象；共享 payload backing，不为批次重新拼接</td>
+<td>访问期间保持 lease 存活；禁止并发释放</td>
+</tr>
+</tbody>
+</table>
+<p><code>ReadMessages()</code> 的复制用于提供独立可变结果，并非消息读取必须创建自有数组。缓冲与借用路径返回 header，需要声明时单独查询；<code>GetChannelDescription</code> 提供可共享的不可变声明。选择交付方式不会消除解析器输入、解压、查询排序或索引成本。参见<a href="#%E6%A0%A1%E9%AA%8C%E6%81%A2%E5%A4%8D%E5%92%8C%E5%88%86%E9%85%8D%E6%89%BF%E8%AF%BA">分配保证</a>。</p>
+<p>长期持有 lease、逐条随机 seek 都是合法用法。<a href="#%E4%B8%BA%E4%BF%9D%E7%95%99%E7%BB%93%E6%9E%9C%E9%80%89%E6%8B%A9%E5%AD%98%E5%82%A8">保留建议</a>和<a href="#%E5%AE%8C%E6%95%B4-chunk-%E9%9A%8F%E6%9C%BA%E8%AE%BF%E9%97%AE">访问模式</a>用于选择性能策略；生命周期和并发规则属于正确性要求。</p>
+<h2 id="选择访问模式">选择访问模式</h2>
+<p>访问模式决定从哪里、按什么顺序读取，交付所有权决定怎样将结果交给调用方。两者分别选择，不是互斥的 API 类别；具体组合取决于 reader。</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>路径</th>
+<th>主要取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>按文件顺序处理录制</td>
+<td>顺序消息／记录会话</td>
+<td>增量输入，无需为全局排序收集结果</td>
+</tr>
+<tr>
+<td>按 topic／时间过滤并按时间排序</td>
+<td>使用可用索引的查询</td>
+<td>可能缓冲重叠 chunk；索引不足时回退可能收集全部匹配结果</td>
+</tr>
+<tr>
+<td>要求索引，拒绝扫描排序</td>
+<td><code>OpenIndexedMessages</code> 或禁止缓冲回退</td>
+<td>所需查询支持不可用时失败</td>
+</tr>
+<tr>
+<td>读取同一 chunk 内多条消息</td>
+<td>一个 <code>OpenChunkReader</code> 游标</td>
+<td>在该游标内复用遍历</td>
+</tr>
+<tr>
+<td>读取已知的一组离散消息</td>
+<td><code>SeekMessages</code></td>
+<td>单次调用内合并 chunk 加载；返回共享批次</td>
+</tr>
+<tr>
+<td>跨调用反复访问 chunk</td>
+<td>复用配置缓存额度的 snapshot</td>
+<td>用保留存储换取更少的重复加载／解压</td>
+</tr>
+</tbody>
+</table>
+<p>详见<a href="#%E9%80%89%E6%8B%A9%E6%9F%A5%E8%AF%A2%E8%B7%AF%E5%BE%84">查询选择</a>、<a href="#%E5%AE%8C%E6%95%B4-chunk-%E9%9A%8F%E6%9C%BA%E8%AE%BF%E9%97%AE">随机访问</a>及<a href="#%E7%BB%91%E5%AE%9A%E5%B1%82%E6%80%A7%E8%83%BD%E4%B8%8E%E5%B1%80%E9%83%A8%E9%99%90%E5%88%B6">局部额度</a>。以下章节分别定义各操作及其生命周期、失败和校验契约。</p>
+<h2 id="写入录制">写入录制</h2>
+<p>文件创建语义：<code>McapWriter(path, options)</code> 原子地创建新文件，路径已存在时失败，保留已有文件内容。这是路径重载默认的防误覆盖行为，并非 MCAP 格式的要求。</p>
+<p><code>McapWriter(stream, options, leaveOpen: false)</code> 接受可写的可寻址或非寻址流，由调用方在打开流时选择创建或截断方式。若需显式覆盖文件，使用 <code>FileMode.Create</code> 和 <code>FileAccess.Write</code> 打开 <code>FileStream</code>，再传给 Writer；打开该流时就会立即截断已有文件。可寻址输出必须位于流末尾，当前位置作为 MCAP 偏移零点；非寻址写入使用原生 Chunk 缓冲。</p>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+
+using var writer = new McapWriter(path, new() { Compression = McapCompression.Zstd });
+var schema = writer.RegisterSchema(&quot;sample&quot;, &quot;jsonschema&quot;, &quot;{}&quot;u8);
+var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;json&quot;, schema);
+var header = new McapMessageHeader(channel, Sequence: 0, LogTime: 1000, PublishTime: 900);
+writer.WriteMessage(in header, &quot;{\&quot;value\&quot;:42}&quot;u8);
+writer.Complete();
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>契约</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RegisterSchema(name, encoding, data)</code></td>
+<td>返回原生分配的 ushort ID；首参数为 id 的重载指定非零 ID，等价内容可能去重。</td>
+</tr>
+<tr>
+<td><code>RegisterChannel(topic, messageEncoding, schemaId, metadata)</code></td>
+<td>返回 Channel ID；首参数为 id 的重载指定 ID，允许零。Schema ID 零表示无 Schema；同一 ID 的冲突内容会失败。</td>
+</tr>
+<tr>
+<td><code>WriteMessage(in header, data)</code></td>
+<td>使用消息头和 payload span 写入已注册 Channel，同步消费输入，不创建托管 payload 副本。</td>
+</tr>
+<tr>
+<td><code>WriteMetadata(name, metadata)</code></td>
+<td>写入字符串键值对。</td>
+</tr>
+<tr>
+<td><code>WriteAttachment(name, mediaType, logTime, createTime, data)</code></td>
+<td>一次写入附件。</td>
+</tr>
+<tr>
+<td><code>StartAttachment(..., length)</code>、<code>WriteAttachmentBytes(data)</code>、<code>FinishAttachment()</code></td>
+<td>按准确声明长度分段写附件；结束前拒绝其他写入操作，长度不符使 Writer 终止失败。</td>
+</tr>
+<tr>
+<td><code>WritePrivateRecord(opcode, data, includeInChunks)</code></td>
+<td>接受 0x80–0xFF 的私有操作码，可选择写入 Chunk。</td>
+</tr>
+<tr>
+<td><code>Flush()</code></td>
+<td>调用上游 flush，不完成 MCAP 尾部，也不保证持久化。</td>
+</tr>
+<tr>
+<td><code>Complete()</code></td>
+<td>完成 MCAP 格式并排空输出缓冲，不请求文件持久化。成功后重复调用无操作；输出保持所有权直至释放或 Stream 转移。</td>
+</tr>
+<tr>
+<td><code>FlushToDisk()</code></td>
+<td>成功 Complete 后，请求路径输出或直接传入的 FileStream 持久化；其他 Stream 抛出 NotSupportedException。</td>
+</tr>
+<tr>
+<td><code>GetSummary()</code></td>
+<td>成功 Complete 后复制上游完成摘要，允许分配。</td>
+</tr>
+<tr>
+<td><code>Dispose()</code></td>
+<td>释放资源，不隐式 Complete。</td>
+</tr>
+</tbody>
+</table>
+<p>Writer 操作串行化，业务顺序由应用协调。配置允许的修改前安全拒绝不会终止 Writer；其他原生操作或 Stream 回调失败使 Writer 终止，需释放并开始新录制；进入原生调用前的参数/状态检查失败本身不使 Writer 终止。输入缓冲可在调用返回后立即复用。</p>
+<h3 id="格式完成与文件持久化">格式完成与文件持久化</h3>
+<p>完成格式后，按需请求操作系统同步文件：</p>
+<pre><code class="lang-csharp">using var writer = new McapWriter(path);
+// 注册通道并写入消息。
+writer.Complete();
+writer.FlushToDisk(); // 可选；仅需格式完整时可省略。
+</code></pre>
+<p>调用方提供的文件也使用相同的两个动作：</p>
+<pre><code class="lang-csharp">using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+using var writer = new McapWriter(stream, leaveOpen: true);
+// 注册通道并写入消息。
+writer.Complete();
+writer.FlushToDisk();
+</code></pre>
+<p><code>Complete()</code> 完成 Chunk、Summary、Footer 和结束标记，随后普通刷新输出缓冲。写入期间的 <code>Flush()</code> 不完成格式；两者均不请求文件持久化。<code>FlushToDisk()</code> 对路径输出调用 Rust <code>File::sync_all()</code>，对直接传入的 FileStream 调用 <code>FileStream.Flush(true)</code>；不解包包装流或其他 Stream。</p>
+<p>仅在完成成功后、释放前调用 <code>FlushToDisk()</code>，每次有效调用均重新执行同步。完成前调用抛出 InvalidOperationException；释放后抛出 ObjectDisposedException。不支持的 Stream 抛出 NotSupportedException，但不会使 Writer 失败。实际同步失败使 Writer 终止：不能再次完成、同步或获取摘要，但仍可释放及转移 Stream 所有权。Stream 异常保留原始类型和实例；此前已打开的独立摘要游标仍可使用。</p>
+<p>路径文件句柄在完成后保留到释放；Stream 仍按 <code>leaveOpen</code> 和 <code>IntoInner()</code> 管理所有权。释放和所有权转移均不隐式完成或同步。同步成功表示操作系统同步请求成功，不是对硬件、文件系统或目录项持久化的无条件保证。</p>
+<h3 id="写入选项">写入选项</h3>
+<table>
+<thead>
+<tr>
+<th>选项</th>
+<th>默认值与含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Compression</code>、<code>ChunkSize</code>、<code>UseChunks</code></td>
+<td>Zstd、1 MiB、true；ChunkSize 遵循上游语义，允许零；null 不按目标大小结束 Chunk。</td>
+</tr>
+<tr>
+<td><code>Profile</code>、<code>Library</code></td>
+<td>空 profile；Library 为 null 时使用官方 Rust 库标识。</td>
+</tr>
+<tr>
+<td><code>EmitSummaryOffsets</code>、<code>EmitStatistics</code></td>
+<td>true，分别控制 Summary offsets 与统计。</td>
+</tr>
+<tr>
+<td><code>EmitMessageIndexes</code>、<code>EmitChunkIndexes</code>、<code>EmitAttachmentIndexes</code>、<code>EmitMetadataIndexes</code></td>
+<td>true，分别控制各类索引。</td>
+</tr>
+<tr>
+<td><code>RepeatChannels</code>、<code>RepeatSchemas</code></td>
+<td>null，采用上游默认 true，控制摘要中的重复声明。</td>
+</tr>
+<tr>
+<td><code>CalculateChunkCrcs</code>、<code>CalculateDataSectionCrc</code>、<code>CalculateSummarySectionCrc</code>、<code>CalculateAttachmentCrcs</code></td>
+<td>true，独立控制各区段 CRC。</td>
+</tr>
+<tr>
+<td><code>CompressionLevel</code>、<code>CompressionThreads</code></td>
+<td>null，采用上游默认和算法支持范围。</td>
+</tr>
+</tbody>
+</table>
+<p>可空开关为 null 时采用上游行为。先应用 <code>EmitSummaryRecords</code> 总开关，再应用显式指定的单项开关。<code>DisableSeeking</code> 对可定位输出默认 false、不可定位输出默认 true；后者显式指定 false 会失败。省略摘要记录时关闭统计、Chunk/附件/元数据索引和重复声明；Summary offsets 另行关闭。不使用 Chunk 时不会产生 Chunk 压缩和 Chunk 消息索引，不受相关请求值影响。</p>
+<h3 id="单文件长期录制">单文件长期录制</h3>
+<p>单一文件可以保留压缩和完整索引，而不保留全部消息载荷。Writer 内存包含活动 chunk／编解码器存储、声明和文件级索引。上游每完成一个 chunk 都积累一个 ChunkIndex，即使 <code>EmitChunkIndexes=false</code> 也是如此；该选项控制输出，不控制积累。<code>EmitMessageIndexes=false</code> 省略 chunk 内消息索引，<code>EmitAttachmentIndexes=false</code> 和 <code>EmitMetadataIndexes=false</code> 则停止保留对应索引。关闭索引会减少索引查询能力。应复用声明，避免持续增加不同 schema／channel。</p>
+<p>根据录制时长、吞吐和随机读取延迟选择 <code>ChunkSize</code>。较大的 chunk 减少 chunk 索引数量，但可能增加活动存储和单次读取／解压成本；该大小是目标值，不是内存上限。避免不必要的 <code>Flush()</code>：它会结束活动 chunk，可能增加索引数量。使用文件或持续排出数据的 Stream，并约束调用方待写队列；持续增长的 MemoryStream 会保留录制内容本身。库不自动分段，也不将索引溢写到磁盘。</p>
+<p><code>Complete()</code> 完成格式后释放上游 writer，保留一个共享原生 summary 及输出，不构建持久 JSON summary。<code>GetSummary()</code> 按需编码响应并返回独立托管结果；请求整个 summary 仍需要与其内容成比例的响应和结果内存。<code>OpenSummaryRecords()</code> 共享原生 summary，不进行完整 JSON 编码；独立游标可以在 writer 释放后继续保留它。上游完成时克隆 summary 的临时成本仍然存在。结束 summary／持久化／Stream 转移操作后应释放 writer；单文件录制仍有文件级索引增长，不是恒定内存操作。</p>
+<h3 id="完整消息与预准备写入">完整消息与预准备写入</h3>
+<p><code>WriteMessage(McapMessage)</code> 调用官方 <code>Writer::write</code>，按传入 ID 自动声明。预准备重载接收 <code>McapPreparedChannel</code>、匹配的 Header 和 payload Span，避免重复的托管序列化。准备时复制 Schema 与元数据，但不注册声明；描述符保持不可变，便利重载每次读取当前输入。</p>
+<p><code>McapPreparedOperation</code> 提供可复用的 Schema、Channel、Metadata 和附件描述符。<code>WritePrepared</code> 零托管分配执行并返回 <code>ushort?</code>：Schema/Channel 注册返回其 ID（包括 Channel 零），Metadata 和附件操作返回 null；payload 单独通过 Span 传入。只有 prepared Attachment 接受 payload；其他 prepared 操作在写入前拒绝非空 payload，不终止 writer。Prepared Schema 使用准备时捕获的字节。必需字符串、字典、自有 payload 数组以及 metadata 键和值在原生写入前检查 null；Channel 注册的 null metadata 表示空映射。附件续写、私有记录及 Flush 也提供零分配路径。<code>Complete()</code> 显式完成格式，随后可用 <code>GetSummary()</code> 获取自有摘要，或用 <code>OpenSummaryRecords()</code> 获取缓冲区摘要游标。<code>IntoInner()</code> 释放原生状态并交还 Stream，不隐式完成。</p>
+<h3 id="writer-安全拒绝">Writer 安全拒绝</h3>
+<p><code>McapWriterOptions.SafeRejections</code> 是在构造时固定的标志组合。默认启用五种经核验的修改前拒绝：显式 Schema 注册使用 ID 零（<code>InvalidSchemaIdOnRegistration</code>）、显式 Schema 冲突（<code>ConflictingSchemaOnRegistration</code>）、任一 Channel 注册引用未知 Schema（<code>UnknownSchemaOnChannelRegistration</code>）、显式 Channel 冲突（<code>ConflictingChannelOnRegistration</code>），以及 header/payload 写入引用未知 Channel（<code>UnknownChannelOnMessageWrite</code>）。Prepared Schema/Channel 注册采用相同策略。可以选择任意子集；未知位在创建文件或取得 Stream 所有权前被拒绝。</p>
+<p>被拒绝的调用仍抛出 <code>McapException</code>。仅当该拒绝发生后 writer 仍可使用时，<code>CanContinueWriting</code> 为 true；调用者修正输入后再重试。该值不保证后续操作或并发调用后的状态。自动声明的完整消息写入、附件长度错误、ID 耗尽、I/O、回调、压缩失败和 panic 仍使 writer 终止。库不自动重试。托管参数和状态预检查保持原有行为。</p>
+<p>如需所有原生 writer 失败均终止，配置：</p>
+<pre><code class="lang-csharp">var options = new McapWriterOptions { SafeRejections = McapWriterSafeRejections.None };
+</code></pre>
+<p>成功消息写入保持零托管分配契约；错误处理不属于该契约。</p>
+<h2 id="使用可复用缓冲读取消息">使用可复用缓冲读取消息</h2>
+<p>文件 <code>McapReaderFactory</code> 是工厂，构造时不打开文件；每次 <code>OpenMessages</code> 或 <code>OpenRecords</code> 创建独立的可释放 <code>McapReadSession</code> 和原生句柄。会话必须释放，建议使用 using。</p>
+<pre><code class="lang-csharp">using var session = new McapReaderFactory(path).OpenMessages(new() { Topic = &quot;/sample&quot; });
+byte[] buffer = new byte[64 * 1024];
+while (true)
+{
+    var status = session.ReadNext(buffer, out var header, out var length);
+    if (status == McapReadStatus.EndOfStream) break;
+    if (status == McapReadStatus.BufferTooSmall)
+    {
+        buffer = new byte[checked((int)length)]; // 调用方扩容，不属于零分配承诺
+        continue;
+    }
+    // 在复用缓冲前处理 buffer.AsSpan(0, checked((int)length))。
+}
+</code></pre>
+<p><code>BufferTooSmall</code> 返回所需 payload 长度和消息头，不修改目标缓冲，也不消费待处理记录。空消息成功返回 <code>Success</code>，长度为零。<code>McapReadStatus.Success</code> 表示操作产生了结果或事件；具体内容由 opcode 或事件种类确定。EOF 可重复读取。错误会终止消息/记录推进；调用方缓冲接口不暴露原生地址；专用借用入口遵循下文生命周期契约。</p>
+<p>查询指定完整 <code>Topic</code> 或 <code>Topics</code> 集合，对 LogTime 使用 <code>[StartTime, EndTime)</code>；null 为无边界，起点大于终点抛异常，相等为空区间。查询默认 <code>LogTime</code> 顺序，可选 <code>ReverseLogTime</code> 或 <code>File</code>；时间排序保证 LogTime 单调并交付所有选中消息；相同 LogTime 消息之间的顺序未指定，包括跨 Chunk 的情况。需要物理录制顺序时使用 File 顺序。不传查询对象时按官方消息流的文件顺序读取。</p>
+<p>可定位时间排序查询在摘要声明和 Chunk 覆盖充分、无 Chunk 外消息时使用官方 <code>IndexedReader</code>。非默认线性解析选项使高层查询转为扫描；显式索引读取拒绝这些不支持的选项。直接 Sans-I/O 索引读取不使用扫描排序回退。</p>
+<h3 id="选择查询路径">选择查询路径</h3>
+<table>
+<thead>
+<tr>
+<th>请求行为</th>
+<th>执行方式</th>
+<th>成本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不带查询或选择 File 顺序</td>
+<td>增量顺序扫描</td>
+<td>不为排序收集全部匹配消息</td>
+</tr>
+<tr>
+<td>时间排序且索引充分、选项受支持</td>
+<td>官方 IndexedReader</td>
+<td>可能缓存时间范围重叠的 Chunk</td>
+</tr>
+<tr>
+<td>时间排序但索引不足</td>
+<td>封装层扫描排序回退</td>
+<td>返回会话前将匹配消息收集到原生内存</td>
+</tr>
+</tbody>
+</table>
+<p>回退是高层封装增加的能力，不是官方 MessageStream 提供的排序。文件顺序不一定按 LogTime 递增：读到时间 30 后，后续仍可能出现时间 10。缺少充分索引或顺序保证时，必须完成扫描才能确定全局时间顺序，因此增加首条结果延迟，并消耗与选中 payload 和排序数据成比例的内存；不会自动溢写磁盘。</p>
+<p><code>AllowBufferedSort</code> 默认 true，非定位源同样允许回退。设为 false 后在收集前抛出 NotSupportedException 拒绝回退，但仍允许索引探测、受支持的索引查询及文件顺序扫描；用 <code>OpenIndexedMessages()</code> 明确要求索引可用。回退收集额度的计量范围见<a href="#%E7%BB%91%E5%AE%9A%E5%B1%82%E6%80%A7%E8%83%BD%E4%B8%8E%E5%B1%80%E9%83%A8%E9%99%90%E5%88%B6">局部限制</a>。索引查询成功仍不代表全文件已验证。</p>
+<p><code>GetChannel(id)</code> 和 <code>GetSchema(id)</code> 复制已遇到或从 Summary 加载的描述。文件中途新增声明不会在消息循环创建托管对象，热路径只返回 ID。描述查询与 Summary 操作允许分配。</p>
+<h2 id="自有记录摘要和原始记录">自有记录、摘要和原始记录</h2>
+<p><code>ReadMessages</code>、<code>ReadSchemas</code>、<code>ReadChannels</code>、<code>ReadMetadata</code>、<code>ReadAttachments</code> 提供自有数据便利接口。文件工厂方法各自打开独立会话；会话上的便利方法消费当前游标，Schema/Channel/元数据/附件枚举要求记录会话。消息、Schema、附件的数据是托管数组，释放会话后仍有效；数组可变。消息枚举私下缓存 Channel 描述，对每条结果复制可变 schema 字节和 metadata；修改一条结果不会影响后续消息。</p>
+<p><code>GetSummary()</code> 返回统计、Chunk/附件/元数据索引及 Schema/Channel ID 的托管快照，无 Summary 返回 null；完整声明通过会话查询获取。Writer 的完成摘要描述内存中的录制结果，即使输出中关闭了摘要记录也可获取。</p>
+<p><code>OpenRecords(McapRecordMode.TopLevel)</code> 返回顶层记录，包括编码后的 Chunk body；<code>ExpandChunks</code> 用解压后的内部记录替代 Chunk。<code>ReadNextRecord(destination, out opcode, out length)</code> 与消息读取采用相同重试契约，<code>ReadRecords()</code> 返回分配的 McapRawRecord。Body 不含 opcode 和八字节长度前缀，保留未知/私有记录内容。</p>
+<p>可寻址源上的 <code>ReadRecordAt(offset)</code>、<code>ReadChunk(index)</code>、<code>ReadMessageIndexes(index)</code> 不消费顺序游标或待处理记录。偏移相对 MCAP 起点。ReadChunk 返回原始 Chunk 记录；OpenRecords(ExpandChunks) 用于顺序解压。消息索引包含 Chunk 内相对偏移。原始随机读取不校验全文件。</p>
+<p>分类扫描仍解析、校验并观察所有记录，但只交付目标记录。自有消息／原始记录直接复制到最终托管数组；Schema／Attachment 分类仅复制最终二进制字段，不使用托管 payload 中转缓冲。索引 <code>ReadAttachment</code> 同样将 payload 直接复制到一份最终自有数组，不创建完整附件记录体的托管中间副本。解析器输入与解压成本仍存在。分别调用文件级分类方法会独立扫描；这些便利方法不提供零分配保证。</p>
+<h2 id="stream-会话与所有权">Stream 会话与所有权</h2>
+<p>使用 <code>McapReaderFactory.OpenMessages(stream, query, leaveOpen)</code> 或 <code>OpenRecords(stream, mode, leaveOpen)</code> 读取 Stream。当前位置作为 MCAP 偏移零点，从此位置到流末尾必须是一份完整 MCAP。会话增量读取，不完整复制流，不使用临时文件。</p>
+<p>一个 Stream 同时只能由一个 MCAP 会话占用。会话活动期间，调用方不得自行定位、截断、读写或释放 Stream。回调在发起线程同步执行，拒绝回调重入同一 Writer/会话；回调异常在退出原生边界后传播。leaveOpen 默认 false，释放会话时关闭流，true 时保留。</p>
+<p>显式释放报告所拥有 Stream 和原生资源的释放失败。清理只尝试一次，后续 Dispose 不重试。只有释放或所有权转移成功才解除 Stream 独占；所拥有 Stream 释放失败后，不得被另一个 MCAP 会话接纳。IntoInner 只在原生状态成功释放后返回 Stream，不隐式完成格式，也不释放转移的 Stream。终结器是不抛异常的后备机制，不决定显式释放的错误策略。</p>
+<p>摘要、随机记录和快照操作与顺序读取使用同一会话失败边界。I/O、解析和 reader 内部回调失败（包括 Stream 回调及借用交付 sink）使会话终止；操作前的参数／状态检查和待处理记录的缓冲协商除外。操作与源位置恢复同时失败时，两项错误都会报告。安全释放后使用新会话重新开始，不重试失败会话。</p>
+<p>非寻址流不支持随机读取或提前获取 Summary，相应调用抛 NotSupportedException。顺序扫描至 EOF 后，GetSummary 返回实际读到的摘要，没有摘要则返回 null。重新开始或切换读取模式需要先释放会话，再由调用方重新打开/定位数据源。</p>
+<p>映射文件在读取、校验和恢复期间必须保持不变。Windows 在映射期间拒绝普通写入/删除打开，但无法排除之前已有的可写映射；Linux 不强制互斥。并发截断映射文件可能终止进程。</p>
+<h2 id="校验恢复和分配承诺">校验、恢复和分配承诺</h2>
+<p><code>McapReaderFactory.Validate()</code> 扫描全文件，检查记录解析、存在的 Chunk/Attachment/Data/Summary CRC、记录边界和结束 magic，返回扫描记录数而非消息数。展开校验拒绝非法／冲突的声明 ID、引用未声明非零 Schema 的 Channel，以及引用未声明 Channel 的消息。CRC 为零表示未提供校验和；不检查业务 Schema 语义。</p>
+<p><code>McapReaderOptions</code> 对应官方 Sans-I/O 的 magic、尾随字节、Chunk 输出、CRC 校验/预校验及长度限制。可选 CRC 和尾随字节校验默认关闭。<code>IsScanComplete</code> 只表示游标到 EOF；<code>IsFullyValidated</code> 要求严格选项下完整顺序扫描成功。用 <code>McapReaderOptions.Strict</code> 打开展开记录/消息会话，再调用 <code>ValidateRemaining()</code>；非严格会话拒绝该调用，不会声称校验此前消费的数据。索引查询、排序回退和顶层原始扫描不声明全文件校验成功。<code>GetSchema</code>、<code>GetChannel</code> 和 <code>GetChannelDescription</code> 可查询扫描已遇到或摘要提供的声明。<code>GetSummary</code> 可填充此查询状态，索引会话也会预载摘要声明；两者均不会被计为顺序校验扫描已经遇到声明。校验保留每个不同的 Schema 数据、Channel 描述和已扫描 ID 集合，用于检查冲突和声明顺序。会话状态在释放会话时释放，独立 <code>Validate</code> 在调用结束时释放；ID 数量受 16 位取值范围约束，但 Schema 字节和 metadata 随声明增长，不是常量内存校验。</p>
+<p><code>RecoverMessages(accept)</code> 要求严格消息会话；非严格会话和记录会话在读取前抛出 <code>InvalidOperationException</code>。恢复文件前缀时，使用 null 查询或 <code>new McapQuery { Order = McapReadOrder.File }</code>。<code>new McapQuery()</code> 默认按日志时间排序；严格时间排序可能在打开会话时缓冲完整扫描并失败，此时恢复尚未开始。工厂便利方法自动打开严格会话。恢复操作交付有效消息前缀，遇到第一条损坏记录或 Chunk 停止；必须检查 IsFullyValidated 和 Error，收到消息不代表文件完整。<code>Error</code> 保留原始 <code>McapException</code>，包括 <code>Kind</code> 和结构化 <code>Details</code>；显示文本使用 <code>Error.Message</code>。Stream、sink 和 visitor 回调异常、原生 I/O 失败和绑定失败直接传播，不转换成恢复结果，即使异常类型是 <code>McapException</code>。恢复依据本次操作的错误来源分类，而不是仅凭异常类型；解析、原生 I/O 和 reader 内部回调失败使会话终止。自有结果的 <code>accept</code> 委托是 reader 操作之外的调用方消费：原异常实例（包括 <code>McapException</code>）直接传播，不终止原本可用的会话。此时当前消息已经消费，后续读取从下一条消息继续。尚未写入底层流的缓冲内容无法恢复。</p>
+<p>初始化、注册和预热后，正常 WriteMessage 与缓冲区 ReadNext 必须严格产生 0 B 托管分配。这是热路径的硬性契约，覆盖跨 Chunk/压缩边界、中途声明、缓冲不足重试和 EOF。读取仍将原生数据复制到调用方内存，并非零拷贝；也不保证进程没有 GC 或 Rust 没有堆分配。调用方扩容、自有记录枚举、描述查询、启动和错误路径不在承诺内。用户 Stream 自身可能分配，本库只承诺桥接层的分配行为。</p>
+<p>不支持的平台抛 PlatformNotSupportedException；原生加载错误保留 .NET 类型；原生操作/ABI 失败抛 McapException（继承 IOException）。托管参数/状态检查使用标准异常，已释放对象抛 ObjectDisposedException。参见 <a href="native.html">ABI</a> 与<a href="development.html">分配验收和构建</a>。</p>
+<p>文件总长度不作为记录或解压后 Chunk 的大小上限。高压缩率 Chunk 解压后的大小可以超过文件大小，但仍需要足够可用内存并受上游解析器限制。</p>
+<h2 id="官方读取器直接适配">官方读取器直接适配</h2>
+<p><code>McapReaderFactory</code> 不拥有资源：实例方法创建独立文件会话，静态方法创建 Stream 会话。<code>McapReadSession</code> 和 <code>McapAsyncReader</code> 各拥有一个推进中的会话。<code>McapReadCursor</code> 拥有一个可释放游标，底层可以是复制／映射输入、独立摘要或保留的 Chunk；名称不表示只支持调用方缓冲交付。</p>
+<p><code>McapReadCursor</code> 直接适配官方 <code>LinearReader</code>、<code>sans_magic</code>、<code>ChunkReader</code>、<code>ChunkFlattener</code>、<code>RawMessageStream</code> 和 <code>MessageStream</code>，通过 <code>McapCursorMode</code> 选择；<code>ChunkRecords</code> 模式接收 Chunk 记录体。<code>ignoreEndMagic</code> 对应官方切片读取选项。构造时只复制输入，推进时驱动官方 Sans-I/O 解析器，仅保留一条待交付记录；GetChannel 只暴露已遇到的声明，记录错误在到达对应位置时抛出；需要增量输入时使用 Stream 或 Sans-I/O。<code>ReadNextRecord</code> 复制记录体。RawMessages 和 Messages 模式还支持消息缓冲、visitor、批量、lease 和自有枚举。<code>TopLevelRecords</code>、<code>ExpandedRecordsWithoutMagic</code>、<code>ExpandedRecords</code>、<code>ChunkRecords</code> 及摘要游标只支持记录交付；消息方法在推进前拒绝，保持待交付记录和游标可用。快照的 <code>OpenChunkReader</code> 游标另有摘要声明，因此支持消息交付。RawMessages 模式的 header/payload 和原始记录交付允许未声明的 Channel，但自有 <code>ReadMessages()</code> 结果要求可解析的 Channel。缺失声明时在消费该消息后抛出异常，游标仍可继续读取后续记录。<code>GetChannel</code> 保留上游迭代器成功遇到的所有声明，包括没有消息的通道和延迟错误之前的声明。描述和自有对象枚举允许分配。</p>
+<p><code>McapRecords.Parse</code> 返回 <code>IMcapRecord</code>：标准记录为对应强类型自有模型，未知记录为 <code>McapRawRecord</code>。通过具体结果类型匹配访问字段；仅实现该接口不代表记录属于已知类型或已经解释字段。<code>McapRawRecord</code> 明确表示操作码及未解释的自有记录体。<code>McapRecordView.Parse</code> 使用官方 <code>parse_record</code> 校验，在调用方托管内存上提供视图。校验只针对 Parse 时的字节；使用视图及字段游标期间必须保持底层内容不变，也不得通过其他可写别名修改。标量属性和 <code>Fields</code> 游标可零分配读取 UTF-8、映射、数组和二进制字段。<code>ToOwned</code> 显式复制；<code>ReadFooter</code> 和 <code>GetCompressedDataOffset</code> 直接调用上游辅助函数。</p>
+<p><code>OpenIndexSnapshot()</code> 复制可定位源并读取官方摘要，不移动顺序游标；也可用 <code>new McapIndexSnapshot(bytes)</code>。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。<code>OpenChunkReader(index)</code> 返回独立、惰性、可释放的 McapReadCursor，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。<code>ReadChunkMessages</code> 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。自有消息索引结果为每个已验证通道索引保留分组，包括空组；行缓冲只表达条目，需要区分空组身份时使用自有结果。不足时不修改目标。<code>OpenSummaryRecords()</code> 提供摘要字段及声明的缓冲区游标。</p>
+<h3 id="预编译-chunk-索引">预编译 Chunk 索引</h3>
+<p>重复随机访问时，构造一次 <code>McapPreparedChunkIndex(index)</code>，使用结束后释放。构造复制索引字段和通道偏移映射，仅编码一次并由官方 Rust 实现解析一次。构造期间不要修改映射；后续修改不会影响 prepared 索引。<code>SeekMessage</code>、<code>OpenChunkReader</code>、<code>ReadChunkMessages</code>、<code>ReadMessageIndexes</code> 和 <code>GetCompressedDataOffset</code> 的 prepared 重载消除重复索引编码、临时原生 scratch 和索引解析。原有重载仍观察调用方当前字段。编码器对具体 <code>Dictionary</code> 使用无装箱枚举，对具体 <code>SortedList</code> 按键／值索引访问；两条路径都只访问现有条目。其他实现（包括 <code>ReadOnlyDictionary</code> 和 <code>SortedDictionary</code>）使用通用查找回退路径。对通用 <code>IReadOnlyDictionary</code> 实现中的稀疏高 ID 映射进行重复调用时，优先使用 prepared 索引：非 prepared 编码器可能遍历 ushort 键域，每次最多查找 65,536 次，以避免枚举器分配。准备操作只捕获一次映射，避免重复执行这部分工作。回退路径避免创建接口枚举器，但调用方映射或比较器本身仍可能在查找期间分配；这些分配不受库控制。</p>
+<p>每个 prepared 描述符保留一个托管通道 ID 数组，用于重建 owned 索引结果中的空组；每个通道占 2 字节，不含数组头。原生存储还保留完整已解析索引和编码缓存键。Dispose 释放原生所有权；托管 ID 数组仍随描述符保留，直到垃圾回收。</p>
+<p>prepared 索引可跨 snapshot 复用。每次操作仍执行原有文件范围及摘要要求；构造不验证某一具体文件。每个涉及的描述符的调用（包括 <code>SeekMessages</code> 批量调用）与释放串行执行。snapshot 借用消息回调中禁止对任何 snapshot 实例执行操作（包括 <code>Dispose</code>），也禁止使用或释放任何 prepared 索引，避免逆转先描述符、后 snapshot 的锁顺序。子游标在 prepared 索引和 snapshot 释放后仍可用。消息索引上游 helper、缓存未命中和解压仍可能分配，不能据此保证总原生分配为零。</p>
+<p><code>McapSansIoReader.CreateLinear/CreateSummary</code> 及已完成摘要会话的 <code>CreateIndexed</code> 提供值类型事件。用 <code>SupplyInput</code> 送入字节、<code>NotifySeeked</code> 确认定位、<code>InsertChunkData</code> 插入索引 Chunk 压缩数据。索引会话支持 <code>SetRecordLengthLimit</code>。输出复制到调用方 Span，不返回原生指针。<code>GetSummary</code> 返回自有快照，<code>OpenSummaryRecords</code> 返回缓冲区游标。上游没有自定义解压器注册入口，因此封装不公开自定义解压接口。内置 Lz4/Zstd 解压由官方 Rust 库处理。</p>
+<h2 id="异步记录和错误">异步记录和错误</h2>
+<p><code>McapAsyncReader.ReadNextRecordAsync(Memory&lt;byte&gt;, CancellationToken)</code> 返回 <code>ValueTask&lt;McapRecordReadResult&gt;</code>，由 .NET Stream 异步 I/O 驱动官方线性解析器，对应可选 Tokio 能力，不引入 Tokio runtime。保留待处理记录重试契约。使用 <code>Strict</code> 时，在报告成功前通过上游 <code>parse_record</code> 验证完整记录体，包括附件 CRC；缓冲不足只请求重试。此记录适配器不检查跨记录声明引用，不报告全文件验证成功。直接 Sans-I/O 事件仍为原始记录，需要时由调用方显式解析记录体。每会话仅一个在途操作；ValueTask 只能消费一次，消费后才能再次读取、转移所有权或释放。取消及 I/O/解析失败使会话终止。Stream 独占、<code>leaveOpen</code> 和 <code>IntoInner</code> 沿用同步所有权规则。<code>DisposeAsync</code> 是同步释放适配：执行与 <code>Dispose</code> 相同的一次性清理，调用所拥有 Stream 的同步 <code>Dispose</code>，并返回已完成的 ValueTask。它不等待在途操作，也不调用 Stream.DisposeAsync；必须先完成并消费当前操作。</p>
+<p>复用完成源和 continuation，在预热后的实际 I/O 挂起路径也提供 0 B 托管分配。门禁同时计量调用线程和专用 I/O 线程，包含直接 await 循环。完成通知可在 I/O 线程内联恢复调用方，库不强制派发 ThreadPool。第三方 Stream、调用方 await 机制、初始化、错误、扩容及自有结果不在保证内；原生分配不受此保证约束。</p>
+<p><code>McapException.Kind</code> 对应全部上游错误变体，<code>Details</code> 保留结构化字段；封装层错误使用 <code>Binding</code>，原始 Stream 异常仍保留。 原生错误文本有界：消息最多保留 256 个 UTF-8 字节，详情文本值最多保留 128 字节，均在字符边界截断。缩短的文本带 <code>[truncated]</code>，对象详情同时设置 <code>truncated: true</code>；数值字段保持精确。原生 OS 错误通过 <code>osCode</code> 和固定格式消息报告，不分配本地化 OS 文本。 Parse 错误保留根因文本，不序列化 parser 的装饰性回溯。</p>
+<h2 id="借用批次与-lease">借用、批次与 lease</h2>
+<p>Owned 结果保持独立：<code>McapMessage.Data</code> 仍为 <code>byte[]</code> 副本，可变声明仍防御性复制。<code>ReadNext(McapMessageVisitor)</code>、<code>VisitMessages(visitor, maxMessages)</code> 接收 <code>in McapMessageHeader</code> 与 <code>ReadOnlySpan&lt;byte&gt;</code>，消除最终交付复制。返回 false 会在当前消息后正常停止。Span 仅在回调期间有效；禁止回调内读取、seek、查询状态或释放同一 reader，可以写入另一个 writer。异常在正常 ABI 返回后重抛。snapshot 回调还禁止操作任何 snapshot 实例或 prepared Chunk 索引，见 <a href="#%E9%A2%84%E7%BC%96%E8%AF%91-chunk-%E7%B4%A2%E5%BC%95">预编译 Chunk 索引</a>。<code>GetChannelDescription</code> 返回可共享的不可变声明快照。</p>
+<p><code>WriteBatch(headers, payloadStorage, ranges)</code> 一次加锁、一次 ABI 调用，同步消费连续共享载荷。开始前检查数量、范围及全部 Channel。成功返回数量，<code>McapBatchWriteException.CompletedCount</code> 不包含可能部分落盘的失败记录。批次不原子；原有安全拒绝配置继续适用，I/O、压缩及推进后的失败终止 writer。返回后可复用输入缓冲。</p>
+<p><code>WriteBatch(batchLease)</code> 写入 lease 原有的 header 和 payload；<code>WriteBatch(batchLease, headers)</code> 为每条消息替换完整 header，数量必须等于 <code>batchLease.Count</code>。先注册目标 schema/channel，需要重映射时提供替换后的 ChannelId；库不推断声明或映射。两个重载均一次 writer 加锁、一次 ABI 调用，直接引用不同存储 owner 的 payload 而不拼接，并在同步调用期间保持 lease 句柄有效。不转移所有权或修改 lease；不得与写入并发释放 lease。null、已释放 lease 和 header 数量不匹配在原生写入前拒绝，不使 writer 失败。Channel 预检查、安全拒绝及已完成前缀遵循上述批次契约。两个重载均有预热后的零托管分配门禁；创建输入 lease 的分配单独计算。</p>
+<p><code>ReadBatch(headers, ranges, payloadStorage)</code> 将完整消息写入调用方缓冲，返回数量、使用字节、停止原因和下一条所需容量。后续记录失败时，调用抛异常并终止会话；缓冲可能已写入前缀，但不返回前缀数量，因此必须丢弃本次调用的全部输出。已经执行的 visitor 回调副作用不回滚。失败的 lease 读取不发布部分批次；此前成功返回的 lease 仍有效。空间不足时保留下一条。借用、调用方批量读取和批量写入都有预热后的 Release 零托管分配门禁。</p>
+<p><code>ReadBatchLease</code> 返回 <code>McapMessageBatchLease</code>，默认最多 256 条、软目标 4 MiB。在加入整条消息后检查目标，因此批次可能超过目标，包括单条消息已超过目标的情况。通过 GetHeader、GetPayload、CopyTo、RetainMessage(index) 访问或保留消息，不产生逐消息载荷数组。批次可引用多个 chunk，不重新拼接。Lease 在 reader 释放后有效；Dispose 幂等，私有 SafeHandle 提供终结兜底。Retain 的消息 lease 单独释放。</p>
+<p>Span 使用期间用 using 保持 lease 存活。访问入口拒绝已释放 owner，但已有 Span 无法撤销。禁止访问与 Dispose 并发；可在调用者同步下跨线程转移。所有相关 reader、子游标和 lease 释放前，映射文件必须保持不变。</p>
+<p><code>ReadBatchLease</code> 返回批次，EOF 返回 null。异步 <code>ReadBatchLeaseAsync</code> 等待 I/O 并支持取消；消费当前 ValueTask 后才能再次读取或释放。取消终止 reader，已交付 lease 仍有效。同一异步 reader 不可混用 record 与 lease 消费。Lease 模式的 <code>GetChannelDescription(id)</code> 和 <code>GetSchemaDescription(id)</code> 返回已遇到的缓存不可变声明，包括编码、topic 和 schema 字节；查询前必须消费未完成或尚未消费的 ValueTask。查询不推进输入，未知 ID 抛异常但不终止 reader。Record 模式、已失败或已释放 reader 拒绝查询；已返回描述在 reader 释放后仍有效。消息 lease 拒绝 EmitChunks。不创建预取队列、溢写文件或文件自动分段。</p>
+<p>异步 lease 读取复用完成源和 continuation。每个交付批次允许分配 lease 与 SafeHandle 对象；I/O 挂起无需再创建逐操作 async 状态机。已有消息的批次在 parser 下一次请求输入时返回，即使尚未达到消息数或 payload 目标，避免仅为填满批次而等待额外 I/O。Stream 实现自身仍可能分配。取消释放 parser 资源前必须先消费输入完成结果。</p>
+<h2 id="绑定层性能与局部限制">绑定层性能与局部限制</h2>
+<p>性能目标针对绑定层引入的分配与 payload 复制，不限制官方解析器、writer 或 codec 的内部分配。借用回调和 lease 引用稳定存储；缓冲区读取复制到调用方，便利 API 创建独立自有结果。复制构造拥有输入副本；<code>OpenMapped</code> 共享映射，Stream 支持增量输入。初始化、描述符、lease 控制对象和错误路径可以分配。</p>
+<p>同步与异步输入按 parser 当前完整需求预留空间，I/O 传输大小单独控制，避免短读导致反复扩容。这不是整源预缓冲，也不是总内存上限。一个保留切片可能使整个 chunk 或映射继续存活；限制在途工作时，应同时考虑存储大小与批次数。缓存额度和批次 payload 目标不涵盖全部外部保留字节。</p>
+<table>
+<thead>
+<tr>
+<th>控制项</th>
+<th>计量对象与默认值</th>
+<th>边界行为与排除项</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>McapQuery.MaxBufferedSortBytes</code></td>
+<td>选中消息的逻辑 payload 长度总和，加描述符数组已分配容量的字节数；null 表示不设置收集额度</td>
+<td>超额使回退构造／读取失败，不溢写或交付部分排序结果。即使共享 backing，每个选中范围仍计入自身长度。排除 backing 放大、紧凑化时新旧存储重叠、parser/codec 内存和 RSS；不适用于索引 reader 的 chunk 缓冲。</td>
+</tr>
+<tr>
+<td>reader／snapshot 选项中的 <code>MaxRandomAccessCacheBytes</code></td>
+<td>局部 LRU 对保留 chunk 存储、描述符、键及索引字节的计费；0 关闭保留</td>
+<td>超额条目加载后不进入缓存。淘汰只释放缓存引用，不释放调用方 lease。排除分配器开销、解析临时空间、snapshot 输入及外部保留 owner。未压缩映射 chunk 按逻辑解压大小计费。</td>
+</tr>
+<tr>
+<td><code>ReadBatchLease</code> 数量和 payload 目标</td>
+<td>默认最多 256 条；逻辑 payload 软目标 4 MiB</td>
+<td>加入整条消息后检查字节目标，允许越过目标。不限制 backing 容量或所有在途批次。异步批次可能在输入请求时提前返回。</td>
+</tr>
+</tbody>
+</table>
+<p>Reader 缓存选项用于其创建的 snapshot，对 <code>McapAsyncReader</code> 和 <code>McapSansIoReader.CreateLinear</code> 无效。直接 <code>CreateIndexed</code> 只使用查询选择及排序，不支持回退，因此不使用 <code>AllowBufferedSort</code> 和 <code>MaxBufferedSortBytes</code>。<code>AllowBufferedSort=false</code> 完全拒绝回退收集。记录长度检查仍属于上游 parser 选项。这些控制项都不是进程总内存上限。</p>
+<h3 id="为保留结果选择存储">为保留结果选择存储</h3>
+<p>同步处理使用借用回调，短时异步流水线或转写使用 lease。长期保留少量消息时，只复制需要的 payload 到独立数组，然后释放 lease：</p>
+<pre><code class="lang-csharp">byte[] payload;
+using (var batch = session.ReadBatchLease(1))
+{
+    if (batch is null) return;
+    payload = new byte[batch.GetPayload(0).Length];
+    batch.CopyTo(0, payload);
+}
+// payload 已拥有独立存储。
+</code></pre>
+<p>Lease 保留 backing 所有权，而不只是可见的 payload 范围。<code>RetainMessage</code> 共享该所有权，不会裁剪分配。小消息可能保留整个解压 chunk、完整输入副本或文件映射。一个批次可能引用多个 owner，多个批次也可能共享同一个 owner。</p>
+<p>Dispose 释放该所有者持有的引用；所有引用释放后，存储才可回收。其他 lease、parser、snapshot、子游标或缓存可能仍在引用它，因此复制一条切片不保证立即回收。Snapshot 本身持有输入，直到它及所有依赖 owner 都释放相关引用。映射大小是地址空间，不等于驻留内存测量值。</p>
+<p>为控制流水线保留量，除批次数外，还应根据不同 backing 的大小与保留时长限制在途工作。能接受保留整个 backing 时，长期共享仍然合法；复制稀疏结果是性能选择，不是生命周期要求。</p>
+<p>回退排序在发布结果前选择存储。按连续遇到的 owned backing 对选中消息分组，在 owner 切换或扫描结束时保留密集组、紧凑化稀疏组。当前内部策略在容量至少为选中 payload 的四倍、且该组 backing 容量可减少至少 256 KiB 时复制。紧凑段以消息边界划分，目标 256 KiB；超大消息独立成段，空 payload 不保留 backing。映射等外部存储继续共享。这些阈值属于实现选择，不是公共配置或性能保证。</p>
+<p>紧凑化保持消息顺序、重试与 lease 寿命。选中 payload 只复制一次，期间新旧存储暂时并存；其他 owner 可能延迟实际回收。排序仍先收集结果再交付，其逻辑额度不覆盖瞬时复制、backing 保留放大、parser/codec 内存或进程 RSS。</p>
+<h3 id="完整-chunk-随机访问">完整 chunk 随机访问</h3>
+<p>缓存按完整调用方索引语义区分条目，映射插入顺序不影响身份，命中不重复解压。未压缩映射 payload 引用映射范围，压缩 payload 共享解压存储。缓冲不足重试保留共享切片。</p>
+<p><code>SeekMessages(ReadOnlySpan&lt;McapSeekRequest&gt;)</code> 在本次调用内将同一 chunk 的请求分组，每个不同 chunk 加载一次，并按原请求顺序返回批次（包括重复项）；失败不交付半批。<code>SeekMessage(preparedIndex, entry, visitor)</code> 提供借用交付，其回调禁止使用或释放任何 snapshot 实例或 prepared Chunk 索引；缓冲区及自有结果 API 在最终交付时复制。<code>GetCacheStatistics</code> 报告命中和 chunk 加载次数。</p>
+<p>按访问模式选择复用范围：</p>
+<table>
+<thead>
+<tr>
+<th>访问模式</th>
+<th>方法</th>
+<th>复用范围</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>单条独立查询</td>
+<td><code>SeekMessage</code></td>
+<td>缓存未命中时加载完整目标 chunk；关闭缓存可避免缓存保留</td>
+</tr>
+<tr>
+<td>同一 chunk 内多条消息</td>
+<td><code>OpenChunkReader</code></td>
+<td>在同一游标内遍历一次；重新打开游标会开始新的遍历</td>
+</tr>
+<tr>
+<td>已知的一组离散请求</td>
+<td><code>SeekMessages</code></td>
+<td>本次调用内合并加载，即使缓存关闭也有效；下一次调用属于另一批次</td>
+</tr>
+<tr>
+<td>跨调用反复访问</td>
+<td>复用配置了 <code>MaxRandomAccessCacheBytes</code> 的 snapshot</td>
+<td>保留近期 chunk，直到淘汰或 snapshot 释放</td>
+</tr>
+</tbody>
+</table>
+<p>工作集是缓存复用期间会反复访问的那些 chunk。按解压存储及描述符成本配置额度，不能按压缩文件字节数估算。工作集超过额度可能导致淘汰与重复解压；这种访问仍然合法。通过 <code>GetCacheStatistics()</code> 的命中和 chunk 加载次数判断复用效果。Prepared index 减少重复描述符编码／解析，不负责避免缓存未命中时的解压；复制返回的 payload 也不会缓存源 chunk。</p>
+<p>随机读取校验完整目标 chunk，可能比前缀读取更早报告尾部损坏，但不代表全文件校验。补丁边界与证据见<a href="patches.html">本地补丁</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  <script src="../../version.js" data-doc-root="../../"></script></body>
+</html>
