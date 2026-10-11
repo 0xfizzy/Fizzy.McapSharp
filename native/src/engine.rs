@@ -59,6 +59,10 @@ pub unsafe extern "C" fn fm_engine_index_control(
         };
         match op {
             crate::protocol::indexed_control::INSERT_CHUNK => {
+                if !h.waiting || h.event.kind != crate::protocol::engine_event::READ_CHUNK
+                    || h.event.offset != value || h.event.length != n as u64 {
+                    return Err("Chunk input must match the pending offset and complete length".into());
+                }
                 r.insert_chunk_record_data(value, bytes(data, n)?)?;
                 if h.waiting && h.event.kind == crate::protocol::engine_event::READ_CHUNK && h.event.offset == value {
                     h.waiting = false;
@@ -353,6 +357,7 @@ pub unsafe extern "C" fn fm_engine_next(
 #[no_mangle]
 pub unsafe extern "C" fn fm_engine_feed(
     p: *mut EngineHandle,
+    response_kind: u32,
     data: *const u8,
     n: usize,
     position: u64,
@@ -362,6 +367,12 @@ pub unsafe extern "C" fn fm_engine_feed(
         let h = p.as_mut().ok_or("Null engine")?;
         if h.failed || !h.waiting {
             return Err("No pending input request".into());
+        }
+        if response_kind != h.event.kind || !matches!(response_kind, crate::protocol::engine_event::READ | crate::protocol::engine_event::SEEK) {
+            return Err("Unexpected input response kind".into());
+        }
+        if response_kind == crate::protocol::engine_event::SEEK && n != 0 {
+            return Err("Seek response must not contain bytes".into());
         }
         let data = bytes(data, n)?;
         match (&mut h.engine, h.event.kind) {
@@ -380,7 +391,6 @@ pub unsafe extern "C" fn fm_engine_feed(
                 r.notify_read(n);
             }
             (Engine::Summary(Some(r)), crate::protocol::engine_event::SEEK) => r.notify_seeked(position),
-            (Engine::Indexed(r), crate::protocol::engine_event::READ_CHUNK) => r.insert_chunk_record_data(position, data)?,
             _ => return Err("Unexpected input".into()),
         }
         h.waiting = false;

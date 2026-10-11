@@ -162,7 +162,7 @@ public class TypedReaderContractTests
         string path = Save(data);
         try
         {
-            using var snapshot = new McapIndexSnapshot(data);
+            using var snapshot = McapIndexedReader.CreateCopied(data);
             using var reader = source switch
             {
                 0 => McapReaderFactory.OpenMessages(new MemoryStream(data)),

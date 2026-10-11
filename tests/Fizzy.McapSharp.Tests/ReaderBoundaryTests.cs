@@ -87,7 +87,7 @@ public class ReaderBoundaryTests
     {
         using var stream = new MemoryStream(Recording());
         using var reader = McapReaderFactory.OpenRecordSession(stream);
-        using var snapshot = reader.OpenIndexSnapshot();
+        using var snapshot = reader.CreateCopiedIndexedReader();
         using var summary = snapshot.OpenSummaryRecords();
         Assert.Null(typeof(McapSummaryRecordReader).GetMethod("ReadNext"));
         Assert.Null(typeof(McapSummaryRecordReader).GetMethod("ReadMessages"));

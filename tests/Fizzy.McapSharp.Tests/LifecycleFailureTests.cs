@@ -25,7 +25,7 @@ public sealed class LifecycleFailureTests
     public void SnapshotFactoryReportsSourceFailureWithoutLosingCleanupFailure(bool failRead)
     {
         var stream = new FailingStream(Sample()) { FailRead = failRead, FailDispose = true };
-        var error = Record.Exception(() => McapReaderFactory.OpenIndexSnapshot(stream));
+        var error = Record.Exception(() => McapReaderFactory.CreateCopiedIndexedReader(stream));
         if (failRead)
         {
             var combined = Assert.IsType<AggregateException>(error).Flatten().InnerExceptions;
@@ -126,7 +126,7 @@ public sealed class LifecycleFailureTests
             case "summary": reader.GetSummary(); break;
             case "record": reader.ReadRecordAt(8); break;
             case "recordInto": reader.ReadRecordAt(8, new byte[1024], out _, out _); break;
-            case "snapshot": using (reader.OpenIndexSnapshot()) { } break;
+            case "snapshot": using (reader.CreateCopiedIndexedReader()) { } break;
         }
     }
 

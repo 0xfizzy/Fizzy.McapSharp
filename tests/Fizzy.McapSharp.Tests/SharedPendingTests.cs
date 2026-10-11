@@ -126,7 +126,7 @@ public class SharedPendingTests
     public void IndexedShortReadsRetainDistinctOverlappingChunksWithoutCopies()
     {
         var bytes = OverlappingRecording();
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         var chunks = snapshot.GetSummary()!.ChunkIndexes;
         Assert.True(chunks.Count > 2);
         using var reader = McapReaderFactory.OpenMessageSession(new ShortReadStream(bytes), new(),
@@ -155,7 +155,7 @@ public class SharedPendingTests
     public void TruncatedIndexedStreamReadTerminatesSession()
     {
         var bytes = OverlappingRecording();
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         var first = snapshot.GetSummary()!.ChunkIndexes[0];
         long start = checked((long)snapshot.GetCompressedDataOffset(first));
         using var truncated = McapReaderFactory.OpenMessageSession(new ShortReadStream(bytes, start + 19, start + (long)first.CompressedSize), new());

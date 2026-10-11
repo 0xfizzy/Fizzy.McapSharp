@@ -3,9 +3,9 @@ namespace Fizzy.McapSharp;
 internal sealed partial class ReadSessionCore
 {
     /// <summary>Copies the complete seekable source into an independent snapshot while preserving this cursor position. Source I/O or copy failure terminates the session; successful snapshots outlive it.</summary>
-    public McapIndexSnapshot OpenIndexSnapshot() => OpenIndexSnapshot(null);
+    public McapIndexedReader CreateCopiedIndexedReader() => CreateCopiedIndexedReader(null);
     /// <summary>Copies the complete seekable source into an independent snapshot while preserving this cursor position. Source I/O or copy failure terminates the session; successful snapshots outlive it.</summary>
-    public McapIndexSnapshot OpenIndexSnapshot(McapIndexSnapshotOptions? options)
+    public McapIndexedReader CreateCopiedIndexedReader(McapIndexedReaderOptions? options)
     {
         lock (gate)
         {

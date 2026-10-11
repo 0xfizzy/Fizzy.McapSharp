@@ -5,4 +5,4 @@ namespace Fizzy.McapSharp;
 public readonly record struct McapMessageHeader(ushort ChannelId, uint Sequence, ulong LogTime, ulong PublishTime);
 
 /// <summary>Message with resolved declarations and payload bytes. Reader results own independent data; direct construction retains supplied references. Times use caller-defined nanoseconds.</summary>
-public sealed record McapMessage(McapChannel Channel, ulong LogTime, ulong PublishTime, uint Sequence, byte[] Data);
+public sealed record McapMessage(McapChannel Channel, uint Sequence, ulong LogTime, ulong PublishTime, byte[] Data);

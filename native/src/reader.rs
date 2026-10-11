@@ -387,7 +387,7 @@ pub unsafe extern "C" fn fm_reader_open(
     handle: *mut *mut Reader,
     out: *mut Response,
 ) -> i32 {
-    guard(out, |_| {
+    guard(out, |out| {
         if handle.is_null() {
             return Err("Null output".into());
         }
@@ -475,6 +475,9 @@ pub unsafe extern "C" fn fm_reader_open(
             reader.sorted = true;
             reader.ended = false;
         }
+        out.value = if reader.sorted { crate::protocol::reader_execution::SORTED }
+            else if reader.indexed.is_some() { crate::protocol::reader_execution::INDEXED }
+            else { crate::protocol::reader_execution::SEQUENTIAL } as u64;
         *handle = Box::into_raw(Box::new(reader));
         Ok(crate::protocol::status::SUCCESS)
     })

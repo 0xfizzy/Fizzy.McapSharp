@@ -59,7 +59,7 @@ static class ConvenienceGate
             }
             writer.Complete();
         }
-        using var snapshot = new McapIndexSnapshot(storage.ToArray(), new() { MaxRandomAccessCacheBytes = 1024 * 1024 });
+        using var snapshot = McapIndexedReader.CreateCopied(storage.ToArray(), new() { MaxRandomAccessCacheBytes = 1024 * 1024 });
         using var index = new McapPreparedChunkIndex(snapshot.GetSummary()!.ChunkIndexes.Single());
         var entry = snapshot.ReadMessageIndexes(index)[0].Records[0];
         byte[] output = new byte[64];

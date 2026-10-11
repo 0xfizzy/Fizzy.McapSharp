@@ -3,7 +3,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-/// <summary>An immutable, native-owned copy of a Chunk index for repeated operations across snapshots.</summary>
+/// <summary>An immutable, native-owned copy of a Chunk index for repeated operations across indexed readers.</summary>
 public sealed class McapPreparedChunkIndex : IDisposable
 {
     internal readonly PreparedChunkIndexHandle Handle;
@@ -13,12 +13,12 @@ public sealed class McapPreparedChunkIndex : IDisposable
     [ThreadStatic] static bool inSnapshotCallback;
     internal static void CheckCallbackReentry()
     {
-        if (inSnapshotCallback) throw new InvalidOperationException("Cannot use or dispose a snapshot or prepared chunk index from a snapshot message callback.");
+        if (inSnapshotCallback) throw new InvalidOperationException("Cannot use or dispose an indexed reader or prepared chunk index from an indexed-reader message callback.");
     }
     internal static void EnterCallback() => inSnapshotCallback = true;
     internal static void ExitCallback() => inSnapshotCallback = false;
     internal readonly ushort[] ChannelIds;
-    /// <summary>Copies and freezes the complete descriptor, including the current channel-offset map, for repeated calls across snapshots. Does not validate any file.</summary>
+    /// <summary>Copies and freezes the complete descriptor, including the current channel-offset map, for repeated calls across indexed readers. Does not validate any file.</summary>
     public unsafe McapPreparedChunkIndex(McapChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);

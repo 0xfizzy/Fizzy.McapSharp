@@ -113,6 +113,7 @@ try
         }
         if (count != 2) throw new Exception("Async reading failed");
     }
+    SansIoExamples.Run(path);
     Console.WriteLine("Documentation examples passed.");
 }
 finally { File.Delete(path); }

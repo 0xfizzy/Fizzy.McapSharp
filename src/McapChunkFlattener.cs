@@ -3,6 +3,8 @@ namespace Fizzy.McapSharp;
 /// <summary>Expanded file records with record-body and declaration-reference validation independent of CRC options.</summary>
 public sealed class McapChunkFlattener : IDisposable
 {
+    /// <summary>Creation-time validation scope; remains available after failure or disposal. Only StrictFullScan supports ValidateRemaining and, on message readers, prefix recovery.</summary>
+    public McapValidationCapability ValidationCapability => ((IReadProgress)core).ValidationCapability;
     readonly IRecordSource core;
     internal McapChunkFlattener(IRecordSource core) => this.core = core;
     /// <summary>Copies the supplied input into independent storage; subsequent advancement parses records.</summary>
@@ -27,7 +29,7 @@ public sealed class McapChunkFlattener : IDisposable
     public bool IsFullyValidated => ((IReadProgress)core).IsFullyValidated;
     /// <summary>Native record count from a completed scan, not a live progress counter.</summary>
     public ulong ScannedRecordCount => ((IReadProgress)core).ScannedRecordCount;
-    /// <summary>Consumes a strict complete expanded scan and returns its record count. Partial or non-strict capabilities cannot establish full-file validation.</summary>
+    /// <summary>Completes a scan that has performed strict checks from creation and returns its record count. Requires StrictFullScan; rejection does not advance or fail a usable reader. Previously skipped checks cannot be retroactively validated.</summary>
     public ulong ValidateRemaining() => ((IReadProgress)core).ValidateRemaining();
     /// <summary>Releases native state and transfers the underlying Stream. Copied, mapped and path input have no managed Stream to transfer.</summary>
     public Stream IntoInner() => ((IReadProgress)core).IntoInner();

@@ -44,7 +44,7 @@ static class Contracts
         Compare(reader.ReadQueryMessages(), true);
         Compare(reader.ReadQueryMessages(new() { Topic = "/测试", StartTime = 10, EndTime = 20 }), true,
             expected.Where(r => { var f = Canon.Fields(r); var t = ulong.Parse(f["log_time"].GetString()!); return f["channel_id"].GetString() == "1" && t >= 10 && t < 20; }).ToArray());
-        using (var snapshot = new McapIndexSnapshot(File.ReadAllBytes(path)))
+        using (var snapshot = McapIndexedReader.CreateCopied(File.ReadAllBytes(path)))
         {
             var summary = snapshot.GetSummary();
             if (summary is not null)
@@ -138,7 +138,7 @@ static class Contracts
             {
                 using (var w = new McapWriter(path)) { var c = w.RegisterChannel("lifecycle", "raw"); w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), [1]); w.Complete(); }
                 var r = new McapReaderFactory(path);
-                using (var s = r.OpenMessages()) using (var snapshot = r.OpenIndexSnapshot())
+                using (var s = r.OpenMessages()) using (var snapshot = r.CreateCopiedIndexedReader())
                     if (s.ReadMessages().Single().Data[0] != 1) throw new Exception("Lifecycle mismatch");
                 using (var stream = File.OpenRead(path)) await using (var a = new McapAsyncRecordReader(stream)) { await a.ReadNextRecordAsync(new byte[1024]); }
                 File.Delete(path);

@@ -66,6 +66,19 @@
 
 详见[查询选择](#选择查询路径)、[随机访问](#完整-chunk-随机访问)及[局部额度](#绑定层性能与局部限制)。以下章节分别定义各操作及其生命周期、失败和校验契约。
 
+### 随机访问入口与输入存储
+
+普通应用优先使用 `ReadMessages()` 返回的独立自有结果；有明确性能需求时，再选择调用者缓冲区、同步回调或 lease。既有所有权表说明四者的生命周期，交付形式不改变查询和排序语义。
+
+| 需求 | 入口 | 输入所有权与成本 |
+| --- | --- | --- |
+| 按已知偏移读取原始记录或 chunk | 工厂的 `OpenRecordAccessor()` 或 Stream 重载 | 保留可定位源，随机操作保持源位置，不复制完整输入 |
+| 独立于调用者字节的索引读取 | `McapIndexedReader.CreateCopied(bytes, options)` | 复制完整 MCAP 输入；返回的 reader 需要释放 |
+| 独立于文件或 Stream 的索引读取 | 工厂或 accessor 的 `CreateCopiedIndexedReader()` | 复制完整 MCAP 区域；Stream 初始位置为起点，复制保持 accessor 的源位置 |
+| 不复制完整文件的索引读取 | `McapIndexedReader.OpenMapped(path, options)` | 保留映射，所有相关游标和 lease 释放前文件必须保持不变 |
+
+`McapRecordAccessor` 负责原始记录及索引访问；`McapIndexedReader` 持有输入并提供消息定位、chunk 游标和索引附件/元数据读取，不只是索引集合。两者均需释放。工厂 Stream 重载默认拥有源，除非指定 `leaveOpen: true`；复制完成的 reader 独立于源。`SeekMessage` 不移动其他游标，prepared 和缓存配置不改变输入所有权。
+
 ## 写入录制
 
 文件创建语义：`McapWriter(path, options)` 原子地创建新文件，路径已存在时失败，保留已有文件内容。这是路径重载默认的防误覆盖行为，并非 MCAP 格式的要求。
@@ -230,9 +243,9 @@ Stream 输入使用 McapReaderFactory.OpenMessages(stream, filter, leaveOpen)、
 
 显式释放报告所拥有 Stream 和原生资源的释放失败。清理只尝试一次，后续 Dispose 不重试。只有释放或所有权转移成功才解除 Stream 独占；所拥有 Stream 释放失败后，不得被另一个 MCAP 会话接纳。IntoInner 只在原生状态成功释放后返回 Stream，不隐式完成格式，也不释放转移的 Stream。终结器是不抛异常的后备机制，不决定显式释放的错误策略。
 
-OpenRandomAccess 返回 McapRandomAccessReader，保留可寻址源的位置，支持原始记录／Chunk／索引、摘要及独立快照创建，不预先复制整份输入。该 reader 的解析或 I/O 失败为终止状态，与顺序 reader 各自拥有失败边界。操作前参数检查、缺失声明查询和缓冲协商不终止读取。操作与位置恢复同时失败时报告两项错误，安全释放后通过新 reader 重复工作。
+OpenRecordAccessor 返回 McapRecordAccessor，保留可寻址源的位置，支持原始记录／Chunk／索引、摘要及独立快照创建，不预先复制整份输入。该 reader 的解析或 I/O 失败为终止状态，与顺序 reader 各自拥有失败边界。操作前参数检查、缺失声明查询和缓冲协商不终止读取。操作与位置恢复同时失败时报告两项错误，安全释放后通过新 reader 重复工作。
 
-OpenRandomAccess 要求可寻址输入，在取得所有权前拒绝非寻址 Stream。McapReaderFactory.GetSummary(stream) 可寻址时使用随机访问，否则扫描到 EOF。更换能力需要新 reader，不提供重置。复制／映射／路径输入没有可由 IntoInner 返回的托管 Stream；Stream-backed reader 保留显式转移能力。
+OpenRecordAccessor 要求可寻址输入，在取得所有权前拒绝非寻址 Stream。McapReaderFactory.GetSummary(stream) 可寻址时使用随机访问，否则扫描到 EOF。更换能力需要新 reader，不提供重置。复制／映射／路径输入没有可由 IntoInner 返回的托管 Stream；Stream-backed reader 保留显式转移能力。
 
 映射文件在读取、校验和恢复期间必须保持不变。Windows 在映射期间拒绝普通写入/删除打开，但无法排除之前已有的可写映射；Linux 不强制互斥。并发截断映射文件可能终止进程。
 
@@ -242,7 +255,22 @@ OpenRandomAccess 要求可寻址输入，在取得所有权前拒绝非寻址 St
 
 McapReaderOptions 控制 magic、尾部字节、Chunk 输出、CRC 和记录长度限制。可选 CRC 和尾部检查默认关闭。高层展开记录和解析声明的消息读取始终验证记录体、声明 ID／冲突及引用，独立于 Strict 或任意单个 CRC 开关，适用于 Stream、复制、映射和异步输入。顶层读取不验证隐藏 Chunk 声明，局部 Chunk 与原始消息有明确范围；原始消息收集声明，但允许消息引用未知 channel。直接 Sans-I/O 线性事件仍为原始记录。Strict 只增加具名完整性检查。Chunk flattener 拒绝 EmitChunks。
 
-IsScanComplete 仅表示 EOF；IsFullyValidated 和 ValidateRemaining 只由严格完整展开扫描建立，索引、排序回退和局部 Chunk 不足以证明全文件验证。摘要查询声明不计作顺序扫描已经遇到的声明。验证保留独立 schema 内容和 channel 描述，空间随声明字节和 metadata 增长；16 位 ID 上限不代表恒定内存。snapshot 缓存只由 McapIndexSnapshotOptions 控制。
+IsScanComplete 仅表示 EOF；IsFullyValidated 和 ValidateRemaining 只由严格完整展开扫描建立，索引、排序回退和局部 Chunk 不足以证明全文件验证。摘要查询声明不计作顺序扫描已经遇到的声明。验证保留独立 schema 内容和 channel 描述，空间随声明字节和 metadata 增长；16 位 ID 上限不代表恒定内存。snapshot 缓存只由 McapIndexedReaderOptions 控制。
+
+### 创建时验证能力
+
+消息 reader 和 chunk flattener 的 `ValidationCapability` 在创建时固定，失败和释放后仍可查询。它描述能力范围，不表示验证成功。
+
+| 能力 | 含义 | ValidateRemaining / 消息恢复 |
+| --- | --- | --- |
+| `PartialInput` | 索引、缓存排序或 chunk 局部结果 | 在继续消费前拒绝 |
+| `FullScan` | 未配置完整严格检查的 expanded 顺序扫描 | 在继续消费前拒绝 |
+| `StrictFullScan` | 从创建起执行严格检查的完整 expanded 顺序扫描 | 会话可用时支持 |
+
+顺序 topic/time 过滤仍验证被跳过的记录。能力拒绝不执行额外 I/O，不丢失待重试记录，也不使正常 reader 失败；已失败或已释放的 reader 仍拒绝操作。`ValidateRemaining` 完成从创建起已启用的检查，不补验此前跳过的检查。`RecoverMessages` 从当前游标继续，只统计本次交付的匹配消息。查询可能在返回前已执行扫描排序，但返回的结果能力仍为 PartialInput。需要独立完整操作时，优先使用工厂的 Validate 和 RecoverMessages。
+
+RecordLengthLimit 在线性路径限制记录体；indexed 构造还检查 chunk 压缩及解压大小，后续读取检查相关记录长度。修改 Sans-I/O indexed 限值不重复构造阶段检查。摘要路径限制摘要记录体，并可能根据已知文件大小进一步约束读取。这些限制都不是总内存上限。
+
 
 严格消息 reader 的 RecoverMessages(accept) 交付有效前缀，并将原始结构化解析错误保留在结果中；工厂重载自动打开严格文件顺序 reader。前缀抢救应使用顺序读取；显式排序查询可能在构造阶段即失败。检查 IsFullyValidated 与 Error，已有消息不证明完整性。Stream、原生 I/O、Binding 和回调异常直接传播，不作为抢救结果；解析失败和 accept 回调异常均终止 reader，回调异常保留原对象。已返回结果仍有效。这不允许重试任意 I/O，也无法恢复从未写入源的字节。
 
@@ -270,7 +298,7 @@ McapReaderFactory 本身不拥有资源，按文件或 Stream 构造具体 reade
 
 `McapRecords.Parse` 返回 `IMcapRecord`：标准记录为对应强类型自有模型，未知记录为 `McapRawRecord`。通过具体结果类型匹配访问字段；仅实现该接口不代表记录属于已知类型或已经解释字段。`McapRawRecord` 明确表示操作码及未解释的自有记录体。`McapRecordView.Parse` 使用官方 `parse_record` 校验，在调用方托管内存上提供视图。校验只针对 Parse 时的字节；使用视图及字段游标期间必须保持底层内容不变，也不得通过其他可写别名修改。标量属性和 `Fields` 游标可零分配读取 UTF-8、映射、数组和二进制字段。`ToOwned` 显式复制；`ReadFooter` 和 `GetCompressedDataOffset` 直接调用上游辅助函数。
 
-`OpenIndexSnapshot()` 复制可定位源并读取官方摘要，不移动随机访问源的位置；也可用 `new McapIndexSnapshot(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。`OpenChunkMessages(index)` 返回独立、惰性、可释放的 McapMessageReader，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。`ReadChunkMessages` 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。自有消息索引结果为每个已验证通道索引保留分组，包括空组；行缓冲只表达条目，需要区分空组身份时使用自有结果。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
+`CreateCopiedIndexedReader()` 复制可定位源并读取官方摘要，不移动随机访问源的位置；也可用 `McapIndexedReader.CreateCopied(bytes)`。快照独立于原会话，原生内存需求与文件大小成比例。提供消息定位、指定 Chunk 消息枚举、消息索引、按索引读取 Metadata/Attachment、Footer、描述和摘要。随机操作使用调用者提供的索引字段，包括长度及通道偏移映射，不按 offset 替换为摘要中的索引。Metadata/Attachment 可在没有摘要时使用调用者提供的索引读取；Chunk 消息和消息索引读取仍需摘要声明。对应上游函数未使用的索引字段不会增加额外校验。调用期间不得修改索引的映射。`OpenChunkMessages(index)` 返回独立、惰性、可释放的 McapMessageReader，快照释放后仍然有效。游标共享不可变原生输入和摘要，不再次复制文件。`ReadChunkMessages` 的每个枚举拥有独立游标。随机操作不移动这些游标。缓冲区重载不分配托管对象；Metadata/Attachment 输出记录体，消息索引每项 18 字节小端编码：u16 通道 ID、u64 LogTime、u64 Chunk 内偏移。自有消息索引结果为每个已验证通道索引保留分组，包括空组；行缓冲只表达条目，需要区分空组身份时使用自有结果。不足时不修改目标。`OpenSummaryRecords()` 提供摘要字段及声明的缓冲区游标。
 
 ### 预编译 Chunk 索引
 
@@ -280,7 +308,7 @@ McapReaderFactory 本身不拥有资源，按文件或 Stream 构造具体 reade
 
 prepared 索引可跨 snapshot 复用。每次操作仍执行原有文件范围及摘要要求；构造不验证某一具体文件。每个涉及的描述符的调用（包括 `SeekMessages` 批量调用）与释放串行执行。snapshot 借用消息回调中禁止对任何 snapshot 实例执行操作（包括 `Dispose`），也禁止使用或释放任何 prepared 索引，避免逆转先描述符、后 snapshot 的锁顺序。子游标在 prepared 索引和 snapshot 释放后仍可用。消息索引上游 helper、缓存未命中和解压仍可能分配，不能据此保证总原生分配为零。
 
-McapSansIoLinearReader、McapSansIoSummaryReader、McapSansIoIndexedReader 使用独立协议及事件类型。Linear 为 Read/Record/End，Summary 为 Read/Seek/End，Indexed 另有 Message/ReadChunk。只有可定位协议提供 NotifySeeked，只有索引协议提供 InsertChunkData 和 SetRecordLengthLimit。已完成的 Summary reader 提供 GetSummary、OpenSummaryRecords 和使用 McapIndexedQuery 的 CreateIndexed。输出复制到调用方 Span，不暴露原生指针。上游没有自定义解压器注册入口，因此不添加此接口；内置 Lz4/Zstd 仍由上游处理。
+`McapSansIoLinearReader`、`McapSansIoSummaryReader`、`McapSansIoIndexedReader` 分别公开独立协议。Linear 仅有 Read/Record/End；Summary 仅有 Read/Seek/End；Indexed 仅有 ReadChunk/Message/End。Summary 使用无目标缓冲区的 `NextEvent(out event)`，仅 Summary 公开 `NotifySeeked`；Indexed 只通过 `InsertChunkData` 提供请求范围的完整压缩数据，不含 Chunk 外层头，并保留 `SetRecordLengthLimit`。Linear 和 Summary 的 `SupplyInput(data)` 只回应 Read。定位由 `McapSeekRequest` 表达 Begin 的无符号 AbsolutePosition 或 Current/End 的有符号 RelativeOffset，不适用的属性抛 InvalidOperationException。已完成的摘要解析器提供 GetSummary、OpenSummaryRecords 和 CreateIndexed。记录和消息复制到调用者缓冲区；不暴露原生指针。内置 Lz4/Zstd 仍由上游实现，不增加自定义解压器注册。
 
 ## 异步记录和错误
 
@@ -319,10 +347,10 @@ ReadBatchLease 返回批次或 EOF 时的 null。McapAsyncMessageReader.ReadBatc
 | 控制项 | 计量对象与默认值 | 边界行为与排除项 |
 | --- | --- | --- |
 | `McapQuery.MaxBufferedSortBytes` | 选中消息的逻辑 payload 长度总和，加描述符数组已分配容量的字节数；null 表示不设置收集额度 | 超额使回退构造／读取失败，不溢写或交付部分排序结果。即使共享 backing，每个选中范围仍计入自身长度。排除 backing 放大、紧凑化时新旧存储重叠、parser/codec 内存和 RSS；不适用于索引 reader 的 chunk 缓冲。 |
-| `McapIndexSnapshotOptions.MaxRandomAccessCacheBytes` | 局部 LRU 对保留 chunk 存储、描述符、键及索引字节的计费；0 关闭保留 | 超额条目加载后不进入缓存。淘汰只释放缓存引用，不释放调用方 lease。排除分配器开销、解析临时空间、snapshot 输入及外部保留 owner。未压缩映射 chunk 按逻辑解压大小计费。 |
+| `McapIndexedReaderOptions.MaxRandomAccessCacheBytes` | 局部 LRU 对保留 chunk 存储、描述符、键及索引字节的计费；0 关闭保留 | 超额条目加载后不进入缓存。淘汰只释放缓存引用，不释放调用方 lease。排除分配器开销、解析临时空间、snapshot 输入及外部保留 owner。未压缩映射 chunk 按逻辑解压大小计费。 |
 | `ReadBatchLease` 数量和 payload 目标 | 默认最多 256 条；逻辑 payload 软目标 4 MiB | 加入整条消息后检查字节目标，允许越过目标。不限制 backing 容量或所有在途批次。异步批次可能在输入请求时提前返回。 |
 
-snapshot 缓存由 McapIndexSnapshotOptions 控制。McapIndexedQuery 不提供排序回退选项；McapQuery.AllowBufferedSort=false 完全拒绝回退收集。RecordLengthLimit 控制编码记录体。这些局部控制都不是进程总内存上限。
+snapshot 缓存由 McapIndexedReaderOptions 控制。McapIndexedQuery 不提供排序回退选项；McapQuery.AllowBufferedSort=false 完全拒绝回退收集。RecordLengthLimit 的检查范围取决于能力，索引路径还包含 chunk 大小，详见下方说明。这些局部控制都不是进程总内存上限。
 
 ### 为保留结果选择存储
 
@@ -353,7 +381,7 @@ Dispose 释放该所有者持有的引用；所有引用释放后，存储才可
 
 缓存按完整调用方索引语义区分条目，映射插入顺序不影响身份，命中不重复解压。未压缩映射 payload 引用映射范围，压缩 payload 共享解压存储。缓冲不足重试保留共享切片。
 
-`SeekMessages(ReadOnlySpan<McapSeekRequest>)` 在本次调用内将同一 chunk 的请求分组，每个不同 chunk 加载一次，并按原请求顺序返回批次（包括重复项）；失败不交付半批。`SeekMessage(preparedIndex, entry, visitor)` 提供借用交付，其回调禁止使用或释放任何 snapshot 实例或 prepared Chunk 索引；缓冲区及自有结果 API 在最终交付时复制。`GetCacheStatistics` 报告命中和 chunk 加载次数。
+`SeekMessages(ReadOnlySpan<McapMessageSeekRequest>)` 在本次调用内将同一 chunk 的请求分组，每个不同 chunk 加载一次，并按原请求顺序返回批次（包括重复项）；失败不交付半批。`SeekMessage(preparedIndex, entry, visitor)` 提供借用交付，其回调禁止使用或释放任何 snapshot 实例或 prepared Chunk 索引；缓冲区及自有结果 API 在最终交付时复制。`GetCacheStatistics` 报告命中和 chunk 加载次数。
 
 按访问模式选择复用范围：
 
@@ -367,3 +395,30 @@ Dispose 释放该所有者持有的引用；所有引用释放后，存储才可
 工作集是缓存复用期间会反复访问的那些 chunk。按解压存储及描述符成本配置额度，不能按压缩文件字节数估算。工作集超过额度可能导致淘汰与重复解压；这种访问仍然合法。通过 `GetCacheStatistics()` 的命中和 chunk 加载次数判断复用效果。Prepared index 减少重复描述符编码／解析，不负责避免缓存未命中时的解压；复制返回的 payload 也不会缓存源 chunk。
 
 随机读取校验完整目标 chunk，可能比前缀读取更早报告尾部损坏，但不代表全文件校验。补丁边界与证据见[本地补丁](patches.md)。
+
+## 结构化错误字段
+
+`McapException.Kind` 和已公布的 Details 字段名/类型是稳定契约；以后可能增加字段或错误种类。调用者应忽略未知字段，并为未知种类保留默认处理。Message 以及 source/name/description 等文本用于诊断，可能被截断或改写，不能依赖精确措辞或据此判断重试。写入继续权限只遵循 CanContinueWriting 的既有契约。
+
+| Kind | Details 对象字段 |
+| --- | --- |
+| `AttachmentTooLarge` | `excess`、`attachment_length`：无符号数 |
+| `AttachmentIncomplete` | `current`、`expected`：无符号数 |
+| `BadAttachmentCrc`、`BadChunkCrc`、`BadDataCrc`、`BadSummaryCrc` | `saved`、`calculated`：无符号数 |
+| `BadAttachmentLength`、`BadChunkLength`、`BadSchemaLength` | `header`、`available`：无符号数 |
+| `PrivateRecordOpcodeIsReserved` | `opcode`：无符号数 |
+| `ConflictingChannels`、`ConflictingSchemas` | `name`：字符串 |
+| `UnknownChannel` | `sequence`、`channel_id`：无符号数 |
+| `UnknownSchema` | `name`：字符串；`schema_id`：无符号数 |
+| `UnsupportedCompression` | `compression`：字符串 |
+| `DecompressionError` | `description`：字符串 |
+| `ChunkBufferTooLarge`、`ChunkTooLarge` | `length`：无符号数 |
+| `RecordTooLarge` | `opcode`、`len`：无符号数 |
+| `BadChunkStartOffset` | `offset`：无符号数 |
+| `Parse`、`Io` | `source`：字符串；存在原生 OS 错误码时包含有符号 `osCode`，source 使用固定文本 |
+| 原生 OS 错误的 `Binding` | `source`：固定字符串；`osCode`：有符号数 |
+| 本地 allowance 的 `Binding` | `resource`：字符串；`limit`、`requested`：无符号数 |
+| 操作与位置恢复同时失败的 `Binding` | `code` 为 `"operationRestore"`；`operation`、`cleanup` 为含 kind/message/details 的嵌套错误对象 |
+| 其他上游种类 | 空对象，除非增加截断标志 |
+
+没有结构化信息的原生错误使用 JSON null；仅以消息构造的托管异常其 Details 为 Undefined。对象可能带 `truncated: true`，没有该字段表示未报告截断。Message 上限 256 UTF-8 字节，文本详情上限 128 字节，含 `[truncated]` 后缀；数值保持精确。原始托管 Stream 异常可能直接传播，不包装成 McapException。普通 record 保留 .NET 数组/集合相等规则，IReadOnlyDictionary 不代表深度不可变；需要不可变共享时使用声明 description。

@@ -2,9 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapIndexSnapshot
+public sealed partial class McapIndexedReader
 {
-    /// <summary>Opens an independent lazy message cursor that retains storage after the snapshot and prepared descriptor are disposed. The descriptor must identify a valid chunk.</summary>
+    /// <summary>Opens an independent lazy message cursor that retains storage after the indexed reader and prepared descriptor are disposed. The descriptor must identify a valid chunk.</summary>
     public McapMessageReader OpenChunkMessages(McapPreparedChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
@@ -82,7 +82,7 @@ public sealed partial class McapIndexSnapshot
                     if (status < Protocol.Status.Success) { var error = Native.ConsumeError(r); sink.ThrowIfError(); throw error; }
                 }
                 var h = sink.Header;
-                return new(GetChannel(h.ChannelId), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!);
+                return new(GetChannel(h.ChannelId), h.Sequence, h.LogTime, h.PublishTime, (byte[])sink.Value!);
             }
             finally { if (added) prepared!.Handle.DangerousRelease(); NativeMemory.Free(allocated); }
         }

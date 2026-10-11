@@ -38,8 +38,8 @@ internal sealed partial class ReadCursorCore
     }
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
-        ArgumentNullException.ThrowIfNull(accept);
         lock (gate) CheckMessages();
+        ArgumentNullException.ThrowIfNull(accept);
         if (!fullyValidating) throw new InvalidOperationException("Prefix recovery requires a strict complete expanded scan.");
         ulong count = 0;
         using var sink = new OwnedReadSink(OwnedReadSink.Kind.MessageBody);
@@ -51,7 +51,7 @@ internal sealed partial class ReadCursorCore
             { return new(count, false, error); }
             if (!available) return new(count, IsFullyValidated, null);
             var h = sink.Header;
-            try { accept(new(GetChannel(h.ChannelId), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!)); }
+            try { accept(new(GetChannel(h.ChannelId), h.Sequence, h.LogTime, h.PublishTime, (byte[])sink.Value!)); }
             catch { lock (gate) failed = true; throw; }
             count++;
         }

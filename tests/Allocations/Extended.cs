@@ -40,8 +40,8 @@ static class Extended
                 Check("buffer/record-view " + compression, allocated);
             }
             storage.Position = 0;
-            using (var r = McapReaderFactory.OpenRandomAccess(storage, leaveOpen: true))
-            using (var snapshot = r.OpenIndexSnapshot())
+            using (var r = McapReaderFactory.OpenRecordAccessor(storage, leaveOpen: true))
+            using (var snapshot = r.CreateCopiedIndexedReader())
             {
                 var summary = r.GetSummary()!;
                 var chunk = summary.ChunkIndexes.First(c => c.MessageIndexOffsets.Count != 0);
@@ -76,7 +76,7 @@ static class Extended
         w.RegisterSchema(schema); w.RegisterChannel(channel); w.WriteMetadata(m); w.WriteAttachment(a, [1]);
         w.StartAttachment(start); w.WriteAttachmentBytes([1]); w.FinishAttachment(); w.WritePrivateRecord(0x80, [1], true);
     }
-    static void Random(McapIndexSnapshot s, McapChunkIndex chunk, McapMessageIndexEntry entry, McapSummary summary, byte[] buffer)
+    static void Random(McapIndexedReader s, McapChunkIndex chunk, McapMessageIndexEntry entry, McapSummary summary, byte[] buffer)
     {
         s.SeekMessage(chunk, entry, [], out _, out _); s.SeekMessage(chunk, entry, buffer, out _, out _);
         s.ReadMessageIndexes(chunk, buffer, out _); s.ReadMetadata(summary.MetadataIndexes[0], buffer, out _); s.ReadAttachment(summary.AttachmentIndexes[0], buffer, out _);

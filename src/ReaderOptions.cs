@@ -19,7 +19,7 @@ public sealed record McapReaderOptions
     public bool ValidateDataSectionCrc { get; init; }
     /// <summary>Checks the summary CRC; false by default, true in Strict.</summary>
     public bool ValidateSummarySectionCrc { get; init; }
-    /// <summary>Maximum accepted record body length in bytes; null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</summary>
+    /// <summary>Maximum accepted record body length in bytes for linear parsing; an indexed query also checks compressed and decompressed chunk sizes. Null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</summary>
     public ulong? RecordLengthLimit { get; init; }
     /// <summary>Validates chunk, data and summary CRCs, required magic, and trailing-byte absence. All high-level expanded readers validate record bodies and declaration references independently of these switches. Direct Sans-I/O exposes raw events without body parsing. Indexed query success does not establish full-file validation.</summary>
     public static McapReaderOptions Strict { get; } = new() { PrevalidateChunkCrcs = true, ValidateDataSectionCrc = true, ValidateSummarySectionCrc = true, CheckFinishesAfterEndMagic = true };
@@ -31,6 +31,6 @@ public sealed record McapSummaryReaderOptions
 {
     /// <summary>Total source length in bytes, if known; null leaves end-relative seek resolution to the caller.</summary>
     public ulong? FileSize { get; init; }
-    /// <summary>Maximum accepted record body length in bytes; null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</summary>
+    /// <summary>Maximum accepted summary record body length in bytes; null leaves the explicit limit unset. Upstream may additionally constrain reads using FileSize. This is not a total-memory bound.</summary>
     public ulong? RecordLengthLimit { get; init; }
 }

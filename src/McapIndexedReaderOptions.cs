@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 namespace Fizzy.McapSharp;
 
-/// <summary>Limits only the snapshot cache, not upstream allocations or live leases.</summary>
-public sealed record McapIndexSnapshotOptions
+/// <summary>Limits only the indexed reader cache, not upstream allocations or live leases.</summary>
+public sealed record McapIndexedReaderOptions
 {
     /// <summary>Local LRU allowance for retained chunk storage, descriptors, keys and index bytes.
     /// Zero disables retention; oversized entries load without retention. Excludes input storage,

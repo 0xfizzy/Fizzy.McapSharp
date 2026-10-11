@@ -40,7 +40,7 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
 
 Call `Complete()` explicitly to finish the format, then optionally `FlushToDisk()` to request file persistence; `Dispose()` only releases resources. `ReadMessages()` does not replace full-file validation.
 
-Large-payload pipelines can use borrowed callbacks, batch reads/writes and stable storage leases; start with [choosing message ownership](docs/api.md#choose-message-ownership), then review lifetimes and local cache/sort allowances.
+Start with independent owned results from `ReadMessages()`. Large-payload pipelines can use borrowed callbacks, batch reads/writes and stable storage leases; start with [choosing message ownership](docs/api.md#choose-message-ownership), then review lifetimes and local cache/sort allowances.
 
 ## Documentation
 

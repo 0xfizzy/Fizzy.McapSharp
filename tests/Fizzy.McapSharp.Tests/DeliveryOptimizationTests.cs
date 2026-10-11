@@ -92,8 +92,8 @@ public class DeliveryOptimizationTests
     public void PreparedIndexIsFrozenAndChildrenAreIndependent(McapCompression compression)
     {
         var data = Recording(compression, 110);
-        using var snapshot = new McapIndexSnapshot(data, new() { MaxRandomAccessCacheBytes = 16 * 1024 * 1024 });
-        using var other = new McapIndexSnapshot(data);
+        using var snapshot = McapIndexedReader.CreateCopied(data, new() { MaxRandomAccessCacheBytes = 16 * 1024 * 1024 });
+        using var other = McapIndexedReader.CreateCopied(data);
         var chunk = snapshot.GetSummary()!.ChunkIndexes.Single();
         Assert.True(IndexEncoding.Size(chunk) > 1024);
         var entries = snapshot.ReadMessageIndexes(chunk);
@@ -118,7 +118,7 @@ public class DeliveryOptimizationTests
     [Fact]
     public void PackedRetryRetainsCapacityWithoutGrowingAndCountsEachDelivery()
     {
-        using var snapshot = new McapIndexSnapshot(Recording(McapCompression.Zstd, 2));
+        using var snapshot = McapIndexedReader.CreateCopied(Recording(McapCompression.Zstd, 2));
         using var index = new McapPreparedChunkIndex(snapshot.GetSummary()!.ChunkIndexes.Single());
         snapshot.ReadMessageIndexes(index, [], out var n);
         var output = new byte[(int)n];
@@ -138,7 +138,7 @@ public class DeliveryOptimizationTests
     [Fact]
     public async Task PreparedDisposeRacingCallsIsSafe()
     {
-        using var snapshot = new McapIndexSnapshot(Recording(McapCompression.None));
+        using var snapshot = McapIndexedReader.CreateCopied(Recording(McapCompression.None));
         using var index = new McapPreparedChunkIndex(snapshot.GetSummary()!.ChunkIndexes.Single());
         var task = Task.Run(() => { for (int i = 0; i < 1000; i++) { try { snapshot.GetCompressedDataOffset(index); } catch (ObjectDisposedException) { return; } } });
         index.Dispose();
@@ -172,7 +172,7 @@ public class DeliveryOptimizationTests
         using var records = McapReaderFactory.OpenRecordSession(new MemoryStream(data));
         Assert.Equal(McapReadStatus.BufferTooSmall, records.ReadNextRecord([], out _, out _));
         Assert.Single(records.ReadMetadata());
-        using var snapshot = new McapIndexSnapshot(data);
+        using var snapshot = McapIndexedReader.CreateCopied(data);
         var chunk = snapshot.GetSummary()!.ChunkIndexes.Single();
         using var prepared = new McapPreparedChunkIndex(chunk);
         var entries = snapshot.ReadMessageIndexes(prepared)[0].Records;

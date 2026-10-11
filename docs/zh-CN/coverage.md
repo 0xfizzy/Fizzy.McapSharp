@@ -42,19 +42,19 @@
 | `read::RawMessageStream`、`RawMessage`、`get_channel` | `McapRawMessageReader`, `GetChannel` | 适配 | 保留已遇到的声明；借用 Rust 迭代器不跨越 ABI |
 | `read::MessageStream` | `McapMessageReader`, `ReadMessages` | 适配 | 自有结果复制 payload 及可变声明；其他交付方式的所有权不同 |
 
-五种具体 reader 对应上游读取能力，McapSummaryRecordReader 是保留 Summary 记录的绑定扩展。McapReaderFactory 提供文件／Stream 构造，对应类型提供复制／映射构造。高层展开验证跨输入保持一致，独立于 CRC 设置。McapRandomAccessReader 提供不复制整份输入的 Stream 随机访问，McapIndexSnapshot 提供拥有输入的随机访问。
+五种具体 reader 对应上游读取能力，McapSummaryRecordReader 是保留 Summary 记录的绑定扩展。McapReaderFactory 提供文件／Stream 构造，对应类型提供复制／映射构造。高层展开验证跨输入保持一致，独立于 CRC 设置。McapRecordAccessor 提供不复制整份输入的 Stream 随机访问，McapIndexedReader 提供拥有输入的随机访问。
 
 ## 摘要与随机访问（`random-access`）
 
 | 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
 | --- | --- | --- | --- |
-| `Summary`、`Summary::read` 及摘要字段 | `McapIndexSnapshot`、`GetSummary`、`OpenSummaryRecords` | 适配 | Snapshot 拥有输入副本或映射；托管摘要和记录游标是不同表示形式 |
+| `Summary`、`Summary::read` 及摘要字段 | `McapIndexedReader`、`GetSummary`、`OpenSummaryRecords` | 适配 | Snapshot 拥有输入副本或映射；托管摘要和记录游标是不同表示形式 |
 | `Summary::stream_chunk` | `OpenChunkMessages`、`ReadChunkMessages` | 适配 | 独立惰性游标共享输入和摘要，在 snapshot 释放后仍有效 |
 | `Summary::seek_message` | `SeekMessage` 重载 | 适配 | 绑定加载／校验完整 chunk，可能比上游前缀定位更早报告尾部损坏 |
 | `Summary::read_message_indexes` | `ReadMessageIndexes` | 适配 | 调用方缓冲形式使用 18 字节打包行 |
 | `read::attachment`、`read::metadata` | `ReadAttachment`、`ReadMetadata` | 适配 | 使用调用方提供的索引并验证源范围 |
 
-入口见 [McapIndexSnapshot](../../src/McapIndexSnapshot.cs)。Prepared index、分组 seek 和缓存保留属于绑定扩展，不是新增官方方法；复用范围见[随机访问](api.md#完整-chunk-随机访问)。索引读取成功不代表完整文件校验。
+入口见 [McapIndexedReader](../../src/McapIndexedReader.cs)。Prepared index、分组 seek 和缓存保留属于绑定扩展，不是新增官方方法；复用范围见[随机访问](api.md#完整-chunk-随机访问)。索引读取成功不代表完整文件校验。
 
 ## Sans-I/O（`sans-io`）
 
@@ -107,3 +107,5 @@ McapAsyncMessageReader 在线性引擎上提供消息 lease，属于绑定能力
 行为证据单独评估：固定 conformance 用例、.NET／Python 互操作、独立未修改上游对比、生命周期／重试测试及分配门禁分别验证不同性质。仅对补丁源码测试不构成独立上游证据；绑定诊断不证明总内存上限，也不约束 codec 分配。命令、夹具数量和限制集中维护在 [development.md](development.md#外部契约测试套件)。
 
 审查某项能力时，先定位上述分组，再到审查清单查找精确 `rust` 符号，最后检查所映射源码及证据。新增本地能力时保持官方基线不变；明确记录替代和排除项，不将其计作直接实现。
+
+托管能力边界包括完整 expanded 扫描的不可变创建时 ValidationCapability、索引输入的显式 CreateCopied/OpenMapped，以及独立的 McapRecordAccessor 原始记录访问。这些属于绑定契约，不是上游声明。公开 Sans-I/O 摘要轮询不接收目标缓冲区，索引事件仅为 Message/ReadChunk/End。McapSeekRequest 适配 Rust SeekFrom，不把负公开偏移编码为无符号数；McapMessageSeekRequest 则单独表示 prepared 批量消息定位。ApiConvergenceTests 验证公开形状、消费前拒绝和协议循环。

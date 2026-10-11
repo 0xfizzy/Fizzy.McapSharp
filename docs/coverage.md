@@ -42,19 +42,19 @@ Defaults follow upstream writer settings, including Zstd, 1 MiB target chunks an
 | `read::RawMessageStream`, `RawMessage`, `get_channel` | `McapRawMessageReader`, `GetChannel` | Adapted | Retains encountered declarations; no borrowed Rust iterator crosses the ABI |
 | `read::MessageStream` | `McapMessageReader`, `ReadMessages` | Adapted | Owned results copy payload and mutable declarations; other delivery forms have different ownership |
 
-Five typed readers correspond to the upstream read capabilities; `McapSummaryRecordReader` is a binding extension over retained Summary records. File/Stream construction uses `McapReaderFactory`; copied/mapped construction uses the corresponding type. High-level expanded validation is consistent across inputs and independent of CRC settings. Random Stream access uses `McapRandomAccessReader`; input-owning random access uses `McapIndexSnapshot`.
+Five typed readers correspond to the upstream read capabilities; `McapSummaryRecordReader` is a binding extension over retained Summary records. File/Stream construction uses `McapReaderFactory`; copied/mapped construction uses the corresponding type. High-level expanded validation is consistent across inputs and independent of CRC settings. Random Stream access uses `McapRecordAccessor`; input-owning random access uses `McapIndexedReader`.
 
 ## Summary and random access (`random-access`)
 
 | Official Rust API | .NET entry | Mapping | Key difference or constraint |
 | --- | --- | --- | --- |
-| `Summary`, `Summary::read` and summary fields | `McapIndexSnapshot`, `GetSummary`, `OpenSummaryRecords` | Adapted | Snapshot owns copied or mapped input; managed summary and record cursor are different representations |
-| `Summary::stream_chunk` | `OpenChunkMessages`, `ReadChunkMessages` | Adapted | Independent lazy cursor shares input and summary, surviving snapshot disposal |
+| `Summary`, `Summary::read` and summary fields | `McapIndexedReader`, `GetSummary`, `OpenSummaryRecords` | Adapted | Indexed reader owns copied or mapped input; managed summary and record cursor are different representations |
+| `Summary::stream_chunk` | `OpenChunkMessages`, `ReadChunkMessages` | Adapted | Independent lazy cursor shares input and summary, surviving indexed-reader disposal |
 | `Summary::seek_message` | `SeekMessage` overloads | Adapted | Binding loads/validates the complete chunk; tail corruption can be reported earlier than upstream prefix seek |
 | `Summary::read_message_indexes` | `ReadMessageIndexes` | Adapted | Caller-buffer form uses packed 18-byte rows |
 | `read::attachment`, `read::metadata` | `ReadAttachment`, `ReadMetadata` | Adapted | Uses caller-supplied indexes and validates source ranges |
 
-See [McapIndexSnapshot](../src/McapIndexSnapshot.cs). Prepared indexes, grouped seeks and cache retention are binding additions, not additional official methods. Their reuse scopes are described under [random access](api.md#complete-chunk-random-access). Successful indexed reading does not establish full-file validation.
+See [McapIndexedReader](../src/McapIndexedReader.cs). Prepared indexes, grouped seeks and cache retention are binding additions, not additional official methods. Their reuse scopes are described under [random access](api.md#complete-chunk-random-access). Successful indexed reading does not establish full-file validation.
 
 ## Sans-I/O (`sans-io`)
 
@@ -107,3 +107,5 @@ Run `python scripts/check_api_coverage.py` after changing the map. It compares s
 Behavioral evidence is separate: pinned conformance cases, .NET/Python interoperability, independent unmodified-upstream comparison, lifetime/retry tests and allocation gates address different properties. Tests against the patched source alone are not independent upstream evidence. Binding diagnostics do not establish total-memory bounds or constrain codec allocations. Commands, fixture counts and limitations are maintained in [development.md](development.md#external-contract-suites).
 
 To review one capability, locate its group above, find its exact `rust` symbol in the reviewed inventory, then inspect the mapped source and evidence. Preserve the official baseline when adding local capabilities; record alternatives and exclusions explicitly instead of counting them as direct implementations.
+
+The managed capability boundaries include immutable creation-time `ValidationCapability` for full expanded scans, explicit `CreateCopied` versus `OpenMapped` indexed input, and separate raw-record access through `McapRecordAccessor`. These are binding contracts, not upstream declarations. Public Sans-I/O summary polling has no destination; indexed events are only Message/ReadChunk/End. `McapSeekRequest` adapts Rust SeekFrom without unsigned encoding of negative public offsets. `McapMessageSeekRequest` is the separate prepared batch lookup descriptor. `ApiConvergenceTests` verifies these public shapes, pre-consumption rejections and protocol loops.

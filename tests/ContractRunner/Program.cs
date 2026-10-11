@@ -14,7 +14,7 @@ switch (args[0])
             Print(new { records = reader.ReadRecords().Where(r => r.Opcode != 7).Select(r => Canon.Record(((McapOpcode)r.Opcode).ToString(), McapRecords.Parse(r.Opcode, r.Data))).ToArray() });
         break;
     case "indexed":
-        using (var snapshot = new McapIndexSnapshot(File.ReadAllBytes(args[1])))
+        using (var snapshot = McapIndexedReader.CreateCopied(File.ReadAllBytes(args[1])))
         using (var records = snapshot.OpenSummaryRecords())
         {
             var all = records.ReadRecords().ToArray();
@@ -61,9 +61,9 @@ static class Canon
         using var file = File.OpenRead(path);
         using var summary = new McapSansIoSummaryReader(new() { FileSize = (ulong)file.Length });
         var buffer = new byte[1024 * 1024];
-        while (summary.NextEvent(buffer, out var e) != McapReadStatus.EndOfStream)
+        while (summary.NextEvent(out var e) != McapReadStatus.EndOfStream)
         {
-            if (e.Kind == McapSummaryEventKind.Seek) summary.NotifySeeked((ulong)file.Seek(unchecked((long)e.Offset), e.Origin));
+            if (e.Kind == McapSummaryEventKind.Seek) summary.NotifySeeked((ulong)file.Seek(e.Seek.Origin == SeekOrigin.Begin ? checked((long)e.Seek.AbsolutePosition) : e.Seek.RelativeOffset, e.Seek.Origin));
             else { int n = file.Read(buffer, 0, (int)Math.Min((ulong)buffer.Length, e.Length)); summary.SupplyInput(buffer.AsSpan(0, n)); }
         }
         using var indexed = summary.CreateIndexed();
@@ -74,7 +74,7 @@ static class Canon
             if (status == McapReadStatus.EndOfStream) break;
             if (e.Length > (ulong)buffer.Length) buffer = new byte[checked((int)e.Length)];
             if (status == McapReadStatus.BufferTooSmall) continue;
-            if (e.Kind == McapIndexedEventKind.ReadChunk) { file.Position = (long)e.Offset; file.ReadExactly(buffer.AsSpan(0, (int)e.Length)); indexed.SupplyInput(buffer.AsSpan(0, (int)e.Length), e.Offset); }
+            if (e.Kind == McapIndexedEventKind.ReadChunk) { file.Position = (long)e.Offset; file.ReadExactly(buffer.AsSpan(0, (int)e.Length)); indexed.InsertChunkData(e.Offset, buffer.AsSpan(0, (int)e.Length)); }
             else messages.Add(Record("Message", new McapMessageRecord(e.Header, buffer.AsSpan(0, (int)e.Length).ToArray())));
         }
         return messages.ToArray();

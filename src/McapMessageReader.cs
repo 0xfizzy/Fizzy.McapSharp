@@ -3,6 +3,8 @@ namespace Fizzy.McapSharp;
 /// <summary>Resolved messages with declaration-reference validation. Results follow the selected caller-buffer, borrowing or retained-storage ownership contract.</summary>
 public sealed class McapMessageReader : IDisposable
 {
+    /// <summary>Creation-time validation scope; remains available after failure or disposal. Only StrictFullScan supports ValidateRemaining and, on message readers, prefix recovery.</summary>
+    public McapValidationCapability ValidationCapability => ((IReadProgress)core).ValidationCapability;
     readonly IMessageSource core;
     internal McapMessageReader(IMessageSource core) => this.core = core;
     /// <summary>Copies complete file input into independent storage and reads messages in file order. CRC checks follow options.</summary>
@@ -44,7 +46,7 @@ public sealed class McapMessageReader : IDisposable
     public bool IsFullyValidated => ((IReadProgress)core).IsFullyValidated;
     /// <summary>Native record count from a completed scan, not a live progress counter.</summary>
     public ulong ScannedRecordCount => ((IReadProgress)core).ScannedRecordCount;
-    /// <summary>Consumes a strict complete expanded scan and returns its record count. Partial or non-strict capabilities cannot establish full-file validation.</summary>
+    /// <summary>Completes a scan that has performed strict checks from creation and returns its record count. Requires StrictFullScan; rejection does not advance or fail a usable reader. Previously skipped checks cannot be retroactively validated.</summary>
     public ulong ValidateRemaining() => ((IReadProgress)core).ValidateRemaining();
     /// <summary>Releases native state and transfers the underlying Stream. Copied, mapped and path input have no managed Stream to transfer.</summary>
     public Stream IntoInner() => ((IReadProgress)core).IntoInner();
@@ -52,6 +54,6 @@ public sealed class McapMessageReader : IDisposable
     public McapSchema GetSchema(ushort id) => ((IDeclarationSource)core).GetSchema(id);
     /// <summary>Returns a cached immutable encountered or retained summary schema. The description survives reader disposal.</summary>
     public McapSchemaDescription GetSchemaDescription(ushort id) => ((IDeclarationSource)core).GetSchemaDescription(id);
-    /// <summary>Delivers a strict valid prefix. Parse errors are retained in the result; callback exceptions propagate and terminate this reader. Indexed or non-strict reading cannot establish validated prefix recovery.</summary>
+    /// <summary>Continues a StrictFullScan from its current cursor, counting only messages delivered by this call. Capability rejection does not advance or fail a usable reader. Parse errors are retained in the result; I/O and callback exceptions propagate and terminate reading.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept) => core.RecoverMessages(accept);
 }

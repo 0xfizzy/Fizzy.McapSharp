@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 17，托管构造函数拒绝不匹配，包括不支持完整摘要声明、复制／映射验证配置或共享待处理消息体交付的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 18，托管构造函数拒绝不匹配，包括不支持明确 feed 回应种类和 reader 创建执行信息的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -89,3 +89,5 @@ pending 保存共享字节或合成记录体。Buffer reader 保留完整 Messag
 官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于[本地补丁](patches.md)。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。
 
 `fm_reader_message_record` 与 payload 交付共享待处理状态；`fm_buffer_reader_configured` 为复制／映射输入传递解析选项及验证范围，`fm_buffer_reader_schema/state` 查询声明和扫描状态。完整摘要 JSON 包含 schema/channel 映射；channel 使用 schema ID 引用，私有 schemaDependencies 为摘要中未重复的 schema 提供数据段声明，不改变公开 Schemas 映射。异步展开交付在发布前验证记录体及引用；原始 Sans-I/O 线性事件不解析记录体。
+
+Reader 创建成功时，Response.value 表示实际执行路径：0 顺序、1 索引、2 缓存排序。托管层据此在推进前确定不可变的验证能力。`fm_engine_feed` 签名为 `(handle, u32 response_kind, data, length, position, response)`；回应种类 1（Read）或 2（Seek）必须匹配待处理事件，Seek 不接收数据。索引输入通过 InsertChunk 控制提交，必须匹配请求的压缩数据偏移和完整长度。公开定位请求直接表达无符号绝对位置或有符号相对偏移，不暴露 ABI 补码编码。

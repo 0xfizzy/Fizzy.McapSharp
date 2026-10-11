@@ -7,6 +7,8 @@ struct Response { json: *mut u8, json_len: usize, data: *mut u8, data_len: usize
 impl Default for Response { fn default() -> Self { unsafe { mem::zeroed() } } }
 #[repr(C)]
 struct Header { channel: u16, reserved: u16, sequence: u32, log_time: u64, publish_time: u64 }
+#[repr(C)]
+struct Event { kind: u32, opcode: u32, length: u64, offset: u64, origin: u32, reserved: u32, header: Header }
 extern "C" {
     fn fm_abi_version() -> u32;
     fn fm_buffer_free(p: *mut u8, n: usize);
@@ -19,6 +21,10 @@ extern "C" {
     fn fm_snapshot_call(h: *mut c_void, op: u32, index: *const u8, length: usize, time: u64, offset: u64,
         dest: *mut u8, capacity: usize, header: *mut Header, r: *mut Response) -> i32;
     fn fm_snapshot_release(h: *mut c_void, r: *mut Response) -> i32;
+    fn fm_engine_open(kind: u32, config: *const u8, n: usize, summary: *mut c_void, h: *mut *mut c_void, r: *mut Response) -> i32;
+    fn fm_engine_next(h: *mut c_void, dest: *mut u8, capacity: usize, event: *mut Event, r: *mut Response) -> i32;
+    fn fm_engine_feed(h: *mut c_void, response_kind: u32, data: *const u8, n: usize, position: u64, r: *mut Response) -> i32;
+    fn fm_engine_release(h: *mut c_void, r: *mut Response) -> i32;
 }
 unsafe fn release(r: &mut Response) {
     let panic = r.json_len > 0 && String::from_utf8_lossy(slice::from_raw_parts(r.json, r.json_len)).contains("Native MCAP panic");
@@ -39,12 +45,23 @@ fn main() {
     }));
     assert_eq!(mem::size_of::<Response>(), 40);
     assert_eq!(mem::size_of::<Header>(), 24);
+    assert_eq!(mem::size_of::<Event>(), 56);
     assert_eq!(mem::offset_of!(Header, log_time), 8);
     let args: Vec<_> = env::args().collect();
     let data = fs::read(&args[1]).unwrap();
     let repeats = args.get(2).map(|s| s.parse::<usize>().unwrap()).unwrap_or(1);
     unsafe {
-        assert_eq!(fm_abi_version(), 15);
+        assert_eq!(fm_abi_version(), 18);
+        // Exercise the typed feed signature independently of managed P/Invoke.
+        let mut engine = ptr::null_mut(); let mut response = Response::default();
+        assert_eq!(fm_engine_open(0, b"{}".as_ptr(), 2, ptr::null_mut(), &mut engine, &mut response), 0);
+        release(&mut response);
+        let mut event: Event = mem::zeroed();
+        assert_eq!(fm_engine_next(engine, ptr::null_mut(), 0, &mut event, &mut response), 0);
+        release(&mut response); assert_eq!(event.kind, 1);
+        assert!(fm_engine_feed(engine, 2, ptr::null(), 0, 0, &mut response) < 0);
+        release(&mut response);
+        assert_eq!(fm_engine_release(engine, &mut response), 0); release(&mut response);
         for _ in 0..repeats {
             let mut indexes = Vec::new();
             for mode in [0, 2, 4, 5] {

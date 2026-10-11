@@ -10,7 +10,7 @@ public enum McapLinearEventKind
     /// <summary>The next raw record body is available; Opcode identifies it.</summary>
     Record,
 }
-/// <summary>A linear protocol event. Length is in bytes. Positions are relative to the MCAP origin; Seek offsets for Current and End encode signed displacements as unchecked ulong values. Only fields applicable to Kind are meaningful.</summary>
+/// <summary>A linear protocol event. Length is in bytes; Opcode applies only to Record events.</summary>
 public readonly record struct McapLinearReadEvent(McapLinearEventKind Kind, byte Opcode, ulong Length);
 
 /// <summary>Caller-driven linear parser. Performs no I/O. Supply requested input before advancing again; buffer-size negotiation preserves pending delivery and other protocol failures are terminal.</summary>
@@ -35,6 +35,6 @@ public sealed class McapSansIoLinearReader : IDisposable
     }
     /// <summary>Copies input synchronously for the pending Read request. Empty input signals EOF.</summary>
     public void SupplyInput(ReadOnlySpan<byte> data) => core.SupplyInput(data);
-    /// <summary>Releases parser state and reports cleanup failures once; independent child readers remain valid.</summary>
+    /// <summary>Releases parser state and reports cleanup failures once.</summary>
     public void Dispose() => core.Dispose();
 }

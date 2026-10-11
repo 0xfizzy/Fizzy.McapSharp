@@ -18,7 +18,7 @@ public class LeaseStorageTests
                 for (uint i = 0; i < 3; i++) { Array.Fill(payload, (byte)(i + 1)); writer.WriteToKnownChannel(new(channel, i, i, 0), payload); }
                 writer.Complete();
             }
-            using var snapshot = McapIndexSnapshot.OpenMapped(path, new() { MaxRandomAccessCacheBytes = 16000 });
+            using var snapshot = McapIndexedReader.OpenMapped(path, new() { MaxRandomAccessCacheBytes = 16000 });
             var chunks = snapshot.GetSummary()!.ChunkIndexes;
             using var first = new McapPreparedChunkIndex(chunks[0]);
             using var second = new McapPreparedChunkIndex(chunks[1]);

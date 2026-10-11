@@ -74,7 +74,7 @@ public class MemoryTests
         var data = Recording(compression); File.WriteAllBytes(path, data);
         try
         {
-            var snapshot = McapIndexSnapshot.OpenMapped(path, new());
+            var snapshot = McapIndexedReader.OpenMapped(path, new());
             var summary = snapshot.GetSummary()!;
             var index = summary.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0);
             using var cursor = snapshot.OpenChunkMessages(index);
@@ -113,7 +113,7 @@ public class MemoryTests
     [Fact]
     public void SummaryCursorEnumeratesRecords()
     {
-        using var snapshot = new McapIndexSnapshot(Recording(McapCompression.None), new());
+        using var snapshot = McapIndexedReader.CreateCopied(Recording(McapCompression.None), new());
         using var cursor = snapshot.OpenSummaryRecords();
 
         byte[] buffer = new byte[4096]; int count = 0;
@@ -173,7 +173,7 @@ public class MemoryTests
     public void CopiedSnapshotRetainsIndependentInputAndSessionPolicyWins()
     {
         var bytes = Recording(McapCompression.None, chunks: false);
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         Array.Clear(bytes);
         Assert.NotNull(snapshot.GetSummary());
         Assert.True(snapshot.ReadFooter().SummaryStart > 0);

@@ -12,6 +12,7 @@ internal sealed partial class ReadSessionCore : IRecordSource, IMessageSource, I
     readonly bool messages;
     readonly bool topLevel;
     readonly bool strict;
+    public McapValidationCapability ValidationCapability { get; }
     /// <summary>True after reaching the end of this scan without failure; does not imply full-file validation.</summary>
     public bool IsScanComplete { get { lock (gate) { borrowed.CheckReentry(); return ended && !failed; } } }
     /// <summary>True only after a strict complete expanded scan validates the entire file; indexed or non-strict success is insufficient.</summary>
@@ -43,7 +44,11 @@ internal sealed partial class ReadSessionCore : IRecordSource, IMessageSource, I
             var cb = bridge?.Callbacks ?? default;
             int status = Native.fm_reader_open(request, (nuint)request.Length, bridge is null ? null : &cb, out var p, out var r);
             if (p != IntPtr.Zero) opened = new(p, bridge);
-            Native.ConsumeReader(status, r, bridge).Json?.Dispose();
+            var openedResult = Native.ConsumeReader(status, r, bridge);
+            openedResult.Json?.Dispose();
+            ValidationCapability = topLevel || openedResult.Value != Protocol.ReaderExecution.Sequential
+                ? McapValidationCapability.PartialInput
+                : strict ? McapValidationCapability.StrictFullScan : McapValidationCapability.FullScan;
             if (status == Protocol.ReaderOpenStatus.BufferedSortRequired) throw new NotSupportedException("Time ordering requires buffered sorting, which this query disables.");
 
             handle = opened!;
@@ -290,7 +295,7 @@ internal sealed partial class ReadSessionCore : IRecordSource, IMessageSource, I
             var h = sink.Header;
             if (!channels.TryGetValue(h.ChannelId, out var channel))
                 channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
-            yield return new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!);
+            yield return new(OwnedReadSink.CopyChannel(channel), h.Sequence, h.LogTime, h.PublishTime, (byte[])sink.Value!);
         }
     }
 
@@ -305,8 +310,8 @@ internal sealed partial class ReadSessionCore : IRecordSource, IMessageSource, I
     /// <summary>Delivers the valid prefix from a strict message session and returns the original native parsing error, if any. Use a strict file-order session for prefix salvage; time-ordered sessions may fail during their opening scan before recovery can begin. Parsing, Stream and delivery-sink failures terminate the session. Stream and sink exceptions propagate, including McapException. The accept callback receives an owned message after it has been consumed: its exception propagates unchanged and terminates this session.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
+        CheckValidationCapability();
         ArgumentNullException.ThrowIfNull(accept);
-        if (!strict) throw new InvalidOperationException("Open with McapReaderOptions.Strict to recover a validated prefix.");
         if (!messages) throw new InvalidOperationException("This is a record session.");
         ulong count = 0;
         var channels = new Dictionary<ushort, McapChannel>();
@@ -318,18 +323,26 @@ internal sealed partial class ReadSessionCore : IRecordSource, IMessageSource, I
             var h = sink.Header;
             if (!channels.TryGetValue(h.ChannelId, out var channel))
                 channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
-            try { accept(new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!)); }
+            try { accept(new(OwnedReadSink.CopyChannel(channel), h.Sequence, h.LogTime, h.PublishTime, (byte[])sink.Value!)); }
             catch { lock (gate) failed = true; throw; }
             count++;
+        }
+    }
+
+    void CheckValidationCapability()
+    {
+        lock (gate)
+        {
+            Check();
+            if (ValidationCapability != McapValidationCapability.StrictFullScan)
+                throw new InvalidOperationException("This operation requires a strict complete expanded sequential scan from session creation.");
         }
     }
 
     /// <summary>Consumes the remaining strict expanded scan and returns its record count after full-file validation. Indexed sessions cannot establish full validation.</summary>
     public ulong ValidateRemaining()
     {
-        if (!strict) throw new InvalidOperationException("Open with McapReaderOptions.Strict to validate the entire scan.");
-        if (topLevel)
-            throw new InvalidOperationException("Full validation requires expanded chunks.");
+        CheckValidationCapability();
         byte[] buffer = new byte[65536];
         while (true)
         {

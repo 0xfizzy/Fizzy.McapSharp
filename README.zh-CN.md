@@ -42,6 +42,8 @@ foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
 
 大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；先[选择消息所有权](docs/zh-CN/api.md#选择消息所有权)，再了解生命周期与局部缓存／排序额度。
 
+普通应用优先使用 `ReadMessages()` 返回的独立自有结果；需要控制分配或保留共享存储时，再参考 API 所有权指南。
+
 ## 文档入口
 
 - [API、生命周期与数据所有权](docs/zh-CN/api.md)

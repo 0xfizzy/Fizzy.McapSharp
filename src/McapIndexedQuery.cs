@@ -13,7 +13,7 @@ public sealed record McapIndexedQuery
     public ulong? EndTime { get; init; }
     /// <summary>Indexed traversal order. Defaults to ascending log time; equal-time order is unspecified.</summary>
     public McapReadOrder Order { get; init; } = McapReadOrder.LogTime;
-    /// <summary>Maximum encoded record-body length in bytes. Null leaves the upstream limit unset; this is not a total-memory bound.</summary>
+    /// <summary>Maximum indexed record-body length and compressed or decompressed chunk size in bytes. Null leaves the upstream limit unset; this is not a total-memory bound.</summary>
     public ulong? RecordLengthLimit { get; init; }
     internal McapQuery ToQuery() => new() { Topic = Topic, Topics = Topics, StartTime = StartTime, EndTime = EndTime, Order = Order };
 }

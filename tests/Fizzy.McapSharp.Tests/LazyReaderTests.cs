@@ -21,7 +21,7 @@ public class LazyReaderTests
     [InlineData(McapCompression.None)] [InlineData(McapCompression.Lz4)] [InlineData(McapCompression.Zstd)]
     public void IndependentChunkCursorsSurviveSnapshotAndPreserveRetries(McapCompression compression)
     {
-        var snapshot = new McapIndexSnapshot(Recording(true, compression));
+        var snapshot = McapIndexedReader.CreateCopied(Recording(true, compression));
         var chunks = snapshot.GetSummary()!.ChunkIndexes.Where(c => c.MessageIndexOffsets.Count > 0).ToArray();
         using var first = snapshot.OpenChunkMessages(chunks[0]);
         using var second = snapshot.OpenChunkMessages(chunks[1]);
@@ -41,7 +41,7 @@ public class LazyReaderTests
     [Fact]
     public void ConvenienceChunkEnumeratorsHaveIndependentCursors()
     {
-        using var snapshot = new McapIndexSnapshot(Recording(true));
+        using var snapshot = McapIndexedReader.CreateCopied(Recording(true));
         var chunks = snapshot.GetSummary()!.ChunkIndexes.Where(c => c.MessageIndexOffsets.Count > 0).ToArray();
         using var cursor = snapshot.OpenChunkMessages(chunks[2]);
         using var a = snapshot.ReadChunkMessages(chunks[0]).GetEnumerator();

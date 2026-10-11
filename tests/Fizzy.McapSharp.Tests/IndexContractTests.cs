@@ -32,14 +32,14 @@ public class IndexContractTests(ITestOutputHelper output)
     {
         var bytes = DeliveryOptimizationTests.Recording(compression, 2);
         McapChunkIndex chunk;
-        using (var original = new McapIndexSnapshot(bytes)) chunk = original.GetSummary()!.ChunkIndexes.Single();
+        using (var original = McapIndexedReader.CreateCopied(bytes)) chunk = original.GetSummary()!.ChunkIndexes.Single();
         var emptyId = chunk.MessageIndexOffsets.Keys.Min();
         var offset = checked((int)chunk.MessageIndexOffsets[emptyId]);
         // Shorten only this random-access index record to a valid empty body. The
         // surrounding gap is intentionally not traversed; summary offsets stay fixed.
         BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset + 1), 6);
         BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset + 11), 0);
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         using var prepared = new McapPreparedChunkIndex(chunk);
         using var session = McapReaderFactory.OpenMessageSession(new MemoryStream(bytes));
         var expected = session.ReadMessageIndexes(chunk).OrderBy(g => g.ChannelId).ToArray();
@@ -66,7 +66,7 @@ public class IndexContractTests(ITestOutputHelper output)
     public void CacheAndBatchIdentityIgnoreMapInsertionOrder(McapCompression compression)
     {
         var bytes = DeliveryOptimizationTests.Recording(compression, 2);
-        using var snapshot = new McapIndexSnapshot(bytes, new() { MaxRandomAccessCacheBytes = 1024 * 1024 });
+        using var snapshot = McapIndexedReader.CreateCopied(bytes, new() { MaxRandomAccessCacheBytes = 1024 * 1024 });
         var chunk = snapshot.GetSummary()!.ChunkIndexes.Single();
         var reordered = chunk with { MessageIndexOffsets = chunk.MessageIndexOffsets.Reverse().ToDictionary(e => e.Key, e => e.Value) };
         var entry = snapshot.ReadMessageIndexes(chunk)[0].Records[0];
@@ -75,7 +75,7 @@ public class IndexContractTests(ITestOutputHelper output)
         Assert.Equal(1UL, snapshot.GetCacheStatistics().ChunkLoads);
         using var a = new McapPreparedChunkIndex(chunk);
         using var b = new McapPreparedChunkIndex(reordered);
-        using var uncached = new McapIndexSnapshot(bytes);
+        using var uncached = McapIndexedReader.CreateCopied(bytes);
         using var batch = uncached.SeekMessages([new(a, entry), new(b, entry)]);
         Assert.Equal(1UL, uncached.GetCacheStatistics().ChunkLoads);
         Assert.Equal(batch.GetPayload(0).ToArray(), batch.GetPayload(1).ToArray());
@@ -88,7 +88,7 @@ public class IndexContractTests(ITestOutputHelper output)
     public void SortedListEncodingObservesCurrentEntries()
     {
         var bytes = DeliveryOptimizationTests.Recording(McapCompression.None, 2);
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         var chunk = snapshot.GetSummary()!.ChunkIndexes.Single();
         var entries = chunk.MessageIndexOffsets.ToArray();
         var offsets = new SortedList<ushort, ulong> { [entries[0].Key] = entries[0].Value };
@@ -103,7 +103,7 @@ public class IndexContractTests(ITestOutputHelper output)
     public void SparseHighIdMapProfile()
     {
         var bytes = DeliveryOptimizationTests.Recording(McapCompression.None);
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         var chunk = snapshot.GetSummary()!.ChunkIndexes.Single();
         var offsets = new Dictionary<ushort, ulong> { [ushort.MaxValue] = 123 };
         var direct = chunk with { MessageIndexOffsets = offsets };

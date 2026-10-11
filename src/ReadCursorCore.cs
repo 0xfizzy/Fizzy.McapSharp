@@ -31,6 +31,7 @@ internal sealed partial class ReadCursorCore : IRecordSource, IMessageSource, IR
     readonly BorrowedReadSink borrowed = new();
     readonly bool supportsMessages;
     readonly bool fullyValidating;
+    public McapValidationCapability ValidationCapability { get; }
     bool failed;
     void Check()
     {
@@ -62,6 +63,9 @@ internal sealed partial class ReadCursorCore : IRecordSource, IMessageSource, IR
             throw new ArgumentException("Select a linear reader to expose chunks.", nameof(options));
         supportsMessages = mode is CursorMode.RawMessages or CursorMode.Messages;
         fullyValidating = options?.IsStrict == true && mode is CursorMode.Messages or CursorMode.ExpandedRecords;
+        ValidationCapability = mode is CursorMode.Messages or CursorMode.ExpandedRecords
+            ? fullyValidating ? McapValidationCapability.StrictFullScan : McapValidationCapability.FullScan
+            : McapValidationCapability.PartialInput;
         var config = Native.Request(new { path, mode = (uint)mode, options = options ?? new() });
         fixed (byte* p = data)
         {
@@ -150,7 +154,7 @@ internal sealed partial class ReadCursorCore : IRecordSource, IMessageSource, IR
             var h = sink.Header;
             if (!channels.TryGetValue(h.ChannelId, out var channel))
                 channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
-            yield return new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, data);
+            yield return new(OwnedReadSink.CopyChannel(channel), h.Sequence, h.LogTime, h.PublishTime, data);
         }
     }
     /// <summary>Releases parser state and its retained input; independently retained leases remain valid. Repeated disposal is a no-op.</summary>

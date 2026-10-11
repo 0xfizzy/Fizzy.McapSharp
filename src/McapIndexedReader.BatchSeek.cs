@@ -3,14 +3,14 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapIndexSnapshot
+public sealed partial class McapIndexedReader
 {
-    /// <summary>Within this call, loads each distinct chunk once and returns a shared batch in request order. Cross-call reuse depends on the snapshot cache; returned leases may retain whole chunks or input storage.</summary>
-    public unsafe McapMessageBatchLease SeekMessages(ReadOnlySpan<McapSeekRequest> requests)
+    /// <summary>Within this call, loads each distinct chunk once and returns a shared batch in request order. Cross-call reuse depends on the indexed reader cache; returned leases may retain whole chunks or input storage.</summary>
+    public unsafe McapMessageBatchLease SeekMessages(ReadOnlySpan<McapMessageSeekRequest> requests)
     {
         Native.CheckLeaseRequest(requests.Length, 1);
         CheckBeforeLock();
-        // Acquire distinct descriptors in one order before the snapshot, as all prepared calls do.
+        // Acquire distinct descriptors in one order before the indexed reader, as all prepared calls do.
         // Setup allocation is permitted for batch leases; no payload is copied here.
         var indexes = new McapPreparedChunkIndex[requests.Length];
         for (int i = 0; i < requests.Length; i++)
@@ -53,7 +53,7 @@ public sealed partial class McapIndexSnapshot
             GC.KeepAlive(indexes);
         }
     }
-    /// <summary>Synchronously visits the indexed message. The payload expires when the callback returns; the callback must not invoke operations on any snapshot or prepared chunk index, including disposal.</summary>
+    /// <summary>Synchronously visits the indexed message. The payload expires when the callback returns; the callback must not invoke operations on any indexed reader or prepared chunk index, including disposal.</summary>
     public unsafe void SeekMessage(McapPreparedChunkIndex index, McapMessageIndexEntry entry, McapMessageVisitor visitor)
     {
         ArgumentNullException.ThrowIfNull(index);
@@ -72,7 +72,7 @@ public sealed partial class McapIndexSnapshot
             finally { McapPreparedChunkIndex.ExitCallback(); borrowed.Release(); if (added) index.Handle.DangerousRelease(); }
         }
     }
-    /// <summary>Returns cumulative chunk-cache hits and loads for this snapshot. Counts do not measure bytes, resident memory or full-file validation.</summary>
+    /// <summary>Returns cumulative chunk-cache hits and loads for this indexed reader. Counts do not measure bytes, resident memory or full-file validation.</summary>
     public McapCacheStatistics GetCacheStatistics()
     {
         CheckBeforeLock();

@@ -7,22 +7,22 @@ public enum McapSummaryEventKind
     End,
     /// <summary>Supply up to Length bytes; empty input signals EOF.</summary>
     Read,
-    /// <summary>Seek using Origin and Offset, then report the resulting position.</summary>
+    /// <summary>Seek using the Seek request, then report the resulting position.</summary>
     Seek,
 }
-/// <summary>A summary protocol event. Length is in bytes. Positions are relative to the MCAP origin; Seek offsets for Current and End encode signed displacements as unchecked ulong values. Only fields applicable to Kind are meaningful.</summary>
-public readonly record struct McapSummaryReadEvent(McapSummaryEventKind Kind, ulong Length, ulong Offset, SeekOrigin Origin);
+/// <summary>A summary protocol event. Length applies to Read; Seek applies to Seek. Positions are relative to the MCAP origin. Other fields are not meaningful.</summary>
+public readonly record struct McapSummaryReadEvent(McapSummaryEventKind Kind, ulong Length, McapSeekRequest Seek);
 
-/// <summary>Caller-driven summary parser. Performs no I/O. Supply requested input before advancing again; buffer-size negotiation preserves pending delivery and other protocol failures are terminal.</summary>
+/// <summary>Caller-driven summary parser. Performs no I/O. Supply requested input or acknowledge the requested seek before advancing again; protocol failures are terminal.</summary>
 public sealed class McapSansIoSummaryReader : IDisposable
 {
     readonly SansIoReaderCore core;
     /// <summary>Creates an independent summary parser. Input requests are serviced by the caller.</summary>
     public McapSansIoSummaryReader(McapSummaryReaderOptions? options = null) => core = SansIoReaderCore.CreateSummary(options);
-    /// <summary>Polls the next request or copies delivered bytes. BufferTooSmall reports required Length and retains the same delivery.</summary>
-    public McapReadStatus NextEvent(Span<byte> destination, out McapSummaryReadEvent readEvent)
+    /// <summary>Polls the next Read or Seek request, or returns EndOfStream. This protocol delivers no record bodies and never returns BufferTooSmall.</summary>
+    public McapReadStatus NextEvent(out McapSummaryReadEvent readEvent)
     {
-        var status = core.NextEvent(destination, out var e);
+        var status = core.NextEvent([], out var e);
         var kind = e.Kind switch
         {
             McapReadEventKind.End => McapSummaryEventKind.End,
@@ -30,11 +30,11 @@ public sealed class McapSansIoSummaryReader : IDisposable
             McapReadEventKind.Seek => McapSummaryEventKind.Seek,
             _ => throw new InvalidOperationException("Unexpected event for this protocol.")
         };
-        readEvent = new(kind, e.Length, e.Offset, e.Origin);
+        readEvent = new(kind, e.Length, new McapSeekRequest(e.Origin, e.Offset));
         return status;
     }
-    /// <summary>Copies input synchronously for the pending request. Indexed chunk input includes its requested absolute position; empty input to a Read request signals EOF.</summary>
-    public void SupplyInput(ReadOnlySpan<byte> data, ulong position = 0) => core.SupplyInput(data, position);
+    /// <summary>Copies up to the requested bytes for a pending Read. Empty input signals EOF. Other pending event kinds are terminal protocol errors.</summary>
+    public void SupplyInput(ReadOnlySpan<byte> data) => core.SupplyInput(data);
     /// <summary>Completes the pending seek with its actual resulting byte position relative to the MCAP origin.</summary>
     public void NotifySeeked(ulong position) => core.NotifySeeked(position);
     /// <summary>Returns an independent complete summary, or null if absent, after the summary protocol completes.</summary>

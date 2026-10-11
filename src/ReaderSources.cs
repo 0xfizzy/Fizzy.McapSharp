@@ -21,6 +21,7 @@ internal interface IMessageSource : IDisposable
 
 internal interface IReadProgress
 {
+    McapValidationCapability ValidationCapability { get; }
     bool IsScanComplete { get; }
     bool IsFullyValidated { get; }
     ulong ScannedRecordCount { get; }

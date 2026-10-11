@@ -67,10 +67,10 @@ public class MemoryOptimizationTests
     public void CachedRandomAccessMatchesOfficialAndDoesNotMoveCursors(McapCompression compression)
     {
         var bytes = Recording(compression);
-        using var official = new McapIndexSnapshot(bytes, new());
+        using var official = McapIndexedReader.CreateCopied(bytes, new());
         foreach (ulong budget in new ulong[] { 0, 1, 4096, 1024 * 1024 })
         {
-            using var cached = new McapIndexSnapshot(bytes, new() { MaxRandomAccessCacheBytes = budget });
+            using var cached = McapIndexedReader.CreateCopied(bytes, new() { MaxRandomAccessCacheBytes = budget });
             var chunks = cached.GetSummary()!.ChunkIndexes;
             using var cursor = cached.OpenChunkMessages(chunks[0]);
             foreach (var chunk in chunks.Reverse().Concat(chunks))
@@ -93,7 +93,7 @@ public class MemoryOptimizationTests
     [InlineData(2)] [InlineData(5)]
     public void RandomProbeRetryPreservesRequiredLength(int operation)
     {
-        using var snapshot = new McapIndexSnapshot(Recording(McapCompression.Zstd));
+        using var snapshot = McapIndexedReader.CreateCopied(Recording(McapCompression.Zstd));
         var chunk = snapshot.GetSummary()!.ChunkIndexes[0];
         var entry = snapshot.ReadMessageIndexes(chunk)[0].Records[0];
         McapReadStatus Read(byte[] b, out ulong n) => operation == 2

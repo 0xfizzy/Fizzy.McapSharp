@@ -35,7 +35,7 @@ Preparation may allocate. Typed prepared descriptors similarly reuses schema/cha
 
 ## Choose message ownership
 
-Choose delivery ownership before tuning allocations. A message session applies its query and ordering independently of the delivery method; the methods below expose the selected messages with different result forms and lifetimes.
+Start with `ReadMessages()` and independently owned results for ordinary application code. Choose delivery ownership before tuning allocations. A message session applies its query and ordering independently of the delivery method; the methods below expose the selected messages with different result forms and lifetimes.
 
 | Need | API | Managed allocation and payload delivery | Lifetime |
 | --- | --- | --- | --- |
@@ -62,9 +62,20 @@ Access selects where and in what order to read; delivery ownership selects how r
 | Require indexes | `OpenIndexedMessages` | Fails instead of falling back to a sequential scan or global sort |
 | Read many messages in one chunk | One `OpenChunkMessages` cursor | Reuses traversal within that cursor |
 | Fetch a known set of discrete messages | `SeekMessages` | Groups chunk loads within one call; returns a shared batch |
-| Revisit chunks across calls | Reuse a snapshot with a cache allowance | Trades retained storage for fewer repeated loads/decompressions |
+| Revisit chunks across calls | Reuse an indexed reader with a cache allowance | Trades retained storage for fewer repeated loads/decompressions |
 
 See [query selection](#choosing-a-query-path), [random access](#complete-chunk-random-access) and [local allowances](#binding-performance-and-local-limits). The following sections define the operations and their lifetime, failure and validation contracts.
+
+### Random-access source and storage selection
+
+| Need | Entry | Input ownership and cost |
+| --- | --- | --- |
+| Read raw records/chunks at known offsets | `factory.OpenRecordAccessor()` or the Stream overload | Retains a seekable source; preserves source position for random operations; no complete-input copy |
+| Indexed access independent of caller bytes | `McapIndexedReader.CreateCopied(bytes, options)` | Copies the complete MCAP input; dispose the returned reader |
+| Indexed access independent of a file/Stream | `factory.CreateCopiedIndexedReader()` or the Stream/accessor overload | Copies the complete MCAP region; Stream origin is its initial position; copying preserves the accessor position |
+| Indexed access without copying the complete file | `McapIndexedReader.OpenMapped(path, options)` | Retains a mapping; keep the source unchanged until every dependent cursor and lease is released |
+
+`McapRecordAccessor` reads raw records and indexes. `McapIndexedReader` owns input and provides message seeks, chunk cursors and indexed attachment/metadata reads; it is not merely an index collection. Both require disposal. Stream factory overloads own the source unless `leaveOpen: true`; the copied reader is independent after creation. `SeekMessage` does not reposition other cursors. Preparation and cache controls do not change input ownership.
 
 ## Write a recording
 
@@ -230,9 +241,9 @@ Only one MCAP session can own a Stream at a time. Do not reposition, truncate, r
 
 Explicit disposal reports owned Stream and native release failures. Cleanup is attempted once; later Dispose calls do not retry it. Stream exclusion ends only after successful release or ownership transfer. A failed owned Stream release keeps that Stream unavailable for another MCAP session. IntoInner returns the Stream only after native state has been released successfully; it neither completes the format nor disposes the transferred Stream. Finalization is a nonthrowing fallback, not the explicit-disposal error policy.
 
-Use `OpenRandomAccess` for `McapRandomAccessReader`: it preserves the seekable source position and supports raw-record/chunk/index reads, summary access and independent snapshot creation without first copying the whole input. Its parsing or I/O failures terminate that random-access reader. Sequential readers keep their own failure boundary. Argument checks before an operation, missing declaration lookups and buffer negotiation are nonterminal. If an operation and restoration both fail, both errors are reported. Repeat work through a new reader after safe release.
+Use `OpenRecordAccessor` for `McapRecordAccessor`: it preserves the seekable source position and supports raw-record/chunk/index reads, summary access and independent snapshot creation without first copying the whole input. Its parsing or I/O failures terminate that random-access reader. Sequential readers keep their own failure boundary. Argument checks before an operation, missing declaration lookups and buffer negotiation are nonterminal. If an operation and restoration both fail, both errors are reported. Repeat work through a new reader after safe release.
 
-`OpenRandomAccess` requires seekable input and rejects non-seekable Streams before taking ownership. `McapReaderFactory.GetSummary(stream)` uses random access when possible and otherwise scans to EOF. Changing capability requires a new reader; no session-reset protocol is provided. Explicitly copied/mapped readers have no managed Stream to return from `IntoInner`; Stream-backed readers preserve ownership transfer.
+`OpenRecordAccessor` requires seekable input and rejects non-seekable Streams before taking ownership. `McapReaderFactory.GetSummary(stream)` uses random access when possible and otherwise scans to EOF. Changing capability requires a new reader; no session-reset protocol is provided. Explicitly copied/mapped readers have no managed Stream to return from `IntoInner`; Stream-backed readers preserve ownership transfer.
 
 Mapped files must remain unchanged across reads, validation and recovery. Windows denies ordinary concurrent write/delete opens while mapped; pre-existing writable mappings are not covered. Linux does not enforce this exclusion. Concurrent truncation of a mapped file can terminate the process.
 
@@ -244,7 +255,17 @@ File length is not used as a record or decompressed-chunk size limit. Highly com
 
 `McapReaderOptions` controls magic, trailing bytes, chunk emission, CRC checks and record-length limits. Optional CRC and trailing-byte checks default to false. High-level expanded record and resolved-message reads always parse bodies and validate declaration IDs, conflicts and references, independent of Strict or any individual CRC flag. This baseline applies to Stream, copied, mapped and asynchronous input. Top-level readers do not validate hidden chunk declarations; chunk-local and raw-message readers have explicit narrower scopes. Raw-message reads collect declarations but allow an unknown message channel. Direct Sans-I/O linear events remain raw. The strict preset adds named integrity checks; it does not switch declaration validation on or off. `EmitChunks` belongs to top-level or raw protocol reading; a chunk flattener rejects it.
 
-`IsScanComplete` reports EOF without an integrity claim. `IsFullyValidated` and `ValidateRemaining` require a strict complete expanded scan; indexed, buffered-sort and local-chunk results are insufficient. Description lookup does not count a summary declaration as encountered in a sequential scan. Validation retains distinct schema bodies and channel descriptions to check conflicts; memory grows with declaration bytes and metadata, not just the bounded 16-bit ID domain. Snapshot cache controls belong to `McapIndexSnapshotOptions`, not parser options.
+`IsScanComplete` reports EOF without an integrity claim. `IsFullyValidated` and `ValidateRemaining` require a strict complete expanded scan; indexed, buffered-sort and local-chunk results are insufficient. Description lookup does not count a summary declaration as encountered in a sequential scan. Validation retains distinct schema bodies and channel descriptions to check conflicts; memory grows with declaration bytes and metadata, not just the bounded 16-bit ID domain. Indexed-reader cache controls belong to `McapIndexedReaderOptions`, not parser options.
+
+`ValidationCapability` on message readers and chunk flatteners is fixed at creation and remains readable after failure or disposal. It describes scope, not success:
+
+| Capability | Meaning | ValidateRemaining / message recovery |
+| --- | --- | --- |
+| `PartialInput` | Indexed, buffered-sort or chunk-local results | Rejected before further consumption |
+| `FullScan` | Expanded sequential scan without the complete strict configuration | Rejected before further consumption |
+| `StrictFullScan` | Expanded sequential scan performing strict checks from its start | Supported while the session remains usable |
+
+Sequential topic/time filtering does not remove validation of skipped records. Capability rejection performs no additional I/O, preserves pending buffer retries and does not fault a usable reader. Disposed and failed sessions still reject operations. `ValidateRemaining` completes checks already active from creation; it cannot retroactively validate skipped checks. `RecoverMessages` continues the current cursor and counts only matching messages delivered by that invocation. Query construction may already scan and sort before returning; its result is still `PartialInput`. Prefer factory `Validate()` and `RecoverMessages()` when a dedicated complete operation is desired.
 
 `RecoverMessages(accept)` on a strict message reader delivers the valid prefix and retains the original structured parse error in its result. Factory overloads open a strict file-order reader automatically. Use sequential reading for prefix salvage; an explicit sorted query may fail during construction before any prefix can be delivered. Check `IsFullyValidated` and `Error`; delivered messages alone prove no integrity. Stream, native I/O, binding and callback exceptions propagate rather than becoming salvage results. Both parsing failure and an `accept` callback exception terminate the reader; the original callback exception is preserved. Existing returned results survive. Recovery does not permit arbitrary I/O retries or recover bytes never written to the source.
 
@@ -270,7 +291,7 @@ The upstream read module has five reader types plus Summary; the sixth managed r
 
 `McapRecords.Parse` returns `IMcapRecord`: a typed owned model for each standard record or `McapRawRecord` for unknown records. Match the concrete result type to access its fields; the interface alone does not imply a known or interpreted record. `McapRawRecord` explicitly represents an opcode and uninterpreted owned body. `McapRecordView.Parse` validates through official `parse_record` and views caller-owned managed memory. Validation applies to the bytes at the time of Parse: keep the backing contents unchanged throughout view and field-cursor use, including through other mutable aliases. Scalar properties and the `Fields` cursor read UTF-8, maps, arrays and binary fields without creating strings/arrays. `ToOwned` copies explicitly. `ReadFooter` and `GetCompressedDataOffset` directly call the upstream helpers.
 
-`OpenIndexSnapshot()` copies a seekable source and reads its official summary without moving the random-access source position. `new McapIndexSnapshot(bytes)` also accepts caller bytes. The snapshot owns memory proportional to the file, independently of its original session. It exposes `SeekMessage`, `OpenChunkMessages`/`ReadChunkMessages`, message indexes, indexed metadata/attachments, footer, descriptions and summary. Random operations use the supplied index fields, including lengths and channel-offset maps; they do not replace the index with a summary entry having the same offset. Metadata and attachment reads accept caller-provided indexes even without a summary. Chunk message and message-index reads still require summary declarations. Index fields not used by the corresponding upstream helper do not add validation. Do not mutate an index's map while a call is in progress. `OpenChunkMessages(index)` returns an independent disposable `McapMessageReader` that parses lazily and remains valid after snapshot disposal, sharing immutable native input and summary without another file copy. Each `ReadChunkMessages` enumeration owns an independent cursor. Random operations do not move these cursors. Buffer overloads allocate no managed memory; metadata/attachment buffers contain record bodies, while message indexes use 18-byte little-endian rows (u16 channel ID, u64 log time, u64 offset). Owned message-index results retain a group for each validated channel index, including empty groups. The row buffer represents entries only; use the owned result when empty group identity matters. Insufficient buffers remain untouched. `OpenSummaryRecords()` provides a buffer cursor for all summary fields and declarations.
+`CreateCopiedIndexedReader()` copies a seekable source and reads its official summary without moving the random-access source position. `McapIndexedReader.CreateCopied(bytes)` also accepts caller bytes. The indexed reader owns memory proportional to the file, independently of its original session. It exposes `SeekMessage`, `OpenChunkMessages`/`ReadChunkMessages`, message indexes, indexed metadata/attachments, footer, descriptions and summary. Random operations use the supplied index fields, including lengths and channel-offset maps; they do not replace the index with a summary entry having the same offset. Metadata and attachment reads accept caller-provided indexes even without a summary. Chunk message and message-index reads still require summary declarations. Index fields not used by the corresponding upstream helper do not add validation. Do not mutate an index's map while a call is in progress. `OpenChunkMessages(index)` returns an independent disposable `McapMessageReader` that parses lazily and remains valid after indexed-reader disposal, sharing immutable native input and summary without another file copy. Each `ReadChunkMessages` enumeration owns an independent cursor. Random operations do not move these cursors. Buffer overloads allocate no managed memory; metadata/attachment buffers contain record bodies, while message indexes use 18-byte little-endian rows (u16 channel ID, u64 log time, u64 offset). Owned message-index results retain a group for each validated channel index, including empty groups. The row buffer represents entries only; use the owned result when empty group identity matters. Insufficient buffers remain untouched. `OpenSummaryRecords()` provides a buffer cursor for all summary fields and declarations.
 
 ### Prepared Chunk indexes
 
@@ -278,9 +299,9 @@ For repeated random access, construct `McapPreparedChunkIndex(index)` once and d
 
 Each prepared descriptor retains a managed channel-ID array (2 bytes per channel, excluding the array header) to reconstruct empty owned index groups; native storage retains the full parsed index and encoded cache key. Disposal releases native ownership. The managed ID array remains attached to the descriptor until garbage collection.
 
-A prepared index can be shared across snapshots. Every operation still applies the original file-range and summary requirements; preparation does not validate a particular file. Calls, including `SeekMessages` batches, and disposal are serialized for each involved descriptor. A borrowed snapshot message callback must not invoke operations on any snapshot instance (including `Dispose`) or use/dispose any prepared index; this prevents reversing the descriptor-before-snapshot lock order. Child cursors remain usable after the prepared index and snapshot are disposed. Message-index helper allocations, cache misses and decompression remain possible; preparation does not guarantee zero total native allocation.
+A prepared index can be shared across indexed readers. Every operation still applies the original file-range and summary requirements; preparation does not validate a particular file. Calls, including `SeekMessages` batches, and disposal are serialized for each involved descriptor. A borrowed snapshot message callback must not invoke operations on any indexed-reader instance (including `Dispose`) or use/dispose any prepared index; this prevents reversing the descriptor-before-snapshot lock order. Child cursors remain usable after the prepared index and snapshot are disposed. Message-index helper allocations, cache misses and decompression remain possible; preparation does not guarantee zero total native allocation.
 
-`McapSansIoLinearReader`, `McapSansIoSummaryReader` and `McapSansIoIndexedReader` expose separate protocols and event types. Linear events contain Read/Record/End; summary events contain Read/Seek/End; indexed events additionally carry Message and ReadChunk. Only protocols that seek expose NotifySeeked, and only indexed reading exposes InsertChunkData and SetRecordLengthLimit. A completed summary parser supplies GetSummary, OpenSummaryRecords and CreateIndexed with `McapIndexedQuery`. Output is copied into caller spans; no native pointer escapes. The binding exposes no custom decompressor registration because upstream provides no registration entry point. Built-in Lz4/Zstd remains upstream-owned.
+`McapSansIoLinearReader`, `McapSansIoSummaryReader` and `McapSansIoIndexedReader` expose separate protocols and event types. Linear events contain Read/Record/End; summary events contain Read/Seek/End; indexed events contain only Message/ReadChunk/End. Summary uses `NextEvent(out event)` without a destination. Linear and summary `SupplyInput(data)` respond only to Read; indexed input uses only `InsertChunkData(offset, data)`. `McapSeekRequest` exposes unsigned AbsolutePosition for Begin and signed RelativeOffset for Current/End; inappropriate accessors throw InvalidOperationException. Only summary reading exposes NotifySeeked, and only indexed reading exposes InsertChunkData and SetRecordLengthLimit. A completed summary parser supplies GetSummary, OpenSummaryRecords and CreateIndexed with `McapIndexedQuery`. Output is copied into caller spans; no native pointer escapes. The binding exposes no custom decompressor registration because upstream provides no registration entry point. Built-in Lz4/Zstd remains upstream-owned.
 
 ## Asynchronous records and errors
 
@@ -294,7 +315,7 @@ The reusable completion source and cached continuation provide a warmed 0 B mana
 
 ## Borrowing, batches and leases
 
-Owned results remain independent: `McapMessage.Data` is a `byte[]` copy and mutable declarations are defensively copied. `ReadNext(McapMessageVisitor)` and `VisitMessages(visitor, maxMessages)` receive an `in McapMessageHeader` and `ReadOnlySpan<byte>` without final delivery copying. Return false to stop normally after the current message. Spans expire on callback return. Reading, seeking, inspecting state or disposing the originating reader inside its callback is prohibited; writing to another writer is supported. Callback exceptions are rethrown after normal ABI return. Snapshot callbacks additionally prohibit operations on any snapshot instance or prepared chunk index, as described under [prepared Chunk indexes](#prepared-chunk-indexes). `GetChannelDescription` returns an immutable declaration snapshot shared by subsequent lookups.
+Owned results remain independent: `McapMessage.Data` is a `byte[]` copy and mutable declarations are defensively copied. `ReadNext(McapMessageVisitor)` and `VisitMessages(visitor, maxMessages)` receive an `in McapMessageHeader` and `ReadOnlySpan<byte>` without final delivery copying. Return false to stop normally after the current message. Spans expire on callback return. Reading, seeking, inspecting state or disposing the originating reader inside its callback is prohibited; writing to another writer is supported. Callback exceptions are rethrown after normal ABI return. Indexed-reader callbacks additionally prohibit operations on any indexed-reader instance or prepared chunk index, as described under [prepared Chunk indexes](#prepared-chunk-indexes). `GetChannelDescription` returns an immutable declaration snapshot shared by subsequent lookups.
 
 `WriteBatch(headers, payloadStorage, ranges)` synchronously consumes contiguous shared storage with one lock and one ABI call. Counts, ranges and all Channels are checked before writing. Return value is the completed count; `McapBatchWriteException.CompletedCount` excludes the failing record, which may already be partly written. Batches are not atomic. Existing audited safe-rejection settings apply; I/O, compression and post-advancement failures terminate the writer. Input buffers may be reused after return.
 
@@ -319,10 +340,10 @@ Synchronous and asynchronous input reserve the parser's current complete require
 | Control | Counted quantity and default | Boundary behavior and exclusions |
 | --- | --- | --- |
 | `McapQuery.MaxBufferedSortBytes` | Sum of selected messages' logical payload lengths plus allocated descriptor-array capacity in bytes; null means no collection allowance | Exceeding the allowance fails fallback construction/reading, without spilling or partial sorted results. Each selected range counts its length even if backing is shared. Excludes backing amplification, temporary compaction overlap, parser/codec memory and RSS; does not apply to indexed-reader chunk buffering. |
-| `McapIndexSnapshotOptions.MaxRandomAccessCacheBytes` | Local LRU charge for retained chunk storage, descriptors, keys and index bytes; 0 disables retention | Oversized entries load without cache retention. Eviction releases cache references, not caller leases. Excludes allocator overhead, parsing temporaries, snapshot input and externally retained owners. Uncompressed mapped chunks are charged their logical decompressed size. |
+| `McapIndexedReaderOptions.MaxRandomAccessCacheBytes` | Local LRU charge for retained chunk storage, descriptors, keys and index bytes; 0 disables retention | Oversized entries load without cache retention. Eviction releases cache references, not caller leases. Excludes allocator overhead, parsing temporaries, snapshot input and externally retained owners. Uncompressed mapped chunks are charged their logical decompressed size. |
 | `ReadBatchLease` count and payload target | Default maximum 256 messages; soft target 4 MiB of logical payload | Checks the byte target after each whole message, so it can overshoot. Does not limit backing capacity or all outstanding batches. Async batches may return earlier at an input request. |
 
-Snapshot cache controls belong to `McapIndexSnapshotOptions`. `McapIndexedQuery` has no buffered fallback settings; `McapQuery.AllowBufferedSort=false` rejects fallback collection entirely. RecordLengthLimit controls encoded record bodies. None of these local controls is a process-wide memory limit.
+Indexed-reader cache controls belong to `McapIndexedReaderOptions`. `McapIndexedQuery` has no buffered fallback settings; `McapQuery.AllowBufferedSort=false` rejects fallback collection entirely. RecordLengthLimit controls linear record bodies; indexed construction also checks compressed and decompressed chunk sizes, and later indexed reads check their relevant record lengths. Changing the Sans-I/O indexed limit does not repeat construction-time checks. Summary limits apply to summary record bodies and may be tightened by known source size. None of these local controls is a process-wide memory limit.
 
 ### Choosing storage for retained results
 
@@ -353,7 +374,7 @@ Compaction preserves message order, retries and lease lifetimes. It copies selec
 
 Cache keys use complete caller-supplied index semantics; map insertion order does not change identity. Hits do not decompress again. Uncompressed mapped payloads reference mapping ranges; compressed payloads share decompressed storage. Insufficient-buffer retries retain shared slices.
 
-`SeekMessages(ReadOnlySpan<McapSeekRequest>)` groups requests by chunk within that call, loads each different chunk once, and returns a batch in request order including duplicates. Failure delivers no partial batch. `SeekMessage(preparedIndex, entry, visitor)` provides borrowed delivery; its callback must not use or dispose any snapshot instance or prepared chunk index; buffer and owned-result APIs copy at final delivery. `GetCacheStatistics` reports hits and chunk loads.
+`SeekMessages(ReadOnlySpan<McapMessageSeekRequest>)` groups requests by chunk within that call, loads each different chunk once, and returns a batch in request order including duplicates. Failure delivers no partial batch. `SeekMessage(preparedIndex, entry, visitor)` provides borrowed delivery; its callback must not use or dispose any indexed-reader instance or prepared chunk index; buffer and owned-result APIs copy at final delivery. `GetCacheStatistics` reports hits and chunk loads.
 
 Choose the reuse scope that matches the access pattern:
 
@@ -362,8 +383,35 @@ Choose the reuse scope that matches the access pattern:
 | One isolated message | `SeekMessage` | Loads the complete target chunk on a cache miss; leaving caching disabled avoids cache retention |
 | Many messages in one chunk | `OpenChunkMessages` | Traverse one cursor once; reopening a cursor starts a new traversal |
 | Known set of discrete requests | `SeekMessages` | Groups loads within one call, even with caching disabled; another call is a separate batch |
-| Repeated visits across calls | Reuse a snapshot with `MaxRandomAccessCacheBytes` | Retains recent chunks until eviction or snapshot disposal |
+| Repeated visits across calls | Reuse an indexed reader with `MaxRandomAccessCacheBytes` | Retains recent chunks until eviction or indexed-reader disposal |
 
 The working set is the chunks revisited between cache reuses. Size the allowance for their decompressed storage and descriptors, not compressed file bytes. A working set larger than the allowance can cause eviction and repeated decompression; this remains a valid access pattern. Inspect `GetCacheStatistics()` hits and chunk loads to assess reuse. Prepared indexes avoid repeated descriptor encoding/parsing, not cache-miss decompression. Copying a returned payload does not cache its source chunk.
 
 Random reads validate the complete target chunk and may report tail corruption earlier than prefix reads. This is not full-file validation. See [local patches](patches.md) for patch boundaries and evidence.
+
+## Structured error details
+
+`McapException.Kind` and documented Details field names/types are stable contracts; future versions may add fields and error kinds. Ignore unknown fields and provide a default error-kind branch. Text, including Message and the source/name/description fields, is diagnostic and may be truncated or reworded; do not branch on exact text or infer retry permission from it. Use `CanContinueWriting` only for the documented writer rejection contract.
+
+| Kind | Details object fields |
+| --- | --- |
+| `AttachmentTooLarge` | `excess`, `attachment_length`: unsigned numbers |
+| `AttachmentIncomplete` | `current`, `expected`: unsigned numbers |
+| `BadAttachmentCrc`, `BadChunkCrc`, `BadDataCrc`, `BadSummaryCrc` | `saved`, `calculated`: unsigned numbers |
+| `BadAttachmentLength`, `BadChunkLength`, `BadSchemaLength` | `header`, `available`: unsigned numbers |
+| `PrivateRecordOpcodeIsReserved` | `opcode`: unsigned number |
+| `ConflictingChannels`, `ConflictingSchemas` | `name`: string |
+| `UnknownChannel` | `sequence`, `channel_id`: unsigned numbers |
+| `UnknownSchema` | `name`: string; `schema_id`: unsigned number |
+| `UnsupportedCompression` | `compression`: string |
+| `DecompressionError` | `description`: string |
+| `ChunkBufferTooLarge`, `ChunkTooLarge` | `length`: unsigned number |
+| `RecordTooLarge` | `opcode`, `len`: unsigned numbers |
+| `BadChunkStartOffset` | `offset`: unsigned number |
+| `Parse`, `Io` | `source`: string; when a native OS code exists, `osCode`: signed number and fixed source text |
+| `Binding` wrapping a native OS error | `source`: fixed string; `osCode`: signed number |
+| `Binding` for a local allowance | `resource`: string; `limit`, `requested`: unsigned numbers |
+| `Binding` for operation plus position-restoration failure | `code`: `"operationRestore"`; `operation`, `cleanup`: nested error objects containing `kind`, `message`, `details` |
+| Other upstream kinds | Empty object unless truncation adds a flag |
+
+Native errors without structured details use JSON null. Message-only managed construction leaves Details Undefined. Any object may additionally carry `truncated: true`; absent means no truncation was reported. Message text is limited to 256 UTF-8 bytes, textual detail values to 128, including `[truncated]`. Numeric fields remain exact. Original managed Stream exceptions may bypass McapException entirely. Ordinary records retain .NET array/collection equality, and `IReadOnlyDictionary` is not a promise of deep immutability; use declaration descriptions for immutable sharing.

@@ -2,7 +2,7 @@ using Xunit;
 
 namespace Fizzy.McapSharp.Tests;
 
-public class SnapshotOwnershipRegressionTests
+public class IndexedReaderOwnershipRegressionTests
 {
     static byte[] Recording(int attachmentBytes = 0, McapCompression compression = McapCompression.None)
     {
@@ -25,7 +25,7 @@ public class SnapshotOwnershipRegressionTests
     [InlineData(McapCompression.Zstd)]
     public void PreparedBorrowedAndCallerBufferReadsRemainAllocationFree(McapCompression compression)
     {
-        using var snapshot = new McapIndexSnapshot(Recording(compression: compression));
+        using var snapshot = McapIndexedReader.CreateCopied(Recording(compression: compression));
         using var index = new McapPreparedChunkIndex(snapshot.GetSummary()!.ChunkIndexes[0]);
         var entry = snapshot.ReadMessageIndexes(index)[0].Records[0];
         var payload = new byte[1];
@@ -51,7 +51,7 @@ public class SnapshotOwnershipRegressionTests
     public void IndexedAttachmentCopiesOnlyIntoIndependentFinalPayload()
     {
         const int size = 8 * 1024 * 1024;
-        using var snapshot = new McapIndexSnapshot(Recording(size));
+        using var snapshot = McapIndexedReader.CreateCopied(Recording(size));
         var index = snapshot.GetSummary()!.AttachmentIndexes.Single();
         _ = snapshot.ReadAttachment(index);
         long before = GC.GetAllocatedBytesForCurrentThread();
@@ -71,8 +71,8 @@ public class SnapshotOwnershipRegressionTests
     public async Task ReversedBatchDescriptorOrderAcrossSnapshotsCompletes()
     {
         var bytes = Recording();
-        using var first = new McapIndexSnapshot(bytes);
-        using var second = new McapIndexSnapshot(bytes);
+        using var first = McapIndexedReader.CreateCopied(bytes);
+        using var second = McapIndexedReader.CreateCopied(bytes);
         var chunks = first.GetSummary()!.ChunkIndexes;
         Assert.Equal(2, chunks.Count);
         using var a = new McapPreparedChunkIndex(chunks[0]);
@@ -80,7 +80,7 @@ public class SnapshotOwnershipRegressionTests
         var ea = first.ReadMessageIndexes(a)[0].Records[0];
         var eb = first.ReadMessageIndexes(b)[0].Records[0];
         using var start = new Barrier(2);
-        Task Run(McapIndexSnapshot snapshot, McapSeekRequest[] requests) => Task.Run(() =>
+        Task Run(McapIndexedReader snapshot, McapMessageSeekRequest[] requests) => Task.Run(() =>
         {
             start.SignalAndWait();
             for (int i = 0; i < 100; i++)
@@ -95,7 +95,7 @@ public class SnapshotOwnershipRegressionTests
     [Fact]
     public void BatchAndDisposeBothWaitForDescriptorSerialization()
     {
-        using var snapshot = new McapIndexSnapshot(Recording());
+        using var snapshot = McapIndexedReader.CreateCopied(Recording());
         using var index = new McapPreparedChunkIndex(snapshot.GetSummary()!.ChunkIndexes[0]);
         var entry = snapshot.ReadMessageIndexes(index)[0].Records[0];
         // Hold the actual lifetime gate so both public operations reach a known contention
@@ -151,14 +151,14 @@ public class SnapshotOwnershipRegressionTests
     public async Task ConcurrentSnapshotCallbacksRejectCrossSnapshotCallsWithoutWaitingForLocks()
     {
         var bytes = Recording();
-        var first = new McapIndexSnapshot(bytes);
-        var second = new McapIndexSnapshot(bytes);
+        var first = McapIndexedReader.CreateCopied(bytes);
+        var second = McapIndexedReader.CreateCopied(bytes);
         var a = new McapPreparedChunkIndex(first.GetSummary()!.ChunkIndexes[0]);
         var b = new McapPreparedChunkIndex(second.GetSummary()!.ChunkIndexes[0]);
         var ea = first.ReadMessageIndexes(a)[0].Records[0];
         var eb = second.ReadMessageIndexes(b)[0].Records[0];
         var callbacksEntered = new Barrier(2);
-        Task Run(McapIndexSnapshot source, McapPreparedChunkIndex index, McapMessageIndexEntry entry, McapIndexSnapshot other) => Task.Run(() =>
+        Task Run(McapIndexedReader source, McapPreparedChunkIndex index, McapMessageIndexEntry entry, McapIndexedReader other) => Task.Run(() =>
         {
             source.SeekMessage(index, entry, (in McapMessageHeader header, ReadOnlySpan<byte> payload) =>
             {
@@ -190,8 +190,8 @@ public class SnapshotOwnershipRegressionTests
     public void SnapshotCallbackRejectsPreparedReentryBeforeTakingLocks()
     {
         var bytes = Recording();
-        using var first = new McapIndexSnapshot(bytes);
-        using var second = new McapIndexSnapshot(bytes);
+        using var first = McapIndexedReader.CreateCopied(bytes);
+        using var second = McapIndexedReader.CreateCopied(bytes);
         var chunk = first.GetSummary()!.ChunkIndexes[0];
         using var index = new McapPreparedChunkIndex(chunk);
         var entry = first.ReadMessageIndexes(index)[0].Records[0];

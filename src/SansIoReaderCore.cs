@@ -99,21 +99,22 @@ internal sealed partial class SansIoReaderCore : IDisposable
             }
         }
     }
-    /// <summary>Copies supplied bytes synchronously for the pending request. For Read, supply at most the requested count and an empty span signals EOF. For Seek, pass empty data and the actual new byte position from the MCAP origin. For ReadChunk, pass compressed data and its requested byte offset from the same origin.</summary>
-    public unsafe void SupplyInput(ReadOnlySpan<byte> data, ulong position = 0)
+    /// <summary>Copies supplied bytes synchronously for the pending request. For Read, supply at most the requested count and an empty span signals EOF. Use NotifySeeked for Seek and InsertChunkData for ReadChunk.</summary>
+    public void SupplyInput(ReadOnlySpan<byte> data) => Feed(Protocol.EngineEvent.Read, data, 0);
+    unsafe void Feed(uint responseKind, ReadOnlySpan<byte> data, ulong position)
     {
         lock (gate)
         {
             Check();
             fixed (byte* p = data)
             {
-                int status = Native.fm_engine_feed(handle, p, (nuint)data.Length, position, out var r);
+                int status = Native.fm_engine_feed(handle, responseKind, p, (nuint)data.Length, position, out var r);
                 if (status < Protocol.Status.Success) throw AdvancementError(r);
             }
         }
     }
     /// <summary>Completes a pending Seek request with the actual byte position from the MCAP origin. Subtract any source prefix from the underlying Stream position.</summary>
-    public void NotifySeeked(ulong position) => SupplyInput([], position);
+    public void NotifySeeked(ulong position) => Feed(Protocol.EngineEvent.Seek, [], position);
     /// <summary>Supplies indexed compressed Chunk bytes at their byte offset from the MCAP origin. Input is consumed synchronously; protocol errors terminate the parser.</summary>
     public unsafe void InsertChunkData(ulong offset, ReadOnlySpan<byte> compressedData)
     {
@@ -163,7 +164,7 @@ internal static partial class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern unsafe int fm_engine_next(EngineHandle h, byte* dest, nuint capacity, out ReadEvent e, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern unsafe int fm_engine_feed(EngineHandle h, byte* data, nuint length, ulong position, out Result r);
+    internal static extern unsafe int fm_engine_feed(EngineHandle h, uint responseKind, byte* data, nuint length, ulong position, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int fm_engine_summary(EngineHandle h, out Result r);
 }

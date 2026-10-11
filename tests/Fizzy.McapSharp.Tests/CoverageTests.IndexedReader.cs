@@ -61,7 +61,7 @@ public partial class CoverageTests
             if (record.Opcode == 9) attachment = new(offset, length, 10, 20, 30, "caller attachment", "caller type");
             offset += length;
         }
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         Assert.Null(snapshot.GetSummary());
         Assert.Equal("元数据", snapshot.ReadMetadata(metadata).Name);
         Assert.Equal(new byte[] { 3, 4 }, snapshot.ReadAttachment(attachment).Data);
@@ -91,7 +91,7 @@ public partial class CoverageTests
             writer.WriteToKnownChannel(new McapMessageHeader(2, 20, 2, 2), [2]);
             writer.Complete();
         }
-        using var snapshot = new McapIndexSnapshot(stream.ToArray());
+        using var snapshot = McapIndexedReader.CreateCopied(stream.ToArray());
         var chunk = snapshot.GetSummary()!.ChunkIndexes.Single();
         var offsets = new Dictionary<ushort, ulong> { [1] = chunk.MessageIndexOffsets[1] };
         var selected = chunk with { MessageIndexOffsets = new System.Collections.ObjectModel.ReadOnlyDictionary<ushort, ulong>(offsets) };

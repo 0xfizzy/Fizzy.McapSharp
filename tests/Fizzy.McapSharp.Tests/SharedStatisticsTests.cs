@@ -13,7 +13,7 @@ public sealed class SharedStatisticsTests
             writer.WriteAttachment("attachment", "raw", 4, 5, new byte[1024 * 1024]);
             writer.Complete();
         }
-        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new()))
+        using (var snapshot = McapIndexedReader.CreateCopied(stream.ToArray(), new()))
         {
             var summary = snapshot.GetSummary()!;
             snapshot.ReadMetadata(summary.MetadataIndexes[0], Span<byte>.Empty, out var metadataLength);
@@ -52,7 +52,7 @@ public sealed class SharedStatisticsTests
             Assert.Contains(second.ReadRecords(), record => record.Opcode == 11);
         }
 
-        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new()))
+        using (var snapshot = McapIndexedReader.CreateCopied(stream.ToArray(), new()))
         {
             first = snapshot.OpenSummaryRecords();
             second = snapshot.OpenSummaryRecords();
@@ -135,7 +135,7 @@ public sealed class SharedStatisticsTests
             Assert.Equal(0, cursor.GetChannel(channel).Schema!.Data[0]);
             Assert.Contains(cursor.ReadRecords(), record => record.Opcode == 3);
         }
-        using (var snapshot = new McapIndexSnapshot(stream.ToArray(), new()))
+        using (var snapshot = McapIndexedReader.CreateCopied(stream.ToArray(), new()))
         {
             using var readSummary = snapshot.OpenSummaryRecords();
             Check(readSummary.GetChannel(channel));

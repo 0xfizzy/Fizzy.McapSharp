@@ -20,14 +20,14 @@ public class BatchSeekTests
             }
             writer.Complete();
         }
-        using var snapshot = new McapIndexSnapshot(output.ToArray(), new());
+        using var snapshot = McapIndexedReader.CreateCopied(output.ToArray(), new());
         var chunks = snapshot.GetSummary()!.ChunkIndexes;
         using var a = new McapPreparedChunkIndex(chunks[0]);
         using var b = new McapPreparedChunkIndex(chunks[1]);
         var ea = snapshot.ReadMessageIndexes(a)[0].Records[0];
         var eb = snapshot.ReadMessageIndexes(b)[0].Records[0];
         // Cross both the 64 KiB ordering page and the smaller message-slot pages.
-        var requests = new McapSeekRequest[8201];
+        var requests = new McapMessageSeekRequest[8201];
         for (int i = 0; i < requests.Length; i++)
             requests[i] = (i % 3 == 0) ? new(b, eb) : new(a, ea);
         using var batch = snapshot.SeekMessages(requests);
@@ -53,7 +53,7 @@ public class BatchSeekTests
             for(uint i=0;i<4;i++) { var data=new byte[70000];Array.Fill(data,(byte)i);writer.WriteToKnownChannel(new(c,i,i,0),data); }
             writer.Complete();
         }
-        using var snapshot=new McapIndexSnapshot(output.ToArray(),new(){MaxRandomAccessCacheBytes=1024*1024});
+        using var snapshot=McapIndexedReader.CreateCopied(output.ToArray(),new(){MaxRandomAccessCacheBytes=1024*1024});
         var chunks=snapshot.GetSummary()!.ChunkIndexes;
         using var a=new McapPreparedChunkIndex(chunks[0]);using var b=new McapPreparedChunkIndex(chunks[1]);
         var ea=snapshot.ReadMessageIndexes(a)[0].Records[0];var eb=snapshot.ReadMessageIndexes(b)[0].Records[0];
@@ -64,7 +64,7 @@ public class BatchSeekTests
         Assert.Equal(1U,batch.GetHeader(0).Sequence);Assert.Equal(0U,batch.GetHeader(1).Sequence);Assert.Equal(1U,batch.GetHeader(2).Sequence);
         Assert.Equal(2UL,snapshot.GetCacheStatistics().ChunkLoads);
         snapshot.Dispose();Assert.Equal(70000,batch.GetPayload(0).Length);
-        using var uncached=new McapIndexSnapshot(output.ToArray());
+        using var uncached=McapIndexedReader.CreateCopied(output.ToArray());
         using var grouped=uncached.SeekMessages([new(b,eb),new(a,ea),new(b,eb),new(a,ea)]);
         Assert.Equal(2UL,uncached.GetCacheStatistics().ChunkLoads);
         Assert.Equal(McapReadStatus.BufferTooSmall,uncached.SeekMessage(a,ea,Span<byte>.Empty,out _,out _));

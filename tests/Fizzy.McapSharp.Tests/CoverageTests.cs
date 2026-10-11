@@ -24,7 +24,7 @@ public partial class CoverageTests
         using var s = new MemoryStream();
         using (var w = new McapWriter(s, leaveOpen: true))
         {
-            w.WriteMessage(new McapMessage(Channel(), 1, 2, 3, [4]));
+            w.WriteMessage(new McapMessage(Channel(), 3, 1, 2, [4]));
             w.Complete();
             Assert.Equal(1ul, w.GetSummary().Statistics!.MessageCount);
         }
@@ -68,7 +68,7 @@ public partial class CoverageTests
     {
         using var r = McapReaderFactory.OpenMessageSession(new MemoryStream(Recording()));
         var summary = r.GetSummary()!;
-        using var snapshot = r.OpenIndexSnapshot();
+        using var snapshot = r.CreateCopiedIndexedReader();
         var chunk = summary.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0);
         var indexes = r.ReadMessageIndexes(chunk);
         Assert.Equal(McapReadStatus.BufferTooSmall, snapshot.SeekMessage(chunk, indexes[0].Records[0], [], out var h, out var n));
@@ -88,11 +88,11 @@ public partial class CoverageTests
     public void SansIoSummaryAndIndexedEventsUseUpstream()
     {
         using var file = new MemoryStream(Recording());
-        using var s = SansIoReaderCore.CreateSummary(new() { FileSize = (ulong)file.Length });
+        using var s = new McapSansIoSummaryReader(new() { FileSize = (ulong)file.Length });
         byte[] buffer = new byte[65536];
-        while (s.NextEvent(buffer, out var e) != McapReadStatus.EndOfStream)
+        while (s.NextEvent(out var e) != McapReadStatus.EndOfStream)
         {
-            if (e.Kind == McapReadEventKind.Seek) s.NotifySeeked((ulong)file.Seek(unchecked((long)e.Offset), e.Origin));
+            if (e.Kind == McapSummaryEventKind.Seek) s.NotifySeeked((ulong)file.Seek(e.Seek.Origin == SeekOrigin.Begin ? checked((long)e.Seek.AbsolutePosition) : e.Seek.RelativeOffset, e.Seek.Origin));
             else { int n = file.Read(buffer, 0, (int)Math.Min((ulong)buffer.Length, e.Length)); s.SupplyInput(buffer.AsSpan(0, n)); }
         }
         Assert.Equal(4ul, s.GetSummary()!.Statistics!.MessageCount);
@@ -100,7 +100,7 @@ public partial class CoverageTests
         var times = new List<ulong>();
         while (indexed.NextEvent(buffer, out var e) != McapReadStatus.EndOfStream)
         {
-            if (e.Kind == McapReadEventKind.ReadChunk) { file.Position = (long)e.Offset; file.ReadExactly(buffer.AsSpan(0, (int)e.Length)); indexed.SupplyInput(buffer.AsSpan(0, (int)e.Length), e.Offset); }
+            if (e.Kind == McapIndexedEventKind.ReadChunk) { file.Position = (long)e.Offset; file.ReadExactly(buffer.AsSpan(0, (int)e.Length)); indexed.InsertChunkData(e.Offset, buffer.AsSpan(0, (int)e.Length)); }
             else times.Add(e.Header.LogTime);
         }
         Assert.Equal(new ulong[] { 1, 1, 2, 3 }, times);
@@ -168,7 +168,7 @@ public partial class CoverageTests
             using var chunk = new ReadCursorCore(records.First(r => r.Opcode == 6).Data, CursorMode.ChunkRecords);
             Assert.NotEmpty(chunk.ReadRecords());
         }
-        using var snapshot = new McapIndexSnapshot(bytes);
+        using var snapshot = McapIndexedReader.CreateCopied(bytes);
         using var summary = snapshot.OpenSummaryRecords();
         Assert.Contains(summary.ReadRecords(), r => r.Opcode == 11);
         Assert.Equal(snapshot.ReadFooter(), McapRecords.ReadFooter(bytes));
