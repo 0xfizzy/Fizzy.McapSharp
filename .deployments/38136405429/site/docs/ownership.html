@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Message ownership and memory choices | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Message ownership and memory choices | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="message-ownership-and-memory-choices">Message ownership and memory choices</h1>
+
+<p>English | <a href="zh-CN/ownership.html">简体中文</a></p>
+<p>For applications choosing how long message bytes must remain valid. Start with owned results; use other delivery forms when buffer reuse, synchronous processing or retained sharing fits the workload. Access order is a <a href="queries.html">separate choice</a>.</p>
+<h2 id="choose-by-lifetime">Choose by lifetime</h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Choice</th>
+<th>Main cost or obligation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keep or modify independent results</td>
+<td><code>ReadMessages()</code></td>
+<td>Allocates independent result objects and copies payloads and mutable declarations</td>
+</tr>
+<tr>
+<td>Reuse application storage</td>
+<td><code>ReadNext(buffer, ...)</code></td>
+<td>Copies into caller storage; grow the buffer when required</td>
+</tr>
+<tr>
+<td>Process bytes before returning</td>
+<td><code>ReadNext(visitor)</code> / <code>VisitMessages</code></td>
+<td>Borrowed spans expire on callback return; no reader reentry</td>
+</tr>
+<tr>
+<td>Retain or forward shared bytes</td>
+<td><code>ReadBatchLease</code></td>
+<td>Lease control objects may allocate; backing storage stays alive until all owners release it</td>
+</tr>
+</tbody>
+</table>
+<p>Borrowing grants temporary access without ownership. A storage lease retains immutable backing storage, possibly a whole chunk or mapping. Neither choice makes memory usage proportional only to selected payload bytes. Consult <a href="api.html#choose-message-ownership">reader availability and contracts</a> before selecting a delivery form.</p>
+<h2 id="reuse-caller-buffers">Reuse caller buffers</h2>
+<p>This loop uses the <code>path</code> from the <a href="usage.html">tutorial</a>:</p>
+<pre><code class="lang-csharp">using var session = new McapReaderFactory(path).OpenMessages();
+byte[] buffer = [];
+while (true)
+{
+    var status = session.ReadNext(buffer, out var header, out var length);
+    if (status == McapReadStatus.EndOfStream) break;
+    if (status == McapReadStatus.BufferTooSmall)
+    {
+        buffer = new byte[checked((int)length)];
+        continue;
+    }
+    Console.WriteLine($&quot;{header.LogTime}: {System.Text.Encoding.UTF8.GetString(buffer, 0, checked((int)length))}&quot;);
+}
+</code></pre>
+<p>An insufficient buffer leaves the same message pending for retry. Process successful bytes before reusing the buffer; empty messages are successful results, not EOF. The library's warmed caller-buffer path allocates 0 B managed, but this demonstration allocates when growing the buffer or formatting output. It still copies payload bytes. See <a href="api.html#read-messages-into-reusable-buffers">buffer contracts</a>.</p>
+<h2 id="borrow-for-immediate-processing">Borrow for immediate processing</h2>
+<pre><code class="lang-csharp">using var borrowed = new McapReaderFactory(path).OpenMessages();
+borrowed.VisitMessages((in McapMessageHeader header, ReadOnlySpan&lt;byte&gt; payload) =&gt;
+{
+    Console.WriteLine($&quot;{header.LogTime}: {payload.Length} bytes&quot;);
+    return true;
+});
+</code></pre>
+<p>Use the span only inside the callback. Do not read, inspect or dispose the same reader from that callback. Returning false stops normally after the current message. Snapshot callbacks impose additional restrictions on indexed readers and prepared indexes; see <a href="api.html#borrowing-batches-and-leases">borrowing contracts</a>.</p>
+<h2 id="retain-only-what-the-application-needs">Retain only what the application needs</h2>
+<p>For short pipelines, keep a batch lease alive through processing and dispose it afterward. A lease survives reader advancement, reader disposal and cache eviction. For a small payload kept much longer, copy it explicitly:</p>
+<pre><code class="lang-csharp">using var retained = new McapReaderFactory(path).OpenMessages();
+byte[]? savedPayload = null;
+using (var batch = retained.ReadBatchLease(1))
+{
+    if (batch is not null)
+    {
+        savedPayload = new byte[batch.GetPayload(0).Length];
+        batch.CopyTo(0, savedPayload);
+    }
+}
+// savedPayload is independent of the lease and reader.
+</code></pre>
+<p>Copying releases no storage still referenced by another lease, parser or cache. Bound outstanding work using retained backing sizes and duration as well as batch counts. Do not access spans concurrently with lease disposal; cross-thread transfer needs caller synchronization. See <a href="api.html#choosing-storage-for-retained-results">retention contracts</a>.</p>
+<p>To forward a batch, register destination schemas/channels first, then call <code>writer.WriteBatch(batch)</code> while the lease is alive. Use the header-replacement overload when channel IDs differ. Forwarding is synchronous, does not transfer ownership and does not make a batch atomic. The <a href="../samples/Documentation/Program.cs">runnable example</a> demonstrates a schema-less channel with matching IDs.</p>
+<p>Next, use <a href="streams-async.html">Streams and async</a> for asynchronous pipelines, or consult <a href="api.html#binding-performance-and-local-limits">local limits</a> and <a href="testing.html">diagnostics</a> before tuning memory behavior.</p>
+<p>These snippets run in the <a href="../samples/Documentation/ReadingExamples.cs">reading examples</a>; see the <a href="usage.html#run-repository-examples">tutorial</a> for execution instructions.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

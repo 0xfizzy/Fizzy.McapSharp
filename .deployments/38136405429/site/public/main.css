@@ -1,0 +1,25 @@
+/* Raster branding must stay inside the navigation row instead of covering content. */
+header .navbar-brand #logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+/* Keep guide and API headings proportional to body text at every viewport. */
+article h1 { font-size: 2rem; }
+article h2 { font-size: 1.5rem; }
+article h3 { font-size: 1.25rem; }
+article h4, article h5, article h6 { font-size: 1rem; }
+article h1, article h2, article h3 { line-height: 1.3; }
+
+/* Separate every heading level from the preceding content. */
+article h1 { margin-top: 2.5rem; }
+article h2 { margin-top: 2.25rem; }
+article h3 { margin-top: 2rem; }
+article h4, article h5, article h6 { margin-top: 1.75rem; }
+
+/* DocFX modern renders h3 entries as secondary links in a flat list. */
+#affix li > a.link-secondary {
+    display: block;
+    margin-inline-start: 1rem;
+}
