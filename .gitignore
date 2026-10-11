@@ -6,3 +6,11 @@ artifacts/
 *.user
 **/__pycache__/
 node_modules/
+**/.vs/
+**/.idea/
+**/TestResults/
+*.log
+*.nupkg
+*.snupkg
+*.userosscache
+*.suo
