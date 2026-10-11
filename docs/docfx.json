@@ -69,6 +69,8 @@
     ],
     "globalMetadata": {
       "_appTitle": "Fizzy.McapSharp",
+      "_appLogoPath": "assets/icon.png",
+      "_appFaviconPath": "assets/icon.png",
       "_enableSearch": true,
       "_disableContribution": true
     },
