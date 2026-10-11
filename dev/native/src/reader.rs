@@ -164,13 +164,19 @@ impl Reader {
     fn observe(&mut self, op: u8, data: &[u8]) -> Outcome<()> {
         self.count += 1;
         let record = mcap::parse_record(op, data)?;
-        self.declarations.observe(&record, self.expanded)?;
+        if self.expanded { self.declarations.observe(&record, true)?; }
         match record {
-            records::Record::Schema { header, .. } if self.in_summary => {
-                self.summary["schemaIds"].as_array_mut().unwrap().push(json!(header.id));
+            records::Record::Schema { header, data } if self.in_summary => {
+                self.summary["schemas"][header.id.to_string()] = super::summary::schema_json(header.id, &header.name, &header.encoding, &data);
+                self.summary["schemaDependencies"].as_object_mut().unwrap().remove(&header.id.to_string());
             }
             records::Record::Channel(c) if self.in_summary => {
-                self.summary["channelIds"].as_array_mut().unwrap().push(json!(c.id));
+                self.summary["channels"][c.id.to_string()] = json!({"id":c.id,"schemaId":c.schema_id,"topic":c.topic,"messageEncoding":c.message_encoding,"metadata":c.metadata});
+                if c.schema_id != 0 && self.summary["schemas"][c.schema_id.to_string()].is_null() {
+                    if let Some((header, data)) = self.declarations.schemas.get(&c.schema_id) {
+                        self.summary["schemaDependencies"][c.schema_id.to_string()] = super::summary::schema_json(header.id, &header.name, &header.encoding, data);
+                    }
+                }
             }
             records::Record::DataEnd(_) => self.in_summary = true,
             records::Record::Footer(f) => self.summary_present = f.summary_start != 0,
@@ -381,7 +387,7 @@ pub unsafe extern "C" fn fm_reader_open(
     handle: *mut *mut Reader,
     out: *mut Response,
 ) -> i32 {
-    guard(out, |_| {
+    guard(out, |out| {
         if handle.is_null() {
             return Err("Null output".into());
         }
@@ -439,8 +445,10 @@ pub unsafe extern "C" fn fm_reader_open(
             return Err("Linear parser options cannot be applied to indexed reading".into());
         }
         if reader.messages
+            && !v["sequentialOnly"].as_bool().unwrap_or(false)
             && !linear_settings
-            && (reader.order != 2
+            && (v["indexedOnly"].as_bool().unwrap_or(false)
+                || reader.order != 2
                 || reader.start.is_some()
                 || reader.end.is_some()
                 || reader.topic.is_some()
@@ -467,9 +475,49 @@ pub unsafe extern "C" fn fm_reader_open(
             reader.sorted = true;
             reader.ended = false;
         }
+        out.value = if reader.sorted { crate::protocol::reader_execution::SORTED }
+            else if reader.indexed.is_some() { crate::protocol::reader_execution::INDEXED }
+            else { crate::protocol::reader_execution::SEQUENTIAL } as u64;
         *handle = Box::into_raw(Box::new(reader));
         Ok(crate::protocol::status::SUCCESS)
     })
+}
+// Message wire-body delivery uses the same pending payload as every other delivery form.
+#[no_mangle]
+pub unsafe extern "C" fn fm_reader_message_record(
+    handle: *mut Reader, dest: *mut u8, capacity: usize,
+    header: *mut MessageHeader, out: *mut Response,
+) -> i32 {
+    if capacity >= 22 && dest.is_null() {
+        return guard(out, |_| Err("Null destination".into()));
+    }
+    let status = fm_reader_next(handle, if capacity >= 22 { dest.wrapping_add(22) } else { ptr::null_mut() },
+        capacity.saturating_sub(22), header, ptr::null_mut(), out);
+    if status != crate::protocol::status::SUCCESS && status != crate::protocol::status::BUFFER_TOO_SMALL { return status; }
+    let payload_length = (*out).value;
+    let delivered = guard(out, |out| {
+        let r = handle.as_mut().ok_or("Null reader")?;
+        out.value = payload_length.checked_add(22).ok_or("Message length overflow")?;
+        if capacity < 22 {
+            // An empty payload can complete with capacity zero; retain its header for retry.
+            r.delivery.active = true;
+            return Ok(crate::protocol::status::BUFFER_TOO_SMALL);
+        }
+        if status == crate::protocol::status::SUCCESS {
+            if dest.is_null() { return Err("Null destination".into()); }
+            let h = r.delivery.header;
+            let bytes = std::slice::from_raw_parts_mut(dest, 22);
+            bytes[0..2].copy_from_slice(&h.channel_id.to_le_bytes());
+            bytes[2..6].copy_from_slice(&h.sequence.to_le_bytes());
+            bytes[6..14].copy_from_slice(&h.log_time.to_le_bytes());
+            bytes[14..22].copy_from_slice(&h.publish_time.to_le_bytes());
+        }
+        Ok(status)
+    });
+    if delivered < crate::protocol::status::SUCCESS {
+        if let Some(r) = handle.as_mut() { r.failed = true; r.delivery.discard(); }
+    }
+    delivered
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_reader_next(
@@ -864,7 +912,8 @@ impl Reader {
         let old_schemas = std::mem::take(&mut self.declarations.scanned_schemas);
         let old_channels = std::mem::take(&mut self.declarations.scanned_channels);
         let old_summary = std::mem::replace(&mut self.summary, empty_summary());
-        let (old_present, old_in, old_count) = (self.summary_present, self.in_summary, self.count);
+        let (old_present, old_in, old_count, old_expanded) = (self.summary_present, self.in_summary, self.count, self.expanded);
+        self.expanded = true;
         self.summary_present = false;
         self.in_summary = false;
         let result = (|| -> Outcome<Option<Value>> {
@@ -892,6 +941,7 @@ impl Reader {
         self.summary_present = old_present;
         self.in_summary = old_in;
         self.count = old_count;
+        self.expanded = old_expanded;
         restored(result, self.input.seek(SeekFrom::Start(pos)))
     }
 }

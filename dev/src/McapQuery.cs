@@ -11,7 +11,7 @@ public enum McapReadOrder
     File
 }
 
-/// <summary>Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. A null query uses file order; an explicit query defaults to ascending log time.</summary>
+/// <summary>Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. Explicit query execution defaults to ascending log time for both omitted and empty queries. Use McapMessageFilter for sequential file-order selection.</summary>
 public sealed record McapQuery
 {
     /// <summary>Optional fallback collection allowance: selected payload lengths plus descriptor-array capacity in bytes. Null disables the allowance. Shared ranges count separately; retained backing, compaction overlap and parser/codec memory are excluded. Does not apply to indexed reading.</summary>

@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -98,6 +100,7 @@
 </code></pre>
 <p>Build-Docs 先构建 native Release，再构建 managed Release、检查 XML、生成 API 页面、校验站点并运行固定版本 Chromium 冒烟门禁。共享输出目录的构建必须串行。Serve-Docs 支持 <code>-SiteDirectory</code>，通过本机 HTTP 在 <code>/Fizzy.McapSharp/dev/</code> 前缀下提供已有站点，Ctrl+C 停止；不要使用 file URL。检查双语页面、导航、搜索及代表性 API 页面。</p>
 <p>已有验证通过的完整包时，<code>Build-Docs.ps1 -Package &lt;nupkg绝对路径&gt; -ReleaseCommit &lt;sha&gt;</code> 使用其 DLL/XML。包版本必须匹配项目元数据；这是候选包文档，不代表已发布包验证。比较候选包与公开 NuGet 并执行隔离的公开源包测试，运行 <code>./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published</code>。</p>
+<p>如需生成文档并自行进行浏览器验证，运行 <code>./scripts/Build-Docs.ps1 -SkipBrowser</code>。仍会执行源文件、XML 和站点静态检查；报告明确标记浏览器检查已跳过。此模式不替代发布前要求的完整验证。</p>
 <h2 id="翻译与变更">翻译与变更</h2>
 <p>英文指南位于 <code>docs/</code>，同名中文指南位于 <code>docs/zh-CN/</code>，分别维护导航和语言切换链接；根 README 对应 <code>README.zh-CN.md</code>。人工复核译文后显式接受英文更新：</p>
 <pre><code class="lang-powershell">./scripts/Test-Documentation.ps1 -AcceptTranslation docs/usage.md
@@ -129,5 +132,5 @@
         </div>
       </div>
     </footer>
-  <script src="../../version.js" data-doc-root="../../"></script></body>
+  </body>
 </html>

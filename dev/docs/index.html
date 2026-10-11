@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>Documentation | Fizzy.McapSharp </title>
+      <title>Fizzy.McapSharp documentation | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="Documentation | Fizzy.McapSharp ">
+      <meta name="title" content="Fizzy.McapSharp documentation | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../favicon.ico">
@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -85,18 +87,25 @@
         </div>
 
         <article data-uid="">
-<h1 id="documentation">Documentation</h1>
+<h1 id="fizzymcapsharp-documentation">Fizzy.McapSharp documentation</h1>
 
-<p>English | <a href="zh-CN/index.html">简体中文</a></p>
+<p><a href="zh-CN/index.html">简体中文</a></p>
 <p>Fizzy.McapSharp provides general MCAP file operations for .NET 8. Payload encoding and clock semantics belong to your application.</p>
-<ol>
+<h2 id="getting-started-and-usage">Getting started and usage</h2>
+<ul>
 <li><a href="usage.html">Task guide and runnable examples</a>: write, validate and read your first recording.</li>
-<li><a href="api.html#choose-message-ownership">Choose message ownership</a> and <a href="api.html#choose-an-access-pattern">access patterns</a>: select copying, borrowing, leases, sequential scans or indexed queries.</li>
-<li><a href="api.html">API contracts</a>: understand completion, disposal, failure and allocation guarantees.</li>
+<li><a href="api.html">API contracts</a>: choose <a href="api.html#choose-message-ownership">message ownership</a> and <a href="api.html#choose-an-access-pattern">access patterns</a>, then review completion, disposal, failure and allocation guarantees.</li>
+</ul>
+<h2 id="development-and-internals">Development and internals</h2>
+<ul>
 <li><a href="development.html">Development</a>: build and validate current source or a complete package.</li>
-<li><a href="documentation.html">Documentation maintenance</a> and <a href="release.html">release SOP</a>: build, archive and publish documentation safely.</li>
-</ol>
-<p>Maintainers can consult <a href="native.html">native ABI</a>, <a href="coverage.html">upstream coverage</a> and <a href="patches.html">local patch boundaries</a>. Both guide languages use the same English generated API reference, available from the site navigation.</p>
+<li><a href="native.html">Native ABI</a>: native interoperability and memory boundaries.</li>
+<li><a href="coverage.html">Upstream coverage</a>: correspondence with the official Rust API.</li>
+<li><a href="patches.html">Local patches</a>: permitted extensions and their evidence.</li>
+</ul>
+<h2 id="documentation-maintenance">Documentation maintenance</h2>
+<p>Both guide languages share the English generated <strong>API reference (English)</strong> in the site navigation. Consult it for individual member contracts and use the guides for cross-API behavior.</p>
+<p>Use <a href="documentation.html">documentation maintenance</a> to build the site and maintain translations, and the <a href="release.html">release SOP</a> to archive and publish documentation.</p>
 
 </article>
 
@@ -119,5 +128,5 @@
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

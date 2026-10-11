@@ -13,7 +13,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -33,7 +33,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -53,7 +53,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -73,7 +73,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -93,7 +93,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -113,7 +113,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -133,7 +133,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -153,7 +153,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -173,7 +173,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -193,7 +193,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -213,7 +213,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -233,7 +233,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -253,7 +253,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -273,7 +273,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -293,7 +293,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -313,7 +313,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -333,7 +333,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -353,7 +353,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -373,7 +373,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -393,7 +393,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -413,7 +413,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -433,7 +433,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -453,7 +453,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -473,7 +473,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -493,7 +493,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -513,7 +513,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -533,7 +533,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -553,7 +553,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -573,7 +573,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -593,7 +593,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -613,7 +613,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -633,7 +633,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -653,7 +653,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -673,7 +673,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -693,7 +693,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -704,7 +704,7 @@
     {
       "rust": "write.rs::Writer::write_to_known_channel",
       "kind": "method",
-      "managed": "McapWriter.WriteMessage(header, span) / WriteBatch(batchLease[, headers])",
+      "managed": "McapWriter.WriteToKnownChannel(header, span) / WriteBatch(batchLease[, headers])",
       "native": "write::Writer::write_to_known_channel",
       "test": "NativeInteropTests.StreamsAndExtendedFeatures / CoverageTests.WriterOptionPrecedenceAndSummaryCursor / LeaseWriteTests / BatchGate / coverage_tests",
       "files": [
@@ -717,7 +717,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -737,7 +737,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -757,7 +757,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -777,7 +777,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -797,7 +797,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -817,7 +817,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -837,7 +837,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -857,7 +857,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -877,7 +877,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs",
         "tests/Fizzy.McapSharp.Tests/WriterCompletionTests.cs",
@@ -900,7 +900,7 @@
         "src/PreparedChannel.cs",
         "src/McapWriter.Prepared.cs",
         "src/Native.Prepared.cs",
-        "src/PreparedOperation.cs",
+        "src/PreparedWrite.cs",
         "native/src/writer.rs",
         "native/src/prepared_write.rs"
       ],
@@ -911,14 +911,14 @@
     {
       "rust": "read.rs::Options",
       "kind": "type",
-      "managed": "McapReadCursor(ignoreEndMagic) / ReadNextRecord / GetChannel",
+      "managed": "McapReaderOptions.SkipEndMagic",
       "native": "read::Options",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -931,14 +931,14 @@
     {
       "rust": "read.rs::Options::IgnoreEndMagic",
       "kind": "variant",
-      "managed": "McapReadCursor(ignoreEndMagic) / ReadNextRecord / GetChannel",
+      "managed": "McapReaderOptions.SkipEndMagic",
       "native": "read::Options::IgnoreEndMagic",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -951,18 +951,20 @@
     {
       "rust": "read.rs::LinearReader",
       "kind": "type",
-      "managed": "McapReadCursor(TopLevelRecords / ExpandedRecordsWithoutMagic) / ReadNextRecord / GetChannel",
+      "managed": "McapLinearReader / McapChunkFlattener with SkipStartMagic and SkipEndMagic",
       "native": "read::LinearReader",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapLinearReader.cs",
+        "src/McapChunkFlattener.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -971,18 +973,20 @@
     {
       "rust": "read.rs::LinearReader::new",
       "kind": "method",
-      "managed": "McapReadCursor(TopLevelRecords / ExpandedRecordsWithoutMagic) / ReadNextRecord / GetChannel",
+      "managed": "McapLinearReader / McapChunkFlattener with SkipStartMagic and SkipEndMagic",
       "native": "read::LinearReader::new",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapLinearReader.cs",
+        "src/McapChunkFlattener.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -991,18 +995,20 @@
     {
       "rust": "read.rs::LinearReader::new_with_options",
       "kind": "method",
-      "managed": "McapReadCursor(TopLevelRecords / ExpandedRecordsWithoutMagic) / ReadNextRecord / GetChannel",
+      "managed": "McapLinearReader / McapChunkFlattener with SkipStartMagic and SkipEndMagic",
       "native": "read::LinearReader::new_with_options",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapLinearReader.cs",
+        "src/McapChunkFlattener.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1011,18 +1017,20 @@
     {
       "rust": "read.rs::LinearReader::sans_magic",
       "kind": "method",
-      "managed": "McapReadCursor(TopLevelRecords / ExpandedRecordsWithoutMagic) / ReadNextRecord / GetChannel",
+      "managed": "McapLinearReader / McapChunkFlattener with SkipStartMagic and SkipEndMagic",
       "native": "read::LinearReader::sans_magic",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapLinearReader.cs",
+        "src/McapChunkFlattener.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1031,18 +1039,19 @@
     {
       "rust": "read.rs::ChunkReader",
       "kind": "type",
-      "managed": "McapReadCursor(ChunkRecords) / ReadNextRecord / GetChannel",
+      "managed": "McapChunkReader / ReadNextRecord",
       "native": "read::ChunkReader",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapChunkReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1051,18 +1060,19 @@
     {
       "rust": "read.rs::ChunkReader::new",
       "kind": "method",
-      "managed": "McapReadCursor(ChunkRecords) / ReadNextRecord / GetChannel",
+      "managed": "McapChunkReader / ReadNextRecord",
       "native": "read::ChunkReader::new",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapChunkReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1071,18 +1081,19 @@
     {
       "rust": "read.rs::ChunkFlattener",
       "kind": "type",
-      "managed": "McapReadCursor(ExpandedRecords) / ReadNextRecord / GetChannel",
+      "managed": "McapChunkFlattener / ReadNextRecord / GetChannel",
       "native": "read::ChunkFlattener",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapChunkFlattener.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1091,18 +1102,19 @@
     {
       "rust": "read.rs::ChunkFlattener::new",
       "kind": "method",
-      "managed": "McapReadCursor(ExpandedRecords) / ReadNextRecord / GetChannel",
+      "managed": "McapChunkFlattener / ReadNextRecord / GetChannel",
       "native": "read::ChunkFlattener::new",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapChunkFlattener.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1111,18 +1123,19 @@
     {
       "rust": "read.rs::ChunkFlattener::new_with_options",
       "kind": "method",
-      "managed": "McapReadCursor(ExpandedRecords) / ReadNextRecord / GetChannel",
+      "managed": "McapChunkFlattener / ReadNextRecord / GetChannel",
       "native": "read::ChunkFlattener::new_with_options",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapChunkFlattener.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1131,18 +1144,19 @@
     {
       "rust": "read.rs::RawMessageStream",
       "kind": "type",
-      "managed": "McapReadCursor(RawMessages) / ReadNextRecord / GetChannel",
+      "managed": "McapRawMessageReader / ReadNext / ReadNextMessageRecord / GetChannel",
       "native": "read::RawMessageStream",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapRawMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1151,18 +1165,19 @@
     {
       "rust": "read.rs::RawMessageStream::new",
       "kind": "method",
-      "managed": "McapReadCursor(RawMessages) / ReadNextRecord / GetChannel",
+      "managed": "McapRawMessageReader / ReadNext / ReadNextMessageRecord / GetChannel",
       "native": "read::RawMessageStream::new",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapRawMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1171,18 +1186,19 @@
     {
       "rust": "read.rs::RawMessageStream::new_with_options",
       "kind": "method",
-      "managed": "McapReadCursor(RawMessages) / ReadNextRecord / GetChannel",
+      "managed": "McapRawMessageReader / ReadNext / ReadNextMessageRecord / GetChannel",
       "native": "read::RawMessageStream::new_with_options",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapRawMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1191,18 +1207,19 @@
     {
       "rust": "read.rs::RawMessageStream::get_channel",
       "kind": "method",
-      "managed": "McapReadCursor(RawMessages) / ReadNextRecord / GetChannel",
+      "managed": "McapRawMessageReader / ReadNext / ReadNextMessageRecord / GetChannel",
       "native": "read::RawMessageStream::get_channel",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapRawMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1211,18 +1228,19 @@
     {
       "rust": "read.rs::RawMessage",
       "kind": "type",
-      "managed": "McapReadCursor(RawMessages) / ReadNextRecord / GetChannel",
+      "managed": "McapRawMessageReader / ReadNext / ReadNextMessageRecord / GetChannel",
       "native": "read::RawMessage",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapRawMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1231,18 +1249,19 @@
     {
       "rust": "read.rs::RawMessage::header",
       "kind": "field",
-      "managed": "McapReadCursor(RawMessages) / ReadNextRecord / GetChannel",
+      "managed": "McapRawMessageReader / ReadNext / ReadNextMessageRecord / GetChannel",
       "native": "read::RawMessage::header",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapRawMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1251,18 +1270,19 @@
     {
       "rust": "read.rs::RawMessage::data",
       "kind": "field",
-      "managed": "McapReadCursor(RawMessages) / ReadNextRecord / GetChannel",
+      "managed": "McapRawMessageReader / ReadNext / ReadNextMessageRecord / GetChannel",
       "native": "read::RawMessage::data",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapRawMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1271,18 +1291,19 @@
     {
       "rust": "read.rs::MessageStream",
       "kind": "type",
-      "managed": "McapReadCursor(Messages) / ReadNextRecord / GetChannel",
+      "managed": "McapMessageReader / ReadMessages / ReadNextMessageRecord / GetChannel",
       "native": "read::MessageStream",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1291,18 +1312,19 @@
     {
       "rust": "read.rs::MessageStream::new",
       "kind": "method",
-      "managed": "McapReadCursor(Messages) / ReadNextRecord / GetChannel",
+      "managed": "McapMessageReader / ReadMessages / ReadNextMessageRecord / GetChannel",
       "native": "read::MessageStream::new",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1311,18 +1333,19 @@
     {
       "rust": "read.rs::MessageStream::new_with_options",
       "kind": "method",
-      "managed": "McapReadCursor(Messages) / ReadNextRecord / GetChannel",
+      "managed": "McapMessageReader / ReadMessages / ReadNextMessageRecord / GetChannel",
       "native": "read::MessageStream::new_with_options",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
-        "native/src/record_access.rs"
+        "native/src/record_access.rs",
+        "src/McapMessageReader.cs"
       ],
       "origin": "upstream",
       "group": "sequential-reading",
@@ -1331,14 +1354,14 @@
     {
       "rust": "read.rs::Summary",
       "kind": "type",
-      "managed": "McapSummary / McapIndexSnapshot.GetSummary / OpenSummaryRecords",
+      "managed": "McapSummary / McapIndexedReader.GetSummary / OpenSummaryRecords",
       "native": "read::Summary",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1351,14 +1374,14 @@
     {
       "rust": "read.rs::Summary::stats",
       "kind": "field",
-      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "managed": "McapIndexedReader.OpenSummaryRecords",
       "native": "read::Summary::stats",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1371,14 +1394,14 @@
     {
       "rust": "read.rs::Summary::channels",
       "kind": "field",
-      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "managed": "McapSummary.Channels",
       "native": "read::Summary::channels",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1391,14 +1414,14 @@
     {
       "rust": "read.rs::Summary::schemas",
       "kind": "field",
-      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "managed": "McapSummary.Schemas",
       "native": "read::Summary::schemas",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1411,14 +1434,14 @@
     {
       "rust": "read.rs::Summary::chunk_indexes",
       "kind": "field",
-      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "managed": "McapIndexedReader.OpenSummaryRecords",
       "native": "read::Summary::chunk_indexes",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1431,14 +1454,14 @@
     {
       "rust": "read.rs::Summary::attachment_indexes",
       "kind": "field",
-      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "managed": "McapIndexedReader.OpenSummaryRecords",
       "native": "read::Summary::attachment_indexes",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1451,14 +1474,14 @@
     {
       "rust": "read.rs::Summary::metadata_indexes",
       "kind": "field",
-      "managed": "McapIndexSnapshot.OpenSummaryRecords",
+      "managed": "McapIndexedReader.OpenSummaryRecords",
       "native": "read::Summary::metadata_indexes",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1472,14 +1495,14 @@
     {
       "rust": "read.rs::Summary::read",
       "kind": "method",
-      "managed": "McapIndexSnapshot constructors / OpenMapped",
+      "managed": "McapIndexedReader.CreateCopied / OpenMapped",
       "native": "read::Summary::read",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1492,20 +1515,20 @@
     {
       "rust": "read.rs::Summary::stream_chunk",
       "kind": "method",
-      "managed": "McapIndexSnapshot.OpenChunkReader / ReadChunkMessages / McapPreparedChunkIndex overloads",
+      "managed": "McapIndexedReader.OpenChunkMessages / ReadChunkMessages / McapPreparedChunkIndex overloads",
       "native": "read::Summary::stream_chunk",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / DeliveryOptimizationTests.PreparedIndexIsFrozenAndChildrenAreIndependent",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs",
         "src/McapPreparedChunkIndex.cs",
-        "src/McapIndexSnapshot.Prepared.cs",
+        "src/McapIndexedReader.Prepared.cs",
         "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ],
       "origin": "upstream",
@@ -1515,21 +1538,21 @@
     {
       "rust": "read.rs::Summary::read_message_indexes",
       "kind": "method",
-      "managed": "McapIndexSnapshot.ReadMessageIndexes / McapPreparedChunkIndex overloads",
+      "managed": "McapIndexedReader.ReadMessageIndexes / McapPreparedChunkIndex overloads",
       "native": "read::Summary::read_message_indexes",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance / DeliveryOptimizationTests.PreparedIndexIsFrozenAndChildrenAreIndependent",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs",
         "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
         "src/McapPreparedChunkIndex.cs",
-        "src/McapIndexSnapshot.Prepared.cs",
+        "src/McapIndexedReader.Prepared.cs",
         "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ],
       "origin": "upstream",
@@ -1539,21 +1562,21 @@
     {
       "rust": "read.rs::Summary::seek_message",
       "kind": "method",
-      "managed": "McapIndexSnapshot.SeekMessage / McapPreparedChunkIndex overloads",
+      "managed": "McapIndexedReader.SeekMessage / McapPreparedChunkIndex overloads",
       "native": "read::Summary::seek_message",
       "test": "CoverageTests.RandomUpstreamOperationsAndRetryPreserveCursor / CoverageTests.DirectSliceReadersAndRecordModels / MemoryOptimizationTests / random_access.tests.cached_seeks_match_official_and_hits_do_not_advance / DeliveryOptimizationTests.PreparedIndexIsFrozenAndChildrenAreIndependent",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
         "native/src/snapshot.rs",
         "tests/Fizzy.McapSharp.Tests/MemoryOptimizationTests.cs",
         "src/McapPreparedChunkIndex.cs",
-        "src/McapIndexSnapshot.Prepared.cs",
+        "src/McapIndexedReader.Prepared.cs",
         "tests/Fizzy.McapSharp.Tests/DeliveryOptimizationTests.cs"
       ],
       "origin": "upstream",
@@ -1563,14 +1586,14 @@
     {
       "rust": "read.rs::attachment",
       "kind": "function",
-      "managed": "McapIndexSnapshot.ReadAttachment",
+      "managed": "McapIndexedReader.ReadAttachment",
       "native": "read::attachment",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1583,14 +1606,14 @@
     {
       "rust": "read.rs::metadata",
       "kind": "function",
-      "managed": "McapIndexSnapshot.ReadMetadata",
+      "managed": "McapIndexedReader.ReadMetadata",
       "native": "read::metadata",
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -1608,7 +1631,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1625,7 +1648,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1642,7 +1665,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1659,7 +1682,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1676,7 +1699,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1693,7 +1716,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1710,7 +1733,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1727,7 +1750,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1744,7 +1767,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1761,7 +1784,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1778,7 +1801,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1795,7 +1818,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1812,7 +1835,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1829,7 +1852,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1846,7 +1869,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1863,7 +1886,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1880,7 +1903,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1897,7 +1920,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1914,7 +1937,7 @@
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -1926,18 +1949,19 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReader",
       "kind": "type",
-      "managed": "McapSansIoReader.NextEvent",
+      "managed": "McapSansIoLinearReader.NextEvent",
       "native": "sans_io/linear_reader::LinearReader",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoLinearReader.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -1946,18 +1970,19 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReader::new",
       "kind": "method",
-      "managed": "McapSansIoReader.CreateLinear",
+      "managed": "McapSansIoLinearReader",
       "native": "sans_io/linear_reader::LinearReader::new",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoLinearReader.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -1966,18 +1991,19 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReader::new_with_options",
       "kind": "method",
-      "managed": "McapSansIoReader.CreateLinear",
+      "managed": "McapSansIoLinearReader",
       "native": "sans_io/linear_reader::LinearReader::new_with_options",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoLinearReader.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -1986,18 +2012,19 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReader::insert",
       "kind": "method",
-      "managed": "McapSansIoReader.SupplyInput",
+      "managed": "McapSansIoLinearReader.SupplyInput",
       "native": "sans_io/linear_reader::LinearReader::insert",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoLinearReader.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2006,18 +2033,19 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReader::notify_read",
       "kind": "method",
-      "managed": "McapSansIoReader.SupplyInput",
+      "managed": "McapSansIoLinearReader.SupplyInput",
       "native": "sans_io/linear_reader::LinearReader::notify_read",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoLinearReader.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2026,18 +2054,19 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReader::next_event",
       "kind": "method",
-      "managed": "McapSansIoReader.NextEvent",
+      "managed": "McapSansIoLinearReader.NextEvent",
       "native": "sans_io/linear_reader::LinearReader::next_event",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoLinearReader.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2046,12 +2075,12 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReadEvent",
       "kind": "type",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapLinearReadEvent / McapLinearEventKind",
       "native": "sans_io/linear_reader::LinearReadEvent",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -2063,12 +2092,12 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReadEvent::ReadRequest",
       "kind": "variant",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapLinearReadEvent / McapLinearEventKind",
       "native": "sans_io/linear_reader::LinearReadEvent::ReadRequest",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -2080,12 +2109,12 @@
     {
       "rust": "sans_io/linear_reader.rs::LinearReadEvent::Record",
       "kind": "variant",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapLinearReadEvent / McapLinearEventKind",
       "native": "sans_io/linear_reader::LinearReadEvent::Record",
       "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs"
@@ -2097,15 +2126,16 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReadEvent",
       "kind": "type",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapIndexedReadEvent / McapIndexedEventKind",
       "native": "sans_io/indexed_reader::IndexedReadEvent",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2114,15 +2144,16 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReadEvent::ReadChunkRequest",
       "kind": "variant",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapIndexedReadEvent / McapIndexedEventKind",
       "native": "sans_io/indexed_reader::IndexedReadEvent::ReadChunkRequest",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2131,15 +2162,16 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReadEvent::Message",
       "kind": "variant",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapIndexedReadEvent / McapIndexedEventKind",
       "native": "sans_io/indexed_reader::IndexedReadEvent::Message",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2148,18 +2180,20 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReader",
       "kind": "type",
-      "managed": "McapSansIoReader.NextEvent",
+      "managed": "McapSansIoIndexedReader.NextEvent",
       "native": "sans_io/indexed_reader::IndexedReader",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoIndexedReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2168,18 +2202,20 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReader::record_length_limit",
       "kind": "field",
-      "managed": "McapSansIoReader.SetRecordLengthLimit",
+      "managed": "McapSansIoIndexedReader.SetRecordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReader::record_length_limit",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoIndexedReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2188,18 +2224,20 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReader::new",
       "kind": "method",
-      "managed": "McapSansIoReader.CreateIndexed",
+      "managed": "McapSansIoSummaryReader.CreateIndexed",
       "native": "sans_io/indexed_reader::IndexedReader::new",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2208,18 +2246,20 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReader::new_with_options",
       "kind": "method",
-      "managed": "McapSansIoReader.CreateIndexed",
+      "managed": "McapSansIoSummaryReader.CreateIndexed",
       "native": "sans_io/indexed_reader::IndexedReader::new_with_options",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2228,18 +2268,20 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReader::next_event",
       "kind": "method",
-      "managed": "McapSansIoReader.NextEvent",
+      "managed": "McapSansIoIndexedReader.NextEvent",
       "native": "sans_io/indexed_reader::IndexedReader::next_event",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoIndexedReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2248,18 +2290,20 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReader::insert_chunk_record_data",
       "kind": "method",
-      "managed": "McapSansIoReader.InsertChunkData",
+      "managed": "McapSansIoIndexedReader.InsertChunkData",
       "native": "sans_io/indexed_reader::IndexedReader::insert_chunk_record_data",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoIndexedReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2270,14 +2314,15 @@
       "kind": "type",
       "managed": "McapReadOrder",
       "native": "sans_io/indexed_reader::ReadOrder",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2288,14 +2333,15 @@
       "kind": "variant",
       "managed": "McapReadOrder",
       "native": "sans_io/indexed_reader::ReadOrder::LogTime",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2306,14 +2352,15 @@
       "kind": "variant",
       "managed": "McapReadOrder",
       "native": "sans_io/indexed_reader::ReadOrder::ReverseLogTime",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2324,14 +2371,15 @@
       "kind": "variant",
       "managed": "McapReadOrder",
       "native": "sans_io/indexed_reader::ReadOrder::File",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2340,16 +2388,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions",
       "kind": "type",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2358,16 +2407,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::start",
       "kind": "field",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::start",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2376,16 +2426,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::end",
       "kind": "field",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::end",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2394,16 +2445,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::order",
       "kind": "field",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::order",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2412,16 +2464,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::include_topics",
       "kind": "method",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::include_topics",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2430,16 +2483,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::record_length_limit",
       "kind": "field",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::record_length_limit",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2448,16 +2502,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::new",
       "kind": "method",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::new",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2466,16 +2521,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::with_order",
       "kind": "method",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::with_order",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2484,16 +2540,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::log_time_on_or_after",
       "kind": "method",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::log_time_on_or_after",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2502,16 +2559,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::log_time_before",
       "kind": "method",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::log_time_before",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2520,16 +2578,17 @@
     {
       "rust": "sans_io/indexed_reader.rs::IndexedReaderOptions::with_record_length_limit",
       "kind": "method",
-      "managed": "McapQuery / recordLengthLimit",
+      "managed": "McapIndexedQuery / recordLengthLimit",
       "native": "sans_io/indexed_reader::IndexedReaderOptions::with_record_length_limit",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapQuery.cs"
+        "src/McapQuery.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2538,15 +2597,16 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReadEvent",
       "kind": "type",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapSummaryReadEvent / McapSummaryEventKind",
       "native": "sans_io/summary_reader::SummaryReadEvent",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2555,15 +2615,16 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReadEvent::ReadRequest",
       "kind": "variant",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapSummaryReadEvent / McapSummaryEventKind",
       "native": "sans_io/summary_reader::SummaryReadEvent::ReadRequest",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2572,15 +2633,16 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReadEvent::SeekRequest",
       "kind": "variant",
-      "managed": "McapReadEvent / McapReadEventKind",
+      "managed": "McapSummaryReadEvent / McapSummaryEventKind",
       "native": "sans_io/summary_reader::SummaryReadEvent::SeekRequest",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2589,18 +2651,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader",
       "kind": "type",
-      "managed": "McapSansIoReader.NextEvent",
+      "managed": "McapSansIoSummaryReader.NextEvent",
       "native": "sans_io/summary_reader::SummaryReader",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2611,13 +2675,14 @@
       "kind": "type",
       "managed": "McapSummaryReaderOptions",
       "native": "sans_io/summary_reader::SummaryReaderOptions",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2628,13 +2693,14 @@
       "kind": "field",
       "managed": "McapSummaryReaderOptions",
       "native": "sans_io/summary_reader::SummaryReaderOptions::file_size",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2645,13 +2711,14 @@
       "kind": "field",
       "managed": "McapSummaryReaderOptions",
       "native": "sans_io/summary_reader::SummaryReaderOptions::record_length_limit",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2662,13 +2729,14 @@
       "kind": "method",
       "managed": "McapSummaryReaderOptions",
       "native": "sans_io/summary_reader::SummaryReaderOptions::with_file_size",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2679,13 +2747,14 @@
       "kind": "method",
       "managed": "McapSummaryReaderOptions",
       "native": "sans_io/summary_reader::SummaryReaderOptions::with_record_length_limit",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
-        "native/src/engine.rs"
+        "native/src/engine.rs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2694,18 +2763,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::new",
       "kind": "method",
-      "managed": "McapSansIoReader.CreateSummary",
+      "managed": "McapSansIoSummaryReader",
       "native": "sans_io/summary_reader::SummaryReader::new",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2714,18 +2785,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::new_with_options",
       "kind": "method",
-      "managed": "McapSansIoReader.CreateSummary",
+      "managed": "McapSansIoSummaryReader",
       "native": "sans_io/summary_reader::SummaryReader::new_with_options",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2734,18 +2807,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::next_event",
       "kind": "method",
-      "managed": "McapSansIoReader.NextEvent",
+      "managed": "McapSansIoSummaryReader.NextEvent",
       "native": "sans_io/summary_reader::SummaryReader::next_event",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2754,18 +2829,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::next_event_inner",
       "kind": "method",
-      "managed": "McapSansIoReader.NextEvent",
+      "managed": "McapSansIoSummaryReader.NextEvent",
       "native": "sans_io/summary_reader::SummaryReader::next_event_inner",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2774,18 +2851,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::notify_read",
       "kind": "method",
-      "managed": "McapSansIoReader.SupplyInput",
+      "managed": "McapSansIoSummaryReader.SupplyInput",
       "native": "sans_io/summary_reader::SummaryReader::notify_read",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2794,18 +2873,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::notify_seeked",
       "kind": "method",
-      "managed": "McapSansIoReader.NotifySeeked",
+      "managed": "McapSansIoSummaryReader.NotifySeeked",
       "native": "sans_io/summary_reader::SummaryReader::notify_seeked",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2814,18 +2895,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::insert",
       "kind": "method",
-      "managed": "McapSansIoReader.SupplyInput",
+      "managed": "McapSansIoSummaryReader.SupplyInput",
       "native": "sans_io/summary_reader::SummaryReader::insert",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -2834,18 +2917,20 @@
     {
       "rust": "sans_io/summary_reader.rs::SummaryReader::finish",
       "kind": "method",
-      "managed": "McapSansIoReader.GetSummary / OpenSummaryRecords",
+      "managed": "McapSansIoSummaryReader.GetSummary / OpenSummaryRecords",
       "native": "sans_io/summary_reader::SummaryReader::finish",
-      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors",
+      "test": "CoverageTests.SansIoSummaryAndIndexedEventsUseUpstream / CoverageTests.LengthLimitsAndStructuredErrors / ApiConvergenceTests",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/SansIo.cs",
+        "src/SansIoReaderCore.cs",
         "src/ReaderOptions.cs",
         "src/McapReaderFactory.cs",
         "native/src/engine.rs",
-        "src/McapSansIoReader.Descriptions.cs",
-        "src/McapSansIoReader.Leases.cs",
-        "src/NativeInputMemory.cs"
+        "src/SansIoReaderCore.Descriptions.cs",
+        "src/SansIoReaderCore.Leases.cs",
+        "src/NativeInputMemory.cs",
+        "src/McapSansIoSummaryReader.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "upstream",
       "group": "sans-io",
@@ -3925,9 +4010,9 @@
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -3945,9 +4030,9 @@
       "test": "CoverageTests.DirectSliceReadersAndRecordModels",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapReadCursor.cs",
-        "src/McapIndexSnapshot.cs",
-        "src/McapReadSession.Index.cs",
+        "src/ReadCursorCore.cs",
+        "src/McapIndexedReader.cs",
+        "src/ReadSessionCore.Index.cs",
         "src/Native.Index.cs",
         "src/McapRecordTypes.cs",
         "native/src/buffer_reader.rs",
@@ -5988,14 +6073,15 @@
     {
       "rust": "tokio/linear_reader.rs::LinearReader",
       "kind": "type",
-      "managed": "McapAsyncReader.ReadNextRecordAsync",
+      "managed": "McapAsyncRecordReader.ReadNextRecordAsync",
       "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
       "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapAsyncReader.cs",
-        "src/SansIo.cs",
-        "tests/Allocations/Extended.cs"
+        "src/AsyncReaderCore.cs",
+        "src/SansIoReaderCore.cs",
+        "tests/Allocations/Extended.cs",
+        "src/McapAsyncRecordReader.cs"
       ],
       "origin": "upstream",
       "group": "async",
@@ -6005,14 +6091,15 @@
     {
       "rust": "tokio/linear_reader.rs::LinearReader::new",
       "kind": "method",
-      "managed": "McapAsyncReader.McapAsyncReader",
+      "managed": "McapAsyncRecordReader.McapAsyncRecordReader",
       "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
       "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapAsyncReader.cs",
-        "src/SansIo.cs",
-        "tests/Allocations/Extended.cs"
+        "src/AsyncReaderCore.cs",
+        "src/SansIoReaderCore.cs",
+        "tests/Allocations/Extended.cs",
+        "src/McapAsyncRecordReader.cs"
       ],
       "origin": "upstream",
       "group": "async",
@@ -6022,14 +6109,15 @@
     {
       "rust": "tokio/linear_reader.rs::LinearReader::new_with_options",
       "kind": "method",
-      "managed": "McapAsyncReader.McapAsyncReader",
+      "managed": "McapAsyncRecordReader.McapAsyncRecordReader",
       "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
       "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapAsyncReader.cs",
-        "src/SansIo.cs",
-        "tests/Allocations/Extended.cs"
+        "src/AsyncReaderCore.cs",
+        "src/SansIoReaderCore.cs",
+        "tests/Allocations/Extended.cs",
+        "src/McapAsyncRecordReader.cs"
       ],
       "origin": "upstream",
       "group": "async",
@@ -6039,14 +6127,15 @@
     {
       "rust": "tokio/linear_reader.rs::LinearReader::into_inner",
       "kind": "method",
-      "managed": "McapAsyncReader.IntoInner",
+      "managed": "McapAsyncRecordReader.IntoInner",
       "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
       "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapAsyncReader.cs",
-        "src/SansIo.cs",
-        "tests/Allocations/Extended.cs"
+        "src/AsyncReaderCore.cs",
+        "src/SansIoReaderCore.cs",
+        "tests/Allocations/Extended.cs",
+        "src/McapAsyncRecordReader.cs"
       ],
       "origin": "upstream",
       "group": "async",
@@ -6056,14 +6145,15 @@
     {
       "rust": "tokio/linear_reader.rs::LinearReader::next_record",
       "kind": "method",
-      "managed": "McapAsyncReader.ReadNextRecordAsync",
+      "managed": "McapAsyncRecordReader.ReadNextRecordAsync",
       "native": "official Sans-I/O driven by .NET Stream.ReadAsync",
       "test": "CoverageTests.AsyncRecordsRetryOwnershipAndCancellation / Extended.Async",
       "files": [
         "tests/Fizzy.McapSharp.Tests/CoverageTests.cs",
-        "src/McapAsyncReader.cs",
-        "src/SansIo.cs",
-        "tests/Allocations/Extended.cs"
+        "src/AsyncReaderCore.cs",
+        "src/SansIoReaderCore.cs",
+        "tests/Allocations/Extended.cs",
+        "src/McapAsyncRecordReader.cs"
       ],
       "origin": "upstream",
       "group": "async",
@@ -6299,11 +6389,12 @@
       "kind": "method",
       "managed": "Borrowed delivery, retained leases and direct parser input",
       "native": "sans_io/indexed_reader.rs::IndexedReader::next_shared_event",
-      "test": "memory_probe / SharedPendingTests / LeaseTests",
+      "test": "memory_probe / SharedPendingTests / LeaseTests / ApiConvergenceTests",
       "files": [
         "native/src/memory_probe.rs",
         "tests/Fizzy.McapSharp.Tests/SharedPendingTests.cs",
-        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "local-extension",
       "group": "local-extensions",
@@ -6314,11 +6405,12 @@
       "kind": "method",
       "managed": "Borrowed delivery, retained leases and direct parser input",
       "native": "sans_io/indexed_reader.rs::IndexedReader::insert_shared_chunk_record_data",
-      "test": "memory_probe / SharedPendingTests / LeaseTests",
+      "test": "memory_probe / SharedPendingTests / LeaseTests / ApiConvergenceTests",
       "files": [
         "native/src/memory_probe.rs",
         "tests/Fizzy.McapSharp.Tests/SharedPendingTests.cs",
-        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "local-extension",
       "group": "local-extensions",
@@ -6329,11 +6421,12 @@
       "kind": "type",
       "managed": "Borrowed delivery, retained leases and direct parser input",
       "native": "sans_io/indexed_reader.rs::SharedIndexedReadEvent",
-      "test": "memory_probe / SharedPendingTests / LeaseTests",
+      "test": "memory_probe / SharedPendingTests / LeaseTests / ApiConvergenceTests",
       "files": [
         "native/src/memory_probe.rs",
         "tests/Fizzy.McapSharp.Tests/SharedPendingTests.cs",
-        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "local-extension",
       "group": "local-extensions",
@@ -6344,11 +6437,12 @@
       "kind": "variant",
       "managed": "Borrowed delivery, retained leases and direct parser input",
       "native": "sans_io/indexed_reader.rs::SharedIndexedReadEvent::ReadChunkRequest",
-      "test": "memory_probe / SharedPendingTests / LeaseTests",
+      "test": "memory_probe / SharedPendingTests / LeaseTests / ApiConvergenceTests",
       "files": [
         "native/src/memory_probe.rs",
         "tests/Fizzy.McapSharp.Tests/SharedPendingTests.cs",
-        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "local-extension",
       "group": "local-extensions",
@@ -6359,11 +6453,12 @@
       "kind": "variant",
       "managed": "Borrowed delivery, retained leases and direct parser input",
       "native": "sans_io/indexed_reader.rs::SharedIndexedReadEvent::Message",
-      "test": "memory_probe / SharedPendingTests / LeaseTests",
+      "test": "memory_probe / SharedPendingTests / LeaseTests / ApiConvergenceTests",
       "files": [
         "native/src/memory_probe.rs",
         "tests/Fizzy.McapSharp.Tests/SharedPendingTests.cs",
-        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs"
+        "tests/Fizzy.McapSharp.Tests/LeaseTests.cs",
+        "tests/Fizzy.McapSharp.Tests/ApiConvergenceTests.cs"
       ],
       "origin": "local-extension",
       "group": "local-extensions",

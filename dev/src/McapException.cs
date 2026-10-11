@@ -81,7 +81,7 @@ public sealed class McapException : IOException
     public bool CanContinueWriting { get; private init; }
     /// <summary>Failure classification; Binding for exceptions constructed from only a message.</summary>
     public McapErrorKind Kind { get; }
-    /// <summary>Independent kind-specific native error details. ValueKind is Undefined when no structured details are available.</summary>
+    /// <summary>Independent kind-specific native error details. Documented field names and types are stable; additional fields may appear. ValueKind is Undefined for message-only exceptions, Null for native failures without structured details, or Object (possibly empty). Diagnostic text is not a stable identifier or retry policy.</summary>
     public JsonElement Details { get; }
     /// <summary>Creates a binding error with no structured details and no writer continuation permission.</summary>
     public McapException(string message) : base(message) { }

@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -98,6 +100,7 @@
 </code></pre>
 <p>Build-Docs builds native Release before managed Release, checks XML, generates API pages and validates the final site, then runs the pinned Chromium smoke gate. Shared build directories must not be used concurrently. Serve-Docs accepts <code>-SiteDirectory</code> and serves an existing site under <code>/Fizzy.McapSharp/dev/</code> at a loopback HTTP address; Ctrl+C stops it. Do not preview using file URLs. Inspect English and Chinese guides, navigation, search and representative API pages.</p>
 <p>For a verified complete package, <code>Build-Docs.ps1 -Package &lt;absolute-nupkg-path&gt; -ReleaseCommit &lt;sha&gt;</code> uses its DLL/XML. The package version must match project metadata. This is candidate-package documentation, not proof of published-package availability. To compare a candidate with public NuGet and execute isolated public-source package tests, run <code>./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published</code>.</p>
+<p>For generation with manual browser verification, run <code>./scripts/Build-Docs.ps1 -SkipBrowser</code>. Source, XML and static site checks still run; the report marks the browser check as skipped. This does not replace the full validation required before release.</p>
 <h2 id="translation-and-changes">Translation and changes</h2>
 <p>Keep English guides in <code>docs/</code> and same-name Chinese guides in <code>docs/zh-CN/</code>, with independent navigation and language links. The root README uses <code>README.zh-CN.md</code>. After reviewing the translated text, explicitly accept the English revision:</p>
 <pre><code class="lang-powershell">./scripts/Test-Documentation.ps1 -AcceptTranslation docs/usage.md
@@ -129,5 +132,5 @@
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

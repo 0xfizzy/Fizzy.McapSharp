@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -216,7 +218,7 @@ Class McapSummaryReaderOptions
   
   </h3>
 
-  <div class="markdown level1 summary"><p>Maximum accepted record body length in bytes; null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</p>
+  <div class="markdown level1 summary"><p>Maximum accepted summary record body length in bytes; null leaves the explicit limit unset. Upstream may additionally constrain reads using FileSize. This is not a total-memory bound.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -480,5 +482,5 @@ Class McapSummaryReaderOptions
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

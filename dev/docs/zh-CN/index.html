@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>文档 | Fizzy.McapSharp </title>
+      <title>Fizzy.McapSharp 文档 | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="文档 | Fizzy.McapSharp ">
+      <meta name="title" content="Fizzy.McapSharp 文档 | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../../favicon.ico">
@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -85,17 +87,25 @@
         </div>
 
         <article data-uid="">
-<h1 id="文档">文档</h1>
+<h1 id="fizzymcapsharp-文档">Fizzy.McapSharp 文档</h1>
 
-<p><a href="../index.html">English</a> | 简体中文</p>
+<p><a href="../index.html">English</a></p>
 <p>Fizzy.McapSharp 为 .NET 8 提供通用 MCAP 文件操作；payload 编码和时钟语义由应用定义。</p>
-<ol>
+<h2 id="入门与使用">入门与使用</h2>
+<ul>
 <li><a href="usage.html">使用任务与可运行示例</a>：写入、验证和读取第一个文件。</li>
-<li><a href="api.html">API 契约</a>：选择复制、借用、lease、顺序扫描或索引查询，并了解完成、释放、失败及分配保证。</li>
+<li><a href="api.html">API 契约</a>：选择<a href="api.html#%E9%80%89%E6%8B%A9%E6%B6%88%E6%81%AF%E6%89%80%E6%9C%89%E6%9D%83">消息所有权</a>和<a href="api.html#%E9%80%89%E6%8B%A9%E8%AE%BF%E9%97%AE%E6%A8%A1%E5%BC%8F">访问模式</a>，然后了解完成、释放、失败及分配保证。</li>
+</ul>
+<h2 id="开发与内部实现">开发与内部实现</h2>
+<ul>
 <li><a href="development.html">开发指南</a>：构建并验证当前源码或完整包。</li>
-<li><a href="documentation.html">文档维护</a>和<a href="release.html">发布 SOP</a>：构建、归档和发布文档。</li>
-</ol>
-<p>维护者还可查阅<a href="native.html">原生 ABI</a>、<a href="coverage.html">上游覆盖</a>和<a href="patches.html">本地补丁边界</a>。两种语言共用英文生成式 API 参考，通过站点导航访问。</p>
+<li><a href="native.html">原生 ABI</a>：原生互操作与内存边界。</li>
+<li><a href="coverage.html">上游覆盖</a>：与官方 Rust API 的对应关系。</li>
+<li><a href="patches.html">本地补丁</a>：允许的扩展及其证据。</li>
+</ul>
+<h2 id="文档维护">文档维护</h2>
+<p>两种语言的指南共用站点导航中的英文生成式 <strong>API reference (English)</strong>。成员契约查阅 API 参考，跨 API 行为查阅指南。</p>
+<p>使用<a href="documentation.html">文档维护</a>构建站点并维护翻译，按照<a href="release.html">发布 SOP</a>归档和发布文档。</p>
 
 </article>
 
@@ -118,5 +128,5 @@
         </div>
       </div>
     </footer>
-  <script src="../../version.js" data-doc-root="../../"></script></body>
+  </body>
 </html>

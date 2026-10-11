@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -90,7 +92,7 @@
 <p><a href="../native.html">English</a> | 简体中文</p>
 <p>.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。<a href="../../native/src/lib.rs">lib.rs</a> 负责共享 ABI／错误边界，<a href="../../native/src/reader.rs">reader.rs</a> 和 <a href="../../native/src/writer.rs">writer.rs</a> 实现会话操作，<a href="../../native/src/io.rs">io.rs</a> 实现文件/Stream I/O，托管声明见 <a href="../../src/Native.cs">Native.cs</a> 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。</p>
 <h2 id="abi-契约">ABI 契约</h2>
-<p><code>fm_abi_version()</code> 返回 16，托管构造函数拒绝不匹配，包括不支持索引自有记录 sink 交付的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。</p>
+<p><code>fm_abi_version()</code> 返回 18，托管构造函数拒绝不匹配，包括不支持明确 feed 回应种类和 reader 创建执行信息的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。</p>
 <table>
 <thead>
 <tr>
@@ -158,7 +160,7 @@
 <p><code>fm_channel_prepare/release</code> 保存不可变 Channel／Schema 快照。<code>fm_writer_full_message</code> 使用该描述符与同步借用 payload 调用官方写入。<code>fm_operation_prepare/release</code> 保存冷路径解析后的控制信息；<code>fm_writer_prepared</code> 复用描述符，避免重复托管序列化。<code>fm_writer_private</code> 接收标量标志和 Span。</p>
 <p><code>fm_engine_open/next/feed/release</code> 封装官方线性、摘要和索引 Sans-I/O 状态。事件为 56 字节：u32 kind、u32 opcode、u64 length、u64 offset、u32 seek origin、u32 reserved、24 字节消息头。kind 0–5 对应 End、Read、Seek、Record、Message、ReadChunk；Current/End 定位偏移保留有符号补码。输入请求等待供给，记录/消息在缓冲不足时保持待取。<code>fm_engine_index_control</code> 支持索引插入及长度限制更新；<code>fm_engine_summary</code> 和 <code>fm_summary_records</code> 输出自有摘要或原生记录游标。</p>
 <p><code>fm_buffer_reader_*</code> 拥有输入副本和配置匹配官方切片入口的 Sans-I/O 解析器，推进时只保留一条待交付记录及已遇到声明，不跨调用保留借用迭代器。由于上游 for_chunk 私有，Chunk 适配器通过公开解析器输入合成记录前缀。<code>fm_snapshot_*</code> 保存输入副本或映射及官方摘要，随机消息读取通过私有句柄保留共享完整 chunk 存储。<code>fm_snapshot_call</code> 同步接收标准 MCAP 索引记录体的指针/长度，以及消息索引的 LogTime 和 offset 两个标量；解析传入索引，不在摘要中查找替代索引。托管桥接使用有界栈缓冲或临时非托管内存编码索引，包括 UTF-8 字符串和通道偏移映射。<code>fm_reader_record_into</code>、<code>fm_parse_record</code>、<code>fm_footer</code>、<code>fm_chunk_offset</code> 提供缓冲区或标量操作。<code>fm_snapshot_chunk_reader</code> 新增独立惰性 Chunk 游标，共享不可变原生输入与摘要，快照释放不影响已创建游标。Reader open 状态 3 表示禁止所需缓存排序，映射为 <code>NotSupportedException</code>。句柄均由私有 SafeHandle 管理，游标成功读取不分配响应缓冲。</p>
-<p>异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。</p>
+<p>异步读取由 .NET ReadAsync 驱动线性引擎，通过 MemoryManager 将原生解析器存储暴露为 <code>Memory&lt;byte&gt;</code>，直接写入该存储。Memory 包装不会使底层存储变成托管内存；在途 I/O 完成且其 ValueTask 被消费之前，解析器及其输入存储必须保持存活，不得推进或释放。复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。</p>
 <p><code>fm_engine_describe</code> 复制 lease 读取已遇到的 schema（kind 1）或已解析 channel（kind 2），不推进引擎，也不因查询未知 ID 而终止引擎。托管 async owner 将查询与读取串行协调，并要求先消费在途 ValueTask。不可变托管描述按需缓存，独立于 parser 的释放。</p>
 <h2 id="稳定存储与批次">稳定存储与批次</h2>
 <p>公共交付方式及调用方责任见 <a href="api.html#%E9%80%89%E6%8B%A9%E6%B6%88%E6%81%AF%E6%89%80%E6%9C%89%E6%9D%83">API 指南</a>。内部共享范围持有引用计数 backing；释放 reader 或淘汰缓存条目只释放该 owner 的引用。Backing 的最终释放取决于所有引用它的 parser、游标、snapshot 和 lease。这些生命周期保证不构成保留容量上限。</p>
@@ -170,6 +172,8 @@
 <p>同步线性 feeding 通过 try_insert 预留 parser 当前完整需求，每次最多向该存储读取 64 KiB。顺序 Stream 读取、摘要回退扫描及验证复用同一 helper。异步直接填充也预留完整需求，只暴露所选 I/O 传输区间。异步 lease 交付采用可复用的显式状态机和缓存的 I/O continuation；仍允许 lease 结果及控制对象分配。非空批次仍在下一次输入请求时返回。</p>
 <p>回退排序使用绑定层 arena，保存 header、文件序号和共享范围。固定大小的待处理组跟踪连续 owned backing 的身份与选中字节，不建立全文件 owner 字典。组结束时，可将稀疏选中数据一次复制到按消息划分的不可变段，再发布结果；映射及其他外部 owner 不紧凑化。<code>SharedBytes::shares_backing</code> 是本地只读所有权查询，紧凑化决策和分配仍在绑定层执行。现有逻辑排序检查不变，新旧存储重叠不计入该额度。失败终止构造，不发布部分会话；ABI 不变。</p>
 <p>官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于<a href="patches.html">本地补丁</a>。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。</p>
+<p><code>fm_reader_message_record</code> 与 payload 交付共享待处理状态；<code>fm_buffer_reader_configured</code> 为复制／映射输入传递解析选项及验证范围，<code>fm_buffer_reader_schema/state</code> 查询声明和扫描状态。完整摘要 JSON 包含 schema/channel 映射；channel 使用 schema ID 引用，私有 schemaDependencies 为摘要中未重复的 schema 提供数据段声明，不改变公开 Schemas 映射。异步展开交付在发布前验证记录体及引用；原始 Sans-I/O 线性事件不解析记录体。</p>
+<p>Reader 创建成功时，Response.value 表示实际执行路径：0 顺序、1 索引、2 缓存排序。托管层据此在推进前确定不可变的验证能力。<code>fm_engine_feed</code> 签名为 <code>(handle, u32 response_kind, data, length, position, response)</code>；回应种类 1（Read）或 2（Seek）必须匹配待处理事件，Seek 不接收数据。索引输入通过 InsertChunk 控制提交，必须匹配请求的压缩数据偏移和完整长度。公开定位请求直接表达无符号绝对位置或有符号相对偏移，不暴露 ABI 补码编码。</p>
 
 </article>
 
@@ -192,5 +196,5 @@
         </div>
       </div>
     </footer>
-  <script src="../../version.js" data-doc-root="../../"></script></body>
+  </body>
 </html>

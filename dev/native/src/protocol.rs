@@ -82,3 +82,9 @@ pub(crate) mod buffer_mode {
     pub const RAW_MESSAGES: u32 = 4;
     pub const MESSAGES: u32 = 5;
 }
+
+pub(crate) mod reader_execution {
+    pub const SEQUENTIAL: u32 = 0;
+    pub const INDEXED: u32 = 1;
+    pub const SORTED: u32 = 2;
+}

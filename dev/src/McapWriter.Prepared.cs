@@ -39,7 +39,7 @@ public sealed partial class McapWriter
 public sealed partial class McapWriter
 {
     /// <summary>Runs the prepared operation synchronously; returns the registered ID for schema/channel operations, otherwise null. Channel ID zero is a successful registration result. Payload is consumed only by Attachment. Schema uses the bytes copied when prepared; other operations reject nonempty payload before invoking native code. StartAttachment declares the length but consumes no body; follow with WriteAttachmentBytes and FinishAttachment. Writer failure and audited rejection rules still apply.</summary>
-    public unsafe ushort? WritePrepared(McapPreparedOperation operation, ReadOnlySpan<byte> payload = default)
+    unsafe ushort? ExecutePrepared(PreparedWrite operation, ReadOnlySpan<byte> payload = default)
     {
         ArgumentNullException.ThrowIfNull(operation);
         if (operation.Operation != Protocol.WriterOperation.Attachment && !payload.IsEmpty)

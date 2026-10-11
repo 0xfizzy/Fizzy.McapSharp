@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -149,8 +151,8 @@ Class McapMessage
 
   <a id="Fizzy_McapSharp_McapMessage__ctor_" data-uid="Fizzy.McapSharp.McapMessage.#ctor*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapMessage__ctor_Fizzy_McapSharp_McapChannel_System_UInt64_System_UInt64_System_UInt32_System_Byte___" data-uid="Fizzy.McapSharp.McapMessage.#ctor(Fizzy.McapSharp.McapChannel,System.UInt64,System.UInt64,System.UInt32,System.Byte[])">
-  McapMessage(McapChannel, ulong, ulong, uint, byte[])
+  <h3 id="Fizzy_McapSharp_McapMessage__ctor_Fizzy_McapSharp_McapChannel_System_UInt32_System_UInt64_System_UInt64_System_Byte___" data-uid="Fizzy.McapSharp.McapMessage.#ctor(Fizzy.McapSharp.McapChannel,System.UInt32,System.UInt64,System.UInt64,System.Byte[])">
+  McapMessage(McapChannel, uint, ulong, ulong, byte[])
   
   </h3>
 
@@ -159,18 +161,18 @@ Class McapMessage
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public McapMessage(McapChannel Channel, ulong LogTime, ulong PublishTime, uint Sequence, byte[] Data)</code></pre>
+    <pre><code class="lang-csharp hljs">public McapMessage(McapChannel Channel, uint Sequence, ulong LogTime, ulong PublishTime, byte[] Data)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>Channel</code> <a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a></dt>
     <dd></dd>
+    <dt><code>Sequence</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint32">uint</a></dt>
+    <dd></dd>
     <dt><code>LogTime</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
     <dd></dd>
     <dt><code>PublishTime</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
-    <dd></dd>
-    <dt><code>Sequence</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint32">uint</a></dt>
     <dd></dd>
     <dt><code>Data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>[]</dt>
     <dd></dd>
@@ -352,8 +354,8 @@ Class McapMessage
 
   <a id="Fizzy_McapSharp_McapMessage_Deconstruct_" data-uid="Fizzy.McapSharp.McapMessage.Deconstruct*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapMessage_Deconstruct_Fizzy_McapSharp_McapChannel__System_UInt64__System_UInt64__System_UInt32__System_Byte____" data-uid="Fizzy.McapSharp.McapMessage.Deconstruct(Fizzy.McapSharp.McapChannel@,System.UInt64@,System.UInt64@,System.UInt32@,System.Byte[]@)">
-  Deconstruct(out McapChannel, out ulong, out ulong, out uint, out byte[])
+  <h3 id="Fizzy_McapSharp_McapMessage_Deconstruct_Fizzy_McapSharp_McapChannel__System_UInt32__System_UInt64__System_UInt64__System_Byte____" data-uid="Fizzy.McapSharp.McapMessage.Deconstruct(Fizzy.McapSharp.McapChannel@,System.UInt32@,System.UInt64@,System.UInt64@,System.Byte[]@)">
+  Deconstruct(out McapChannel, out uint, out ulong, out ulong, out byte[])
   
   </h3>
 
@@ -361,18 +363,18 @@ Class McapMessage
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public void Deconstruct(out McapChannel Channel, out ulong LogTime, out ulong PublishTime, out uint Sequence, out byte[] Data)</code></pre>
+    <pre><code class="lang-csharp hljs">public void Deconstruct(out McapChannel Channel, out uint Sequence, out ulong LogTime, out ulong PublishTime, out byte[] Data)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>Channel</code> <a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a></dt>
     <dd></dd>
+    <dt><code>Sequence</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint32">uint</a></dt>
+    <dd></dd>
     <dt><code>LogTime</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
     <dd></dd>
     <dt><code>PublishTime</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
-    <dd></dd>
-    <dt><code>Sequence</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint32">uint</a></dt>
     <dd></dd>
     <dt><code>Data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>[]</dt>
     <dd></dd>
@@ -624,5 +626,5 @@ Class McapMessage
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

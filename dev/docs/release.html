@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -141,5 +143,5 @@ git -C &lt;source-worktree&gt; push -u origin HEAD
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

@@ -15,10 +15,21 @@ public enum McapReadStatus
 public sealed record McapRecoveryResult(ulong RecoveredMessageCount, bool IsFullyValidated, McapException? Error);
 
 /// <summary>Whether sequential record scans expose chunks or expand their contents.</summary>
-public enum McapRecordMode
+internal enum RecordMode
 {
     /// <summary>Returns top-level records, including compressed chunk records without expansion.</summary>
     TopLevel,
     /// <summary>Expands chunks into their contained records.</summary>
     ExpandChunks
+}
+
+/// <summary>Creation-time validation scope, independent of current progress, failure or disposal.</summary>
+public enum McapValidationCapability
+{
+    /// <summary>Indexed, sorted, chunk-local or otherwise partial input cannot establish full-file validation.</summary>
+    PartialInput,
+    /// <summary>A complete expanded sequential scan without all strict integrity checks.</summary>
+    FullScan,
+    /// <summary>A complete expanded sequential scan configured with all strict integrity checks from its start.</summary>
+    StrictFullScan
 }

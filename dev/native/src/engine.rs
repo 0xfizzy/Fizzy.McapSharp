@@ -59,6 +59,10 @@ pub unsafe extern "C" fn fm_engine_index_control(
         };
         match op {
             crate::protocol::indexed_control::INSERT_CHUNK => {
+                if !h.waiting || h.event.kind != crate::protocol::engine_event::READ_CHUNK
+                    || h.event.offset != value || h.event.length != n as u64 {
+                    return Err("Chunk input must match the pending offset and complete length".into());
+                }
                 r.insert_chunk_record_data(value, bytes(data, n)?)?;
                 if h.waiting && h.event.kind == crate::protocol::engine_event::READ_CHUNK && h.event.offset == value {
                     h.waiting = false;
@@ -84,6 +88,8 @@ pub struct EngineHandle {
     lease_batch: Option<lease::Batch>,
     schemas: BTreeMap<u16, Arc<mcap::Schema<'static>>>,
     channels: BTreeMap<u16, Arc<mcap::Channel<'static>>>,
+    validate_records: bool,
+    expanded: bool,
     engine: Engine,
     event: Event,
     delivery: memory::Delivery,
@@ -197,6 +203,8 @@ pub unsafe extern "C" fn fm_engine_open(
             lease_batch: None,
             schemas: Default::default(),
             channels: Default::default(),
+            validate_records: v["ValidateRecords"].as_bool().unwrap_or(false),
+            expanded: !v["EmitChunks"].as_bool().unwrap_or(false),
             engine,
             event: Event::default(),
             delivery: memory::Delivery::default(),
@@ -241,6 +249,17 @@ pub unsafe extern "C" fn fm_engine_next(
                         data: shared,
                     }) => {
                         let data = shared.as_ref();
+                        if h.validate_records {
+                            let record = mcap::parse_record(opcode, data)?;
+                            if h.expanded {
+                                if let records::Record::Message { header, .. } = &record {
+                                    if !h.channels.contains_key(&header.channel_id) {
+                                        return Err(mcap::McapError::UnknownChannel(header.sequence, header.channel_id).into());
+                                    }
+                                }
+                                buffer_reader::BufferReader::observe(&mut h.schemas, &mut h.channels, record, &mut h.delivery)?;
+                            }
+                        }
                         h.delivery.shared = Some(shared.clone());
                         h.event.kind = crate::protocol::engine_event::RECORD;
                         h.event.opcode = opcode as u32;
@@ -338,6 +357,7 @@ pub unsafe extern "C" fn fm_engine_next(
 #[no_mangle]
 pub unsafe extern "C" fn fm_engine_feed(
     p: *mut EngineHandle,
+    response_kind: u32,
     data: *const u8,
     n: usize,
     position: u64,
@@ -347,6 +367,12 @@ pub unsafe extern "C" fn fm_engine_feed(
         let h = p.as_mut().ok_or("Null engine")?;
         if h.failed || !h.waiting {
             return Err("No pending input request".into());
+        }
+        if response_kind != h.event.kind || !matches!(response_kind, crate::protocol::engine_event::READ | crate::protocol::engine_event::SEEK) {
+            return Err("Unexpected input response kind".into());
+        }
+        if response_kind == crate::protocol::engine_event::SEEK && n != 0 {
+            return Err("Seek response must not contain bytes".into());
         }
         let data = bytes(data, n)?;
         match (&mut h.engine, h.event.kind) {
@@ -365,7 +391,6 @@ pub unsafe extern "C" fn fm_engine_feed(
                 r.notify_read(n);
             }
             (Engine::Summary(Some(r)), crate::protocol::engine_event::SEEK) => r.notify_seeked(position),
-            (Engine::Indexed(r), crate::protocol::engine_event::READ_CHUNK) => r.insert_chunk_record_data(position, data)?,
             _ => return Err("Unexpected input".into()),
         }
         h.waiting = false;

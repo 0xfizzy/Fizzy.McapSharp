@@ -68,6 +68,8 @@ pub struct BufferReader {
     schemas: BTreeMap<u16, Arc<mcap::Schema<'static>>>,
     channels: BTreeMap<u16, Arc<mcap::Channel<'static>>>,
     failed: bool,
+    validate_declarations: bool,
+    scanned_records: u64,
 }
 impl BufferReader {
     fn empty() -> Self {
@@ -85,6 +87,8 @@ impl BufferReader {
             schemas: BTreeMap::new(),
             channels: BTreeMap::new(),
             failed: false,
+            validate_declarations: false,
+            scanned_records: 0,
         }
     }
     pub(super) fn observe(
@@ -278,48 +282,28 @@ impl BufferReader {
                 }) => {
                     let data = shared.as_ref();
                     let record = mcap::parse_record(opcode, data)?;
-                    if self.mode >= crate::protocol::buffer_mode::RAW_MESSAGES {
-                        if !matches!(record, records::Record::Message { .. }) {
-                            if self.summary.is_none() {
-                                Self::observe(
-                                    &mut self.schemas,
-                                    &mut self.channels,
-                                    record,
-                                    &mut self.delivery,
-                                )?;
-                            }
-                            continue;
-                        }
-                        let records::Record::Message { header, .. } = &record else {
-                            unreachable!()
-                        };
-                        if self.mode != crate::protocol::buffer_mode::RAW_MESSAGES
-                            && !self
-                                .summary
-                                .as_ref()
+                    self.scanned_records += 1;
+                    let message_mode = self.mode >= crate::protocol::buffer_mode::RAW_MESSAGES;
+                    if let records::Record::Message { header, .. } = &record {
+                        if (self.validate_declarations || self.mode == crate::protocol::buffer_mode::MESSAGES)
+                            && !self.summary.as_ref()
                                 .map(|s| s.channels.contains_key(&header.channel_id))
                                 .unwrap_or_else(|| self.channels.contains_key(&header.channel_id))
                         {
-                            return Err(mcap::McapError::UnknownChannel(
-                                header.sequence,
-                                header.channel_id,
-                            )
-                            .into());
+                            return Err(mcap::McapError::UnknownChannel(header.sequence, header.channel_id).into());
                         }
+                        self.delivery.header = native_header(header);
+                    } else {
+                        if (self.validate_declarations || message_mode) && self.summary.is_none() {
+                            Self::observe(&mut self.schemas, &mut self.channels, record, &mut self.delivery)?;
+                        }
+                        if message_mode { continue; }
                     }
                     self.delivery.opcode = opcode;
-                    if let records::Record::Message { header, .. } = &record {
-                        self.delivery.header = native_header(header);
-                    }
                     let payload = if message {
-                        let records::Record::Message { header, data } = &record else {
-                            return Err("Message reader required".into());
-                        };
-                        self.delivery.header = native_header(header);
-                        data.as_ref()
-                    } else {
-                        data
-                    };
+                        if opcode != records::op::MESSAGE { return Err("Message reader required".into()); }
+                        &data[22..]
+                    } else { data };
                     out.value = payload.len() as u64;
                     self.delivery.shared = Some(shared.clone());
                     if self.delivery.capture {
@@ -531,6 +515,42 @@ fn open_backing(data: memory::Backing, mode: u32, ignore_end: bool) -> Outcome<B
     };
     Ok(h)
 }
+
+fn open_configured(data: memory::Backing, mode: u32, config: &serde_json::Value) -> Outcome<BufferReader> {
+    if mode == crate::protocol::buffer_mode::CHUNK {
+        return open_backing(data, mode, false);
+    }
+    if !matches!(mode, crate::protocol::buffer_mode::LINEAR | crate::protocol::buffer_mode::FLATTEN_CHUNKS | crate::protocol::buffer_mode::RAW_MESSAGES | crate::protocol::buffer_mode::MESSAGES) {
+        return Err("Unknown configured reader mode".into());
+    }
+    let mut options = super::engine::linear_options(config)?;
+    options.emit_chunks = mode == crate::protocol::buffer_mode::LINEAR;
+    let end = data.len();
+    Ok(BufferReader {
+        input: Arc::new(data), end, mode,
+        parser: Some(sans_io::LinearReader::new_with_options(options)),
+        validate_declarations: mode == crate::protocol::buffer_mode::FLATTEN_CHUNKS,
+        ..BufferReader::empty()
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn fm_buffer_reader_configured(
+    config: *const u8, config_len: usize, p: *const u8, n: usize,
+    handle: *mut *mut BufferReader, out: *mut Response,
+) -> i32 {
+    guard(out, |_| {
+        if handle.is_null() { return Err("Null output".into()); }
+        *handle = ptr::null_mut();
+        let v = request(config, config_len)?;
+        let mode = u32::try_from(v["mode"].as_u64().ok_or("Invalid mode")?)?;
+        let input = if let Some(path) = v["path"].as_str() {
+            memory::Backing::open(path)?
+        } else { memory::Backing::copy(bytes(p, n)?)? };
+        *handle = Box::into_raw(Box::new(open_configured(input, mode, &v["options"])?));
+        Ok(crate::protocol::status::SUCCESS)
+    })
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_reader_mapped(
     config: *const u8,
@@ -910,4 +930,28 @@ mod lazy_tests {
             fm_buffer_reader_free(h);
         }
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_buffer_reader_state(p: *const BufferReader, out: *mut Response) -> i32 {
+    guard(out, |out| {
+        let h = p.as_ref().ok_or("Null reader")?;
+        if !h.failed && h.parser.is_none() && !h.summary_only {
+            out.value = h.scanned_records;
+            Ok(crate::protocol::status::END)
+        } else { Ok(crate::protocol::status::SUCCESS) }
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fm_buffer_reader_schema(p: *const BufferReader, id: u16, out: *mut Response) -> i32 {
+    guard(out, |out| {
+        let h = p.as_ref().ok_or("Null reader")?;
+        if h.failed { return Err("Reader failed".into()); }
+        let schema = h.summary.as_ref().and_then(|s| s.schemas.get(&id))
+            .or_else(|| h.schemas.get(&id))
+            .ok_or_else(|| mcap::McapError::UnknownSchema(String::new(), id))?;
+        respond(out, serde_json::to_vec(&json!({"id": schema.id, "name": schema.name, "encoding": schema.encoding}))?, schema.data.to_vec(), 0);
+        Ok(crate::protocol::status::SUCCESS)
+    })
 }

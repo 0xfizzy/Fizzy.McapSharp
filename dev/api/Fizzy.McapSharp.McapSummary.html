@@ -6,7 +6,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class McapSummary | Fizzy.McapSharp ">
       
-      <meta name="description" content="Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Size grows with file indexes and declarations.">
+      <meta name="description" content="Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Contains complete schema/channel declarations, with shared schema references inside one result. Separate results are independent. Arrays and collections retain ordinary .NET equality semantics. Size grows with file indexes and declarations.">
       <link rel="icon" href="../favicon.ico">
       <link rel="stylesheet" href="../public/docfx.min.css">
       <link rel="stylesheet" href="../public/main.css">
@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -97,7 +99,7 @@ Class McapSummary
   <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
   </div>
 
-  <div class="markdown summary"><p>Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Size grows with file indexes and declarations.</p>
+  <div class="markdown summary"><p>Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Contains complete schema/channel declarations, with shared schema references inside one result. Separate results are independent. Arrays and collections retain ordinary .NET equality semantics. Size grows with file indexes and declarations.</p>
 </div>
   <div class="markdown conceptual"></div>
 
@@ -149,17 +151,17 @@ Class McapSummary
 
   <a id="Fizzy_McapSharp_McapSummary__ctor_" data-uid="Fizzy.McapSharp.McapSummary.#ctor*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapSummary__ctor_Fizzy_McapSharp_McapStatistics_System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapChunkIndex__System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapAttachmentIndex__System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapMetadataIndex__System_Collections_Generic_IReadOnlyList_System_UInt16__System_Collections_Generic_IReadOnlyList_System_UInt16__" data-uid="Fizzy.McapSharp.McapSummary.#ctor(Fizzy.McapSharp.McapStatistics,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapChunkIndex},System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapAttachmentIndex},System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapMetadataIndex},System.Collections.Generic.IReadOnlyList{System.UInt16},System.Collections.Generic.IReadOnlyList{System.UInt16})">
-  McapSummary(McapStatistics?, IReadOnlyList&lt;McapChunkIndex&gt;, IReadOnlyList&lt;McapAttachmentIndex&gt;, IReadOnlyList&lt;McapMetadataIndex&gt;, IReadOnlyList&lt;ushort&gt;, IReadOnlyList&lt;ushort&gt;)
+  <h3 id="Fizzy_McapSharp_McapSummary__ctor_Fizzy_McapSharp_McapStatistics_System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapChunkIndex__System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapAttachmentIndex__System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapMetadataIndex__System_Collections_Generic_IReadOnlyDictionary_System_UInt16_Fizzy_McapSharp_McapSchema__System_Collections_Generic_IReadOnlyDictionary_System_UInt16_Fizzy_McapSharp_McapChannel__" data-uid="Fizzy.McapSharp.McapSummary.#ctor(Fizzy.McapSharp.McapStatistics,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapChunkIndex},System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapAttachmentIndex},System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapMetadataIndex},System.Collections.Generic.IReadOnlyDictionary{System.UInt16,Fizzy.McapSharp.McapSchema},System.Collections.Generic.IReadOnlyDictionary{System.UInt16,Fizzy.McapSharp.McapChannel})">
+  McapSummary(McapStatistics?, IReadOnlyList&lt;McapChunkIndex&gt;, IReadOnlyList&lt;McapAttachmentIndex&gt;, IReadOnlyList&lt;McapMetadataIndex&gt;, IReadOnlyDictionary&lt;ushort, McapSchema&gt;, IReadOnlyDictionary&lt;ushort, McapChannel&gt;)
   
   </h3>
 
-  <div class="markdown level1 summary"><p>Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Size grows with file indexes and declarations.</p>
+  <div class="markdown level1 summary"><p>Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Contains complete schema/channel declarations, with shared schema references inside one result. Separate results are independent. Arrays and collections retain ordinary .NET equality semantics. Size grows with file indexes and declarations.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public McapSummary(McapStatistics? Statistics, IReadOnlyList&lt;McapChunkIndex&gt; ChunkIndexes, IReadOnlyList&lt;McapAttachmentIndex&gt; AttachmentIndexes, IReadOnlyList&lt;McapMetadataIndex&gt; MetadataIndexes, IReadOnlyList&lt;ushort&gt; SchemaIds, IReadOnlyList&lt;ushort&gt; ChannelIds)</code></pre>
+    <pre><code class="lang-csharp hljs">public McapSummary(McapStatistics? Statistics, IReadOnlyList&lt;McapChunkIndex&gt; ChunkIndexes, IReadOnlyList&lt;McapAttachmentIndex&gt; AttachmentIndexes, IReadOnlyList&lt;McapMetadataIndex&gt; MetadataIndexes, IReadOnlyDictionary&lt;ushort, McapSchema&gt; Schemas, IReadOnlyDictionary&lt;ushort, McapChannel&gt; Channels)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -172,9 +174,9 @@ Class McapSummary
     <dd></dd>
     <dt><code>MetadataIndexes</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMetadataIndex.html">McapMetadataIndex</a>&gt;</dt>
     <dd></dd>
-    <dt><code>SchemaIds</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>&gt;</dt>
+    <dt><code>Schemas</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>, <a class="xref" href="Fizzy.McapSharp.McapSchema.html">McapSchema</a>&gt;</dt>
     <dd></dd>
-    <dt><code>ChannelIds</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>&gt;</dt>
+    <dt><code>Channels</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>, <a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a>&gt;</dt>
     <dd></dd>
   </dl>
 
@@ -224,10 +226,10 @@ Class McapSummary
 
 
 
-  <a id="Fizzy_McapSharp_McapSummary_ChannelIds_" data-uid="Fizzy.McapSharp.McapSummary.ChannelIds*"></a>
+  <a id="Fizzy_McapSharp_McapSummary_Channels_" data-uid="Fizzy.McapSharp.McapSummary.Channels*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapSummary_ChannelIds" data-uid="Fizzy.McapSharp.McapSummary.ChannelIds">
-  ChannelIds
+  <h3 id="Fizzy_McapSharp_McapSummary_Channels" data-uid="Fizzy.McapSharp.McapSummary.Channels">
+  Channels
   
   </h3>
 
@@ -235,7 +237,7 @@ Class McapSummary
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;ushort&gt; ChannelIds { get; init; }</code></pre>
+    <pre><code class="lang-csharp hljs">public IReadOnlyDictionary&lt;ushort, McapChannel&gt; Channels { get; init; }</code></pre>
   </div>
 
 
@@ -244,7 +246,7 @@ Class McapSummary
 
   <h4 class="section">Property Value</h4>
   <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>&gt;</dt>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>, <a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a>&gt;</dt>
     <dd></dd>
   </dl>
 
@@ -317,10 +319,10 @@ Class McapSummary
 
 
 
-  <a id="Fizzy_McapSharp_McapSummary_SchemaIds_" data-uid="Fizzy.McapSharp.McapSummary.SchemaIds*"></a>
+  <a id="Fizzy_McapSharp_McapSummary_Schemas_" data-uid="Fizzy.McapSharp.McapSummary.Schemas*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapSummary_SchemaIds" data-uid="Fizzy.McapSharp.McapSummary.SchemaIds">
-  SchemaIds
+  <h3 id="Fizzy_McapSharp_McapSummary_Schemas" data-uid="Fizzy.McapSharp.McapSummary.Schemas">
+  Schemas
   
   </h3>
 
@@ -328,7 +330,7 @@ Class McapSummary
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;ushort&gt; SchemaIds { get; init; }</code></pre>
+    <pre><code class="lang-csharp hljs">public IReadOnlyDictionary&lt;ushort, McapSchema&gt; Schemas { get; init; }</code></pre>
   </div>
 
 
@@ -337,7 +339,7 @@ Class McapSummary
 
   <h4 class="section">Property Value</h4>
   <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>&gt;</dt>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>, <a class="xref" href="Fizzy.McapSharp.McapSchema.html">McapSchema</a>&gt;</dt>
     <dd></dd>
   </dl>
 
@@ -385,8 +387,8 @@ Class McapSummary
 
   <a id="Fizzy_McapSharp_McapSummary_Deconstruct_" data-uid="Fizzy.McapSharp.McapSummary.Deconstruct*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapSummary_Deconstruct_Fizzy_McapSharp_McapStatistics__System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapChunkIndex___System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapAttachmentIndex___System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapMetadataIndex___System_Collections_Generic_IReadOnlyList_System_UInt16___System_Collections_Generic_IReadOnlyList_System_UInt16___" data-uid="Fizzy.McapSharp.McapSummary.Deconstruct(Fizzy.McapSharp.McapStatistics@,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapChunkIndex}@,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapAttachmentIndex}@,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapMetadataIndex}@,System.Collections.Generic.IReadOnlyList{System.UInt16}@,System.Collections.Generic.IReadOnlyList{System.UInt16}@)">
-  Deconstruct(out McapStatistics?, out IReadOnlyList&lt;McapChunkIndex&gt;, out IReadOnlyList&lt;McapAttachmentIndex&gt;, out IReadOnlyList&lt;McapMetadataIndex&gt;, out IReadOnlyList&lt;ushort&gt;, out IReadOnlyList&lt;ushort&gt;)
+  <h3 id="Fizzy_McapSharp_McapSummary_Deconstruct_Fizzy_McapSharp_McapStatistics__System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapChunkIndex___System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapAttachmentIndex___System_Collections_Generic_IReadOnlyList_Fizzy_McapSharp_McapMetadataIndex___System_Collections_Generic_IReadOnlyDictionary_System_UInt16_Fizzy_McapSharp_McapSchema___System_Collections_Generic_IReadOnlyDictionary_System_UInt16_Fizzy_McapSharp_McapChannel___" data-uid="Fizzy.McapSharp.McapSummary.Deconstruct(Fizzy.McapSharp.McapStatistics@,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapChunkIndex}@,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapAttachmentIndex}@,System.Collections.Generic.IReadOnlyList{Fizzy.McapSharp.McapMetadataIndex}@,System.Collections.Generic.IReadOnlyDictionary{System.UInt16,Fizzy.McapSharp.McapSchema}@,System.Collections.Generic.IReadOnlyDictionary{System.UInt16,Fizzy.McapSharp.McapChannel}@)">
+  Deconstruct(out McapStatistics?, out IReadOnlyList&lt;McapChunkIndex&gt;, out IReadOnlyList&lt;McapAttachmentIndex&gt;, out IReadOnlyList&lt;McapMetadataIndex&gt;, out IReadOnlyDictionary&lt;ushort, McapSchema&gt;, out IReadOnlyDictionary&lt;ushort, McapChannel&gt;)
   
   </h3>
 
@@ -394,7 +396,7 @@ Class McapSummary
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public void Deconstruct(out McapStatistics? Statistics, out IReadOnlyList&lt;McapChunkIndex&gt; ChunkIndexes, out IReadOnlyList&lt;McapAttachmentIndex&gt; AttachmentIndexes, out IReadOnlyList&lt;McapMetadataIndex&gt; MetadataIndexes, out IReadOnlyList&lt;ushort&gt; SchemaIds, out IReadOnlyList&lt;ushort&gt; ChannelIds)</code></pre>
+    <pre><code class="lang-csharp hljs">public void Deconstruct(out McapStatistics? Statistics, out IReadOnlyList&lt;McapChunkIndex&gt; ChunkIndexes, out IReadOnlyList&lt;McapAttachmentIndex&gt; AttachmentIndexes, out IReadOnlyList&lt;McapMetadataIndex&gt; MetadataIndexes, out IReadOnlyDictionary&lt;ushort, McapSchema&gt; Schemas, out IReadOnlyDictionary&lt;ushort, McapChannel&gt; Channels)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -407,9 +409,9 @@ Class McapSummary
     <dd></dd>
     <dt><code>MetadataIndexes</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMetadataIndex.html">McapMetadataIndex</a>&gt;</dt>
     <dd></dd>
-    <dt><code>SchemaIds</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>&gt;</dt>
+    <dt><code>Schemas</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>, <a class="xref" href="Fizzy.McapSharp.McapSchema.html">McapSchema</a>&gt;</dt>
     <dd></dd>
-    <dt><code>ChannelIds</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>&gt;</dt>
+    <dt><code>Channels</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>, <a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a>&gt;</dt>
     <dd></dd>
   </dl>
 
@@ -659,5 +661,5 @@ Class McapSummary
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

@@ -1,12 +1,12 @@
 {
   "version": "0.1.0",
   "channel": "dev",
-  "release_commit": "c60ab349eb914298e18cf107fe39972e22f51074",
-  "docs_commit": "c60ab349eb914298e18cf107fe39972e22f51074",
+  "release_commit": "de4769630600c7c1bd027121a38418b5aea2cc7e",
+  "docs_commit": "de4769630600c7c1bd027121a38418b5aea2cc7e",
   "tools": {
     "dotnet": "10.0.401",
     "docfx": "2.78.3"
   },
-  "run_id": "38076106617",
-  "content_sha256": "4b54132e34b8f9a0db2667f37e4f95185a24f521d7ab9ed9f037d1ee4b2de9e7"
+  "run_id": "38129048391",
+  "content_sha256": "64709c748ba7fd56dc43b621ff5f20d631e07883d01904b3dab5e7df1fd9abdd"
 }

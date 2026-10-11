@@ -6,7 +6,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class McapReaderOptions | Fizzy.McapSharp ">
       
-      <meta name="description" content="Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded McapReadSession scan provides full-file validation. Adapter-specific validation scopes are described by Strict.">
+      <meta name="description" content="Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded synchronous scan provides full-file validation. High-level body and declaration checks do not depend on this preset.">
       <link rel="icon" href="../favicon.ico">
       <link rel="stylesheet" href="../public/docfx.min.css">
       <link rel="stylesheet" href="../public/main.css">
@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -97,7 +99,7 @@ Class McapReaderOptions
   <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
   </div>
 
-  <div class="markdown summary"><p>Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded McapReadSession scan provides full-file validation. Adapter-specific validation scopes are described by Strict.</p>
+  <div class="markdown summary"><p>Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded synchronous scan provides full-file validation. High-level body and declaration checks do not depend on this preset.</p>
 </div>
   <div class="markdown conceptual"></div>
 
@@ -216,7 +218,7 @@ Class McapReaderOptions
   
   </h3>
 
-  <div class="markdown level1 summary"><p>Emits chunk records without expanding their contained records; false by default. Incompatible with asynchronous message leases.</p>
+  <div class="markdown level1 summary"><p>Emits encoded chunks in asynchronous record or direct linear Sans-I/O reading. False by default; chunk flatteners and message readers reject true. Synchronous top-level reading is selected with McapLinearReader.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -231,38 +233,6 @@ Class McapReaderOptions
   <h4 class="section">Property Value</h4>
   <dl class="parameters">
     <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-  <a id="Fizzy_McapSharp_McapReaderOptions_MaxRandomAccessCacheBytes_" data-uid="Fizzy.McapSharp.McapReaderOptions.MaxRandomAccessCacheBytes*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapReaderOptions_MaxRandomAccessCacheBytes" data-uid="Fizzy.McapSharp.McapReaderOptions.MaxRandomAccessCacheBytes">
-  MaxRandomAccessCacheBytes
-  
-  </h3>
-
-  <div class="markdown level1 summary"><p>Local cache allowance only for snapshots opened from a McapReadSession. Ignored by asynchronous and direct Sans-I/O readers, which cannot create snapshots. Charges: chunk storage, descriptors, keys and index bytes. Zero disables retention; oversized entries load without retention. Excludes input storage, parsing temporaries and external leases.</p>
-</div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public ulong MaxRandomAccessCacheBytes { get; init; }</code></pre>
-  </div>
-
-
-
-
-
-  <h4 class="section">Property Value</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
     <dd></dd>
   </dl>
 
@@ -312,7 +282,7 @@ Class McapReaderOptions
   
   </h3>
 
-  <div class="markdown level1 summary"><p>Maximum accepted record body length in bytes; null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</p>
+  <div class="markdown level1 summary"><p>Maximum accepted record body length in bytes for linear parsing; an indexed query also checks compressed and decompressed chunk sizes. Null leaves the upstream limit unset. This is not a bound on total parser, cache or lease memory.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -408,7 +378,7 @@ Class McapReaderOptions
   
   </h3>
 
-  <div class="markdown level1 summary"><p>Validates chunk, data and summary CRCs, required magic, and trailing-byte absence. Expanded McapReadSession scans also validate record bodies and declaration references; McapAsyncReader record delivery validates bodies and attachment CRCs but not cross-record declaration references. Direct Sans-I/O exposes raw events without body parsing. Indexed query success does not establish full-file validation.</p>
+  <div class="markdown level1 summary"><p>Validates chunk, data and summary CRCs, required magic, and trailing-byte absence. All high-level expanded readers validate record bodies and declaration references independently of these switches. Direct Sans-I/O exposes raw events without body parsing. Indexed query success does not establish full-file validation.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -768,5 +738,5 @@ Class McapReaderOptions
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

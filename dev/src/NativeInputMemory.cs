@@ -3,9 +3,9 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-// Only McapAsyncReader owns this memory. It cannot advance or release the parser until
+// Only AsyncReaderCore owns this memory. It cannot advance or release the parser until
 // Stream.ReadAsync has completed and its ValueTask has been consumed.
-internal sealed unsafe class NativeInputMemory(McapSansIoReader parser) : MemoryManager<byte>
+internal sealed unsafe class NativeInputMemory(SansIoReaderCore parser) : MemoryManager<byte>
 {
     byte* pointer;
     int length;
@@ -28,7 +28,7 @@ internal sealed unsafe class NativeInputMemory(McapSansIoReader parser) : Memory
     public override void Unpin() { }
     protected override void Dispose(bool disposing) { pointer = null; length = 0; }
 }
-public sealed partial class McapSansIoReader
+internal sealed partial class SansIoReaderCore
 {
     internal unsafe byte* PrepareInput(int size)
     {

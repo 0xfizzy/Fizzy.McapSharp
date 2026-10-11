@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -441,13 +443,50 @@ Class McapWriter
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public McapReadCursor OpenSummaryRecords()</code></pre>
+    <pre><code class="lang-csharp hljs">public McapSummaryRecordReader OpenSummaryRecords()</code></pre>
   </div>
 
 
   <h4 class="section">Returns</h4>
   <dl class="parameters">
-    <dt><a class="xref" href="Fizzy.McapSharp.McapReadCursor.html">McapReadCursor</a></dt>
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSummaryRecordReader.html">McapSummaryRecordReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriter_RegisterChannel_" data-uid="Fizzy.McapSharp.McapWriter.RegisterChannel*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriter_RegisterChannel_Fizzy_McapSharp_McapPreparedChannelRegistration_" data-uid="Fizzy.McapSharp.McapWriter.RegisterChannel(Fizzy.McapSharp.McapPreparedChannelRegistration)">
+  RegisterChannel(McapPreparedChannelRegistration)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Registers a prepared channel referring to a known schema ID, returning its ID. Ordinary writer failure and configured safe-rejection rules apply.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ushort RegisterChannel(McapPreparedChannelRegistration prepared)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>prepared</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChannelRegistration.html">McapPreparedChannelRegistration</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a></dt>
     <dd></dd>
   </dl>
 
@@ -530,6 +569,43 @@ Class McapWriter
     <dt><code>schemaId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a></dt>
     <dd></dd>
     <dt><code>metadata</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriter_RegisterSchema_" data-uid="Fizzy.McapSharp.McapWriter.RegisterSchema*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriter_RegisterSchema_Fizzy_McapSharp_McapPreparedSchema_" data-uid="Fizzy.McapSharp.McapWriter.RegisterSchema(Fizzy.McapSharp.McapPreparedSchema)">
+  RegisterSchema(McapPreparedSchema)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Registers a prepared schema using its captured fields and bytes, returning its ID. Ordinary writer failure and configured safe-rejection rules apply.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ushort RegisterSchema(McapPreparedSchema prepared)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>prepared</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedSchema.html">McapPreparedSchema</a></dt>
     <dd></dd>
   </dl>
 
@@ -635,6 +711,38 @@ Class McapWriter
 
   <a id="Fizzy_McapSharp_McapWriter_StartAttachment_" data-uid="Fizzy.McapSharp.McapWriter.StartAttachment*"></a>
 
+  <h3 id="Fizzy_McapSharp_McapWriter_StartAttachment_Fizzy_McapSharp_McapPreparedAttachmentStart_" data-uid="Fizzy.McapSharp.McapWriter.StartAttachment(Fizzy.McapSharp.McapPreparedAttachmentStart)">
+  StartAttachment(McapPreparedAttachmentStart)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Starts a segmented attachment using captured fields and declared length. Follow with WriteAttachmentBytes and FinishAttachment.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void StartAttachment(McapPreparedAttachmentStart prepared)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>prepared</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedAttachmentStart.html">McapPreparedAttachmentStart</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriter_StartAttachment_" data-uid="Fizzy.McapSharp.McapWriter.StartAttachment*"></a>
+
   <h3 id="Fizzy_McapSharp_McapWriter_StartAttachment_System_String_System_String_System_UInt64_System_UInt64_System_UInt64_" data-uid="Fizzy.McapSharp.McapWriter.StartAttachment(System.String,System.String,System.UInt64,System.UInt64,System.UInt64)">
   StartAttachment(string, string, ulong, ulong, ulong)
   
@@ -659,6 +767,72 @@ Class McapWriter
     <dt><code>createTime</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
     <dd></dd>
     <dt><code>length</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriter_WriteAttachment_" data-uid="Fizzy.McapSharp.McapWriter.WriteAttachment*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriter_WriteAttachment_Fizzy_McapSharp_McapAttachment_" data-uid="Fizzy.McapSharp.McapWriter.WriteAttachment(Fizzy.McapSharp.McapAttachment)">
+  WriteAttachment(McapAttachment)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Writes the current attachment fields and consumes its payload synchronously. Does not retain the object or payload.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void WriteAttachment(McapAttachment attachment)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>attachment</code> <a class="xref" href="Fizzy.McapSharp.McapAttachment.html">McapAttachment</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriter_WriteAttachment_" data-uid="Fizzy.McapSharp.McapWriter.WriteAttachment*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriter_WriteAttachment_Fizzy_McapSharp_McapPreparedAttachment_System_ReadOnlySpan_System_Byte__" data-uid="Fizzy.McapSharp.McapWriter.WriteAttachment(Fizzy.McapSharp.McapPreparedAttachment,System.ReadOnlySpan{System.Byte})">
+  WriteAttachment(McapPreparedAttachment, ReadOnlySpan&lt;byte&gt;)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Writes captured attachment fields and synchronously consumes the supplied payload. Ordinary writer failure rules apply.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void WriteAttachment(McapPreparedAttachment prepared, ReadOnlySpan&lt;byte&gt; payload = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>prepared</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedAttachment.html">McapPreparedAttachment</a></dt>
+    <dd></dd>
+    <dt><code>payload</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
     <dd></dd>
   </dl>
 
@@ -898,40 +1072,6 @@ remains owned by the lease; do not dispose it concurrently with this call.</p>
 
   <a id="Fizzy_McapSharp_McapWriter_WriteMessage_" data-uid="Fizzy.McapSharp.McapWriter.WriteMessage*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapWriter_WriteMessage_Fizzy_McapSharp_McapMessageHeader__System_ReadOnlySpan_System_Byte__" data-uid="Fizzy.McapSharp.McapWriter.WriteMessage(Fizzy.McapSharp.McapMessageHeader@,System.ReadOnlySpan{System.Byte})">
-  WriteMessage(in McapMessageHeader, ReadOnlySpan&lt;byte&gt;)
-  
-  </h3>
-
-  <div class="markdown level1 summary"><p>Writes a message on an already registered channel. Payload is consumed synchronously; the warmed path allocates zero managed bytes.</p>
-</div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public void WriteMessage(in McapMessageHeader header, ReadOnlySpan&lt;byte&gt; data)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>header</code> <a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a></dt>
-    <dd></dd>
-    <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
-
-  <a id="Fizzy_McapSharp_McapWriter_WriteMessage_" data-uid="Fizzy.McapSharp.McapWriter.WriteMessage*"></a>
-
   <h3 id="Fizzy_McapSharp_McapWriter_WriteMessage_Fizzy_McapSharp_McapPreparedChannel_Fizzy_McapSharp_McapMessageHeader__System_ReadOnlySpan_System_Byte__" data-uid="Fizzy.McapSharp.McapWriter.WriteMessage(Fizzy.McapSharp.McapPreparedChannel,Fizzy.McapSharp.McapMessageHeader@,System.ReadOnlySpan{System.Byte})">
   WriteMessage(McapPreparedChannel, in McapMessageHeader, ReadOnlySpan&lt;byte&gt;)
   
@@ -952,6 +1092,70 @@ remains owned by the lease; do not dispose it concurrently with this call.</p>
     <dt><code>header</code> <a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a></dt>
     <dd></dd>
     <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriter_WriteMetadata_" data-uid="Fizzy.McapSharp.McapWriter.WriteMetadata*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriter_WriteMetadata_Fizzy_McapSharp_McapMetadata_" data-uid="Fizzy.McapSharp.McapWriter.WriteMetadata(Fizzy.McapSharp.McapMetadata)">
+  WriteMetadata(McapMetadata)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Writes the current fields of an owned metadata record synchronously without retaining it.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void WriteMetadata(McapMetadata metadata)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>metadata</code> <a class="xref" href="Fizzy.McapSharp.McapMetadata.html">McapMetadata</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapWriter_WriteMetadata_" data-uid="Fizzy.McapSharp.McapWriter.WriteMetadata*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriter_WriteMetadata_Fizzy_McapSharp_McapPreparedMetadata_" data-uid="Fizzy.McapSharp.McapWriter.WriteMetadata(Fizzy.McapSharp.McapPreparedMetadata)">
+  WriteMetadata(McapPreparedMetadata)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Writes captured metadata synchronously. Ordinary writer failure rules apply.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void WriteMetadata(McapPreparedMetadata prepared)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>prepared</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedMetadata.html">McapPreparedMetadata</a></dt>
     <dd></dd>
   </dl>
 
@@ -1000,45 +1204,6 @@ remains owned by the lease; do not dispose it concurrently with this call.</p>
 
 
 
-  <a id="Fizzy_McapSharp_McapWriter_WritePrepared_" data-uid="Fizzy.McapSharp.McapWriter.WritePrepared*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapWriter_WritePrepared_Fizzy_McapSharp_McapPreparedOperation_System_ReadOnlySpan_System_Byte__" data-uid="Fizzy.McapSharp.McapWriter.WritePrepared(Fizzy.McapSharp.McapPreparedOperation,System.ReadOnlySpan{System.Byte})">
-  WritePrepared(McapPreparedOperation, ReadOnlySpan&lt;byte&gt;)
-  
-  </h3>
-
-  <div class="markdown level1 summary"><p>Runs the prepared operation synchronously; returns the registered ID for schema/channel operations, otherwise null. Channel ID zero is a successful registration result. Payload is consumed only by Attachment. Schema uses the bytes copied when prepared; other operations reject nonempty payload before invoking native code. StartAttachment declares the length but consumes no body; follow with WriteAttachmentBytes and FinishAttachment. Writer failure and audited rejection rules still apply.</p>
-</div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public ushort? WritePrepared(McapPreparedOperation operation, ReadOnlySpan&lt;byte&gt; payload = default)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>operation</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedOperation.html">McapPreparedOperation</a></dt>
-    <dd></dd>
-    <dt><code>payload</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
-    <dd></dd>
-  </dl>
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint16">ushort</a>?</dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
   <a id="Fizzy_McapSharp_McapWriter_WritePrivateRecord_" data-uid="Fizzy.McapSharp.McapWriter.WritePrivateRecord*"></a>
 
   <h3 id="Fizzy_McapSharp_McapWriter_WritePrivateRecord_System_Byte_System_ReadOnlySpan_System_Byte__System_Boolean_" data-uid="Fizzy.McapSharp.McapWriter.WritePrivateRecord(System.Byte,System.ReadOnlySpan{System.Byte},System.Boolean)">
@@ -1075,6 +1240,40 @@ remains owned by the lease; do not dispose it concurrently with this call.</p>
 
 
 
+  <a id="Fizzy_McapSharp_McapWriter_WriteToKnownChannel_" data-uid="Fizzy.McapSharp.McapWriter.WriteToKnownChannel*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapWriter_WriteToKnownChannel_Fizzy_McapSharp_McapMessageHeader__System_ReadOnlySpan_System_Byte__" data-uid="Fizzy.McapSharp.McapWriter.WriteToKnownChannel(Fizzy.McapSharp.McapMessageHeader@,System.ReadOnlySpan{System.Byte})">
+  WriteToKnownChannel(in McapMessageHeader, ReadOnlySpan&lt;byte&gt;)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Writes a message on an already registered channel. Payload is consumed synchronously; the warmed path allocates zero managed bytes.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void WriteToKnownChannel(in McapMessageHeader header, ReadOnlySpan&lt;byte&gt; data)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>header</code> <a class="xref" href="Fizzy.McapSharp.McapMessageHeader.html">McapMessageHeader</a></dt>
+    <dd></dd>
+    <dt><code>data</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.readonlyspan-1">ReadOnlySpan</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.byte">byte</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
 
 </article>
 
@@ -1096,5 +1295,5 @@ remains owned by the lease; do not dispose it concurrently with this call.</p>
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

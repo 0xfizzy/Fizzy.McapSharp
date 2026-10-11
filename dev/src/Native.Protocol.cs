@@ -72,6 +72,12 @@ internal static class Protocol
     {
         internal const int SafeRejection = -2;
     }
+    internal static class ReaderExecution
+    {
+        internal const uint Sequential = 0;
+        internal const uint Indexed = 1;
+        internal const uint Sorted = 2;
+    }
     internal static class ReaderOpenStatus
     {
         internal const int BufferedSortRequired = 3;

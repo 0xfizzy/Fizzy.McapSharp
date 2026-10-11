@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -90,7 +92,7 @@
 <p>English | <a href="zh-CN/native.html">简体中文</a></p>
 <p>.NET uses Cdecl P/Invoke and SafeHandle to call a private Rust <code>cdylib</code> backed by official <code>mcap</code> 0.25.0. There is no C++ layer. <a href="../native/src/lib.rs">lib.rs</a> owns shared ABI/error boundaries; <a href="../native/src/reader.rs">reader.rs</a> and <a href="../native/src/writer.rs">writer.rs</a> implement session operations, while <a href="../native/src/io.rs">io.rs</a> implements file/Stream I/O. Managed declarations are in <a href="../src/Native.cs">Native.cs</a> and its capability partials. Windows x64 loads <code>fizzy_mcap_native.dll</code>; glibc Linux x64/ARM64 load <code>libfizzy_mcap_native.so</code> through the extensionless name <code>fizzy_mcap_native</code>.</p>
 <h2 id="abi-contract">ABI contract</h2>
-<p><code>fm_abi_version()</code> returns 16. Managed constructors reject mismatches, including native libraries without indexed owned-record sink delivery. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.</p>
+<p><code>fm_abi_version()</code> returns 18. Managed constructors reject mismatches, including libraries without typed feed responses and reader-open execution information. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.</p>
 <table>
 <thead>
 <tr>
@@ -116,8 +118,16 @@
 <td>Create/release one read session.</td>
 </tr>
 <tr>
-<td><code>fm_reader_next</code></td>
-<td>Copy the next message payload or raw record body into caller memory.</td>
+<td><code>fm_reader_next</code> / <code>fm_reader_message_record</code></td>
+<td>Copy message payload, message wire body or raw record body; all message forms share pending state.</td>
+</tr>
+<tr>
+<td><code>fm_buffer_reader_configured</code></td>
+<td>Open copied/mapped input with explicit parsing options and high-level validation scope.</td>
+</tr>
+<tr>
+<td><code>fm_buffer_reader_schema</code> / <code>fm_buffer_reader_state</code></td>
+<td>Query encountered schema or completed scan state without advancement.</td>
 </tr>
 <tr>
 <td><code>fm_reader_describe</code></td>
@@ -137,7 +147,7 @@
 </tr>
 </tbody>
 </table>
-<p>Control operations: 1 schema, 2 channel, 4 metadata, 5 attachment, 6 flush, 7 complete, 8 start attachment, 9 attachment bytes, 10 finish attachment, 11 private record, 12 completed writer summary, 13 completed file synchronization. Messages use their dedicated entry.</p>
+<p>Control operations: 1 schema, 2 channel, 4 metadata, 5 attachment, 6 flush, 7 complete, 8 start attachment, 9 attachment bytes, 10 finish attachment, 11 private record, 12 completed writer summary, 13 completed file synchronization. Messages use their dedicated entry. On successful reader open, Response.value identifies execution: 0 sequential, 1 indexed, 2 buffered sort. This immutable result determines managed validation capability before advancement.</p>
 <p>The private message header is 24 bytes: <code>u16 channel_id</code>, <code>u16 reserved</code>, <code>u32 sequence</code>, <code>u64 log_time</code>, <code>u64 publish_time</code>, with offsets 0, 2, 4, 8, 16. It is converted to/from upstream records; it is not a Rust record layout. At reader EOF, reserved is 1 for indexed scans and sorted fallback and 0 for sequential scans. Managed code uses that distinction when reporting full validation.</p>
 <p>The 40-byte response contains a JSON pointer/usize length, binary pointer/usize length and u64 value. Pointers and nuint are 64 bits on supported targets. Status 0 is success, 1 EOF, 2 insufficient destination, negative error. Read value reports required/copied bytes or scan count at EOF. Insufficient capacity neither writes a partial result nor consumes the pending record.</p>
 <p>Writer open options include <code>recoverableErrors</code>, an immutable bit mask (1 invalid explicit schema ID, 2 explicit schema conflict, 4 unknown schema during channel registration, 8 explicit channel conflict, 16 unknown channel during header/payload message writing). Missing means 31; unknown bits fail before output creation. Writer status -2 preserves the ordinary structured error response and leaves the writer usable; status -1, including panic, is terminal. Managed code uses this call status only after checking callback exceptions, never the exception type, to set <code>CanContinueWriting</code>. Reader errors do not acquire recovery semantics.</p>
@@ -156,9 +166,9 @@
 <p>The public <a href="api.html">API contract</a> distinguishes complete validation, indexed queries and raw records. <a href="development.html">Build and allocation acceptance</a> runs managed allocation gates separately from format interoperability; zero managed allocation does not imply zero native allocation.</p>
 <h2 id="extended-operation-families">Extended operation families</h2>
 <p><code>fm_channel_prepare/release</code> own immutable Channel/Schema snapshots. <code>fm_writer_full_message</code> invokes upstream writing with the descriptor and synchronous borrowed payload. <code>fm_operation_prepare/release</code> own parsed cold control data; <code>fm_writer_prepared</code> reuses descriptors without managed serialization. <code>fm_writer_private</code> accepts scalar flags and a span.</p>
-<p><code>fm_engine_open/next/feed/release</code> wrap official linear, summary and indexed Sans-I/O state. The 56-byte event layout is: u32 kind, u32 opcode, u64 length, u64 offset, u32 seek origin, u32 reserved and the 24-byte message header. Kinds 0–5 are End, Read, Seek, Record, Message and ReadChunk. Seek offsets preserve signed two's-complement bits for Current/End. Read requests remain pending until supplied; record/message events remain pending on insufficient buffers. <code>fm_engine_index_control</code> supports indexed insertion and length-limit changes. <code>fm_engine_summary</code> and <code>fm_summary_records</code> export owned summaries or native-owned record cursors.</p>
+<p><code>fm_engine_open/next/feed/release</code> wrap official linear, summary and indexed Sans-I/O state. The 56-byte event layout is: u32 kind, u32 opcode, u64 length, u64 offset, u32 seek origin, u32 reserved and the 24-byte message header. Kinds 0–5 are End, Read, Seek, Record, Message and ReadChunk. Seek offsets preserve signed two's-complement bits for Current/End. The feed signature is <code>(handle, u32 response_kind, data, length, position, response)</code>. Response kinds 1 (Read) and 2 (Seek) must match the pending event; Seek accepts no data. Indexed input uses InsertChunk control and must match the pending compressed-data offset and length. Public seek requests expose unsigned absolute positions or signed relative offsets without exposing this ABI encoding. Read requests remain pending until supplied; record/message events remain pending on insufficient buffers. <code>fm_engine_index_control</code> supports indexed insertion and length-limit changes. <code>fm_engine_summary</code> and <code>fm_summary_records</code> export owned summaries or native-owned record cursors.</p>
 <p><code>fm_buffer_reader_*</code> owns an input copy and an official Sans-I/O parser configured to match each slice reader. Advancement retains one pending record and encountered declarations; no borrowed iterator survives a call. Chunk adapters feed a synthetic record prefix through the public parser because upstream for_chunk is private. <code>fm_snapshot_*</code> owns copied or mapped input and an official summary; random message reads retain shared complete-chunk storage through private handles. <code>fm_snapshot_call</code> accepts a synchronous pointer/length to a standard MCAP index record body and both message-index scalars (log time and offset). It parses the supplied index rather than looking it up in the summary. The managed bridge uses bounded stack storage or temporary native memory for index encoding, including UTF-8 strings and channel-offset maps. <code>fm_reader_record_into</code>, <code>fm_parse_record</code>, <code>fm_footer</code> and <code>fm_chunk_offset</code> provide caller-buffer or scalar utility operations. <code>fm_snapshot_chunk_reader</code> adds independent lazy Chunk cursors sharing immutable native input and summary; releasing a snapshot does not invalidate those cursors. Reader-open status 3 means buffered sorting was prohibited, mapped to managed NotSupportedException. These handles are private SafeHandles; cursor reads have no owned response allocation on success.</p>
-<p>The asynchronous reader drives the linear engine with .NET ReadAsync, retaining only managed Memory between waits. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.</p>
+<p>The asynchronous reader drives the linear engine with .NET ReadAsync, writing directly into native parser storage exposed as <code>Memory&lt;byte&gt;</code> through a MemoryManager. The Memory wrapper does not make the backing storage managed; the parser and its input storage remain alive and cannot be advanced or released until the pending I/O completes and its ValueTask is consumed. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.</p>
 <p><code>fm_engine_describe</code> copies a schema (kind 1) or resolved channel (kind 2) already observed by lease reading. It does not advance the engine or turn a missing-ID lookup into a terminal failure. The managed async owner serializes queries with reading and requires consumption of the outstanding ValueTask. Immutable managed descriptions are cached on demand and remain independent of parser disposal.</p>
 <h2 id="stable-storage-and-batching">Stable storage and batching</h2>
 <p>Public delivery choices and caller responsibilities are defined in the <a href="api.html#choose-message-ownership">API guide</a>. Internally, shared ranges retain reference-counted backing; freeing a reader or evicting a cache entry releases only that owner's references. Final backing release depends on every parser, cursor, snapshot and lease using it. These lifetime guarantees do not imply a bound on retained capacity.</p>
@@ -170,6 +180,7 @@
 <p>Synchronous linear feeding reserves the complete current parser request through try_insert and reads at most 64 KiB into that storage per call. Sequential Stream reads, summary fallback scans and validation use the same helper. Async direct-fill similarly reserves the complete request while exposing only the selected I/O quantum. Async lease delivery uses a reusable explicit state machine and the cached I/O continuation; lease result/control allocations remain permitted. Nonempty batches still return at the next input request.</p>
 <p>Fallback sorting uses a binding-owned arena of headers, ordinals and shared ranges. One fixed-size pending group tracks consecutive owned backing identity and selected bytes; it does not build a file-wide owner map. At group closure, sparse selections may be copied once into message-aligned immutable segments before publication. Mappings and other external owners are not compacted. <code>SharedBytes::shares_backing</code> is a read-only local ownership query; compaction decisions and allocations remain in the binding. Existing logical sort checks are unchanged, and old/new storage overlap is outside that allowance. Failures terminate construction without publishing a partial session. There is no ABI change.</p>
 <p>The pinned mcap crate supplies official format state machines, codecs and default writing behavior. Shared storage, channel lookup for batch preflight, and disposal without implicit completion are <a href="patches.html">local patches</a>. SafeHandle, managed copies, local cache/sort and asynchronous I/O are binding behavior.</p>
+<p>Full summary JSON contains schema and channel maps. Channels reference schema IDs; the private schemaDependencies map supplies data-section schemas omitted from repeated summary declarations without changing the public Schemas map. Async expanded delivery validates bodies and references before publication; raw Sans-I/O linear delivery remains unparsed.</p>
 
 </article>
 
@@ -192,5 +203,5 @@
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

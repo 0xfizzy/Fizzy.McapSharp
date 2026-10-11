@@ -6,7 +6,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Struct McapSeekRequest | Fizzy.McapSharp ">
       
-      <meta name="description" content="One random message lookup. Index must remain undisposed during the call; Entry.Offset is relative to expanded chunk bytes.">
+      <meta name="description" content="A requested source position. Begin uses an unsigned absolute position; Current and End use a signed relative offset. Positions are relative to the MCAP origin.">
       <link rel="icon" href="../favicon.ico">
       <link rel="stylesheet" href="../public/docfx.min.css">
       <link rel="stylesheet" href="../public/main.css">
@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -97,29 +99,32 @@ Struct McapSeekRequest
   <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
   </div>
 
-  <div class="markdown summary"><p>One random message lookup. Index must remain undisposed during the call; Entry.Offset is relative to expanded chunk bytes.</p>
+  <div class="markdown summary"><p>A requested source position. Begin uses an unsigned absolute position; Current and End use a signed relative offset. Positions are relative to the MCAP origin.</p>
 </div>
   <div class="markdown conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public readonly struct McapSeekRequest : IEquatable&lt;McapSeekRequest&gt;</code></pre>
+    <pre><code class="lang-csharp hljs">public readonly struct McapSeekRequest</code></pre>
   </div>
 
 
 
 
 
-  <dl class="typelist implements">
-    <dt>Implements</dt>
-    <dd>
-      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a>&gt;</div>
-    </dd>
-  </dl>
 
 
   <dl class="typelist inheritedMembers">
     <dt>Inherited Members</dt>
     <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetype.equals">ValueType.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetype.gethashcode">ValueType.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetype.tostring">ValueType.ToString()</a>
+    </div>
     <div>
       <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
     </div>
@@ -136,60 +141,23 @@ Struct McapSeekRequest
 
 
 
-  <h2 class="section" id="constructors">Constructors
-</h2>
-
-
-  <a id="Fizzy_McapSharp_McapSeekRequest__ctor_" data-uid="Fizzy.McapSharp.McapSeekRequest.#ctor*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest__ctor_Fizzy_McapSharp_McapPreparedChunkIndex_Fizzy_McapSharp_McapMessageIndexEntry_" data-uid="Fizzy.McapSharp.McapSeekRequest.#ctor(Fizzy.McapSharp.McapPreparedChunkIndex,Fizzy.McapSharp.McapMessageIndexEntry)">
-  McapSeekRequest(McapPreparedChunkIndex, McapMessageIndexEntry)
-  
-  </h3>
-
-  <div class="markdown level1 summary"><p>One random message lookup. Index must remain undisposed during the call; Entry.Offset is relative to expanded chunk bytes.</p>
-</div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public McapSeekRequest(McapPreparedChunkIndex Index, McapMessageIndexEntry Entry)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>Index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
-    <dd></dd>
-    <dt><code>Entry</code> <a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
-
   <h2 class="section" id="properties">Properties
 </h2>
 
 
-  <a id="Fizzy_McapSharp_McapSeekRequest_Entry_" data-uid="Fizzy.McapSharp.McapSeekRequest.Entry*"></a>
+  <a id="Fizzy_McapSharp_McapSeekRequest_AbsolutePosition_" data-uid="Fizzy.McapSharp.McapSeekRequest.AbsolutePosition*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_Entry" data-uid="Fizzy.McapSharp.McapSeekRequest.Entry">
-  Entry
+  <h3 id="Fizzy_McapSharp_McapSeekRequest_AbsolutePosition" data-uid="Fizzy.McapSharp.McapSeekRequest.AbsolutePosition">
+  AbsolutePosition
   
   </h3>
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Absolute MCAP position for Begin; throws InvalidOperationException for relative seeks.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public McapMessageIndexEntry Entry { get; init; }</code></pre>
+    <pre><code class="lang-csharp hljs">public ulong AbsolutePosition { get; }</code></pre>
   </div>
 
 
@@ -198,7 +166,7 @@ Struct McapSeekRequest
 
   <h4 class="section">Property Value</h4>
   <dl class="parameters">
-    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
     <dd></dd>
   </dl>
 
@@ -209,18 +177,19 @@ Struct McapSeekRequest
 
 
 
-  <a id="Fizzy_McapSharp_McapSeekRequest_Index_" data-uid="Fizzy.McapSharp.McapSeekRequest.Index*"></a>
+  <a id="Fizzy_McapSharp_McapSeekRequest_Origin_" data-uid="Fizzy.McapSharp.McapSeekRequest.Origin*"></a>
 
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_Index" data-uid="Fizzy.McapSharp.McapSeekRequest.Index">
-  Index
+  <h3 id="Fizzy_McapSharp_McapSeekRequest_Origin" data-uid="Fizzy.McapSharp.McapSeekRequest.Origin">
+  Origin
   
   </h3>
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Reference point for the requested seek.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public McapPreparedChunkIndex Index { get; init; }</code></pre>
+    <pre><code class="lang-csharp hljs">public SeekOrigin Origin { get; }</code></pre>
   </div>
 
 
@@ -229,7 +198,7 @@ Struct McapSeekRequest
 
   <h4 class="section">Property Value</h4>
   <dl class="parameters">
-    <dt><a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.seekorigin">SeekOrigin</a></dt>
     <dd></dd>
   </dl>
 
@@ -240,249 +209,30 @@ Struct McapSeekRequest
 
 
 
-  <h2 class="section" id="methods">Methods
-</h2>
+  <a id="Fizzy_McapSharp_McapSeekRequest_RelativeOffset_" data-uid="Fizzy.McapSharp.McapSeekRequest.RelativeOffset*"></a>
 
-
-  <a id="Fizzy_McapSharp_McapSeekRequest_Deconstruct_" data-uid="Fizzy.McapSharp.McapSeekRequest.Deconstruct*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_Deconstruct_Fizzy_McapSharp_McapPreparedChunkIndex__Fizzy_McapSharp_McapMessageIndexEntry__" data-uid="Fizzy.McapSharp.McapSeekRequest.Deconstruct(Fizzy.McapSharp.McapPreparedChunkIndex@,Fizzy.McapSharp.McapMessageIndexEntry@)">
-  Deconstruct(out McapPreparedChunkIndex, out McapMessageIndexEntry)
+  <h3 id="Fizzy_McapSharp_McapSeekRequest_RelativeOffset" data-uid="Fizzy.McapSharp.McapSeekRequest.RelativeOffset">
+  RelativeOffset
   
   </h3>
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Signed displacement for Current or End; throws InvalidOperationException for Begin.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public void Deconstruct(out McapPreparedChunkIndex Index, out McapMessageIndexEntry Entry)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>Index</code> <a class="xref" href="Fizzy.McapSharp.McapPreparedChunkIndex.html">McapPreparedChunkIndex</a></dt>
-    <dd></dd>
-    <dt><code>Entry</code> <a class="xref" href="Fizzy.McapSharp.McapMessageIndexEntry.html">McapMessageIndexEntry</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
-
-  <a id="Fizzy_McapSharp_McapSeekRequest_Equals_" data-uid="Fizzy.McapSharp.McapSeekRequest.Equals*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_Equals_Fizzy_McapSharp_McapSeekRequest_" data-uid="Fizzy.McapSharp.McapSeekRequest.Equals(Fizzy.McapSharp.McapSeekRequest)">
-  Equals(McapSeekRequest)
-  
-  </h3>
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public bool Equals(McapSeekRequest other)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>other</code> <a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a></dt>
-    <dd></dd>
-  </dl>
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
-  <a id="Fizzy_McapSharp_McapSeekRequest_Equals_" data-uid="Fizzy.McapSharp.McapSeekRequest.Equals*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_Equals_System_Object_" data-uid="Fizzy.McapSharp.McapSeekRequest.Equals(System.Object)">
-  Equals(object)
-  
-  </h3>
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public override bool Equals(object obj)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>obj</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></dt>
-    <dd></dd>
-  </dl>
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
-  <a id="Fizzy_McapSharp_McapSeekRequest_GetHashCode_" data-uid="Fizzy.McapSharp.McapSeekRequest.GetHashCode*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_GetHashCode" data-uid="Fizzy.McapSharp.McapSeekRequest.GetHashCode">
-  GetHashCode()
-  
-  </h3>
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public override int GetHashCode()</code></pre>
+    <pre><code class="lang-csharp hljs">public long RelativeOffset { get; }</code></pre>
   </div>
 
 
-  <h4 class="section">Returns</h4>
+
+
+
+  <h4 class="section">Property Value</h4>
   <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
     <dd></dd>
   </dl>
-
-
-
-
-
-
-
-
-
-
-
-  <a id="Fizzy_McapSharp_McapSeekRequest_ToString_" data-uid="Fizzy.McapSharp.McapSeekRequest.ToString*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_ToString" data-uid="Fizzy.McapSharp.McapSeekRequest.ToString">
-  ToString()
-  
-  </h3>
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public override string ToString()</code></pre>
-  </div>
-
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
-  <h2 class="section" id="operators">Operators
-</h2>
-
-
-  <a id="Fizzy_McapSharp_McapSeekRequest_op_Equality_" data-uid="Fizzy.McapSharp.McapSeekRequest.op_Equality*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_op_Equality_Fizzy_McapSharp_McapSeekRequest_Fizzy_McapSharp_McapSeekRequest_" data-uid="Fizzy.McapSharp.McapSeekRequest.op_Equality(Fizzy.McapSharp.McapSeekRequest,Fizzy.McapSharp.McapSeekRequest)">
-  operator ==(McapSeekRequest, McapSeekRequest)
-  
-  </h3>
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public static bool operator ==(McapSeekRequest left, McapSeekRequest right)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>left</code> <a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a></dt>
-    <dd></dd>
-    <dt><code>right</code> <a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a></dt>
-    <dd></dd>
-  </dl>
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
-  <a id="Fizzy_McapSharp_McapSeekRequest_op_Inequality_" data-uid="Fizzy.McapSharp.McapSeekRequest.op_Inequality*"></a>
-
-  <h3 id="Fizzy_McapSharp_McapSeekRequest_op_Inequality_Fizzy_McapSharp_McapSeekRequest_Fizzy_McapSharp_McapSeekRequest_" data-uid="Fizzy.McapSharp.McapSeekRequest.op_Inequality(Fizzy.McapSharp.McapSeekRequest,Fizzy.McapSharp.McapSeekRequest)">
-  operator !=(McapSeekRequest, McapSeekRequest)
-  
-  </h3>
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public static bool operator !=(McapSeekRequest left, McapSeekRequest right)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>left</code> <a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a></dt>
-    <dd></dd>
-    <dt><code>right</code> <a class="xref" href="Fizzy.McapSharp.McapSeekRequest.html">McapSeekRequest</a></dt>
-    <dd></dd>
-  </dl>
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
-    <dd></dd>
-  </dl>
-
-
-
 
 
 
@@ -512,5 +262,5 @@ Struct McapSeekRequest
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

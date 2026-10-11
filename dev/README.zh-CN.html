@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="./version.css">
+<script defer src="./version.js" data-doc-root="./"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -91,7 +93,7 @@ var path = Path.Combine(Path.GetTempPath(), $&quot;sample-{Guid.NewGuid():N}.mca
 using (var writer = new McapWriter(path))
 {
     var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;json&quot;);
-    writer.WriteMessage(new McapMessageHeader(channel, 0, 100, 100), &quot;{}&quot;u8);
+    writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 100, 100), &quot;{}&quot;u8);
     writer.Complete();
 }
 
@@ -102,6 +104,7 @@ foreach (var message in reader.ReadMessages(new() { Topic = &quot;/sample&quot; 
 </code></pre>
 <p>必须显式调用 <code>Complete()</code> 完成格式，再按需调用 <code>FlushToDisk()</code> 请求文件持久化；<code>Dispose()</code> 只释放资源。<code>ReadMessages()</code> 不替代完整文件校验。</p>
 <p>大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；先<a href="docs/zh-CN/api.html#%E9%80%89%E6%8B%A9%E6%B6%88%E6%81%AF%E6%89%80%E6%9C%89%E6%9D%83">选择消息所有权</a>，再了解生命周期与局部缓存／排序额度。</p>
+<p>普通应用优先使用 <code>ReadMessages()</code> 返回的独立自有结果；需要控制分配或保留共享存储时，再参考 API 所有权指南。</p>
 <h2 id="文档入口">文档入口</h2>
 <ul>
 <li><a href="docs/zh-CN/api.html">API、生命周期与数据所有权</a></li>
@@ -136,5 +139,5 @@ foreach (var message in reader.ReadMessages(new() { Topic = &quot;/sample&quot; 
         </div>
       </div>
     </footer>
-  <script src="./version.js" data-doc-root="./"></script></body>
+  </body>
 </html>

@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -261,7 +263,7 @@ Class McapException
   
   </h3>
 
-  <div class="markdown level1 summary"><p>Independent kind-specific native error details. ValueKind is Undefined when no structured details are available.</p>
+  <div class="markdown level1 summary"><p>Independent kind-specific native error details. Documented field names and types are stable; additional fields may appear. ValueKind is Undefined for message-only exceptions, Null for native failures without structured details, or Object (possibly empty). Diagnostic text is not a stable identifier or retry policy.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -339,5 +341,5 @@ Class McapException
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

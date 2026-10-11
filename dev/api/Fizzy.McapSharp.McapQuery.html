@@ -6,7 +6,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class McapQuery | Fizzy.McapSharp ">
       
-      <meta name="description" content="Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. A null query uses file order; an explicit query defaults to ascending log time.">
+      <meta name="description" content="Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. Explicit query execution defaults to ascending log time for both omitted and empty queries. Use McapMessageFilter for sequential file-order selection.">
       <link rel="icon" href="../favicon.ico">
       <link rel="stylesheet" href="../public/docfx.min.css">
       <link rel="stylesheet" href="../public/main.css">
@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
     <header class="bg-body border-bottom">
@@ -97,7 +99,7 @@ Class McapQuery
   <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
   </div>
 
-  <div class="markdown summary"><p>Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. A null query uses file order; an explicit query defaults to ascending log time.</p>
+  <div class="markdown summary"><p>Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. Explicit query execution defaults to ascending log time for both omitted and empty queries. Use McapMessageFilter for sequential file-order selection.</p>
 </div>
   <div class="markdown conceptual"></div>
 
@@ -640,5 +642,5 @@ Class McapQuery
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>

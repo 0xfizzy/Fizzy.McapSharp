@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="./version.css">
+<script defer src="./version.js" data-doc-root="./"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -91,7 +93,7 @@ var path = Path.Combine(Path.GetTempPath(), $&quot;sample-{Guid.NewGuid():N}.mca
 using (var writer = new McapWriter(path))
 {
     var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;json&quot;);
-    writer.WriteMessage(new McapMessageHeader(channel, 0, 100, 100), &quot;{}&quot;u8);
+    writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 100, 100), &quot;{}&quot;u8);
     writer.Complete();
 }
 
@@ -101,7 +103,7 @@ foreach (var message in reader.ReadMessages(new() { Topic = &quot;/sample&quot; 
     Console.WriteLine($&quot;{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}&quot;);
 </code></pre>
 <p>Call <code>Complete()</code> explicitly to finish the format, then optionally <code>FlushToDisk()</code> to request file persistence; <code>Dispose()</code> only releases resources. <code>ReadMessages()</code> does not replace full-file validation.</p>
-<p>Large-payload pipelines can use borrowed callbacks, batch reads/writes and stable storage leases; start with <a href="docs/api.html#choose-message-ownership">choosing message ownership</a>, then review lifetimes and local cache/sort allowances.</p>
+<p>Start with independent owned results from <code>ReadMessages()</code>. Large-payload pipelines can use borrowed callbacks, batch reads/writes and stable storage leases; start with <a href="docs/api.html#choose-message-ownership">choosing message ownership</a>, then review lifetimes and local cache/sort allowances.</p>
 <h2 id="documentation">Documentation</h2>
 <ul>
 <li><a href="docs/api.html">API, lifetime, and data ownership</a></li>
@@ -136,5 +138,5 @@ foreach (var message in reader.ReadMessages(new() { Topic = &quot;/sample&quot; 
         </div>
       </div>
     </footer>
-  <script src="./version.js" data-doc-root="./"></script></body>
+  </body>
 </html>

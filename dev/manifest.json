@@ -76,17 +76,31 @@
     },
     {
       "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapAsyncReader.yml",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapAsyncMessageReader.yml",
       "output": {
         ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapAsyncReader.html"
+          "relative_path": "api/Fizzy.McapSharp.McapAsyncMessageReader.html"
         }
       },
       "version": "",
       "Uid": null,
       "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapAsyncReader",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapAsyncReader.yml\" sourcestartlinenumber=\"1\">One incremental asynchronous read session backed by the official Sans-I/O parser. Owns its Stream unless leaveOpen is true. Consume each ValueTask exactly once before another operation; I/O, parsing and cancellation failures terminate the session. Record and lease consumption cannot be mixed. Strict record delivery validates each complete body and attachment CRC before reporting Success, but does not validate cross-record declaration references or establish full-file validation.</p>\n"
+      "Title": "Fizzy.McapSharp.McapAsyncMessageReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapAsyncMessageReader.yml\" sourcestartlinenumber=\"1\">Incremental asynchronous resolved message reader. Owns its Stream unless leaveOpen is true. Allows one outstanding operation, which must be consumed exactly once. Expanded reads validate record bodies and declaration references independently of CRC options.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapAsyncRecordReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapAsyncRecordReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapAsyncRecordReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapAsyncRecordReader.yml\" sourcestartlinenumber=\"1\">Incremental asynchronous record reader. Owns its Stream unless leaveOpen is true. Allows one outstanding operation, which must be consumed exactly once. Expanded reads validate record bodies and declaration references independently of CRC options.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -244,6 +258,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapChunkFlattener.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapChunkFlattener.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapChunkFlattener",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapChunkFlattener.yml\" sourcestartlinenumber=\"1\">Expanded file records with record-body and declaration-reference validation independent of CRC options.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapChunkHeader.yml",
       "output": {
         ".html": {
@@ -272,6 +300,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapChunkReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapChunkReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapChunkReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapChunkReader.yml\" sourcestartlinenumber=\"1\">Records from one encoded Chunk body, without its outer record header. Validation is local to the chunk; declarations may live elsewhere.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapChunkRecord.yml",
       "output": {
         ".html": {
@@ -297,20 +339,6 @@
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapCompression",
       "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapCompression.yml\" sourcestartlinenumber=\"1\">Compression codec used for chunks; None leaves record bytes uncompressed.</p>\n"
-    },
-    {
-      "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapCursorMode.yml",
-      "output": {
-        ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapCursorMode.html"
-        }
-      },
-      "version": "",
-      "Uid": null,
-      "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapCursorMode",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapCursorMode.yml\" sourcestartlinenumber=\"1\">Selects slice-parser semantics. Every mode supports record delivery; only RawMessages and Messages support message delivery.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -398,31 +426,115 @@
     },
     {
       "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapIndexSnapshot.yml",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapIndexedEventKind.yml",
       "output": {
         ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapIndexSnapshot.html"
+          "relative_path": "api/Fizzy.McapSharp.McapIndexedEventKind.html"
         }
       },
       "version": "",
       "Uid": null,
       "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapIndexSnapshot",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapIndexSnapshot.yml\" sourcestartlinenumber=\"1\">Owns copied or explicitly mapped input and its official summary, independently of the originating session.\nSnapshot message callbacks must not invoke operations on any snapshot or prepared chunk index, including disposal.</p>\n"
+      "Title": "Fizzy.McapSharp.McapIndexedEventKind",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapIndexedEventKind.yml\" sourcestartlinenumber=\"1\">Events produced by the indexed protocol.</p>\n"
     },
     {
       "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapIndexSnapshotOptions.yml",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapIndexedQuery.yml",
       "output": {
         ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapIndexSnapshotOptions.html"
+          "relative_path": "api/Fizzy.McapSharp.McapIndexedQuery.html"
         }
       },
       "version": "",
       "Uid": null,
       "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapIndexSnapshotOptions",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapIndexSnapshotOptions.yml\" sourcestartlinenumber=\"1\">Limits only the snapshot cache, not upstream allocations or live leases.</p>\n"
+      "Title": "Fizzy.McapSharp.McapIndexedQuery",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapIndexedQuery.yml\" sourcestartlinenumber=\"1\">Indexed message selection. Omitted and empty queries use ascending log time. Requires complete indexes and never falls back to scanning or buffered sorting.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapIndexedReadEvent.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapIndexedReadEvent.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapIndexedReadEvent",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapIndexedReadEvent.yml\" sourcestartlinenumber=\"1\">An indexed protocol event. ReadChunk uses Length and Offset for compressed data excluding the Chunk header, relative to the MCAP origin. Message uses Length and Header.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapIndexedReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapIndexedReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapIndexedReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapIndexedReader.yml\" sourcestartlinenumber=\"1\">Owns copied or explicitly mapped input and its official summary, independently of the originating session.\nIndexed-reader message callbacks must not invoke operations on any indexed reader or prepared chunk index, including disposal.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapIndexedReaderOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapIndexedReaderOptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapIndexedReaderOptions",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapIndexedReaderOptions.yml\" sourcestartlinenumber=\"1\">Limits only the indexed reader cache, not upstream allocations or live leases.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapLinearEventKind.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapLinearEventKind.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapLinearEventKind",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapLinearEventKind.yml\" sourcestartlinenumber=\"1\">Events produced by the linear protocol.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapLinearReadEvent.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapLinearReadEvent.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapLinearReadEvent",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapLinearReadEvent.yml\" sourcestartlinenumber=\"1\">A linear protocol event. Length is in bytes; Opcode applies only to Record events.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapLinearReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapLinearReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapLinearReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapLinearReader.yml\" sourcestartlinenumber=\"1\">Top-level records; chunk bodies remain encoded. Does not validate declarations hidden inside chunks.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -451,6 +563,20 @@
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapMessageBatchLease",
       "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapMessageBatchLease.yml\" sourcestartlinenumber=\"1\">Owns stable native message storage. Keep this lease alive until all payload access\nhas finished. Access and disposal must not overlap. Payload spans expire on disposal.\nA payload slice can retain an entire chunk, copied input or mapping; payload length is not retained capacity.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapMessageFilter.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapMessageFilter.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapMessageFilter",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapMessageFilter.yml\" sourcestartlinenumber=\"1\">Selects messages during a sequential file-order scan. Omitted and empty filters are equivalent; filtering never selects indexes or requests sorting.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -510,6 +636,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapMessageReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapMessageReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapMessageReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapMessageReader.yml\" sourcestartlinenumber=\"1\">Resolved messages with declaration-reference validation. Results follow the selected caller-buffer, borrowing or retained-storage ownership contract.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapMessageRecord.yml",
       "output": {
         ".html": {
@@ -521,6 +661,20 @@
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapMessageRecord",
       "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapMessageRecord.yml\" sourcestartlinenumber=\"1\">Owned message record with an independent payload array.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapMessageSeekRequest.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapMessageSeekRequest.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapMessageSeekRequest",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapMessageSeekRequest.yml\" sourcestartlinenumber=\"1\">One random message lookup. Index must remain undisposed during the call; Entry.Offset is relative to expanded chunk bytes.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -594,6 +748,34 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedAttachment.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapPreparedAttachment.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapPreparedAttachment",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedAttachment.yml\" sourcestartlinenumber=\"1\">Copies attachment fields. The payload is supplied separately at each write. Preparation does not write or register anything.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedAttachmentStart.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapPreparedAttachmentStart.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapPreparedAttachmentStart",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedAttachmentStart.yml\" sourcestartlinenumber=\"1\">Copies segmented attachment fields and the exact declared byte length. Preparation does not write or register anything.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedChannel.yml",
       "output": {
         ".html": {
@@ -608,6 +790,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedChannelRegistration.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapPreparedChannelRegistration.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapPreparedChannelRegistration",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedChannelRegistration.yml\" sourcestartlinenumber=\"1\">Copies a channel registration descriptor referring to a schema ID. This is distinct from a resolved prepared channel. Preparation does not write or register anything.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedChunkIndex.yml",
       "output": {
         ".html": {
@@ -618,21 +814,35 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapPreparedChunkIndex",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedChunkIndex.yml\" sourcestartlinenumber=\"1\">An immutable, native-owned copy of a Chunk index for repeated operations across snapshots.</p>\n"
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedChunkIndex.yml\" sourcestartlinenumber=\"1\">An immutable, native-owned copy of a Chunk index for repeated operations across indexed readers.</p>\n"
     },
     {
       "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedOperation.yml",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedMetadata.yml",
       "output": {
         ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapPreparedOperation.html"
+          "relative_path": "api/Fizzy.McapSharp.McapPreparedMetadata.html"
         }
       },
       "version": "",
       "Uid": null,
       "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapPreparedOperation",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedOperation.yml\" sourcestartlinenumber=\"1\">Immutable owned descriptor prepared once for repeated control writes. Factories copy descriptor values and schema bytes; preparation does not register or write anything. Dispose after the last synchronous use.</p>\n"
+      "Title": "Fizzy.McapSharp.McapPreparedMetadata",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedMetadata.yml\" sourcestartlinenumber=\"1\">Copies named metadata for repeated synchronous writes. Preparation does not write or register anything.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapPreparedSchema.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapPreparedSchema.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapPreparedSchema",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapPreparedSchema.yml\" sourcestartlinenumber=\"1\">Copies schema fields and bytes for repeated registration. Null ID requests allocation; explicit ID must be nonzero. Preparation does not write or register anything.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -646,7 +856,21 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapQuery",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapQuery.yml\" sourcestartlinenumber=\"1\">Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. A null query uses file order; an explicit query defaults to ascending log time.</p>\n"
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapQuery.yml\" sourcestartlinenumber=\"1\">Message selection with inclusive StartTime and exclusive EndTime. Topic and Topics are mutually exclusive. Explicit query execution defaults to ascending log time for both omitted and empty queries. Use McapMessageFilter for sequential file-order selection.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapRawMessageReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapRawMessageReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapRawMessageReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapRawMessageReader.yml\" sourcestartlinenumber=\"1\">Raw message headers and payloads. Encountered declarations are collected, but a message need not reference a known channel. No implicit resolved-message enumeration is provided. Results follow the selected caller-buffer, borrowing or retained-storage ownership contract.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -664,48 +888,6 @@
     },
     {
       "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapReadCursor.yml",
-      "output": {
-        ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapReadCursor.html"
-        }
-      },
-      "version": "",
-      "Uid": null,
-      "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapReadCursor",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapReadCursor.yml\" sourcestartlinenumber=\"1\">One disposable cursor over copied/mapped input, a summary, or a retained chunk. Adapts official slice-reader semantics. Construction copies input; advancement parses records.\nUnsupported message delivery is rejected without advancement or terminal failure. Summary cursors support records only;\nsnapshot Chunk cursors support messages as well as records.</p>\n"
-    },
-    {
-      "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapReadEvent.yml",
-      "output": {
-        ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapReadEvent.html"
-        }
-      },
-      "version": "",
-      "Uid": null,
-      "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapReadEvent",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapReadEvent.yml\" sourcestartlinenumber=\"1\">A parser request or delivered item; interpret fields according to Kind, not merely a successful read status.</p>\n"
-    },
-    {
-      "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapReadEventKind.yml",
-      "output": {
-        ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapReadEventKind.html"
-        }
-      },
-      "version": "",
-      "Uid": null,
-      "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapReadEventKind",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapReadEventKind.yml\" sourcestartlinenumber=\"1\">Discriminates parser input requests, delivered records and completion.</p>\n"
-    },
-    {
-      "type": "ManagedReference",
       "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapReadOrder.yml",
       "output": {
         ".html": {
@@ -717,20 +899,6 @@
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapReadOrder",
       "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapReadOrder.yml\" sourcestartlinenumber=\"1\">Message traversal ordering; equal log-time ordering is unspecified.</p>\n"
-    },
-    {
-      "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapReadSession.yml",
-      "output": {
-        ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapReadSession.html"
-        }
-      },
-      "version": "",
-      "Uid": null,
-      "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapReadSession",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapReadSession.yml\" sourcestartlinenumber=\"1\">Owns one native reader. Calls are serialized and cannot be reentered from Stream callbacks.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -772,7 +940,21 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapReaderOptions",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapReaderOptions.yml\" sourcestartlinenumber=\"1\">Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded McapReadSession scan provides full-file validation. Adapter-specific validation scopes are described by Strict.</p>\n"
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapReaderOptions.yml\" sourcestartlinenumber=\"1\">Parsing and integrity options for one read session. Defaults do not prove full-file integrity; a strict complete expanded synchronous scan provides full-file validation. High-level body and declaration checks do not depend on this preset.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapRecordAccessor.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapRecordAccessor.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapRecordAccessor",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapRecordAccessor.yml\" sourcestartlinenumber=\"1\">Serialized random access over one seekable file or Stream, without copying the complete input. Offsets are relative to the initial MCAP position. Parsing or I/O failure terminates this reader; independent copied indexed readers survive disposal.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -787,20 +969,6 @@
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapRecordFields",
       "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapRecordFields.yml\" sourcestartlinenumber=\"1\">Allocation-free typed field cursor. Length-prefixed collections can be traversed with another cursor.</p>\n"
-    },
-    {
-      "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapRecordMode.yml",
-      "output": {
-        ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapRecordMode.html"
-        }
-      },
-      "version": "",
-      "Uid": null,
-      "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapRecordMode",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapRecordMode.yml\" sourcestartlinenumber=\"1\">Whether sequential record scans expose chunks or expand their contents.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -860,17 +1028,45 @@
     },
     {
       "type": "ManagedReference",
-      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSansIoReader.yml",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSansIoIndexedReader.yml",
       "output": {
         ".html": {
-          "relative_path": "api/Fizzy.McapSharp.McapSansIoReader.html"
+          "relative_path": "api/Fizzy.McapSharp.McapSansIoIndexedReader.html"
         }
       },
       "version": "",
       "Uid": null,
       "IsMRef": true,
-      "Title": "Fizzy.McapSharp.McapSansIoReader",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSansIoReader.yml\" sourcestartlinenumber=\"1\">Caller-driven official Rust parser. No I/O or borrowed native memory is exposed. Positions are measured from the MCAP origin; when servicing requests on a Stream containing a prefix, translate between these positions and the Stream position using its initial MCAP position.</p>\n"
+      "Title": "Fizzy.McapSharp.McapSansIoIndexedReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSansIoIndexedReader.yml\" sourcestartlinenumber=\"1\">Caller-driven indexed parser. Performs no I/O. Supply requested input before advancing again; buffer-size negotiation preserves pending delivery and other protocol failures are terminal.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSansIoLinearReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapSansIoLinearReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapSansIoLinearReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSansIoLinearReader.yml\" sourcestartlinenumber=\"1\">Caller-driven linear parser. Performs no I/O. Supply requested input before advancing again; buffer-size negotiation preserves pending delivery and other protocol failures are terminal.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSansIoSummaryReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapSansIoSummaryReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapSansIoSummaryReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSansIoSummaryReader.yml\" sourcestartlinenumber=\"1\">Caller-driven summary parser. Performs no I/O. Supply requested input or acknowledge the requested seek before advancing again; protocol failures are terminal.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -912,7 +1108,7 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapSeekRequest",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSeekRequest.yml\" sourcestartlinenumber=\"1\">One random message lookup. Index must remain undisposed during the call; Entry.Offset is relative to expanded chunk bytes.</p>\n"
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSeekRequest.yml\" sourcestartlinenumber=\"1\">A requested source position. Begin uses an unsigned absolute position; Current and End use a signed relative offset. Positions are relative to the MCAP origin.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -940,7 +1136,21 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapSummary",
-      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSummary.yml\" sourcestartlinenumber=\"1\">Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Size grows with file indexes and declarations.</p>\n"
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSummary.yml\" sourcestartlinenumber=\"1\">Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Contains complete schema/channel declarations, with shared schema references inside one result. Separate results are independent. Arrays and collections retain ordinary .NET equality semantics. Size grows with file indexes and declarations.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSummaryEventKind.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapSummaryEventKind.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapSummaryEventKind",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSummaryEventKind.yml\" sourcestartlinenumber=\"1\">Events produced by the summary protocol.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -958,6 +1168,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSummaryReadEvent.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapSummaryReadEvent.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapSummaryReadEvent",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSummaryReadEvent.yml\" sourcestartlinenumber=\"1\">A summary protocol event. Length applies to Read; Seek applies to Seek. Positions are relative to the MCAP origin. Other fields are not meaningful.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSummaryReaderOptions.yml",
       "output": {
         ".html": {
@@ -969,6 +1193,34 @@
       "IsMRef": true,
       "Title": "Fizzy.McapSharp.McapSummaryReaderOptions",
       "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSummaryReaderOptions.yml\" sourcestartlinenumber=\"1\">Options for direct Sans-I/O summary reading. FileSize permits end-relative seeks to be resolved against the caller-provided source length.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapSummaryRecordReader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapSummaryRecordReader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapSummaryRecordReader",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapSummaryRecordReader.yml\" sourcestartlinenumber=\"1\">Retained summary records. The reader survives disposal of its originating writer, snapshot or summary parser; it does not scan file contents.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "artifacts/docs/api/Fizzy.McapSharp.McapValidationCapability.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Fizzy.McapSharp.McapValidationCapability.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Fizzy.McapSharp.McapValidationCapability",
+      "Summary": "<p sourcefile=\"artifacts/docs/api/Fizzy.McapSharp.McapValidationCapability.yml\" sourcestartlinenumber=\"1\">Creation-time validation scope, independent of current progress, failure or disposal.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -1585,10 +1837,50 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "samples/Documentation/SansIoExamples.cs",
+      "output": {
+        "resource": {
+          "relative_path": "samples/Documentation/SansIoExamples.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "src/ArgumentValidation.cs",
       "output": {
         "resource": {
           "relative_path": "src/ArgumentValidation.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/AsyncReaderCore.Descriptions.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/AsyncReaderCore.Descriptions.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/AsyncReaderCore.Leases.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/AsyncReaderCore.Leases.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/AsyncReaderCore.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/AsyncReaderCore.cs"
         }
       },
       "version": ""
@@ -1665,30 +1957,40 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapAsyncReader.Descriptions.cs",
+      "source_relative_path": "src/McapAsyncMessageReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapAsyncReader.Descriptions.cs"
+          "relative_path": "src/McapAsyncMessageReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapAsyncReader.Leases.cs",
+      "source_relative_path": "src/McapAsyncRecordReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapAsyncReader.Leases.cs"
+          "relative_path": "src/McapAsyncRecordReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapAsyncReader.cs",
+      "source_relative_path": "src/McapChunkFlattener.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapAsyncReader.cs"
+          "relative_path": "src/McapChunkFlattener.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapChunkReader.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapChunkReader.cs"
         }
       },
       "version": ""
@@ -1735,50 +2037,80 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexSnapshot.BatchSeek.cs",
+      "source_relative_path": "src/McapIndexedQuery.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexSnapshot.BatchSeek.cs"
+          "relative_path": "src/McapIndexedQuery.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexSnapshot.Descriptions.cs",
+      "source_relative_path": "src/McapIndexedReader.BatchSeek.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexSnapshot.Descriptions.cs"
+          "relative_path": "src/McapIndexedReader.BatchSeek.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexSnapshot.Prepared.cs",
+      "source_relative_path": "src/McapIndexedReader.Descriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexSnapshot.Prepared.cs"
+          "relative_path": "src/McapIndexedReader.Descriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexSnapshot.cs",
+      "source_relative_path": "src/McapIndexedReader.Prepared.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexSnapshot.cs"
+          "relative_path": "src/McapIndexedReader.Prepared.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexSnapshotOptions.cs",
+      "source_relative_path": "src/McapIndexedReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexSnapshotOptions.cs"
+          "relative_path": "src/McapIndexedReader.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapIndexedReaderOptions.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapIndexedReaderOptions.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapLinearReader.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapLinearReader.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapMessageFilter.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapMessageFilter.cs"
         }
       },
       "version": ""
@@ -1805,6 +2137,16 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "src/McapMessageReader.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapMessageReader.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "src/McapPreparedChunkIndex.cs",
       "output": {
         "resource": {
@@ -1825,6 +2167,16 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "src/McapRawMessageReader.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapRawMessageReader.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "src/McapReadContracts.cs",
       "output": {
         "resource": {
@@ -1835,90 +2187,20 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapReadCursor.Batch.cs",
+      "source_relative_path": "src/McapReaderFactory.Enumeration.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapReadCursor.Batch.cs"
+          "relative_path": "src/McapReaderFactory.Enumeration.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapReadCursor.Descriptions.cs",
+      "source_relative_path": "src/McapReaderFactory.Typed.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapReadCursor.Descriptions.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
-      "source_relative_path": "src/McapReadCursor.Leases.cs",
-      "output": {
-        "resource": {
-          "relative_path": "src/McapReadCursor.Leases.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
-      "source_relative_path": "src/McapReadCursor.cs",
-      "output": {
-        "resource": {
-          "relative_path": "src/McapReadCursor.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
-      "source_relative_path": "src/McapReadSession.Batch.cs",
-      "output": {
-        "resource": {
-          "relative_path": "src/McapReadSession.Batch.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
-      "source_relative_path": "src/McapReadSession.Descriptions.cs",
-      "output": {
-        "resource": {
-          "relative_path": "src/McapReadSession.Descriptions.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
-      "source_relative_path": "src/McapReadSession.Index.cs",
-      "output": {
-        "resource": {
-          "relative_path": "src/McapReadSession.Index.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
-      "source_relative_path": "src/McapReadSession.Leases.cs",
-      "output": {
-        "resource": {
-          "relative_path": "src/McapReadSession.Leases.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
-      "source_relative_path": "src/McapReadSession.cs",
-      "output": {
-        "resource": {
-          "relative_path": "src/McapReadSession.cs"
+          "relative_path": "src/McapReaderFactory.Typed.cs"
         }
       },
       "version": ""
@@ -1929,6 +2211,16 @@
       "output": {
         "resource": {
           "relative_path": "src/McapReaderFactory.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapRecordAccessor.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapRecordAccessor.cs"
         }
       },
       "version": ""
@@ -1955,20 +2247,40 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSansIoReader.Descriptions.cs",
+      "source_relative_path": "src/McapSansIoIndexedReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSansIoReader.Descriptions.cs"
+          "relative_path": "src/McapSansIoIndexedReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSansIoReader.Leases.cs",
+      "source_relative_path": "src/McapSansIoLinearReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSansIoReader.Leases.cs"
+          "relative_path": "src/McapSansIoLinearReader.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapSansIoSummaryReader.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapSansIoSummaryReader.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapSeekRequest.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapSeekRequest.cs"
         }
       },
       "version": ""
@@ -1985,10 +2297,40 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "src/McapSummaryRecordReader.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapSummaryRecordReader.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "src/McapWriter.Batch.cs",
       "output": {
         "resource": {
           "relative_path": "src/McapWriter.Batch.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapWriter.Descriptors.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapWriter.Descriptors.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/McapWriter.Owned.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/McapWriter.Owned.cs"
         }
       },
       "version": ""
@@ -2095,6 +2437,16 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "src/Native.MessageRecord.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/Native.MessageRecord.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "src/Native.Prepared.cs",
       "output": {
         "resource": {
@@ -2155,10 +2507,120 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/PreparedOperation.cs",
+      "source_relative_path": "src/PreparedDescriptors.cs",
       "output": {
         "resource": {
-          "relative_path": "src/PreparedOperation.cs"
+          "relative_path": "src/PreparedDescriptors.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/PreparedWrite.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/PreparedWrite.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadCursorCore.Batch.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadCursorCore.Batch.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadCursorCore.Descriptions.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadCursorCore.Descriptions.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadCursorCore.Leases.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadCursorCore.Leases.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadCursorCore.Progress.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadCursorCore.Progress.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadCursorCore.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadCursorCore.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadSessionCore.Batch.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadSessionCore.Batch.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadSessionCore.Descriptions.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadSessionCore.Descriptions.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadSessionCore.Index.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadSessionCore.Index.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadSessionCore.Leases.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadSessionCore.Leases.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/ReadSessionCore.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReadSessionCore.cs"
         }
       },
       "version": ""
@@ -2175,6 +2637,16 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "src/ReaderSources.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/ReaderSources.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "src/RecordDecoder.cs",
       "output": {
         "resource": {
@@ -2185,10 +2657,30 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/SansIo.cs",
+      "source_relative_path": "src/SansIoReaderCore.Descriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/SansIo.cs"
+          "relative_path": "src/SansIoReaderCore.Descriptions.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/SansIoReaderCore.Leases.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/SansIoReaderCore.Leases.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "src/SansIoReaderCore.cs",
+      "output": {
+        "resource": {
+          "relative_path": "src/SansIoReaderCore.cs"
         }
       },
       "version": ""

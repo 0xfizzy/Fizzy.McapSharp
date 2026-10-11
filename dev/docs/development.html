@@ -37,7 +37,9 @@
         document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
       </script>
 
-  </head>
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
 
   <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
     <header class="bg-body border-bottom">
@@ -107,8 +109,8 @@
 <td>Public .NET API; capability partials are named after their owning type, with separate Native interop declarations</td>
 </tr>
 <tr>
-<td><code>src/McapWriterOptions.cs</code>, <code>McapQuery.cs</code>, <code>McapReadContracts.cs</code></td>
-<td>Writing configuration, message selection and read outcomes/modes</td>
+<td><code>src/McapWriterOptions.cs</code>, <code>McapMessageFilter.cs</code>, <code>McapQuery.cs</code>, <code>McapReadContracts.cs</code></td>
+<td>Writing configuration, message selection and typed read outcomes</td>
 </tr>
 <tr>
 <td><code>src/McapDeclarations.cs</code>, <code>McapMessageModels.cs</code>, <code>McapDataRecords.cs</code>, <code>McapSummaryModels.cs</code></td>
@@ -315,5 +317,5 @@ cargo test --manifest-path native/Cargo.toml --release --locked random_access_pr
         </div>
       </div>
     </footer>
-  <script src="../version.js" data-doc-root="../"></script></body>
+  </body>
 </html>
