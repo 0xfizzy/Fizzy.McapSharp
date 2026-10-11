@@ -5,7 +5,7 @@ using Microsoft.Win32.SafeHandles;
 namespace Fizzy.McapSharp;
 
 /// <summary>Discriminates parser input requests, delivered records and completion.</summary>
-public enum McapReadEventKind
+internal enum McapReadEventKind
 {
     /// <summary>The parser reached the end of its selected scan; this alone does not establish full-file integrity.</summary>
     End,
@@ -27,15 +27,25 @@ public enum McapReadEventKind
 /// <param name="Offset">Compressed-data byte offset from the MCAP origin for ReadChunk. For Seek with Begin this is a byte offset from the MCAP origin; Current/End encode a signed displacement, recovered with unchecked((long)Offset).</param>
 /// <param name="Origin">Seek origin, meaningful only for Seek events.</param>
 /// <param name="Header">Message header, meaningful only for Message events.</param>
-public readonly record struct McapReadEvent(McapReadEventKind Kind, byte Opcode, ulong Length, ulong Offset, SeekOrigin Origin, McapMessageHeader Header);
+internal readonly record struct McapReadEvent(McapReadEventKind Kind, byte Opcode, ulong Length, ulong Offset, SeekOrigin Origin, McapMessageHeader Header);
 
 /// <summary>Caller-driven official Rust parser. No I/O or borrowed native memory is exposed. Positions are measured from the MCAP origin; when servicing requests on a Stream containing a prefix, translate between these positions and the Stream position using its initial MCAP position.</summary>
-public sealed partial class McapSansIoReader : IDisposable
+internal sealed partial class SansIoReaderCore : IDisposable
 {
     readonly EngineHandle handle;
     readonly object gate = new();
-    bool disposed;
-    unsafe McapSansIoReader(uint kind, object options, McapSansIoReader? summary = null)
+    bool disposed, failed;
+    void Check()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (failed) throw new InvalidOperationException("Parser failed; open a new parser.");
+    }
+    Exception AdvancementError(Native.Result result)
+    {
+        failed = true;
+        return Native.ConsumeError(result);
+    }
+    unsafe SansIoReaderCore(uint kind, object options, SansIoReaderCore? summary = null)
     {
         Native.EnsureAvailable();
         var req = Native.Request(options);
@@ -50,29 +60,40 @@ public sealed partial class McapSansIoReader : IDisposable
         }
         finally { if (added) summary!.handle.DangerousRelease(); }
     }
-    /// <summary>Creates an incremental linear parser. MaxRandomAccessCacheBytes is a session-snapshot setting and has no effect here.</summary>
-    public static McapSansIoReader CreateLinear(McapReaderOptions? options = null) => new(Protocol.EngineKind.Linear, options ?? new());
+    /// <summary>Creates an incremental raw linear parser.</summary>
+    public static SansIoReaderCore CreateLinear(McapReaderOptions? options = null) => new(Protocol.EngineKind.Linear, options ?? new());
+    internal static SansIoReaderCore CreateValidatedLinear(McapReaderOptions? options)
+    {
+        options ??= new();
+        return new(Protocol.EngineKind.Linear, new
+        {
+            options.SkipStartMagic, options.SkipEndMagic, options.CheckFinishesAfterEndMagic,
+            options.EmitChunks, options.ValidateChunkCrcs, options.PrevalidateChunkCrcs,
+            options.ValidateDataSectionCrc, options.ValidateSummarySectionCrc, options.RecordLengthLimit,
+            ValidateRecords = true
+        });
+    }
     /// <summary>Creates a summary parser whose Seek and Read requests the caller services against a seekable input.</summary>
-    public static McapSansIoReader CreateSummary(McapSummaryReaderOptions? options = null) => new(Protocol.EngineKind.Summary, options ?? new());
+    public static SansIoReaderCore CreateSummary(McapSummaryReaderOptions? options = null) => new(Protocol.EngineKind.Summary, options ?? new());
     /// <summary>Creates an independent indexed parser from this completed summary. Uses topic/time/order filters;
     /// AllowBufferedSort and MaxBufferedSortBytes do not apply because this path never performs buffered fallback.
     /// recordLengthLimit is an optional maximum encoded record-body length in bytes.</summary>
-    public McapSansIoReader CreateIndexed(McapQuery? query = null, ulong? recordLengthLimit = null)
+    public SansIoReaderCore CreateIndexed(McapQuery? query = null, ulong? recordLengthLimit = null)
     {
         query ??= new();
         if (!Enum.IsDefined(query.Order) || query.StartTime > query.EndTime || (query.Topic is not null && query.Topics is not null)) throw new ArgumentException("Invalid query.", nameof(query));
-        lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return new(Protocol.EngineKind.Indexed, new { query.Topic, query.Topics, query.StartTime, query.EndTime, query.Order, RecordLengthLimit = recordLengthLimit }, this); }
+        lock (gate) { Check(); return new(Protocol.EngineKind.Indexed, new { query.Topic, query.Topics, query.StartTime, query.EndTime, query.Order, RecordLengthLimit = recordLengthLimit }, this); }
     }
     /// <summary>Advances the protocol and copies delivered record/message bytes into caller storage. Read/Seek/ReadChunk requests require the corresponding input notification before advancing. BufferTooSmall retains the same pending delivery for retry.</summary>
     public unsafe McapReadStatus NextEvent(Span<byte> destination, out McapReadEvent readEvent)
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Check();
             fixed (byte* p = destination)
             {
                 int status = Native.fm_engine_next(handle, p, (nuint)destination.Length, out var e, out var r);
-                if (status < Protocol.Status.Success) throw Native.ConsumeError(r);
+                if (status < Protocol.Status.Success) throw AdvancementError(r);
                 readEvent = new((McapReadEventKind)e.Kind, (byte)e.Opcode, e.Length, e.Offset, (SeekOrigin)e.Origin, new(e.Header.ChannelId, e.Header.Sequence, e.Header.LogTime, e.Header.PublishTime));
                 return status == Protocol.Status.End ? McapReadStatus.EndOfStream : status == Protocol.Status.BufferTooSmall ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
             }
@@ -83,11 +104,11 @@ public sealed partial class McapSansIoReader : IDisposable
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Check();
             fixed (byte* p = data)
             {
                 int status = Native.fm_engine_feed(handle, p, (nuint)data.Length, position, out var r);
-                if (status < Protocol.Status.Success) throw Native.ConsumeError(r);
+                if (status < Protocol.Status.Success) throw AdvancementError(r);
             }
         }
     }
@@ -98,23 +119,23 @@ public sealed partial class McapSansIoReader : IDisposable
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            fixed (byte* p = compressedData) { int status = Native.fm_engine_index_control(handle, Protocol.IndexedControl.InsertChunk, offset, p, (nuint)compressedData.Length, out var r); if (status < Protocol.Status.Success) throw Native.ConsumeError(r); }
+            Check();
+            fixed (byte* p = compressedData) { int status = Native.fm_engine_index_control(handle, Protocol.IndexedControl.InsertChunk, offset, p, (nuint)compressedData.Length, out var r); if (status < Protocol.Status.Success) throw AdvancementError(r); }
         }
     }
     /// <summary>Sets the indexed parser's maximum encoded record-body length in bytes; null removes the limit. Requires an indexed parser.</summary>
     public unsafe void SetRecordLengthLimit(ulong? limit)
     {
-        lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); int status = Native.fm_engine_index_control(handle, limit.HasValue ? Protocol.IndexedControl.SetRecordLengthLimit : Protocol.IndexedControl.ClearRecordLengthLimit, limit ?? 0, null, 0, out var r); if (status < Protocol.Status.Success) throw Native.ConsumeError(r); }
+        lock (gate) { Check(); int status = Native.fm_engine_index_control(handle, limit.HasValue ? Protocol.IndexedControl.SetRecordLengthLimit : Protocol.IndexedControl.ClearRecordLengthLimit, limit ?? 0, null, 0, out var r); if (status < Protocol.Status.Success) throw AdvancementError(r); }
     }
     /// <summary>Opens an independent record-only cursor over a completed summary, retaining it after parser disposal.</summary>
-    public McapReadCursor OpenSummaryRecords() { lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); return Native.SummaryRecords(Protocol.SummarySource.Engine, handle); } }
+    public McapSummaryRecordReader OpenSummaryRecords() { lock (gate) { Check(); return Native.SummaryRecords(Protocol.SummarySource.Engine, handle); } }
     /// <summary>Copies the completed summary into independent managed objects, or returns null when the input has no summary.</summary>
     public McapSummary? GetSummary()
     {
         lock (gate)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Check();
             var status = Native.fm_engine_summary(handle, out var r);
             var result = Native.Consume(status, r);
             using var j = result.Json;

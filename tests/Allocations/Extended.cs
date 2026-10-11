@@ -10,11 +10,11 @@ static class Extended
             using var storage = new MemoryStream(32 * 1024 * 1024);
             using var channel = new McapPreparedChannel(new(17, "full", "raw", new(19, "s", "raw", [1]), new Dictionary<string, string>()));
             using var late = new McapPreparedChannel(new(18, "late", "raw", new(22, "late-schema", "raw", [2]), new Dictionary<string, string>()));
-            using var metadata = McapPreparedOperation.Metadata("m", new Dictionary<string, string> { ["a"] = "b" });
-            using var attachment = McapPreparedOperation.Attachment("a", "raw", 1, 2);
-            using var start = McapPreparedOperation.StartAttachment("b", "raw", 1, 2, 1);
-            using var schema = McapPreparedOperation.Schema("schema", "raw", [1], 20);
-            using var declaration = McapPreparedOperation.Channel("declared", "raw", 20, id: 21);
+            using var metadata = new McapPreparedMetadata("m", new Dictionary<string, string> { ["a"] = "b" });
+            using var attachment = new McapPreparedAttachment("a", "raw", 1, 2);
+            using var start = new McapPreparedAttachmentStart("b", "raw", 1, 2, 1);
+            using var schema = new McapPreparedSchema("schema", "raw", [1], 20);
+            using var declaration = new McapPreparedChannelRegistration("declared", "raw", 20, id: 21);
             using (var w = new McapWriter(storage, new() { Compression = compression, ChunkSize = 4096, CompressionThreads = 0 }, true))
             {
                 for (int i = 0; i < 100; i++) Write(w, channel, metadata, attachment, start, schema, declaration);
@@ -26,7 +26,7 @@ static class Extended
                 w.Complete();
             }
             var bytes = storage.ToArray();
-            using (var r = new McapReadCursor(bytes, McapCursorMode.ExpandedRecords))
+            using (var r = new McapChunkFlattener(bytes))
             {
                 byte[] buffer = new byte[65536];
                 for (int i = 0; i < 100; i++) { r.ReadNextRecord(buffer, out var op, out var size); var v = McapRecordView.Parse(op, buffer.AsSpan(0, (int)size)); if (v.Opcode == 5) _ = v.MessageHeader; }
@@ -40,7 +40,7 @@ static class Extended
                 Check("buffer/record-view " + compression, allocated);
             }
             storage.Position = 0;
-            using (var r = McapReaderFactory.OpenMessages(storage, leaveOpen: true))
+            using (var r = McapReaderFactory.OpenRandomAccess(storage, leaveOpen: true))
             using (var snapshot = r.OpenIndexSnapshot())
             {
                 var summary = r.GetSummary()!;
@@ -58,7 +58,7 @@ static class Extended
                 for (int i = 0; i < 50; i++) { Random(snapshot, chunk, entry, summary, buffer); snapshot.ReadMessageIndexes(alternate, buffer, out _); }
                 long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
                 Check("random/index/attachment/metadata " + compression, allocated);
-                using var cursor = snapshot.OpenChunkReader(chunk);
+                using var cursor = snapshot.OpenChunkMessages(chunk);
                 cursor.ReadNext([], out _, out _);
                 before = GC.GetAllocatedBytesForCurrentThread();
                 while (cursor.ReadNext(buffer, out _, out _) != McapReadStatus.EndOfStream) { }
@@ -70,11 +70,11 @@ static class Extended
             AsyncAwait(bytes, compression);
         }
     }
-    static void Write(McapWriter w, McapPreparedChannel c, McapPreparedOperation m, McapPreparedOperation a, McapPreparedOperation start, McapPreparedOperation schema, McapPreparedOperation channel)
+    static void Write(McapWriter w, McapPreparedChannel c, McapPreparedMetadata m, McapPreparedAttachment a, McapPreparedAttachmentStart start, McapPreparedSchema schema, McapPreparedChannelRegistration channel)
     {
         w.WriteMessage(c, new(17, 1, 1, 1), [1]);
-        w.WritePrepared(schema); w.WritePrepared(channel); w.WritePrepared(m); w.WritePrepared(a, [1]);
-        w.WritePrepared(start); w.WriteAttachmentBytes([1]); w.FinishAttachment(); w.WritePrivateRecord(0x80, [1], true);
+        w.RegisterSchema(schema); w.RegisterChannel(channel); w.WriteMetadata(m); w.WriteAttachment(a, [1]);
+        w.StartAttachment(start); w.WriteAttachmentBytes([1]); w.FinishAttachment(); w.WritePrivateRecord(0x80, [1], true);
     }
     static void Random(McapIndexSnapshot s, McapChunkIndex chunk, McapMessageIndexEntry entry, McapSummary summary, byte[] buffer)
     {
@@ -84,7 +84,7 @@ static class Extended
     static void Async(byte[] bytes, McapCompression compression)
     {
         using var stream = new SuspendingStream(bytes);
-        using var reader = new McapAsyncReader(stream, leaveOpen: true, inputBufferSize: 256);
+        using var reader = new McapAsyncRecordReader(stream, leaveOpen: true, inputBufferSize: 256);
         byte[] buffer = new byte[65536];
         for (int i = 0; i < 1000; i++) Read(reader, buffer);
         stream.WaitIdle();
@@ -99,7 +99,7 @@ static class Extended
     static void AsyncAwait(byte[] bytes, McapCompression compression)
     {
         using var stream = new SuspendingStream(bytes);
-        using var reader = new McapAsyncReader(stream, leaveOpen: true, inputBufferSize: 256);
+        using var reader = new McapAsyncRecordReader(stream, leaveOpen: true, inputBufferSize: 256);
         var buffer = new byte[65536];
         Consume().GetAwaiter().GetResult();
         stream.WaitIdle();
@@ -112,7 +112,7 @@ static class Extended
             if (count < 1000) throw new Exception("Insufficient async warmup");
         }
     }
-    static McapRecordReadResult Read(McapAsyncReader reader, byte[] buffer)
+    static McapRecordReadResult Read(McapAsyncRecordReader reader, byte[] buffer)
     {
         var task = reader.ReadNextRecordAsync(buffer);
         var deadline = Environment.TickCount64 + 10000;

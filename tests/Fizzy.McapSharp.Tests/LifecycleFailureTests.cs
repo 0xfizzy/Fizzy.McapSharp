@@ -5,13 +5,45 @@ namespace Fizzy.McapSharp.Tests;
 
 public sealed class LifecycleFailureTests
 {
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void ScalarFactoriesPreserveReadAndCleanupErrors(bool recovery)
+    {
+        var stream = new FailingStream(Sample()) { FailRead = true, FailDispose = true };
+        var error = Assert.Throws<AggregateException>(() =>
+        {
+            if (recovery) McapReaderFactory.RecoverMessages(stream, _ => { });
+            else McapReaderFactory.GetSummary(stream);
+        }).Flatten();
+        Assert.Contains(stream.ReadError, error.InnerExceptions);
+        Assert.Contains(stream.DisposeError, error.InnerExceptions);
+        Assert.Equal(1, stream.DisposeCalls);
+    }
+
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void SnapshotFactoryReportsSourceFailureWithoutLosingCleanupFailure(bool failRead)
+    {
+        var stream = new FailingStream(Sample()) { FailRead = failRead, FailDispose = true };
+        var error = Record.Exception(() => McapReaderFactory.OpenIndexSnapshot(stream));
+        if (failRead)
+        {
+            var combined = Assert.IsType<AggregateException>(error).Flatten().InnerExceptions;
+            Assert.Contains(stream.ReadError, combined);
+            Assert.Contains(stream.DisposeError, combined);
+        }
+        else Assert.Same(stream.DisposeError, error);
+        Assert.Equal(1, stream.DisposeCalls);
+        Assert.Throws<InvalidOperationException>(() => McapReaderFactory.OpenMessages(stream));
+    }
+
     static byte[] Sample()
     {
         using var stream = new MemoryStream();
         using (var writer = new McapWriter(stream, new() { UseChunks = false, Compression = McapCompression.None }, leaveOpen: true))
         {
             var channel = writer.RegisterChannel("test", "raw");
-            writer.WriteMessage(new McapMessageHeader(channel, 0, 1, 1), [42]);
+            writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 1, 1), [42]);
             writer.Complete();
         }
         return stream.ToArray();
@@ -62,14 +94,14 @@ public sealed class LifecycleFailureTests
         IDisposable owner = kind switch
         {
             "writer" => new McapWriter(stream),
-            "reader" => McapReaderFactory.OpenRecords(stream),
-            _ => new McapAsyncReader(stream)
+            "reader" => McapReaderFactory.OpenRecordSession(stream),
+            _ => new McapAsyncRecordReader(stream)
         };
-        stream.OnDispose = () => Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
+        stream.OnDispose = () => Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
         Assert.Same(stream.DisposeError, Assert.Throws<IOException>(owner.Dispose));
         owner.Dispose();
         Assert.Equal(1, stream.DisposeCalls);
-        Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
+        Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
     }
 
     [Theory]
@@ -80,14 +112,14 @@ public sealed class LifecycleFailureTests
     public void AuxiliaryIoFailureIsTerminal(string operation)
     {
         using var stream = new FailingStream(Sample());
-        using var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
+        using var reader = McapReaderFactory.OpenRecordSession(stream, leaveOpen: true);
         stream.FailRead = true;
         Assert.Same(stream.ReadError, Assert.Throws<IOException>(() => Run(reader, operation)));
         stream.FailRead = false;
         Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecord(new byte[1024], out _, out _));
     }
 
-    static void Run(McapReadSession reader, string operation)
+    static void Run(ReadSessionCore reader, string operation)
     {
         switch (operation)
         {
@@ -106,7 +138,7 @@ public sealed class LifecycleFailureTests
     public void OperationAndRestoreFailuresBothRemainObservable(string operation)
     {
         using var stream = new FailingStream(Sample());
-        using var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
+        using var reader = McapReaderFactory.OpenRecordSession(stream, leaveOpen: true);
         stream.FailRead = stream.FailRestore = true;
         var failure = Assert.Throws<AggregateException>(() => Run(reader, operation)).Flatten();
         Assert.Contains(stream.ReadError, failure.InnerExceptions);
@@ -122,18 +154,18 @@ public sealed class LifecycleFailureTests
         Stream transferred;
         if (kind == "reader")
         {
-            using var reader = McapReaderFactory.OpenRecords(stream);
+            using var reader = McapReaderFactory.OpenRecordSession(stream);
             transferred = reader.IntoInner();
         }
         else
         {
-            using var reader = new McapAsyncReader(stream);
+            using var reader = new McapAsyncRecordReader(stream);
             transferred = reader.IntoInner();
         }
         Assert.Same(stream, transferred);
         Assert.Equal(0, stream.DisposeCalls);
         stream.Position = 0;
-        using (var next = new McapAsyncReader(stream, leaveOpen: true)) { }
+        using (var next = new McapAsyncRecordReader(stream, leaveOpen: true)) { }
         stream.Dispose();
     }
 
@@ -141,11 +173,11 @@ public sealed class LifecycleFailureTests
     public void InitializationPreservesOperationAndDisposalFailure()
     {
         var stream = new FailingStream(Sample()) { FailRead = true, FailDispose = true };
-        var failure = Assert.Throws<AggregateException>(() => McapReaderFactory.OpenMessages(stream, new() { Order = McapReadOrder.LogTime })).Flatten();
+        var failure = Assert.Throws<AggregateException>(() => McapReaderFactory.OpenMessageSession(stream, new() { Order = McapReadOrder.LogTime })).Flatten();
         Assert.Contains(stream.ReadError, failure.InnerExceptions);
         Assert.Contains(stream.DisposeError, failure.InnerExceptions);
         Assert.Equal(1, stream.DisposeCalls);
-        Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
+        Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
     }
     [Fact]
     public void InitializationPreservesNativeFormatErrorAndRestoreCallbackFailure()
@@ -154,7 +186,7 @@ public sealed class LifecycleFailureTests
         malformed[^1] ^= 0xff; // The summary reader rejects the trailing magic before reading the summary.
         using var stream = new FailingStream(malformed) { FailRestoreAfterRead = true };
         var failure = Assert.Throws<AggregateException>(() =>
-            McapReaderFactory.OpenMessages(stream, new() { Order = McapReadOrder.LogTime }, leaveOpen: true)).Flatten();
+            McapReaderFactory.OpenMessageSession(stream, new() { Order = McapReadOrder.LogTime }, leaveOpen: true)).Flatten();
         Assert.Contains(stream.SeekError, failure.InnerExceptions);
         var native = Assert.Single(failure.InnerExceptions.OfType<McapException>());
         Assert.Equal("operationRestore", native.Details.GetProperty("code").GetString());
@@ -163,7 +195,18 @@ public sealed class LifecycleFailureTests
         Assert.Equal("Managed Stream callback failed", native.Details.GetProperty("cleanup").GetProperty("message").GetString());
         Assert.Equal(0, stream.DisposeCalls);
         // Failed construction released its native owner, so leaveOpen ownership is safely returned.
-        using var next = new McapAsyncReader(stream, leaveOpen: true);
+        using var next = new McapAsyncRecordReader(stream, leaveOpen: true);
+    }
+
+    [Fact]
+    public void FactoryEnumerationPreservesReadAndDisposalFailure()
+    {
+        var stream = new FailingStream(Sample()) { FailRead = true, FailDispose = true };
+        var failure = Assert.Throws<AggregateException>(() => McapReaderFactory.ReadMetadata(stream).ToArray()).Flatten();
+        Assert.Contains(stream.ReadError, failure.InnerExceptions);
+        Assert.Contains(stream.DisposeError, failure.InnerExceptions);
+        Assert.Equal(1, stream.DisposeCalls);
+        Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
     }
 
     // These handles isolate the public release contract from the operating system:
@@ -207,7 +250,7 @@ public sealed class LifecycleFailureTests
         handle.Dispose();
         Assert.Equal(1, handle.Calls);
         Assert.Equal(1, stream.DisposeCalls);
-        Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
+        Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
     }
 
     [Fact]
@@ -219,7 +262,7 @@ public sealed class LifecycleFailureTests
         Assert.Same(handle.InteropError, Assert.Throws<EntryPointNotFoundException>(handle.Dispose));
         Assert.False(handle.NativeReleased);
         Assert.Equal(0, stream.DisposeCalls);
-        Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
+        Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
         handle.Dispose();
         Assert.Equal(1, handle.Calls);
         // This test double owns no native pointer; explicitly discharge its retained bridge.
@@ -238,7 +281,7 @@ public sealed class LifecycleFailureTests
         {
             Assert.Same(handle.InteropError, Assert.Throws<EntryPointNotFoundException>(() => handle.Transfer()));
             Assert.Equal(0, stream.DisposeCalls);
-            Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
+            Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
             bridge.Release();
         }
         else
@@ -262,7 +305,7 @@ public sealed class LifecycleFailureTests
         handle.FinalizeFallback();
         Assert.Equal(1, handle.Calls);
         Assert.Equal(interopThrows ? 0 : 1, stream.DisposeCalls);
-        Assert.Throws<InvalidOperationException>(() => new McapAsyncReader(stream));
+        Assert.Throws<InvalidOperationException>(() => new McapAsyncRecordReader(stream));
         if (interopThrows)
         {
             stream.FailDispose = false;

@@ -1,6 +1,6 @@
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapAsyncReader
+internal sealed partial class AsyncReaderCore
 {
     readonly Dictionary<ushort, McapChannelDescription> descriptions = new();
     readonly Dictionary<ushort, McapSchemaDescription> schemaDescriptions = new();
@@ -10,11 +10,10 @@ public sealed partial class McapAsyncReader
         ObjectDisposedException.ThrowIf(disposed, this);
         if (failed) throw new InvalidOperationException("Reader failed; open a new reader.");
         if (active) throw new InvalidOperationException("Consume the outstanding operation before querying declarations.");
-        if (consumptionMode == 1) throw new InvalidOperationException("Declaration lookup requires message-lease consumption.");
     }
 
-    /// <summary>Returns a cached immutable channel and its schema encountered by message-lease reading.
-    /// Consuming records does not collect declarations. Consume each outstanding ValueTask before calling;
+    /// <summary>Returns a cached immutable channel and its schema encountered by expanded record or message-lease reading.
+    /// Top-level chunk delivery cannot collect declarations inside chunks. Consume each outstanding ValueTask before calling;
     /// failed or disposed readers reject lookup. An unknown ID throws McapException without terminating the reader.
     /// The returned description remains valid after advancement or disposal. First lookup may allocate.</summary>
     public McapChannelDescription GetChannelDescription(ushort id)

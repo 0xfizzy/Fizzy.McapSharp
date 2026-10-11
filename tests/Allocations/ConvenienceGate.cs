@@ -29,14 +29,14 @@ static class ConvenienceGate
         {
             var channel = writer.RegisterChannel("t", "raw");
             byte[] payload = new byte[100000];
-            for (uint i = 0; i < 64; i++) writer.WriteMessage(new(channel, i, i, 0), payload);
+            for (uint i = 0; i < 64; i++) writer.WriteToKnownChannel(new(channel, i, i, 0), payload);
             writer.Complete();
         }
         var bytes = storage.ToArray();
         foreach (bool buffer in new[] { false, true })
         {
             using var session = McapReaderFactory.OpenMessages(new MemoryStream(bytes));
-            using var reader = new McapReadCursor(bytes);
+            using var reader = new McapMessageReader(bytes);
             using var messages = (buffer ? reader.ReadMessages() : session.ReadMessages()).GetEnumerator();
             for (int i = 0; i < 4; i++) messages.MoveNext();
             long before = GC.GetAllocatedBytesForCurrentThread();
@@ -55,7 +55,7 @@ static class ConvenienceGate
             for (uint i = 0; i < 110; i++)
             {
                 var channel = writer.RegisterChannel("t" + i, "raw");
-                writer.WriteMessage(new(channel, i, i, 0), new byte[64]);
+                writer.WriteToKnownChannel(new(channel, i, i, 0), new byte[64]);
             }
             writer.Complete();
         }
@@ -74,14 +74,13 @@ static class ConvenienceGate
     static long Measure(byte[] bytes, int kind)
     {
         using var stream = new MemoryStream(bytes);
-        using var session = McapReaderFactory.OpenRecords(stream);
         long before = GC.GetAllocatedBytesForCurrentThread();
         int count = kind switch
         {
-            0 => session.ReadSchemas().Count(),
-            1 => session.ReadChannels().Count(),
-            2 => session.ReadMetadata().Count(),
-            _ => session.ReadAttachments().Count()
+            0 => McapReaderFactory.ReadSchemas(stream, leaveOpen: true).Count(),
+            1 => McapReaderFactory.ReadChannels(stream, leaveOpen: true).Count(),
+            2 => McapReaderFactory.ReadMetadata(stream, leaveOpen: true).Count(),
+            _ => McapReaderFactory.ReadAttachments(stream, leaveOpen: true).Count()
         };
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         if (count != 1) throw new Exception("Missing classified record");
@@ -100,7 +99,7 @@ static class ConvenienceGate
             var schema = writer.RegisterSchema("s", "raw", [1]);
             var channel = writer.RegisterChannel("t", "raw", schema);
             byte[] payload = new byte[1024];
-            for (uint i = 0; i < count; i++) writer.WriteMessage(new(channel, i, i, i), payload);
+            for (uint i = 0; i < count; i++) writer.WriteToKnownChannel(new(channel, i, i, i), payload);
             writer.WriteMetadata("m", new Dictionary<string, string> { ["k"] = "v" });
             writer.WriteAttachment("a", "raw", 0, 0, [1]);
             writer.Complete();

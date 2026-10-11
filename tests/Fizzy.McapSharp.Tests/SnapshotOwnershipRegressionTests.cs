@@ -10,9 +10,9 @@ public class SnapshotOwnershipRegressionTests
         using (var writer = new McapWriter(stream, new() { Compression = compression, ChunkSize = 1024 * 1024 }, true))
         {
             var channel = writer.RegisterChannel("topic", "raw");
-            writer.WriteMessage(new(channel, 0, 1, 1), [11]);
+            writer.WriteToKnownChannel(new(channel, 0, 1, 1), [11]);
             writer.Flush(); // Explicitly finish the first message chunk, including its declaration.
-            writer.WriteMessage(new(channel, 1, 2, 2), [22]);
+            writer.WriteToKnownChannel(new(channel, 1, 2, 2), [22]);
             if (attachmentBytes != 0) writer.WriteAttachment("attachment", "raw", 1, 2, new byte[attachmentBytes]);
             writer.Complete();
         }

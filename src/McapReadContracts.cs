@@ -15,7 +15,7 @@ public enum McapReadStatus
 public sealed record McapRecoveryResult(ulong RecoveredMessageCount, bool IsFullyValidated, McapException? Error);
 
 /// <summary>Whether sequential record scans expose chunks or expand their contents.</summary>
-public enum McapRecordMode
+internal enum RecordMode
 {
     /// <summary>Returns top-level records, including compressed chunk records without expansion.</summary>
     TopLevel,

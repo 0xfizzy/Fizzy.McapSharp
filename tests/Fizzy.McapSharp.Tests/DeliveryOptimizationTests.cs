@@ -14,8 +14,8 @@ public class DeliveryOptimizationTests
             for (int i = 0; i < channels; i++)
             {
                 var c = w.RegisterChannel("t" + i, "raw", schema, new Dictionary<string, string> { ["k"] = "v" });
-                w.WriteMessage(new(c, (uint)i, (ulong)i, 0), new byte[70000]);
-                w.WriteMessage(new(c, (uint)i, (ulong)i, 0), []);
+                w.WriteToKnownChannel(new(c, (uint)i, (ulong)i, 0), new byte[70000]);
+                w.WriteToKnownChannel(new(c, (uint)i, (ulong)i, 0), []);
             }
             w.WriteMetadata("m", new Dictionary<string, string> { ["k"] = "v" });
             w.WriteAttachment("a", "raw", 1, 0, [1, 2, 3]);
@@ -29,8 +29,8 @@ public class DeliveryOptimizationTests
     public void OwnedDeliveryHasOneCopyAndConsumesPending(McapCompression compression)
     {
         var data = Recording(compression);
-        using var direct = McapReaderFactory.OpenMessages(new MemoryStream(data));
-        using var owned = McapReaderFactory.OpenMessages(new MemoryStream(data), options: new());
+        using var direct = McapReaderFactory.OpenMessageSession(new MemoryStream(data));
+        using var owned = McapReaderFactory.OpenMessageSession(new MemoryStream(data), options: new());
         var destination = new byte[70000];
         using var iterator = owned.ReadMessages().GetEnumerator();
         while (iterator.MoveNext())
@@ -42,7 +42,7 @@ public class DeliveryOptimizationTests
 
 
 
-        using var pending = McapReaderFactory.OpenMessages(new MemoryStream(data));
+        using var pending = McapReaderFactory.OpenMessageSession(new MemoryStream(data));
         Assert.Equal(McapReadStatus.BufferTooSmall, pending.ReadNext([], out _, out _));
         using (var messages = pending.ReadMessages().GetEnumerator())
         {
@@ -52,7 +52,7 @@ public class DeliveryOptimizationTests
         }
 
         Assert.Empty(Assert.Single(pending.ReadMessages()).Data);
-        using var isolated = McapReaderFactory.OpenMessages(new MemoryStream(data));
+        using var isolated = McapReaderFactory.OpenMessageSession(new MemoryStream(data));
         using (var messages = isolated.ReadMessages().GetEnumerator())
         {
             Assert.True(messages.MoveNext());
@@ -62,7 +62,7 @@ public class DeliveryOptimizationTests
             Assert.Equal(7, messages.Current.Channel.Schema!.Data[0]);
             Assert.Equal("v", messages.Current.Channel.Metadata["k"]);
         }
-        using var buffer = new McapReadCursor(data);
+        using var buffer = new ReadCursorCore(data);
         Assert.Equal(McapReadStatus.BufferTooSmall, buffer.ReadNext([], out _, out _));
         var records = buffer.ReadMessages().ToArray();
         Assert.Equal(2, records.Length);
@@ -79,8 +79,8 @@ public class DeliveryOptimizationTests
     public void ClassifiedScanDoesNotDeliverUnrelatedPayloads(McapCompression compression)
     {
         var data = Recording(compression);
-        using var metadata = McapReaderFactory.OpenRecords(new MemoryStream(data), options: new());
-        using var attachment = McapReaderFactory.OpenRecords(new MemoryStream(data), options: new());
+        using var metadata = McapReaderFactory.OpenRecordSession(new MemoryStream(data), options: new());
+        using var attachment = McapReaderFactory.OpenRecordSession(new MemoryStream(data), options: new());
         Assert.Single(metadata.ReadMetadata());
         Assert.Equal(new byte[] { 1, 2, 3 }, Assert.Single(attachment.ReadAttachments()).Data);
 
@@ -107,7 +107,7 @@ public class DeliveryOptimizationTests
         Assert.Equal(expected.Data, other.SeekMessage(prepared, entry).Data);
         var output = new byte[70000];
         Assert.Equal(McapReadStatus.Success, snapshot.SeekMessage(prepared, entry, output, out _, out _));
-        using var child = snapshot.OpenChunkReader(prepared);
+        using var child = snapshot.OpenChunkMessages(prepared);
         prepared.Dispose(); snapshot.Dispose();
         Assert.Equal(220, child.ReadMessages().Count());
         Assert.Throws<ObjectDisposedException>(() => other.GetCompressedDataOffset(prepared));
@@ -169,7 +169,7 @@ public class DeliveryOptimizationTests
     public void PendingRecordFilteringAndSnapshotOwnedRetryDoNotAdvanceTwice()
     {
         var data = Recording(McapCompression.Zstd);
-        using var records = McapReaderFactory.OpenRecords(new MemoryStream(data));
+        using var records = McapReaderFactory.OpenRecordSession(new MemoryStream(data));
         Assert.Equal(McapReadStatus.BufferTooSmall, records.ReadNextRecord([], out _, out _));
         Assert.Single(records.ReadMetadata());
         using var snapshot = new McapIndexSnapshot(data);

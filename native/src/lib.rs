@@ -132,7 +132,7 @@ fn map(v: &Value) -> Outcome<BTreeMap<String, String>> {
 }
 #[no_mangle]
 pub extern "C" fn fm_abi_version() -> u32 {
-    16
+    17
 }
 #[no_mangle]
 pub unsafe extern "C" fn fm_buffer_free(p: *mut u8, n: usize) {

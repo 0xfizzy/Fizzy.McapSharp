@@ -7,16 +7,15 @@ namespace Fizzy.McapSharp;
 /// <summary>Caller-buffer read outcome. On Success, Opcode identifies the record and Length is the body bytes copied; on BufferTooSmall, Length is the required capacity and the same record remains pending. EOF does not prove full-file integrity.</summary>
 public readonly record struct McapRecordReadResult(McapReadStatus Status, byte Opcode, ulong Length);
 
-/// <summary>One incremental asynchronous read session backed by the official Sans-I/O parser. Owns its Stream unless leaveOpen is true. Consume each ValueTask exactly once before another operation; I/O, parsing and cancellation failures terminate the session. Record and lease consumption cannot be mixed. Strict record delivery validates each complete body and attachment CRC before reporting Success, but does not validate cross-record declaration references or establish full-file validation.</summary>
-public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IValueTaskSource<McapRecordReadResult>, IValueTaskSource<McapMessageBatchLease?>
+/// <summary>One incremental asynchronous read session backed by the official Sans-I/O parser. Owns its Stream unless leaveOpen is true. Consume each ValueTask exactly once before another operation; I/O, parsing and cancellation failures terminate the session. Capability is fixed at construction. Expanded record delivery validates each complete body and declaration references independently of CRC options, but does not establish full-file validation.</summary>
+internal sealed partial class AsyncReaderCore : IDisposable, IAsyncDisposable, IValueTaskSource<McapRecordReadResult>, IValueTaskSource<McapMessageBatchLease?>
 {
     readonly Stream stream;
     readonly StreamBridge bridge;
-    readonly McapSansIoReader parser;
+    readonly SansIoReaderCore parser;
     readonly NativeInputMemory input;
     readonly int inputBufferSize;
     readonly bool emitChunks;
-    readonly bool validateRecordBodies;
     readonly AsyncResources resources;
     readonly Action resume;
     readonly object gate = new();
@@ -27,17 +26,19 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
     bool active, failed, disposed;
 
     /// <summary>Opens one incremental session over a readable Stream. Owns the Stream unless leaveOpen is true; inputBufferSize limits each I/O transfer, not parser storage.</summary>
-    public McapAsyncReader(Stream stream, McapReaderOptions? options = null, bool leaveOpen = false, int inputBufferSize = 65536)
+    public AsyncReaderCore(Stream stream, McapReaderOptions? options = null, bool leaveOpen = false, int inputBufferSize = 65536, bool messages = false)
     {
         ArgumentNullException.ThrowIfNull(stream);
         if (inputBufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(inputBufferSize));
+        if (messages && options?.EmitChunks == true)
+            throw new ArgumentException("Message reading requires expanded chunks.", nameof(options));
+        consumptionMode = messages ? 2 : 1;
         this.stream = stream;
         emitChunks = options?.EmitChunks ?? false;
-        validateRecordBodies = options?.IsStrict ?? false;
         this.inputBufferSize = inputBufferSize;
         bridge = new(stream, false, leaveOpen);
-        McapSansIoReader? opened = null;
-        try { parser = opened = McapSansIoReader.CreateLinear(options); input = new(parser); }
+        SansIoReaderCore? opened = null;
+        try { parser = opened = SansIoReaderCore.CreateValidatedLinear(options); input = new(parser); }
         catch (Exception operation)
         {
             Exception error = operation;
@@ -67,7 +68,6 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
             if (failed) throw new InvalidOperationException("Reader failed; open a new reader.");
             if (active) throw new InvalidOperationException("Consume the outstanding operation before starting another.");
             if (consumptionMode == 2) throw new InvalidOperationException("Record and message-lease consumption cannot be mixed on an async reader.");
-            consumptionMode = 1;
             active = true;
             this.destination = destination;
             cancellation = cancellationToken;
@@ -102,8 +102,6 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
                 var status = parser.NextEvent(destination.Span, out var e);
                 if (status != McapReadStatus.Success || e.Kind == McapReadEventKind.Record)
                 {
-                    if (validateRecordBodies && status == McapReadStatus.Success && e.Kind == McapReadEventKind.Record)
-                        ValidateRecordBody(e.Opcode, destination.Span[..checked((int)e.Length)]);
                     destination = default;
                     completion.SetResult(new(status, e.Opcode, e.Length));
                     return;
@@ -115,14 +113,6 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
             }
         }
         catch (Exception ex) { failed = true; destination = default; completion.SetException(ex); }
-    }
-    static unsafe void ValidateRecordBody(byte opcode, ReadOnlySpan<byte> data)
-    {
-        fixed (byte* p = data)
-        {
-            int status = Native.fm_parse_record(opcode, p, (nuint)data.Length, out var result);
-            if (status < Protocol.Status.Success) throw Native.ConsumeError(result);
-        }
     }
     McapRecordReadResult IValueTaskSource<McapRecordReadResult>.GetResult(short token)
     {
@@ -153,8 +143,8 @@ public sealed partial class McapAsyncReader : IDisposable, IAsyncDisposable, IVa
 
 internal sealed class AsyncResources : OwnedNativeHandle
 {
-    readonly McapSansIoReader parser;
-    internal AsyncResources(McapSansIoReader parser, StreamBridge bridge) : base((IntPtr)1, bridge) { this.parser = parser; }
+    readonly SansIoReaderCore parser;
+    internal AsyncResources(SansIoReaderCore parser, StreamBridge bridge) : base((IntPtr)1, bridge) { this.parser = parser; }
     protected override bool DependenciesReleased => parser.NativeReleased;
     protected override int ReleaseNative(IntPtr value, out Native.Result result) { result = default; parser.Dispose(); return Protocol.Status.Success; }
 }

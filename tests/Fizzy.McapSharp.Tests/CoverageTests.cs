@@ -30,7 +30,7 @@ public partial class CoverageTests
         }
         Assert.Equal(1024ul * 1024, new McapWriterOptions().ChunkSize);
         s.Position = 0;
-        using var r = McapReaderFactory.OpenRecords(s, McapRecordMode.TopLevel, true);
+        using var r = McapReaderFactory.OpenRecordSession(s, RecordMode.TopLevel, true);
         var records = r.ReadRecords().ToArray();
         Assert.Equal(McapFormat.LibraryIdentifier, ((McapHeader)McapRecords.Parse(1, records[0].Data)).Library);
         Assert.Equal("zstd", ((McapChunkRecord)McapRecords.Parse(6, records.First(x => x.Opcode == 6).Data)).Header.Compression);
@@ -43,11 +43,11 @@ public partial class CoverageTests
         var bytes = Recording(chunks);
         foreach (var order in Enum.GetValues<McapReadOrder>())
         {
-            using var r = McapReaderFactory.OpenMessages(new MemoryStream(bytes), new() { Topics = ["topic", "missing"], Order = order });
+            using var r = McapReaderFactory.OpenMessageSession(new MemoryStream(bytes), new() { Topics = ["topic", "missing"], Order = order });
             var times = r.ReadMessages().Select(m => m.LogTime).ToArray();
             Assert.Equal(order == McapReadOrder.File ? new ulong[] { 3, 1, 2, 1 } : order == McapReadOrder.LogTime ? [1ul, 1, 2, 3] : [3ul, 2, 1, 1], times);
         }
-        using var empty = McapReaderFactory.OpenMessages(new MemoryStream(bytes), new() { Topics = ["missing"] });
+        using var empty = McapReaderFactory.OpenMessageSession(new MemoryStream(bytes), new() { Topics = ["missing"] });
         Assert.Empty(empty.ReadMessages());
     }
     [Fact]
@@ -60,13 +60,13 @@ public partial class CoverageTests
         using (var w = new McapWriter(s, leaveOpen: true))
         { w.WriteMessage(prepared, new(7, 0, 1, 2), [3]); w.Complete(); }
         s.Position = 0;
-        using var r = McapReaderFactory.OpenMessages(s);
+        using var r = McapReaderFactory.OpenMessageSession(s);
         Assert.Equal((byte)1, r.ReadMessages().Single().Channel.Schema!.Data[0]);
     }
     [Fact]
     public void RandomUpstreamOperationsAndRetryPreserveCursor()
     {
-        using var r = McapReaderFactory.OpenMessages(new MemoryStream(Recording()));
+        using var r = McapReaderFactory.OpenMessageSession(new MemoryStream(Recording()));
         var summary = r.GetSummary()!;
         using var snapshot = r.OpenIndexSnapshot();
         var chunk = summary.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0);
@@ -76,7 +76,7 @@ public partial class CoverageTests
         Span<byte> b = stackalloc byte[128];
         Assert.Equal(McapReadStatus.Success, snapshot.SeekMessage(chunk, indexes[0].Records[0], b, out var retry, out _));
         Assert.Equal(h, retry);
-        using var cursor = snapshot.OpenChunkReader(chunk);
+        using var cursor = snapshot.OpenChunkMessages(chunk);
         Assert.Equal(McapReadStatus.Success, cursor.ReadNext(b, out _, out _));
         Assert.Equal("metadata", snapshot.ReadMetadata(summary.MetadataIndexes[0]).Name);
         Assert.Equal(new byte[] { 8, 9 }, snapshot.ReadAttachment(summary.AttachmentIndexes[0]).Data);
@@ -88,7 +88,7 @@ public partial class CoverageTests
     public void SansIoSummaryAndIndexedEventsUseUpstream()
     {
         using var file = new MemoryStream(Recording());
-        using var s = McapSansIoReader.CreateSummary(new() { FileSize = (ulong)file.Length });
+        using var s = SansIoReaderCore.CreateSummary(new() { FileSize = (ulong)file.Length });
         byte[] buffer = new byte[65536];
         while (s.NextEvent(buffer, out var e) != McapReadStatus.EndOfStream)
         {
@@ -109,7 +109,7 @@ public partial class CoverageTests
     public async Task AsyncRecordsRetryOwnershipAndCancellation()
     {
         using var stream = new MemoryStream(Recording());
-        using (var r = new McapAsyncReader(stream, leaveOpen: true, inputBufferSize: 3))
+        using (var r = new McapAsyncRecordReader(stream, leaveOpen: true, inputBufferSize: 3))
         {
             var small = await r.ReadNextRecordAsync(Memory<byte>.Empty);
             Assert.Equal(McapReadStatus.BufferTooSmall, small.Status);
@@ -124,15 +124,15 @@ public partial class CoverageTests
     [Fact]
     public void DefaultsDoNotClaimFullValidationAndStrictDoes()
     {
-        using var normal = McapReaderFactory.OpenMessages(new MemoryStream(Recording()));
+        using var normal = McapReaderFactory.OpenMessageSession(new MemoryStream(Recording()));
         Assert.Equal(4, normal.ReadMessages().Count()); Assert.True(normal.IsScanComplete); Assert.False(normal.IsFullyValidated);
-        using var strict = McapReaderFactory.OpenMessages(new MemoryStream(Recording()), options: McapReaderOptions.Strict);
+        using var strict = McapReaderFactory.OpenMessageSession(new MemoryStream(Recording()), options: McapReaderOptions.Strict);
         Assert.True(strict.ValidateRemaining() > 0); Assert.True(strict.IsFullyValidated);
     }
     [Fact]
     public void LengthLimitsAndStructuredErrors()
     {
-        using var r = McapReaderFactory.OpenRecords(new MemoryStream(Recording()), options: new() { RecordLengthLimit = 1 });
+        using var r = McapReaderFactory.OpenRecordSession(new MemoryStream(Recording()), options: new() { RecordLengthLimit = 1 });
         var error = Assert.Throws<McapException>(() => r.ReadNextRecord([], out _, out _));
         Assert.Equal(McapErrorKind.RecordTooLarge, error.Kind);
         Assert.Equal(1, error.Details.GetProperty("opcode").GetInt32());
@@ -147,24 +147,25 @@ public partial class CoverageTests
         Assert.Throws<ObjectDisposedException>(() => w.Complete());
     }
     [Theory]
-    [InlineData(McapCursorMode.TopLevelRecords)]
-    [InlineData(McapCursorMode.ExpandedRecords)]
-    [InlineData(McapCursorMode.RawMessages)]
-    [InlineData(McapCursorMode.Messages)]
-    public void DirectSliceReadersAndRecordModels(McapCursorMode mode)
+    [InlineData((int)CursorMode.TopLevelRecords)]
+    [InlineData((int)CursorMode.ExpandedRecords)]
+    [InlineData((int)CursorMode.RawMessages)]
+    [InlineData((int)CursorMode.Messages)]
+    public void DirectSliceReadersAndRecordModels(int value)
     {
+        var mode = (CursorMode)value;
         var bytes = Recording();
-        using var reader = new McapReadCursor(bytes, mode);
+        using var reader = new ReadCursorCore(bytes, mode);
         var records = reader.ReadRecords().ToArray();
         Assert.NotEmpty(records);
         Assert.Equal(McapReadStatus.EndOfStream, reader.ReadNextRecord([], out var endOpcode, out var endLength));
         Assert.Equal((byte)0, endOpcode); Assert.Equal(0ul, endLength);
         foreach (var record in records) Assert.NotNull(McapRecords.Parse(record.Opcode, record.Data));
-        if (mode is McapCursorMode.Messages or McapCursorMode.RawMessages)
+        if (mode is CursorMode.Messages or CursorMode.RawMessages)
         { Assert.Equal(4, records.Length); Assert.Equal("topic", reader.GetChannel(7).Topic); }
-        if (mode == McapCursorMode.TopLevelRecords)
+        if (mode == CursorMode.TopLevelRecords)
         {
-            using var chunk = new McapReadCursor(records.First(r => r.Opcode == 6).Data, McapCursorMode.ChunkRecords);
+            using var chunk = new ReadCursorCore(records.First(r => r.Opcode == 6).Data, CursorMode.ChunkRecords);
             Assert.NotEmpty(chunk.ReadRecords());
         }
         using var snapshot = new McapIndexSnapshot(bytes);
@@ -182,9 +183,9 @@ public partial class CoverageTests
         using (var summary = w.OpenSummaryRecords()) Assert.Contains(summary.ReadRecords(), r => r.Opcode == 11);
         w.Dispose();
         s.Position = 0;
-        using var r = McapReaderFactory.OpenRecords(s, leaveOpen: true);
+        using var r = McapReaderFactory.OpenRecordSession(s, leaveOpen: true);
         var snapshot = r.GetSummary()!;
-        Assert.NotNull(snapshot.Statistics); Assert.Empty(snapshot.ChunkIndexes); Assert.Empty(snapshot.ChannelIds);
+        Assert.NotNull(snapshot.Statistics); Assert.Empty(snapshot.ChunkIndexes); Assert.Empty(snapshot.Channels);
     }
     [Fact]
     public void UnknownRecordAndCompressedOffset()
@@ -199,9 +200,9 @@ public partial class CoverageTests
     public void SansMagicAndIgnoreEndMagicAreDirectSliceOptions()
     {
         var bytes = Recording(false);
-        using var noEnd = new McapReadCursor(bytes.AsSpan(0, bytes.Length - 8), McapCursorMode.Messages, true);
+        using var noEnd = new ReadCursorCore(bytes.AsSpan(0, bytes.Length - 8), CursorMode.Messages, new() { SkipEndMagic = true });
         Assert.Equal(4, noEnd.ReadMessages().Count());
-        using var noMagic = new McapReadCursor(bytes.AsSpan(8, bytes.Length - 16), McapCursorMode.ExpandedRecordsWithoutMagic);
+        using var noMagic = new ReadCursorCore(bytes.AsSpan(8, bytes.Length - 16), CursorMode.ExpandedRecordsWithoutMagic);
         Assert.Contains(noMagic.ReadRecords(), r => r.Opcode == 5);
     }
 }

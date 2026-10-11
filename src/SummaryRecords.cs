@@ -5,7 +5,7 @@ internal static partial class Native
 {
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     static extern int fm_summary_records(uint kind, IntPtr source, out IntPtr h, out Result r);
-    internal static McapReadCursor SummaryRecords(uint kind, SafeHandle handle)
+    internal static McapSummaryRecordReader SummaryRecords(uint kind, SafeHandle handle)
     {
         bool added = false;
         try
@@ -13,7 +13,7 @@ internal static partial class Native
             handle.DangerousAddRef(ref added);
             var status = fm_summary_records(kind, handle.DangerousGetHandle(), out var h, out var r);
             Consume(status, r).Json?.Dispose();
-            return new(h, supportsMessages: false);
+            return new(new ReadCursorCore(h, supportsMessages: false));
         }
         finally { if (added) handle.DangerousRelease(); }
     }
@@ -23,7 +23,7 @@ internal static partial class Native
 public sealed partial class McapWriter
 {
     /// <summary>Opens an independent cursor over the completed writer's summary records. Requires successful Complete; the cursor retains its summary after writer disposal.</summary>
-    public McapReadCursor OpenSummaryRecords()
+    public McapSummaryRecordReader OpenSummaryRecords()
     {
         lock (gate)
         {

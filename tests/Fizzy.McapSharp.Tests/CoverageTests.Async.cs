@@ -8,13 +8,13 @@ public partial class CoverageTests
     public async Task SuspendedCancellationRejectsConcurrentOperations()
     {
         using var stream = new PendingStream();
-        using var reader = new McapAsyncReader(stream, leaveOpen: true);
+        using var reader = new McapAsyncRecordReader(stream, leaveOpen: true);
         using var cancellation = new CancellationTokenSource();
         var pending = reader.ReadNextRecordAsync(new byte[256], cancellation.Token);
         Assert.False(pending.IsCompleted);
         Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[256]));
         Assert.Throws<InvalidOperationException>(() => reader.Dispose());
-        Assert.Throws<InvalidOperationException>(() => McapReaderFactory.OpenMessages(stream));
+        Assert.Throws<InvalidOperationException>(() => McapReaderFactory.OpenMessageSession(stream));
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await pending);
         Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[256]));

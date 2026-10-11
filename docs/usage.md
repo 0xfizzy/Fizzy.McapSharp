@@ -14,9 +14,9 @@ The example starts with an empty destination, allocates the required size after 
 
 ## Select query behavior
 
-To filter by topic/time while preserving recording order, call `OpenMessages(new() { Topic = "/sample", Order = McapReadOrder.File })`; add `StartTime` / `EndTime` for an inclusive/exclusive LogTime interval. File order needs no fallback-policy switch. Omitting the query uses file order, but adding an explicit query with only `Topic` or `Topics` selects ascending time order by default.
+To filter by topic/time while preserving recording order, call `OpenMessages(new() { Topic = "/sample" })`; add `StartTime` / `EndTime` for an inclusive/exclusive LogTime interval. File order needs no fallback-policy switch. Omitted and empty filters both use file order; adding Topic or Topics does not change it.
 
-For time order without global scan-and-sort, use `OpenMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false })`. If the query cannot use indexes, opening throws `NotSupportedException` before collecting matches. With the default `AllowBufferedSort = true`, it may collect all matches before returning the session. `ReverseLogTime` has the same fallback policy. Neither time order specifies the order of equal timestamps.
+For time order without global scan-and-sort, use `QueryMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false })`. If the query cannot use indexes, opening throws `NotSupportedException` before collecting matches. With the default `AllowBufferedSort = true`, it may collect all matches before returning the session. `ReverseLogTime` has the same fallback policy. Neither time order specifies the order of equal timestamps.
 
 Use `OpenIndexedMessages()` on the file factory when indexes are mandatory; disabling buffered sorting alone still permits file-order scans. Indexed reading can buffer chunks, and successful queries do not validate the entire file. The example checks file versus default query order, supported time ordering with fallback disabled, and rejection on an unindexed source. See [query paths and local allowances](api.md#choosing-a-query-path).
 
@@ -28,6 +28,6 @@ Choose `ReadMessages()` when you need independent mutable results without managi
 
 ## Stream and asynchronous ownership
 
-Use `leaveOpen: true` when the caller keeps the Stream; do not touch it while a session owns it. Await and consume each async result before another operation or disposal. Cancellation terminates that reader; it is not a reset protocol. The example uses async lease mode throughout and disposes every delivered lease. See [Stream ownership](api.md#stream-sessions-and-ownership) and [asynchronous contracts](api.md#asynchronous-records-and-errors).
+Use `leaveOpen: true` when the caller keeps the Stream; do not touch it while a session owns it. Await and consume each async result before another operation or disposal. Cancellation terminates that reader; it is not a reset protocol. The example uses `McapAsyncMessageReader` throughout and disposes every delivered lease. See [Stream ownership](api.md#stream-sessions-and-ownership) and [asynchronous contracts](api.md#asynchronous-records-and-errors).
 
 Examples demonstrate behavior, not throughput measurements. Production code must handle its own payload schema and application error policy.

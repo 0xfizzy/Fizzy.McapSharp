@@ -6,7 +6,7 @@ public class LeaseTests
     [Fact]
     public void IndependentRetainsReleaseConcurrentlyWithoutInvalidatingOwner()
     {
-        using var reader = new McapReadCursor(DeliveryOptimizationTests.Recording(McapCompression.Lz4), McapCursorMode.Messages, false);
+        using var reader = new ReadCursorCore(DeliveryOptimizationTests.Recording(McapCompression.Lz4), CursorMode.Messages);
         using var batch = reader.ReadBatchLease()!;
         reader.Dispose();
         Parallel.For(0, 1024, _ =>
@@ -37,7 +37,7 @@ public class LeaseTests
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     static WeakReference CreateAbandonedLease()
     {
-        using var reader = new McapReadCursor(DeliveryOptimizationTests.Recording(McapCompression.Lz4), McapCursorMode.Messages, false);
+        using var reader = new ReadCursorCore(DeliveryOptimizationTests.Recording(McapCompression.Lz4), CursorMode.Messages);
         var batch = reader.ReadBatchLease()!;
         var retained = batch.RetainMessage(0);
         batch.Dispose();
@@ -55,10 +55,10 @@ public class LeaseTests
         var payload=new byte[mib*1024*1024];new Random(1234).NextBytes(payload);
         using var stream=new MemoryStream();
         using(var writer=new McapWriter(stream,new(){Compression=compression,CompressionThreads=0},true)) {
-            var c=writer.RegisterChannel("t","raw");writer.WriteMessage(new(c,1,1,0),payload);writer.Complete();
+            var c=writer.RegisterChannel("t","raw");writer.WriteToKnownChannel(new(c,1,1,0),payload);writer.Complete();
         }
         stream.Position=0;
-        using var reader=new McapAsyncReader(stream,new(){},true,4096);
+        using var reader=new McapAsyncMessageReader(stream,new(){},true,4096);
         using var batch=await reader.ReadBatchLeaseAsync(1);
         Assert.NotNull(batch);
         Assert.True(batch.GetPayload(0).SequenceEqual(payload));
@@ -74,11 +74,11 @@ public class LeaseTests
         new Random(123).NextBytes(payload);
         using(var writer=new McapWriter(stream,new(){Compression=compression,ChunkSize=1024,CompressionThreads=0},true)) {
             var c=writer.RegisterChannel("t","raw");
-            for(uint i=0;i<10000;i++) writer.WriteMessage(new(c,i,i,0),payload);
+            for(uint i=0;i<10000;i++) writer.WriteToKnownChannel(new(c,i,i,0),payload);
             writer.Complete();
         }
         stream.Position=0;
-        using var reader=McapReaderFactory.OpenMessages(stream,new(){Order=McapReadOrder.File},true,new(){});
+        using var reader=McapReaderFactory.OpenMessageSession(stream,new(){Order=McapReadOrder.File},true,new(){});
         var retained=new Queue<McapMessageLease>();
         for(uint i=0;i<10000;i++) {
             using var batch=reader.ReadBatchLease(1)!;
@@ -100,13 +100,13 @@ public class LeaseTests
         using(var writer=new McapWriter(stream,new(){Compression=compression,ChunkSize=32768},true))
         {
             var c=writer.RegisterChannel("t","raw");
-            for(uint i=0;i<20;i++) { var bytes=new byte[65536]; Array.Fill(bytes,(byte)i); writer.WriteMessage(new(c,i,i,0),bytes); }
+            for(uint i=0;i<20;i++) { var bytes=new byte[65536]; Array.Fill(bytes,(byte)i); writer.WriteToKnownChannel(new(c,i,i,0),bytes); }
             writer.Complete();
         }
         foreach(bool indexed in new[]{false,true})
         {
             stream.Position=0;
-            using var reader=McapReaderFactory.OpenMessages(stream,new(){Order=indexed?McapReadOrder.LogTime:McapReadOrder.File},true);
+            using var reader=McapReaderFactory.OpenMessageSession(stream,new(){Order=indexed?McapReadOrder.LogTime:McapReadOrder.File},true);
             var leases=new List<McapMessageBatchLease>();
             for(int i=0;i<20;i++) leases.Add(reader.ReadBatchLease(1)!);
             Assert.Null(reader.ReadBatchLease()); reader.Dispose();
@@ -131,7 +131,7 @@ public class LeaseTests
         File.WriteAllBytes(path,DeliveryOptimizationTests.Recording(compression));
         try
         {
-            using var reader=McapReadCursor.OpenMapped(path);
+            using var reader=ReadCursorCore.OpenMapped(path);
             using var batch=reader.ReadBatchLease()!;
             Assert.Equal(2,batch.Count);
 

@@ -84,6 +84,8 @@ pub struct EngineHandle {
     lease_batch: Option<lease::Batch>,
     schemas: BTreeMap<u16, Arc<mcap::Schema<'static>>>,
     channels: BTreeMap<u16, Arc<mcap::Channel<'static>>>,
+    validate_records: bool,
+    expanded: bool,
     engine: Engine,
     event: Event,
     delivery: memory::Delivery,
@@ -197,6 +199,8 @@ pub unsafe extern "C" fn fm_engine_open(
             lease_batch: None,
             schemas: Default::default(),
             channels: Default::default(),
+            validate_records: v["ValidateRecords"].as_bool().unwrap_or(false),
+            expanded: !v["EmitChunks"].as_bool().unwrap_or(false),
             engine,
             event: Event::default(),
             delivery: memory::Delivery::default(),
@@ -241,6 +245,17 @@ pub unsafe extern "C" fn fm_engine_next(
                         data: shared,
                     }) => {
                         let data = shared.as_ref();
+                        if h.validate_records {
+                            let record = mcap::parse_record(opcode, data)?;
+                            if h.expanded {
+                                if let records::Record::Message { header, .. } = &record {
+                                    if !h.channels.contains_key(&header.channel_id) {
+                                        return Err(mcap::McapError::UnknownChannel(header.sequence, header.channel_id).into());
+                                    }
+                                }
+                                buffer_reader::BufferReader::observe(&mut h.schemas, &mut h.channels, record, &mut h.delivery)?;
+                            }
+                        }
                         h.delivery.shared = Some(shared.clone());
                         h.event.kind = crate::protocol::engine_event::RECORD;
                         h.event.opcode = opcode as u32;

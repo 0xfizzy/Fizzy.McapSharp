@@ -6,7 +6,7 @@
 
 ## ABI 契约
 
-`fm_abi_version()` 返回 16，托管构造函数拒绝不匹配，包括不支持索引自有记录 sink 交付的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
+`fm_abi_version()` 返回 17，托管构造函数拒绝不匹配，包括不支持完整摘要声明、复制／映射验证配置或共享待处理消息体交付的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。
 
 | 入口 | 用途 |
 | --- | --- |
@@ -63,7 +63,7 @@ Writer 完成时在上游 `finish` 后立即提取输出，释放上游 writer �
 
 `fm_buffer_reader_*` 拥有输入副本和配置匹配官方切片入口的 Sans-I/O 解析器，推进时只保留一条待交付记录及已遇到声明，不跨调用保留借用迭代器。由于上游 for_chunk 私有，Chunk 适配器通过公开解析器输入合成记录前缀。`fm_snapshot_*` 保存输入副本或映射及官方摘要，随机消息读取通过私有句柄保留共享完整 chunk 存储。`fm_snapshot_call` 同步接收标准 MCAP 索引记录体的指针/长度，以及消息索引的 LogTime 和 offset 两个标量；解析传入索引，不在摘要中查找替代索引。托管桥接使用有界栈缓冲或临时非托管内存编码索引，包括 UTF-8 字符串和通道偏移映射。`fm_reader_record_into`、`fm_parse_record`、`fm_footer`、`fm_chunk_offset` 提供缓冲区或标量操作。`fm_snapshot_chunk_reader` 新增独立惰性 Chunk 游标，共享不可变原生输入与摘要，快照释放不影响已创建游标。Reader open 状态 3 表示禁止所需缓存排序，映射为 `NotSupportedException`。句柄均由私有 SafeHandle 管理，游标成功读取不分配响应缓冲。
 
-异步读取由 .NET ReadAsync 驱动线性引擎，等待期间仅保留托管 Memory；复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。
+异步读取由 .NET ReadAsync 驱动线性引擎，通过 MemoryManager 将原生解析器存储暴露为 `Memory<byte>`，直接写入该存储。Memory 包装不会使底层存储变成托管内存；在途 I/O 完成且其 ValueTask 被消费之前，解析器及其输入存储必须保持存活，不得推进或释放。复用完成源和 continuation，避免逐操作分配。资源 SafeHandle 在释放 Stream 所有权前释放解析器，遗漏 Dispose 时也可终结。取消终止会话；释放前必须消费在途操作。
 
 `fm_engine_describe` 复制 lease 读取已遇到的 schema（kind 1）或已解析 channel（kind 2），不推进引擎，也不因查询未知 ID 而终止引擎。托管 async owner 将查询与读取串行协调，并要求先消费在途 ValueTask。不可变托管描述按需缓存，独立于 parser 的释放。
 
@@ -87,3 +87,5 @@ pending 保存共享字节或合成记录体。Buffer reader 保留完整 Messag
 回退排序使用绑定层 arena，保存 header、文件序号和共享范围。固定大小的待处理组跟踪连续 owned backing 的身份与选中字节，不建立全文件 owner 字典。组结束时，可将稀疏选中数据一次复制到按消息划分的不可变段，再发布结果；映射及其他外部 owner 不紧凑化。`SharedBytes::shares_backing` 是本地只读所有权查询，紧凑化决策和分配仍在绑定层执行。现有逻辑排序检查不变，新旧存储重叠不计入该额度。失败终止构造，不发布部分会话；ABI 不变。
 
 官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于[本地补丁](patches.md)。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。
+
+`fm_reader_message_record` 与 payload 交付共享待处理状态；`fm_buffer_reader_configured` 为复制／映射输入传递解析选项及验证范围，`fm_buffer_reader_schema/state` 查询声明和扫描状态。完整摘要 JSON 包含 schema/channel 映射；channel 使用 schema ID 引用，私有 schemaDependencies 为摘要中未重复的 schema 提供数据段声明，不改变公开 Schemas 映射。异步展开交付在发布前验证记录体及引用；原始 Sans-I/O 线性事件不解析记录体。

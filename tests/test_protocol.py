@@ -42,14 +42,14 @@ class ProtocolContracts(unittest.TestCase):
         self.assertTrue(native, "Protocol inventory must not be empty")
         self.assertEqual(managed_protocol(), native)
 
-    def test_public_discriminants_match_private_protocol(self):
+    def test_internal_adapter_discriminants_match_private_protocol(self):
         for path, public, domain in [
-            ("McapReadCursor.cs", "McapCursorMode", "buffer_mode"),
-            ("SansIo.cs", "McapReadEventKind", "engine_event"),
+            ("ReadCursorCore.cs", "CursorMode", "buffer_mode"),
+            ("SansIoReaderCore.cs", "McapReadEventKind", "engine_event"),
         ]:
             with self.subTest(public=public):
                 source = (ROOT / "src" / path).read_text(encoding="utf-8")
-                body = re.search(r"public enum " + public + r"\s*\{([^}]+)\}", source)[1]
+                body = re.search(r"internal enum " + public + r"\s*\{([^}]+)\}", source)[1]
                 body = re.sub(r"//[^\n]*", "", body)
                 values = {}
                 value = 0

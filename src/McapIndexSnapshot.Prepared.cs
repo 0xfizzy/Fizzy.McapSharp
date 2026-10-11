@@ -5,7 +5,7 @@ namespace Fizzy.McapSharp;
 public sealed partial class McapIndexSnapshot
 {
     /// <summary>Opens an independent lazy message cursor that retains storage after the snapshot and prepared descriptor are disposed. The descriptor must identify a valid chunk.</summary>
-    public McapReadCursor OpenChunkReader(McapPreparedChunkIndex index)
+    public McapMessageReader OpenChunkMessages(McapPreparedChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
         CheckBeforeLock();
@@ -14,7 +14,7 @@ public sealed partial class McapIndexSnapshot
             Check(); index.Check();
             int status = Native.fm_snapshot_prepared_chunk_reader(handle, index.Handle, out var h, out var r);
             Native.Consume(status, r).Json?.Dispose();
-            return new(h, supportsMessages: true);
+            return new(new ReadCursorCore(h, supportsMessages: true));
         }
     }
     /// <summary>Copies the indexed message payload into caller storage. BufferTooSmall reports the required byte length without partial delivery; retries retain pending storage.</summary>
@@ -39,7 +39,7 @@ public sealed partial class McapIndexSnapshot
     /// <summary>Enumerates independent owned messages from one chunk using a child cursor. Disposing the enumeration releases that cursor.</summary>
     public IEnumerable<McapMessage> ReadChunkMessages(McapPreparedChunkIndex index)
     {
-        using var reader = OpenChunkReader(index);
+        using var reader = OpenChunkMessages(index);
         foreach (var message in reader.ReadMessages()) yield return message;
     }
     unsafe McapReadStatus CallPrepared(uint op, McapPreparedChunkIndex index, McapMessageIndexEntry entry, Span<byte> destination, out McapMessageHeader header, out ulong length)

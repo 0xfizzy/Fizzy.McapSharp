@@ -3,9 +3,9 @@ using System.Threading.Tasks.Sources;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapAsyncReader
+internal sealed partial class AsyncReaderCore
 {
-    int consumptionMode;
+    readonly int consumptionMode;
     int leaseCount, leaseTarget;
     ManualResetValueTaskSourceCore<McapMessageBatchLease?> leaseCompletion;
     /// <summary>Reads stable messages directly from native parser storage. Cancellation terminates this reader.
@@ -21,7 +21,6 @@ public sealed partial class McapAsyncReader
             if (failed) throw new InvalidOperationException("Reader failed; open a new reader.");
             if (active) throw new InvalidOperationException("Consume the outstanding operation first.");
             if (consumptionMode == 1) throw new InvalidOperationException("Record and message-lease consumption cannot be mixed on an async reader.");
-            consumptionMode = 2;
             active = true;
             leaseCount = maxMessages;
             leaseTarget = targetPayloadBytes;

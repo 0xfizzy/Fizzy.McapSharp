@@ -10,7 +10,7 @@ Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Ru
 | --- | --- |
 | `Fizzy.McapSharp.csproj` | Library project and package metadata; compiles only `src/` |
 | `src/` | Public .NET API; capability partials are named after their owning type, with separate Native interop declarations |
-| `src/McapWriterOptions.cs`, `McapQuery.cs`, `McapReadContracts.cs` | Writing configuration, message selection and read outcomes/modes |
+| `src/McapWriterOptions.cs`, `McapMessageFilter.cs`, `McapQuery.cs`, `McapReadContracts.cs` | Writing configuration, message selection and typed read outcomes |
 | `src/McapDeclarations.cs`, `McapMessageModels.cs`, `McapDataRecords.cs`, `McapSummaryModels.cs` | Declaration, message, data-record and summary/index models; independent of reader implementations |
 | `native/src/lib.rs`, `protocol.rs` | Shared ABI/error boundaries and named wire-protocol values |
 | `native/src/reader.rs`, `writer.rs`, `summary.rs`, `io.rs` | File/Stream read sessions and queries, writer state, summary serialization and source/callback I/O |

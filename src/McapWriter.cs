@@ -121,7 +121,7 @@ public sealed partial class McapWriter : IDisposable
         return checked((ushort)Call(Protocol.WriterOperation.Channel, new { id, topic, encoding = messageEncoding, schema_id = schemaId, metadata = metadata ?? new Dictionary<string, string>() }));
     }
     /// <summary>Writes a message on an already registered channel. Payload is consumed synchronously; the warmed path allocates zero managed bytes.</summary>
-    public unsafe void WriteMessage(in McapMessageHeader header, ReadOnlySpan<byte> data)
+    public unsafe void WriteToKnownChannel(in McapMessageHeader header, ReadOnlySpan<byte> data)
     {
         lock (gate)
         {

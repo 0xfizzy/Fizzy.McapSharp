@@ -28,7 +28,7 @@ var path = Path.Combine(Path.GetTempPath(), $"sample-{Guid.NewGuid():N}.mcap");
 using (var writer = new McapWriter(path))
 {
     var channel = writer.RegisterChannel("/sample", "json");
-    writer.WriteMessage(new McapMessageHeader(channel, 0, 100, 100), "{}"u8);
+    writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 100, 100), "{}"u8);
     writer.Complete();
 }
 

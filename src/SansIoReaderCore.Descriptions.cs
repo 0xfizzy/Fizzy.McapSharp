@@ -1,6 +1,6 @@
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapSansIoReader
+internal sealed partial class SansIoReaderCore
 {
     // Called only by the async owner's serialized cold declaration queries.
     internal McapChannel DescribeChannel(ushort id)

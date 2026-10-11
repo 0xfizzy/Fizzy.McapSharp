@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapReadSession
+internal sealed partial class ReadSessionCore
 {
     readonly Dictionary<ushort, McapChannelDescription> descriptions = new();
     readonly Dictionary<ushort, McapSchemaDescription> schemaDescriptions = new();
@@ -10,5 +10,15 @@ public sealed partial class McapReadSession
     public McapChannelDescription GetChannelDescription(ushort id)
     {
         lock (gate) { Check(); if (!descriptions.TryGetValue(id, out var description)) descriptions.Add(id, description = new(GetChannel(id), schemaDescriptions)); return description; }
+    }
+    public McapSchemaDescription GetSchemaDescription(ushort id)
+    {
+        lock (gate)
+        {
+            Check();
+            if (!schemaDescriptions.TryGetValue(id, out var description))
+                schemaDescriptions.Add(id, description = new(GetSchema(id)));
+            return description;
+        }
     }
 }

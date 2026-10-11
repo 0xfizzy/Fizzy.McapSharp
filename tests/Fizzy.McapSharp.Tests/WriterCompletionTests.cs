@@ -17,7 +17,7 @@ public sealed class WriterCompletionTests
     static void Write(McapWriter writer)
     {
         var channel = writer.RegisterChannel("topic", "raw");
-        writer.WriteMessage(new(channel, 0, 1, 1), [1, 2, 3]);
+        writer.WriteToKnownChannel(new(channel, 0, 1, 1), [1, 2, 3]);
     }
 
     [Theory]
@@ -34,7 +34,7 @@ public sealed class WriterCompletionTests
             Write(writer);
             writer.Complete();
             var before = ReadShared(path);
-            using (var reader = McapReaderFactory.OpenMessages(new MemoryStream(before), options: McapReaderOptions.Strict))
+            using (var reader = McapReaderFactory.OpenMessageSession(new MemoryStream(before), options: McapReaderOptions.Strict))
                 Assert.True(reader.ValidateRemaining() > 0);
             writer.FlushToDisk();
             writer.FlushToDisk();
@@ -117,7 +117,7 @@ public sealed class WriterCompletionTests
             using var stream = new ObservedFileStream(path);
             using var writer = new McapWriter(stream, leaveOpen: true);
             Write(writer);
-            McapReadCursor? summary = null;
+            McapSummaryRecordReader? summary = null;
             if (durable) { writer.Complete(); summary = writer.OpenSummaryRecords(); }
             using var cursor = summary;
             var error = new IOException("injected flush failure");

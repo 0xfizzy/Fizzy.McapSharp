@@ -23,7 +23,7 @@ public class PreparedOwnershipTests
                 writer.WriteMessage(prepared, new(9, 2, 3, 4), "again"u8);
                 writer.Complete();
             }
-            using var reader = McapReaderFactory.OpenMessages(new MemoryStream(output.ToArray()), options: McapReaderOptions.Strict);
+            using var reader = McapReaderFactory.OpenMessageSession(new MemoryStream(output.ToArray()), options: McapReaderOptions.Strict);
             var messages = reader.ReadMessages().ToArray();
             Assert.Equal(2, messages.Length);
             var message = messages[0];
@@ -45,11 +45,11 @@ public class PreparedOwnershipTests
             writer.WriteMessage(prepared, new(1, 0, 0, 0), "first"u8);
             prepared.Dispose();
             writer.Flush();
-            writer.WriteMessage(new(1, 1, 1, 1), "second"u8);
+            writer.WriteToKnownChannel(new(1, 1, 1, 1), "second"u8);
             writer.Complete();
         }
         output.Position = 0;
-        using var reader = McapReaderFactory.OpenMessages(output, leaveOpen: true, options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessageSession(output, leaveOpen: true, options: McapReaderOptions.Strict);
         var messages = reader.ReadMessages().ToArray();
         Assert.Equal(2, messages.Length);
         Assert.All(messages, message => {
@@ -74,7 +74,7 @@ public class PreparedOwnershipTests
             writer.Complete();
         }
         stream.Position = 0;
-        using (var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true, options: new()
+        using (var reader = McapReaderFactory.OpenRecordSession(stream, leaveOpen: true, options: new()
         {
             RecordLengthLimit = 128 * 1024
         }))
@@ -85,27 +85,27 @@ public class PreparedOwnershipTests
             Assert.Equal(position, stream.Position);
         }
         stream.Position = 0;
-        using var unrestricted = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
-        Assert.Empty(unrestricted.GetSummary()!.SchemaIds);
+        using var unrestricted = McapReaderFactory.OpenRecordSession(stream, leaveOpen: true);
+        Assert.Empty(unrestricted.GetSummary()!.Schemas);
     }
 
     [Fact]
     public void PreparedMetadataPreservesLargeSnapshot()
     {
         var values = Enumerable.Range(0, 1000).Reverse().ToDictionary(i => $"key{i:D4}", i => $"值/{i}/🚀");
-        using (var operation = McapPreparedOperation.Metadata("元数据", values))
+        using (var operation = new McapPreparedMetadata("元数据", values))
         {
             values["key0042"] = "changed";
             using var stream = new MemoryStream();
             using (var writer = new McapWriter(stream, new() { Compression = McapCompression.None }, true))
             {
-                writer.WritePrepared(operation);
-                writer.WritePrepared(operation);
+                writer.WriteMetadata(operation);
+                writer.WriteMetadata(operation);
                 writer.Complete();
                 Assert.Equal(2, writer.GetSummary().MetadataIndexes.Count);
             }
             stream.Position = 0;
-            using var reader = McapReaderFactory.OpenRecords(stream, leaveOpen: true);
+            using var reader = McapReaderFactory.OpenRecordSession(stream, leaveOpen: true);
             var metadata = reader.ReadMetadata().ToArray();
             Assert.Equal(2, metadata.Length);
             foreach (var item in metadata)

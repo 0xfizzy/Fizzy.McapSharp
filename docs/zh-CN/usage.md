@@ -14,9 +14,9 @@
 
 ## 查询路径
 
-按 topic／时间过滤且保持录制顺序时，调用 `OpenMessages(new() { Topic = "/sample", Order = McapReadOrder.File })`；需要时间范围时添加 `StartTime`／`EndTime`，分别是 LogTime 的包含下界和不包含上界。文件顺序不需要设置回退策略。不传 query 使用文件顺序，但显式 query 即使只设置 `Topic` 或 `Topics`，也默认按时间升序读取。
+按 topic／时间过滤且保持录制顺序时，调用 `OpenMessages(new() { Topic = "/sample" })`；需要时间范围时添加 `StartTime`／`EndTime`，分别是 LogTime 的包含下界和不包含上界。文件顺序不需要设置回退策略。省略与空过滤条件都使用文件顺序；增加 Topic 或 Topics 不改变顺序。
 
-需要时间顺序但不接受全局扫描排序时，使用 `OpenMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false })`。查询无法使用索引时，打开会话会在收集匹配消息前抛出 `NotSupportedException`。默认的 `AllowBufferedSort = true` 则可能在返回会话前收集全部匹配结果。`ReverseLogTime` 使用相同回退策略；两个时间顺序都不指定相同时间戳之间的顺序。
+需要时间顺序但不接受全局扫描排序时，使用 `QueryMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false })`。查询无法使用索引时，打开会话会在收集匹配消息前抛出 `NotSupportedException`。默认的 `AllowBufferedSort = true` 则可能在返回会话前收集全部匹配结果。`ReverseLogTime` 使用相同回退策略；两个时间顺序都不指定相同时间戳之间的顺序。
 
 必须使用索引时，调用文件工厂的 `OpenIndexedMessages()`；仅禁止缓冲排序仍允许文件顺序扫描。索引读取也可能缓冲 Chunk，查询成功不能替代全文件验证。示例检查文件顺序与默认 query 顺序、禁用回退时受支持的时间排序，以及无索引源上的拒绝行为。详见[查询路径与局部额度](api.md#选择查询路径)。
 
@@ -28,6 +28,6 @@ visitor 同步消费 span，不得保留 span 或重入 reader。batch lease 在
 
 ## Stream 与异步所有权
 
-调用方需要保留 Stream 时使用 `leaveOpen: true`；session 拥有 Stream 期间不得从外部访问。每次异步操作必须 await 并消费结果，再开始下一次操作或释放。取消会终止 reader，不是重置协议。示例始终使用异步 lease 模式，并释放每个返回的 lease。
+调用方需要保留 Stream 时使用 `leaveOpen: true`；session 拥有 Stream 期间不得从外部访问。每次异步操作必须 await 并消费结果，再开始下一次操作或释放。取消会终止 reader，不是重置协议。示例始终使用McapAsyncMessageReader，并释放每个返回的 lease。
 
 完整生命周期、重试及错误边界以 [API 契约](api.md)为准。示例验证行为，不提供吞吐量测量；生产应用负责 payload 协议及应用错误策略。

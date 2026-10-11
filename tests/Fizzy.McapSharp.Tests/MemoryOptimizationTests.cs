@@ -11,7 +11,7 @@ public class MemoryOptimizationTests
         {
             var schema = w.RegisterSchema("s", "raw", [7, 8]);
             var channel = w.RegisterChannel("t", "raw", schema, new Dictionary<string, string> { ["k"] = "v" });
-            for (uint i = 0; i < 32; i++) w.WriteMessage(new(channel, i, i, 0), new byte[256]);
+            for (uint i = 0; i < 32; i++) w.WriteToKnownChannel(new(channel, i, i, 0), new byte[256]);
             w.Complete();
         }
         return output.ToArray();
@@ -21,7 +21,7 @@ public class MemoryOptimizationTests
     [InlineData(McapCompression.None)] [InlineData(McapCompression.Lz4)] [InlineData(McapCompression.Zstd)]
     public void ConvenienceMessagesKeepIndependentMutableResults(McapCompression compression)
     {
-        using var reader = new McapReadCursor(Recording(compression));
+        using var reader = new ReadCursorCore(Recording(compression));
         using var it = reader.ReadMessages().GetEnumerator();
         Assert.True(it.MoveNext()); var a = it.Current;
         a.Data[0] = 33; a.Channel.Schema!.Data[0] = 44;
@@ -38,21 +38,21 @@ public class MemoryOptimizationTests
     public void MappedReadersMatchCopiedModes(McapCompression compression)
     {
         var bytes = Recording(compression);
-        foreach (var mode in Enum.GetValues<McapCursorMode>())
+        foreach (var mode in Enum.GetValues<CursorMode>())
         {
             byte[] input = bytes;
-            if (mode == McapCursorMode.ExpandedRecordsWithoutMagic) input = bytes[8..^8];
-            if (mode == McapCursorMode.ChunkRecords)
+            if (mode == CursorMode.ExpandedRecordsWithoutMagic) input = bytes[8..^8];
+            if (mode == CursorMode.ChunkRecords)
             {
-                using var top = new McapReadCursor(bytes, McapCursorMode.TopLevelRecords);
+                using var top = new ReadCursorCore(bytes, CursorMode.TopLevelRecords);
                 input = top.ReadRecords().First(r => r.Opcode == 6).Data;
             }
             var path = Path.GetTempFileName();
             try
             {
                 File.WriteAllBytes(path, input);
-                using var mapped = McapReadCursor.OpenMapped(path, mode);
-                using var copied = new McapReadCursor(input, mode);
+                using var mapped = ReadCursorCore.OpenMapped(path, mode);
+                using var copied = new ReadCursorCore(input, mode);
                 var a = mapped.ReadRecords().ToArray(); var b = copied.ReadRecords().ToArray();
                 Assert.Equal(b.Length, a.Length);
                 for (int i = 0; i < a.Length; i++) { Assert.Equal(b[i].Opcode, a[i].Opcode); Assert.Equal(b[i].Data, a[i].Data); }
@@ -72,7 +72,7 @@ public class MemoryOptimizationTests
         {
             using var cached = new McapIndexSnapshot(bytes, new() { MaxRandomAccessCacheBytes = budget });
             var chunks = cached.GetSummary()!.ChunkIndexes;
-            using var cursor = cached.OpenChunkReader(chunks[0]);
+            using var cursor = cached.OpenChunkMessages(chunks[0]);
             foreach (var chunk in chunks.Reverse().Concat(chunks))
             {
                 var entries = official.ReadMessageIndexes(chunk).SelectMany(x => x.Records).ToArray();

@@ -61,7 +61,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
         return groups.OrderBy(g => g.Key).Select(g => new McapMessageIndex(g.Key, g.Value)).ToArray();
     }
     /// <summary>Opens an independent summary-record cursor that retains the summary after this snapshot is disposed. Requires an available summary.</summary>
-    public McapReadCursor OpenSummaryRecords() { CheckBeforeLock(); lock (gate) { Check(); return Native.SummaryRecords(Protocol.SummarySource.Snapshot, handle); } }
+    public McapSummaryRecordReader OpenSummaryRecords() { CheckBeforeLock(); lock (gate) { Check(); return Native.SummaryRecords(Protocol.SummarySource.Snapshot, handle); } }
     /// <summary>Returns an independent owned channel declaration from the summary, including schema and metadata.</summary>
     public McapChannel GetChannel(ushort id)
     {
@@ -73,11 +73,11 @@ public sealed partial class McapIndexSnapshot : IDisposable
     /// <summary>Enumerates independent owned messages from one chunk using a child cursor. Disposing the enumeration releases that cursor.</summary>
     public IEnumerable<McapMessage> ReadChunkMessages(McapChunkIndex chunk)
     {
-        using var reader = OpenChunkReader(chunk);
+        using var reader = OpenChunkMessages(chunk);
         foreach (var message in reader.ReadMessages()) yield return message;
     }
     /// <summary>Opens an independent lazy cursor that remains valid after this snapshot is disposed. Traverse one cursor to reuse chunk parsing across messages; reopening starts a new traversal.</summary>
-    public unsafe McapReadCursor OpenChunkReader(McapChunkIndex index)
+    public unsafe McapMessageReader OpenChunkMessages(McapChunkIndex index)
     {
         ArgumentNullException.ThrowIfNull(index);
         CheckBeforeLock();
@@ -94,7 +94,7 @@ public sealed partial class McapIndexSnapshot : IDisposable
                 {
                     int status = Native.fm_snapshot_chunk_reader(handle, body, (nuint)size, out var p, out var r);
                     Native.Consume(status, r).Json?.Dispose();
-                    return new(p, supportsMessages: true);
+                    return new(new ReadCursorCore(p, supportsMessages: true));
                 }
             }
             finally { NativeMemory.Free(allocated); }

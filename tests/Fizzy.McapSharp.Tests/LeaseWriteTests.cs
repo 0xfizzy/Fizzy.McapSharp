@@ -10,13 +10,13 @@ public class LeaseWriteTests
         using (var writer = new McapWriter(output, new() { Compression = compression, ChunkSize = 1024, CompressionThreads = 0 }, true))
         {
             writer.RegisterChannel(7, "a", "raw"); writer.RegisterChannel(9, "b", "raw");
-            writer.WriteMessage(new(7, 1, 2, 3), []);
-            writer.WriteMessage(new(9, 4, 5, 6), new byte[70000]);
+            writer.WriteToKnownChannel(new(7, 1, 2, 3), []);
+            writer.WriteToKnownChannel(new(9, 4, 5, 6), new byte[70000]);
             var data = new byte[90000]; Array.Fill(data, (byte)42);
-            writer.WriteMessage(new(7, 7, 8, 9), data);
+            writer.WriteToKnownChannel(new(7, 7, 8, 9), data);
             writer.Complete();
         }
-        using var reader = new McapReadCursor(output.ToArray());
+        using var reader = new ReadCursorCore(output.ToArray());
         return reader.ReadBatchLease()!;
     }
 
@@ -35,7 +35,7 @@ public class LeaseWriteTests
             Assert.Equal(3, writer.WriteBatch(batch)); // No ownership transfer or mutation.
             writer.Complete();
         }
-        using var reader = new McapReadCursor(output.ToArray());
+        using var reader = new ReadCursorCore(output.ToArray());
         using var actual = reader.ReadBatchLease()!;
         Assert.Equal(9, actual.Count);
         for (int i = 0; i < 9; i++)

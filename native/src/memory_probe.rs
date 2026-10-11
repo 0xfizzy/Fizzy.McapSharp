@@ -894,7 +894,7 @@ fn random_access_profile() {
                 let mut payload = [0u8; 4096];
                 let mut result = Response::default();
                 let mut header = MessageHeader::default();
-                // Use the ABI to exercise the same cursor as OpenChunkReader.
+                // Use the ABI to exercise the same cursor as OpenChunkMessages.
                 let handle = Box::into_raw(Box::new(cursor));
                 unsafe {
                     loop {

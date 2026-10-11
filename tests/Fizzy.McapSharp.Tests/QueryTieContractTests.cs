@@ -18,10 +18,10 @@ public class QueryTieContractTests
             ChunkSize = null, CompressionThreads = 0 }, leaveOpen: true))
         {
             var channel = writer.RegisterChannel("selected", "raw");
-            writer.WriteMessage(new(channel, 0, 10, 10), new byte[] { 0 });
+            writer.WriteToKnownChannel(new(channel, 0, 10, 10), new byte[] { 0 });
             writer.Flush();
-            writer.WriteMessage(new(channel, 1, 0, 0), new byte[] { 1 });
-            writer.WriteMessage(new(channel, 2, 10, 10), new byte[] { 2 });
+            writer.WriteToKnownChannel(new(channel, 1, 0, 0), new byte[] { 1 });
+            writer.WriteToKnownChannel(new(channel, 2, 10, 10), new byte[] { 2 });
             writer.Flush();
             writer.Complete();
             Assert.Equal(2, writer.GetSummary().ChunkIndexes.Count);
@@ -31,7 +31,7 @@ public class QueryTieContractTests
         foreach (bool indexed in new[] { false, true })
         {
             using Stream input = indexed ? new MemoryStream(bytes) : new NonSeekable(bytes);
-            using var reader = McapReaderFactory.OpenMessages(input,
+            using var reader = McapReaderFactory.OpenMessageSession(input,
                 new() { Order = order, AllowBufferedSort = !indexed });
             var messages = reader.ReadMessages().ToArray();
             Assert.Equal(new uint[] { 0, 1, 2 }, messages.Select(m => m.Sequence).Order());

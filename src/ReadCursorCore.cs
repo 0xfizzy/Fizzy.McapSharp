@@ -5,7 +5,7 @@ using Microsoft.Win32.SafeHandles;
 namespace Fizzy.McapSharp;
 
 /// <summary>Selects slice-parser semantics. Every mode supports record delivery; only RawMessages and Messages support message delivery.</summary>
-public enum McapCursorMode
+internal enum CursorMode
 {
     /// <summary>Reads top-level file records, leaving Chunk bodies compressed.</summary>
     TopLevelRecords,
@@ -24,43 +24,57 @@ public enum McapCursorMode
 /// <summary>One disposable cursor over copied/mapped input, a summary, or a retained chunk. Adapts official slice-reader semantics. Construction copies input; advancement parses records.
 /// Unsupported message delivery is rejected without advancement or terminal failure. Summary cursors support records only;
 /// snapshot Chunk cursors support messages as well as records.</summary>
-public sealed partial class McapReadCursor : IDisposable
+internal sealed partial class ReadCursorCore : IRecordSource, IMessageSource, IReadProgress, IDeclarationSource
 {
     readonly BufferReaderHandle handle;
     readonly object gate = new();
     readonly BorrowedReadSink borrowed = new();
     readonly bool supportsMessages;
-    void Check() { borrowed.CheckReentry(); ObjectDisposedException.ThrowIf(handle.IsClosed, this); }
+    readonly bool fullyValidating;
+    bool failed;
+    void Check()
+    {
+        borrowed.CheckReentry();
+        ObjectDisposedException.ThrowIf(handle.IsClosed, this);
+        if (failed) throw new InvalidOperationException("Reader failed; open a new reader.");
+    }
+    Exception AdvancementError(Native.Result result)
+    {
+        failed = true;
+        return Native.ConsumeError(result);
+    }
     void CheckMessages()
     {
         Check();
         if (!supportsMessages) throw new InvalidOperationException("This cursor supports record delivery only.");
     }
-    internal McapReadCursor(IntPtr p, bool supportsMessages) { handle = new(p); this.supportsMessages = supportsMessages; }
-    /// <summary>Copies input and opens one lazy cursor in the selected mode. ignoreEndMagic permits input without end magic where the mode reads a complete file.</summary>
-    public unsafe McapReadCursor(ReadOnlySpan<byte> data, McapCursorMode mode = McapCursorMode.Messages, bool ignoreEndMagic = false)
+    internal ReadCursorCore(IntPtr p, bool supportsMessages) { handle = new(p); this.supportsMessages = supportsMessages; }
+    internal unsafe ReadCursorCore(ReadOnlySpan<byte> data, CursorMode mode = CursorMode.Messages, McapReaderOptions? options = null, string? path = null)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
-        supportsMessages = mode is McapCursorMode.RawMessages or McapCursorMode.Messages;
+        if (mode == CursorMode.ExpandedRecordsWithoutMagic)
+        {
+            mode = CursorMode.ExpandedRecords;
+            options = (options ?? new()) with { SkipStartMagic = true, SkipEndMagic = true };
+        }
         Native.EnsureAvailable();
+        if (options?.EmitChunks == true && mode != CursorMode.TopLevelRecords)
+            throw new ArgumentException("Select a linear reader to expose chunks.", nameof(options));
+        supportsMessages = mode is CursorMode.RawMessages or CursorMode.Messages;
+        fullyValidating = options?.IsStrict == true && mode is CursorMode.Messages or CursorMode.ExpandedRecords;
+        var config = Native.Request(new { path, mode = (uint)mode, options = options ?? new() });
         fixed (byte* p = data)
         {
-            var status = Native.fm_buffer_reader_open((uint)mode, ignoreEndMagic, p, (nuint)data.Length, out var h, out var r);
-            Native.Consume(status, r).Json?.Dispose();  handle = new(h);
+            int status = Native.fm_buffer_reader_configured(config, (nuint)config.Length, p, (nuint)data.Length, out var h, out var r);
+            Native.Consume(status, r).Json?.Dispose();
+            handle = new(h);
         }
     }
     /// <summary>Maps file contents without copying. Keep the file unchanged until this reader and every lease retaining the mapping are disposed.</summary>
-    public static McapReadCursor OpenMapped(string path, McapCursorMode mode = McapCursorMode.Messages,
-        bool ignoreEndMagic = false)
+    public static ReadCursorCore OpenMapped(string path, CursorMode mode = CursorMode.Messages, McapReaderOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
-        Native.EnsureAvailable();
-        var config = Native.Request(new { path = Path.GetFullPath(path), mode = (uint)mode, ignoreEndMagic });
-        int status = Native.fm_buffer_reader_mapped(config, (nuint)config.Length, out var p, out var r);
-        Native.Consume(status, r).Json?.Dispose();
-
-        return new(p, mode is McapCursorMode.RawMessages or McapCursorMode.Messages);
+        return new([], mode, options, Path.GetFullPath(path));
     }
     /// <summary>Copies one raw record body into caller storage. BufferTooSmall retains the record and reports required capacity. The returned opcode identifies the body; length excludes the record header.</summary>
     public unsafe McapReadStatus ReadNextRecord(Span<byte> destination, out byte opcode, out ulong length)
@@ -71,7 +85,7 @@ public sealed partial class McapReadCursor : IDisposable
             fixed (byte* p = destination)
             {
                 var status = Native.fm_buffer_reader_next(handle, p, (nuint)destination.Length, out opcode, out var r);
-                if (status < Protocol.Status.Success) throw Native.ConsumeError(r);
+                if (status < Protocol.Status.Success) throw AdvancementError(r);
                 length = r.Value;
                 return status == Protocol.Status.End ? McapReadStatus.EndOfStream : status == Protocol.Status.BufferTooSmall ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
             }
@@ -86,7 +100,7 @@ public sealed partial class McapReadCursor : IDisposable
             fixed (byte* p = destination)
             {
                 int status = Native.fm_buffer_reader_message(handle, p, (nuint)destination.Length, out var h, out var r);
-                if (status < Protocol.Status.Success) throw Native.ConsumeError(r);
+                if (status < Protocol.Status.Success) throw AdvancementError(r);
                 header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime); length = r.Value;
                 return status == Protocol.Status.End ? McapReadStatus.EndOfStream : status == Protocol.Status.BufferTooSmall ? McapReadStatus.BufferTooSmall : McapReadStatus.Success;
             }
@@ -102,6 +116,10 @@ public sealed partial class McapReadCursor : IDisposable
             return DeclarationDecoder.Channel(Native.Consume(status, r));
         }
     }
+    public McapReadStatus ReadNextMessageRecord(Span<byte> destination, out ulong length)
+    {
+        lock (gate) { CheckMessages(); return ReadNextRecord(destination, out _, out length); }
+    }
     bool ReadOwned(OwnedReadSink sink)
     {
         lock (gate)
@@ -110,7 +128,7 @@ public sealed partial class McapReadCursor : IDisposable
             sink.Reset();
             using var lease = sink.Acquire();
             int status = Native.fm_buffer_reader_owned(handle, false, sink.Sink, out var r);
-            if (status < Protocol.Status.Success) { var error = Native.ConsumeError(r); sink.ThrowIfError(); throw error; }
+            if (status < Protocol.Status.Success) { var error = AdvancementError(r); sink.ThrowIfError(); throw error; }
             return status != Protocol.Status.End;
         }
     }
@@ -136,7 +154,16 @@ public sealed partial class McapReadCursor : IDisposable
         }
     }
     /// <summary>Releases parser state and its retained input; independently retained leases remain valid. Repeated disposal is a no-op.</summary>
-    public void Dispose() { lock (gate) { borrowed.CheckReentry(); handle.Dispose(); } }
+    public void Dispose()
+    {
+        lock (gate)
+        {
+            borrowed.CheckReentry();
+            if (handle.IsClosed) return;
+            finalProgress = Progress();
+            handle.Dispose();
+        }
+    }
 }
 internal sealed class BufferReaderHandle : OwnedNativeHandle
 {
@@ -145,6 +172,8 @@ internal sealed class BufferReaderHandle : OwnedNativeHandle
 }
 internal static partial class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern unsafe int fm_buffer_reader_configured(byte[] config, nuint configLength, byte* p, nuint n, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int fm_buffer_reader_mapped(byte[] config, nuint n, out IntPtr h, out Result r);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

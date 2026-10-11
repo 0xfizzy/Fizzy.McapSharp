@@ -10,7 +10,7 @@ public class RobustnessTests
     {
         using var s = new MemoryStream();
         using (var w = new McapWriter(s, new() { UseChunks = false, Compression = McapCompression.None }, true))
-        { var c = w.RegisterChannel("边界", "raw"); w.WriteMessage(new McapMessageHeader(c, uint.MaxValue, ulong.MaxValue, 0), [42]); w.Complete(); }
+        { var c = w.RegisterChannel("边界", "raw"); w.WriteToKnownChannel(new McapMessageHeader(c, uint.MaxValue, ulong.MaxValue, 0), [42]); w.Complete(); }
         return s.ToArray();
     }
 
@@ -21,9 +21,9 @@ public class RobustnessTests
         for (int length = 0; length < data.Length; length++)
         {
             using var s = new MemoryStream(data, 0, length, false);
-            Assert.Throws<McapException>(() => { using var r = McapReaderFactory.OpenRecords(s, options: McapReaderOptions.Strict); r.ValidateRemaining(); });
+            Assert.Throws<McapException>(() => { using var r = McapReaderFactory.OpenRecordSession(s, options: McapReaderOptions.Strict); r.ValidateRemaining(); });
             using var recovery = new MemoryStream(data, 0, length, false);
-            try { using var r = McapReaderFactory.OpenMessages(recovery, options: McapReaderOptions.Strict); Assert.False(r.RecoverMessages(_ => { }).IsFullyValidated); }
+            try { using var r = McapReaderFactory.OpenMessageSession(recovery, options: McapReaderOptions.Strict); Assert.False(r.RecoverMessages(_ => { }).IsFullyValidated); }
             catch (McapException) { /* Invalid prefixes can fail before a recovery session exists. */ }
         }
     }
@@ -33,7 +33,7 @@ public class RobustnessTests
     {
         var data = Small(); BinaryPrimitives.WriteUInt64LittleEndian(data.AsSpan(9), ulong.MaxValue);
         using var s = new MemoryStream(data);
-        Assert.Throws<McapException>(() => { using var r = McapReaderFactory.OpenRecords(s, options: McapReaderOptions.Strict with { RecordLengthLimit = 1024 }); r.ValidateRemaining(); });
+        Assert.Throws<McapException>(() => { using var r = McapReaderFactory.OpenRecordSession(s, options: McapReaderOptions.Strict with { RecordLengthLimit = 1024 }); r.ValidateRemaining(); });
     }
 
     [Theory]
@@ -41,7 +41,7 @@ public class RobustnessTests
     public void ShortReadsAndExtremeMessageFieldsSurviveRetry(int size)
     {
         using var s = new FaultStream(new MemoryStream(Small()), maxRead: size);
-        using var r = McapReaderFactory.OpenMessages(s);
+        using var r = McapReaderFactory.OpenMessageSession(s);
         for (int i = 0; i < 3; i++) Assert.Equal(McapReadStatus.BufferTooSmall, r.ReadNext([], out _, out _));
         var b = new byte[1];
         Assert.Equal(McapReadStatus.Success, r.ReadNext(b, out var h, out _));
@@ -56,7 +56,7 @@ public class RobustnessTests
         using var s = new FaultStream(operation == "read" ? new MemoryStream(Small()) : new MemoryStream());
         if (operation == "read")
         {
-            using var r = McapReaderFactory.OpenMessages(s, leaveOpen: true);
+            using var r = McapReaderFactory.OpenMessageSession(s, leaveOpen: true);
             s.Arm(operation, 1);
             Assert.Throws<IOException>(() => r.ReadNext(new byte[1024], out _, out _));
             Assert.Throws<InvalidOperationException>(() => r.ReadNext(new byte[1024], out _, out _));
@@ -65,7 +65,7 @@ public class RobustnessTests
         {
             using var w = new McapWriter(s, new() { UseChunks = false }, true);
             var c = w.RegisterChannel("x", "raw"); s.Arm(operation, 1);
-            if (operation == "write") Assert.Throws<IOException>(() => w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), [1, 2]));
+            if (operation == "write") Assert.Throws<IOException>(() => w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), [1, 2]));
             else Assert.Throws<IOException>(() => w.Flush());
             Assert.Throws<InvalidOperationException>(() => w.Complete());
         }
@@ -77,7 +77,7 @@ public class RobustnessTests
     public void ReadFailureAtSpecifiedCallDoesNotConsumeSuccessfulResults(int call)
     {
         using var s = new FaultStream(new MemoryStream(Small()), maxRead: 1);
-        using var r = McapReaderFactory.OpenMessages(s);
+        using var r = McapReaderFactory.OpenMessageSession(s);
         s.Arm("read", call);
         Assert.Throws<IOException>(() => r.ReadNext(new byte[8], out _, out _));
         Assert.Throws<InvalidOperationException>(() => r.ReadNext(new byte[8], out _, out _));
@@ -88,7 +88,7 @@ public class RobustnessTests
     public void PartialReadFailureAtBytePositionPreservesOriginalIoException(int position)
     {
         using var s = new FaultStream(new MemoryStream(Small()));
-        using var r = McapReaderFactory.OpenMessages(s);
+        using var r = McapReaderFactory.OpenMessageSession(s);
         s.ArmBytes(position);
         Assert.Throws<IOException>(() => r.ReadNext(new byte[8], out _, out _));
         Assert.Equal(position, s.Position);
@@ -101,7 +101,7 @@ public class RobustnessTests
         using var s = new FaultStream(new MemoryStream());
         using var w = new McapWriter(s, new() { DisableSeeking = false }, true);
         var c = w.RegisterChannel("x", "raw");
-        w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), [1]);
+        w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), [1]);
         s.Arm("seek", 1);
         Assert.Throws<IOException>(() => w.Complete());
         Assert.Throws<InvalidOperationException>(() => w.Complete());
@@ -114,13 +114,13 @@ public class RobustnessTests
         using (var w = new McapWriter(s, leaveOpen: true))
         {
             var c = w.RegisterChannel("parallel", "raw");
-            Parallel.For(0, 128, i => w.WriteMessage(new McapMessageHeader(c, (uint)i, (ulong)i, 0), [(byte)i]));
+            Parallel.For(0, 128, i => w.WriteToKnownChannel(new McapMessageHeader(c, (uint)i, (ulong)i, 0), [(byte)i]));
             w.Complete();
         }
         var data = s.ToArray();
         Parallel.For(0, 8, _ =>
         {
-            using var r = new McapReadCursor(data);
+            using var r = new ReadCursorCore(data);
             Assert.Equal(Enumerable.Range(0, 128).Select(x => (uint)x), r.ReadMessages().Select(m => m.Sequence).Order());
         });
     }

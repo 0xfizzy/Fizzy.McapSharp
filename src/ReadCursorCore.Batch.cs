@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapReadCursor
+internal sealed partial class ReadCursorCore
 {
     /// <summary>Visits one message synchronously on a message-capable cursor. The payload span expires on return; reader reentry is prohibited.</summary>
     public McapReadStatus ReadNext(McapMessageVisitor visitor)
@@ -19,7 +19,7 @@ public sealed partial class McapReadCursor
             try
             {
                 int status = Native.fm_visit_messages(Protocol.ReaderKind.Buffer, handle, borrowed.Acquire(visitor), (nuint)maxMessages, out var progress, out var result);
-                if (status < Protocol.Status.Success) { var error = Native.ConsumeError(result); borrowed.ThrowIfError(); throw error; }
+                if (status < Protocol.Status.Success) { var error = AdvancementError(result); borrowed.ThrowIfError(); throw error; }
                 return new(checked((int)progress.Count), Native.BatchReason(status));
             }
             finally { borrowed.Release(); }
@@ -37,7 +37,7 @@ public sealed partial class McapReadCursor
             fixed (byte* p = payloadStorage)
             {
                 int status = Native.fm_read_batch(Protocol.ReaderKind.Buffer, handle, h, r, (nuint)headers.Length, p, (nuint)payloadStorage.Length, out var progress, out var result);
-                if (status < Protocol.Status.Success) throw Native.ConsumeError(result);
+                if (status < Protocol.Status.Success) throw AdvancementError(result);
                 return progress.Result(status);
             }
         }

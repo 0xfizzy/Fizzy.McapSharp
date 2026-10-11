@@ -26,7 +26,7 @@ static class BatchGate
             foreach (bool borrowed in new[]{false,true})
             {
                 file.Position=0;
-                using var reader=McapReaderFactory.OpenMessages(file,new(){Order=McapReadOrder.File},true);
+                using var reader=McapReaderFactory.OpenMessages(file,leaveOpen:true);
                 for(int i=0;i<100;i++) { if(borrowed) reader.VisitMessages(visitor,16); else reader.ReadBatch(headers,ranges,payload); }
                 var before=GC.GetAllocatedBytesForCurrentThread();
                 for(int i=0;i<1000;i++) { if(borrowed) reader.VisitMessages(visitor,16); else reader.ReadBatch(headers,ranges,payload); }
@@ -44,10 +44,10 @@ static class BatchGate
         {
             writer.RegisterChannel(7, "t", "raw");
             var payload = new byte[1024];
-            for (uint i = 0; i < 4; i++) writer.WriteMessage(new(7, i, i, 0), payload);
+            for (uint i = 0; i < 4; i++) writer.WriteToKnownChannel(new(7, i, i, 0), payload);
             writer.Complete();
         }
-        using var reader = new McapReadCursor(source.ToArray());
+        using var reader = new McapMessageReader(source.ToArray());
         using var batch = reader.ReadBatchLease()!;
         reader.Dispose();
         var headers = new McapMessageHeader[4];

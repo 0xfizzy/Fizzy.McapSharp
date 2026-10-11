@@ -27,21 +27,21 @@ foreach (var compression in Enum.GetValues<McapCompression>())
         using var fileStream = mode == "filestream" ? new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 65536, FileOptions.None) : null;
         using (var w = mode == "file" ? new McapWriter(path, new() { Compression = compression, ChunkSize = 16384 }) : new McapWriter(fileStream is not null ? fileStream : new SpanStream(storage, mode == "seekable"), new() { Compression = compression, ChunkSize = 16384 }, true))
         {
-            try { w.WriteMessage(new McapMessageHeader(99, 0, 0, 0), payload); }
+            try { w.WriteToKnownChannel(new McapMessageHeader(99, 0, 0, 0), payload); }
             catch (McapException e) when (e.CanContinueWriting) { }
             var c = w.RegisterChannel("t", "raw");
             for (uint i = 0; i < 1000; i++)
-                w.WriteMessage(new(c, i, i, i), payload);
+                w.WriteToKnownChannel(new(c, i, i, i), payload);
             var bytes = GC.GetAllocatedBytesForCurrentThread();
             var start = Stopwatch.GetTimestamp();
             for (uint i = 0; i < count; i++)
-                w.WriteMessage(new(c, i, i, i), payload);
+                w.WriteToKnownChannel(new(c, i, i, i), payload);
             var allocated = GC.GetAllocatedBytesForCurrentThread() - bytes;
             var elapsed = Stopwatch.GetElapsedTime(start);
             Report("write", allocated, count, elapsed);
             var c2 = w.RegisterChannel("new", "raw");
-            w.WriteMessage(new(c2, 0, 0, 0), []);
-            w.WriteMessage(new(c2, 1, 1, 1), new byte[100000]);
+            w.WriteToKnownChannel(new(c2, 0, 0, 0), []);
+            w.WriteToKnownChannel(new(c2, 1, 1, 1), new byte[100000]);
             w.Complete();
         }
 

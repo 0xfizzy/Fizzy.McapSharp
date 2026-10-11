@@ -29,7 +29,7 @@ public sealed class NativeInteropTests
         Assert.Equal(shortened, error.Details.TryGetProperty("truncated", out var truncated));
         if (shortened) Assert.True(truncated.GetBoolean());
         var channel = writer.RegisterChannel("topic", "raw", 1);
-        writer.WriteMessage(new McapMessageHeader(channel, 0, 1, 1), [3]);
+        writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 1, 1), [3]);
         writer.Complete();
     }
 
@@ -65,7 +65,7 @@ public sealed class NativeInteropTests
             Assert.Equal((ushort)7, w.RegisterSchema(7, "schema", "raw", new byte[] { 1, 2 }));
             Assert.Equal((ushort)9, w.RegisterChannel(9, "topic", "raw", 7));
             for (uint i = 0; i < 20; i++)
-                w.WriteMessage(new McapMessageHeader(9, i, i, i + 1), new byte[] { 3, 4, 5 });
+                w.WriteToKnownChannel(new McapMessageHeader(9, i, i, i + 1), new byte[] { 3, 4, 5 });
             w.WritePrivateRecord(0x80, [8, 9], true);
             w.WriteMetadata("session", new Dictionary<string, string> { { "k", "v" } });
             w.StartAttachment("a", "raw", 1, 2, 3);
@@ -80,7 +80,7 @@ public sealed class NativeInteropTests
 
         storage.Position = 17;
         using (var stream = new TestStream(storage, seekable, 3))
-        using (var r = McapReaderFactory.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
+        using (var r = McapReaderFactory.OpenMessageSession(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             if (seekable)
             {
@@ -115,7 +115,7 @@ public sealed class NativeInteropTests
         }
 
         storage.Position = 17;
-        using (var r = McapReaderFactory.OpenRecords(new TestStream(storage, false, 7)))
+        using (var r = McapReaderFactory.OpenRecordSession(new TestStream(storage, false, 7)))
         {
             var records = r.ReadRecords().ToArray();
             Assert.Contains(records, x => x.Opcode == 0x80 && x.Data.SequenceEqual(new byte[] { 8, 9 }));
@@ -130,9 +130,9 @@ public sealed class NativeInteropTests
         var stream = new TestStream(storage, true);
         var w = new McapWriter(stream, new() { UseChunks = false }, true);
         var c = w.RegisterChannel("t", "raw");
-        Assert.Throws<InvalidOperationException>(() => McapReaderFactory.OpenMessages(stream));
+        Assert.Throws<InvalidOperationException>(() => McapReaderFactory.OpenMessageSession(stream));
         stream.ThrowOnWrite = true;
-        Assert.Throws<IOException>(() => w.WriteMessage(new McapMessageHeader(c, 0, 1, 1), [1]));
+        Assert.Throws<IOException>(() => w.WriteToKnownChannel(new McapMessageHeader(c, 0, 1, 1), [1]));
         Assert.Throws<InvalidOperationException>(() => w.Complete());
         w.Dispose();
         Assert.False(stream.Disposed);
@@ -156,7 +156,7 @@ public sealed class NativeInteropTests
         using var w = new McapWriter(stream, new() { UseChunks = false }, true);
         var c = w.RegisterChannel("t", "raw");
         stream.OnWrite = () => w.Dispose();
-        Assert.Throws<InvalidOperationException>(() => w.WriteMessage(new McapMessageHeader(c, 0, 1, 1), [1]));
+        Assert.Throws<InvalidOperationException>(() => w.WriteToKnownChannel(new McapMessageHeader(c, 0, 1, 1), [1]));
     }
 
     [Fact]
@@ -177,12 +177,12 @@ public sealed class NativeInteropTests
         using (var w = new McapWriter(new TestStream(s, false), new() { UseChunks = false }, true))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), [1]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), [1]);
             w.Flush();
         }
 
         s.Position = 0;
-        using var r = McapReaderFactory.OpenMessages(new TestStream(s, false, 2), options: McapReaderOptions.Strict);
+        using var r = McapReaderFactory.OpenMessageSession(new TestStream(s, false, 2), options: McapReaderOptions.Strict);
         int count = 0;
         var result = r.RecoverMessages(_ => count++);
         Assert.Equal(1, count);
@@ -197,23 +197,23 @@ public sealed class NativeInteropTests
         {
             var schema = w.RegisterSchema("s", "raw", [1]);
             var c = w.RegisterChannel("t", "raw", schema);
-            w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), [1]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), [1]);
             w.Complete();
         }
 
         s.Position = 0;
-        using (var r = McapReaderFactory.OpenMessages(s, new() { Topic = "t", Order = McapReadOrder.File }, true, McapReaderOptions.Strict))
+        using (var r = McapReaderFactory.OpenMessageSession(s, new() { Topic = "t", Order = McapReadOrder.File }, true, McapReaderOptions.Strict))
         {
-            Assert.Empty(r.GetSummary()!.SchemaIds);
+            Assert.Empty(r.GetSummary()!.Schemas);
             Assert.Single(r.ReadMessages());
             Assert.True(r.IsFullyValidated);
         }
 
         s.Position = 0;
-        using (var r = McapReaderFactory.OpenRecords(s, McapRecordMode.TopLevel, true))
+        using (var r = McapReaderFactory.OpenRecordSession(s, RecordMode.TopLevel, true))
         {
             Assert.Contains(r.ReadRecords(), x => x.Opcode == 6);
-            Assert.Empty(r.GetSummary()!.SchemaIds);
+            Assert.Empty(r.GetSummary()!.Schemas);
         }
     }
 
@@ -224,13 +224,13 @@ public sealed class NativeInteropTests
         using (var w = new McapWriter(stream, new() { EmitSummaryOffsets = false, EmitStatistics = false, EmitChunkIndexes = false, EmitMessageIndexes = false, EmitAttachmentIndexes = false, EmitMetadataIndexes = false, RepeatChannels = false, RepeatSchemas = false, ChunkSize = null, UseChunks = false, CalculateChunkCrcs = false, CalculateDataSectionCrc = false, CalculateSummarySectionCrc = false, CalculateAttachmentCrcs = false }, true))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 0, 1, 1), [5]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 0, 1, 1), [5]);
             w.WritePrivateRecord(0x81, [6]);
             w.Complete();
         }
 
         stream.Position = 0;
-        using (var r = McapReaderFactory.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
+        using (var r = McapReaderFactory.OpenMessageSession(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             Assert.Null(r.GetSummary());
             Assert.Single(r.ReadMessages());
@@ -238,7 +238,7 @@ public sealed class NativeInteropTests
         }
 
         stream.Position = 0;
-        using (var r = McapReaderFactory.OpenRecords(stream, McapRecordMode.TopLevel, true))
+        using (var r = McapReaderFactory.OpenRecordSession(stream, RecordMode.TopLevel, true))
         {
             Assert.Contains(r.ReadRecords(), x => x.Opcode == 0x81 && x.Data[0] == 6);
             Assert.False(r.IsFullyValidated);
@@ -253,13 +253,13 @@ public sealed class NativeInteropTests
         {
             var c = w.RegisterChannel("t", "raw");
             for (uint i = 0; i < 8; i++)
-                w.WriteMessage(new McapMessageHeader(c, i, i * 100, i * 100), new byte[100]);
+                w.WriteToKnownChannel(new McapMessageHeader(c, i, i * 100, i * 100), new byte[100]);
             w.Complete();
         }
 
         McapChunkIndex damaged;
         stream.Position = 0;
-        using (var r = McapReaderFactory.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
+        using (var r = McapReaderFactory.OpenMessageSession(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             damaged = r.GetSummary()!.ChunkIndexes.Last(c => c.MessageIndexOffsets.Count > 0);
         }
@@ -268,14 +268,14 @@ public sealed class NativeInteropTests
         int at = checked((int)(damaged.ChunkStartOffset + damaged.ChunkLength - 1));
         data[at] ^= 1;
         stream.Position = 0;
-        using (var r = McapReaderFactory.OpenMessages(stream, new() { StartTime = 0, EndTime = 100 }, true))
+        using (var r = McapReaderFactory.OpenMessageSession(stream, new() { StartTime = 0, EndTime = 100 }, true))
         {
             Assert.Single(r.ReadMessages());
             Assert.False(r.IsFullyValidated);
         }
 
         stream.Position = 0;
-        using (var r = McapReaderFactory.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
+        using (var r = McapReaderFactory.OpenMessageSession(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             Assert.Throws<McapException>(() => r.ValidateRemaining());
         }
@@ -296,14 +296,14 @@ public sealed class NativeInteropTests
             var s = w.RegisterSchema(42, "s", "raw", payload);
             Assert.Equal(s, w.RegisterSchema("s", "raw", payload));
             var c = w.RegisterChannel(0, "t", "raw", s);
-            w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), payload);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), payload);
             Array.Fill(payload, (byte)99);
             w.Complete();
         }
 
         stream.Position = 0;
         McapMessage message;
-        using (var r = McapReaderFactory.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
+        using (var r = McapReaderFactory.OpenMessageSession(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             message = Assert.Single(r.ReadMessages());
         }
@@ -324,7 +324,7 @@ public sealed class NativeInteropTests
         using (var w = new McapWriter(stream, leaveOpen: true))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), [1]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), [1]);
             w.Complete();
         }
 
@@ -335,14 +335,14 @@ public sealed class NativeInteropTests
         }
 
         )
-        using (var r = McapReaderFactory.OpenMessages(faulty, leaveOpen: true))
+        using (var r = McapReaderFactory.OpenMessageSession(faulty, leaveOpen: true))
         {
             Assert.Throws<IOException>(() => r.ReadNext(new byte[1], out _, out _));
             Assert.Throws<InvalidOperationException>(() => r.ReadNext(new byte[1], out _, out _));
         }
 
         stream.Position = 0;
-        using (var r = McapReaderFactory.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict))
+        using (var r = McapReaderFactory.OpenMessageSession(stream, leaveOpen: true, options: McapReaderOptions.Strict))
         {
             Assert.Throws<ApplicationException>(() => r.RecoverMessages(_ => throw new ApplicationException()));
         }
@@ -355,13 +355,13 @@ public sealed class NativeInteropTests
         using (var w = new McapWriter(stream, leaveOpen: true))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 5, 7, 6), [1, 2]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 5, 7, 6), [1, 2]);
             w.Complete();
             w.Dispose();
         }
 
         stream.Position = 0;
-        var r = McapReaderFactory.OpenMessages(stream, leaveOpen: true, options: McapReaderOptions.Strict);
+        var r = McapReaderFactory.OpenMessageSession(stream, leaveOpen: true, options: McapReaderOptions.Strict);
         Assert.Equal(McapReadStatus.BufferTooSmall, r.ReadNext([], out _, out _));
         var summary = r.GetSummary()!;
         Assert.Equal((byte)6, r.ReadChunk(summary.ChunkIndexes[0]).Opcode);
@@ -378,16 +378,16 @@ public sealed class NativeInteropTests
     public void NullStreamsAndInvalidModesAreRejected()
     {
         Assert.Throws<ArgumentNullException>(() => new McapWriter((Stream)null !));
-        Assert.Throws<ArgumentNullException>(() => McapReaderFactory.OpenMessages(null !));
-        Assert.Throws<ArgumentNullException>(() => McapReaderFactory.OpenRecords(null !));
+        Assert.Throws<ArgumentNullException>(() => McapReaderFactory.OpenMessageSession(null !));
+        Assert.Throws<ArgumentNullException>(() => McapReaderFactory.OpenRecordSession(null !));
         using var s = new MemoryStream();
-        Assert.Throws<ArgumentOutOfRangeException>(() => McapReaderFactory.OpenRecords(s, (McapRecordMode)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => McapReaderFactory.OpenRecordSession(s, (RecordMode)99));
     }
 
     [Fact]
     public void AbiLayouts()
     {
-        Assert.Equal(16u, Native.fm_abi_version());
+        Assert.Equal(17u, Native.fm_abi_version());
         Assert.Equal(56, Marshal.SizeOf<Native.ReadEvent>());
         Assert.Equal(32, Marshal.OffsetOf<Native.ReadEvent>(nameof(Native.ReadEvent.Header)).ToInt32());
         Assert.Equal(24, Marshal.SizeOf<Native.NativeHeader>());
@@ -409,13 +409,13 @@ public sealed class NativeInteropTests
         using (var w = new McapWriter(s, leaveOpen: true))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), []);
-            w.WriteMessage(new McapMessageHeader(c, 1, 1, 1), new byte[100000]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), []);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 1, 1, 1), new byte[100000]);
             w.Complete();
         }
 
         s.Position = 0;
-        using var r = McapReaderFactory.OpenMessages(s, leaveOpen: true);
+        using var r = McapReaderFactory.OpenMessageSession(s, leaveOpen: true);
         Assert.Equal(McapReadStatus.Success, r.ReadNext([], out _, out var n));
         Assert.Equal(0ul, n);
         for (int i = 0; i < 3; i++)

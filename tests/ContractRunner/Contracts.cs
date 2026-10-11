@@ -40,9 +40,9 @@ static class Contracts
         }
         var reader = new McapReaderFactory(path);
         reader.Validate();
-        Compare(reader.ReadMessages(new() { Order = McapReadOrder.File }), false);
-        Compare(reader.ReadMessages(new() { Order = McapReadOrder.LogTime }), true);
-        Compare(reader.ReadMessages(new() { Topic = "/测试", StartTime = 10, EndTime = 20 }), true,
+        Compare(reader.ReadMessages(), false);
+        Compare(reader.ReadQueryMessages(), true);
+        Compare(reader.ReadQueryMessages(new() { Topic = "/测试", StartTime = 10, EndTime = 20 }), true,
             expected.Where(r => { var f = Canon.Fields(r); var t = ulong.Parse(f["log_time"].GetString()!); return f["channel_id"].GetString() == "1" && t >= 10 && t < 20; }).ToArray());
         using (var snapshot = new McapIndexSnapshot(File.ReadAllBytes(path)))
         {
@@ -55,7 +55,7 @@ static class Contracts
                     if (!reader.ReadAttachments().Any(a => a.Data.SequenceEqual(snapshot.ReadAttachment(index).Data))) throw new Exception("Indexed attachment mismatch");
                 foreach (var chunk in summary.ChunkIndexes)
                 {
-                    using var cursor = snapshot.OpenChunkReader(chunk);
+                    using var cursor = snapshot.OpenChunkMessages(chunk);
                     var messages = cursor.ReadMessages().ToArray();
                     foreach (var index in snapshot.ReadMessageIndexes(chunk))
                         foreach (var entry in index.Records)
@@ -66,7 +66,7 @@ static class Contracts
                 }
             }
         }
-        using (var buffer = new McapReadCursor(File.ReadAllBytes(path))) Compare(buffer.ReadMessages(), false);
+        using (var buffer = new McapMessageReader(File.ReadAllBytes(path))) Compare(buffer.ReadMessages(), false);
         using (var stream = File.OpenRead(path))
         using (var session = McapReaderFactory.OpenMessages(stream))
         {
@@ -86,7 +86,7 @@ static class Contracts
             if (count != expected.Length) throw new Exception("Buffer count mismatch");
         }
         using (var stream = File.OpenRead(path))
-        using (var asyncReader = new McapAsyncReader(stream, inputBufferSize: 3))
+        using (var asyncReader = new McapAsyncRecordReader(stream, inputBufferSize: 3))
         {
             byte[] data = []; int count = 0;
             while (true)
@@ -136,11 +136,11 @@ static class Contracts
         {
             do
             {
-                using (var w = new McapWriter(path)) { var c = w.RegisterChannel("lifecycle", "raw"); w.WriteMessage(new McapMessageHeader(c, 0, 0, 0), [1]); w.Complete(); }
+                using (var w = new McapWriter(path)) { var c = w.RegisterChannel("lifecycle", "raw"); w.WriteToKnownChannel(new McapMessageHeader(c, 0, 0, 0), [1]); w.Complete(); }
                 var r = new McapReaderFactory(path);
-                using (var s = r.OpenMessages()) using (var snapshot = s.OpenIndexSnapshot())
+                using (var s = r.OpenMessages()) using (var snapshot = r.OpenIndexSnapshot())
                     if (s.ReadMessages().Single().Data[0] != 1) throw new Exception("Lifecycle mismatch");
-                using (var stream = File.OpenRead(path)) await using (var a = new McapAsyncReader(stream)) { await a.ReadNextRecordAsync(new byte[1024]); }
+                using (var stream = File.OpenRead(path)) await using (var a = new McapAsyncRecordReader(stream)) { await a.ReadNextRecordAsync(new byte[1024]); }
                 File.Delete(path);
                 if (++iterations % 100 == 0) { GC.Collect(); GC.WaitForPendingFinalizers(); using var p = Process.GetCurrentProcess(); samples.Add((iterations, p.PrivateMemorySize64, p.HandleCount)); }
             } while (watch.Elapsed.TotalSeconds < seconds);
@@ -165,7 +165,7 @@ static class Contracts
             using (var w = new McapWriter(path, new() { Compression = McapCompression.None, ChunkSize = 4 * 1024 * 1024 }))
             {
                 var c = w.RegisterChannel("large", "raw");
-                for (uint i = 0; i < 4097; i++) { BitConverter.TryWriteBytes(data.AsSpan(), i); w.WriteMessage(new McapMessageHeader(c, i, i, i), data); }
+                for (uint i = 0; i < 4097; i++) { BitConverter.TryWriteBytes(data.AsSpan(), i); w.WriteToKnownChannel(new McapMessageHeader(c, i, i, i), data); }
                 w.Complete();
             }
             if (new FileInfo(path).Length <= uint.MaxValue) throw new Exception("Large fixture too small");

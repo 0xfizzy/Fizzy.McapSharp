@@ -3,7 +3,7 @@ using System.Threading.Tasks.Sources;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapSansIoReader
+internal sealed partial class SansIoReaderCore
 {
     internal (int Status, McapMessageBatchLease? Batch, ulong Needed) LeaseStep(int count, int target)
     {

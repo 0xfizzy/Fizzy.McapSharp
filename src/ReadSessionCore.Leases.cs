@@ -3,7 +3,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapReadSession
+internal sealed partial class ReadSessionCore
 {
     /// <summary>Returns null at EOF. Checks the soft payload target after each whole message, so a batch may exceed it. The target does not bound backing capacity or outstanding leases.
     /// Returns a stable shared batch, or null at EOF. Failure publishes no partial lease and terminates the read. Retain the lease throughout access, including after reader disposal; do not dispose concurrently.</summary>

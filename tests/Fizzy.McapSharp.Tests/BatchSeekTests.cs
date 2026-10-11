@@ -16,7 +16,7 @@ public class BatchSeekTests
             {
                 var payload = new byte[70000];
                 Array.Fill(payload, (byte)i);
-                writer.WriteMessage(new(channel, i, i, 0), payload);
+                writer.WriteToKnownChannel(new(channel, i, i, 0), payload);
             }
             writer.Complete();
         }
@@ -50,7 +50,7 @@ public class BatchSeekTests
         using var output=new MemoryStream();
         using(var writer=new McapWriter(output,new(){Compression=compression,ChunkSize=1024},true)) {
             var c=writer.RegisterChannel("t","raw");
-            for(uint i=0;i<4;i++) { var data=new byte[70000];Array.Fill(data,(byte)i);writer.WriteMessage(new(c,i,i,0),data); }
+            for(uint i=0;i<4;i++) { var data=new byte[70000];Array.Fill(data,(byte)i);writer.WriteToKnownChannel(new(c,i,i,0),data); }
             writer.Complete();
         }
         using var snapshot=new McapIndexSnapshot(output.ToArray(),new(){MaxRandomAccessCacheBytes=1024*1024});

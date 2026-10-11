@@ -23,7 +23,7 @@ public sealed class WriterSummaryTests
             var a = writer.RegisterChannel("a", "raw", schema);
             var b = writer.RegisterChannel("b", "raw");
             byte[] payload = new byte[2048];
-            for (uint i = 0; i < 16; i++) writer.WriteMessage(new(i % 2 == 0 ? a : b, i, i, ulong.MaxValue), payload);
+            for (uint i = 0; i < 16; i++) writer.WriteToKnownChannel(new(i % 2 == 0 ? a : b, i, i, ulong.MaxValue), payload);
             writer.WriteAttachment("name\"雪", "raw", ulong.MaxValue, 0, [4, 5]);
             writer.WriteMetadata("meta\n雪", new Dictionary<string, string> { ["k"] = "v" });
             writer.Complete();
@@ -31,8 +31,8 @@ public sealed class WriterSummaryTests
             var first = writer.GetSummary();
             string expected = JsonSerializer.Serialize(first);
             Assert.Equal(16ul, first.Statistics!.MessageCount);
-            Assert.Equal(2, first.ChannelIds.Count);
-            Assert.Single(first.SchemaIds);
+            Assert.Equal(2, first.Channels.Count);
+            Assert.Single(first.Schemas);
             Assert.True(first.ChunkIndexes.Count >= 2);
             Assert.Equal(emitSummary ? 1 : 0, first.AttachmentIndexes.Count);
             Assert.Equal(emitSummary ? 1 : 0, first.MetadataIndexes.Count);
@@ -55,7 +55,7 @@ public sealed class WriterSummaryTests
             new McapReaderFactory(path).Validate();
             if (emitSummary)
             {
-                using var reader = new McapReaderFactory(path).OpenIndexedMessages();
+                using var reader = new McapReaderFactory(path).OpenIndexedSession();
                 Assert.Equal(16, reader.ReadMessages().Count());
             }
             else Assert.Equal(16, new McapReaderFactory(path).ReadMessages().Count());

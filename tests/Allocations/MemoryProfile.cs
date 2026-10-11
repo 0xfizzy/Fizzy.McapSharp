@@ -25,7 +25,7 @@ static class MemoryProfile
             Sample(0, "writing");
             for (uint i = 0; i < count; i++)
             {
-                writer.WriteMessage(new(channel, i, i, 0), data);
+                writer.WriteToKnownChannel(new(channel, i, i, 0), data);
                 if (setting.FlushEvery != 0 && (i + 1) % setting.FlushEvery == 0) writer.Flush();
                 if ((i + 1) % 8192 == 0) Sample(i + 1, "writing");
             }

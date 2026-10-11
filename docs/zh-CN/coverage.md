@@ -25,7 +25,7 @@
 | `WriteOptions`、`Writer::new/with_options` | `McapWriterOptions`、`McapWriter` 构造函数 | 适配 | Builder 配置转为属性；摘要总开关先于显式单项覆盖 |
 | `Writer::add_schema/add_schema_with_id`、`add_channel/add_channel_with_id` | `RegisterSchema`、`RegisterChannel` 重载 | 适配 | ID 与二进制载荷分离；prepared 描述符属于绑定扩展 |
 | `Writer::write` | `WriteMessage(McapMessage)`、prepared channel 重载 | 适配 | 调用上游自动声明；准备操作快照化可变描述 |
-| `Writer::write_to_known_channel` | `WriteMessage(in header, span)` | 适配 | 同步消费借用载荷，无托管 payload 副本 |
+| `Writer::write_to_known_channel` | `WriteToKnownChannel(in header, span)` | 适配 | 同步消费借用载荷，无托管 payload 副本 |
 | `Writer::attach`、`start_attachment/put_attachment_bytes/finish_attachment` | `WriteAttachment`、`StartAttachment/WriteAttachmentBytes/FinishAttachment` | 适配 | 分段附件必须满足声明的精确长度 |
 | `Writer::write_metadata`、`write_private_record`、`PrivateRecordOptions` | `WriteMetadata`、`WritePrivateRecord` | 适配 | 私有记录位置选项转为 `includeInChunks` |
 | `Writer::flush`、`finish`、`into_inner` | `Flush`、`Complete/GetSummary`、`IntoInner` | 适配 | 完成和摘要获取分离；释放不隐式完成。`FlushToDisk` 属于绑定扩展 |
@@ -36,20 +36,20 @@
 
 | 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
 | --- | --- | --- | --- |
-| `read::LinearReader`、`Options`、`sans_magic` | `McapReadCursor` 的 TopLevelRecords/ExpandedRecordsWithoutMagic 模式 | 适配 | 官方 Sans-I/O 配置匹配切片读取器；输入复制或显式映射 |
-| `read::ChunkReader` | `McapReadCursor` 的 ChunkRecords 模式 | 适配 | 接收 Chunk 记录体并惰性推进 |
-| `read::ChunkFlattener` | ExpandedRecords 模式 | 适配 | 将 chunk 展开为记录 |
-| `read::RawMessageStream`、`RawMessage`、`get_channel` | RawMessages 模式、header/payload 读取、`GetChannel` | 适配 | 保留已遇到的声明；借用 Rust 迭代器不跨越 ABI |
-| `read::MessageStream` | Messages 模式和自有消息枚举 | 适配 | 自有结果复制 payload 及可变声明；其他交付方式的所有权不同 |
+| `read::LinearReader`、`Options`、`sans_magic` | `McapLinearReader`, `McapChunkFlattener` + SkipStartMagic/SkipEndMagic | 适配 | 官方 Sans-I/O 配置匹配切片读取器；输入复制或显式映射 |
+| `read::ChunkReader` | `McapChunkReader` | 适配 | 接收 Chunk 记录体并惰性推进 |
+| `read::ChunkFlattener` | `McapChunkFlattener` | 适配 | 将 chunk 展开为记录 |
+| `read::RawMessageStream`、`RawMessage`、`get_channel` | `McapRawMessageReader`, `GetChannel` | 适配 | 保留已遇到的声明；借用 Rust 迭代器不跨越 ABI |
+| `read::MessageStream` | `McapMessageReader`, `ReadMessages` | 适配 | 自有结果复制 payload 及可变声明；其他交付方式的所有权不同 |
 
-[McapReadCursor](../../src/McapReadCursor.cs) 将这些切片接口统一为模式。`McapReaderFactory.OpenMessages/OpenRecords` 另外提供由官方解析驱动的文件／Stream 会话。顺序文件读取、输入所有权和交付所有权分别选择，详见 [API 指南](api.md)。
+五种具体 reader 对应上游读取能力，McapSummaryRecordReader 是保留 Summary 记录的绑定扩展。McapReaderFactory 提供文件／Stream 构造，对应类型提供复制／映射构造。高层展开验证跨输入保持一致，独立于 CRC 设置。McapRandomAccessReader 提供不复制整份输入的 Stream 随机访问，McapIndexSnapshot 提供拥有输入的随机访问。
 
 ## 摘要与随机访问（`random-access`）
 
 | 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
 | --- | --- | --- | --- |
 | `Summary`、`Summary::read` 及摘要字段 | `McapIndexSnapshot`、`GetSummary`、`OpenSummaryRecords` | 适配 | Snapshot 拥有输入副本或映射；托管摘要和记录游标是不同表示形式 |
-| `Summary::stream_chunk` | `OpenChunkReader`、`ReadChunkMessages` | 适配 | 独立惰性游标共享输入和摘要，在 snapshot 释放后仍有效 |
+| `Summary::stream_chunk` | `OpenChunkMessages`、`ReadChunkMessages` | 适配 | 独立惰性游标共享输入和摘要，在 snapshot 释放后仍有效 |
 | `Summary::seek_message` | `SeekMessage` 重载 | 适配 | 绑定加载／校验完整 chunk，可能比上游前缀定位更早报告尾部损坏 |
 | `Summary::read_message_indexes` | `ReadMessageIndexes` | 适配 | 调用方缓冲形式使用 18 字节打包行 |
 | `read::attachment`、`read::metadata` | `ReadAttachment`、`ReadMetadata` | 适配 | 使用调用方提供的索引并验证源范围 |
@@ -60,11 +60,11 @@
 
 | 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
 | --- | --- | --- | --- |
-| `sans_io::LinearReader`、`LinearReaderOptions`、`LinearReadEvent` | `McapSansIoReader.CreateLinear`、`McapReaderOptions`、`NextEvent/SupplyInput` | 适配 | 值事件和调用方缓冲替代 Rust 事件借用及可写输入切片 |
-| `sans_io::SummaryReader`、选项及事件 | `CreateSummary`、`McapSummaryReaderOptions`、输入／定位通知及摘要访问 | 适配 | 调用方驱动 I/O；完成后摘要可用于索引读取 |
-| `sans_io::IndexedReader`、选项、事件及 `ReadOrder` | `CreateIndexed`、`McapQuery`、`McapReadOrder`、索引控制操作 | 适配 | 直接索引引擎要求索引，不进行扫描排序回退 |
+| `sans_io::LinearReader`、`LinearReaderOptions`、`LinearReadEvent` | `McapSansIoLinearReader`、`McapReaderOptions`、`NextEvent/SupplyInput` | 适配 | 值事件和调用方缓冲替代 Rust 事件借用及可写输入切片 |
+| `sans_io::SummaryReader`、选项及事件 | `McapSansIoSummaryReader`、`McapSummaryReaderOptions`、输入／定位通知及摘要访问 | 适配 | 调用方驱动 I/O；完成后摘要可用于索引读取 |
+| `sans_io::IndexedReader`、选项、事件及 `ReadOrder` | `McapSansIoSummaryReader.CreateIndexed`、`McapIndexedQuery`、`McapReadOrder`、索引控制操作 | 适配 | 直接索引引擎要求索引，不进行扫描排序回退 |
 
-具体事件与控制项见 [SansIo.cs](../../src/SansIo.cs) 及符号清单。可选 CRC 检查默认遵循上游配置。共享事件和直接填充所有权扩展在下文单列。
+具体事件与控制项见 [SansIoReaderCore.cs](../../src/SansIoReaderCore.cs) 及符号清单。可选 CRC 检查默认遵循上游配置。共享事件和直接填充所有权扩展在下文单列。
 
 ## 记录、工具与错误（`records-and-errors`）
 
@@ -79,12 +79,12 @@
 
 | 官方 Rust API | .NET 入口 | 映射 | 原因或约束 |
 | --- | --- | --- | --- |
-| 可选 `tokio::LinearReader`（`async`） | `McapAsyncReader.ReadNextRecordAsync` | 替代 | .NET 异步 I/O 驱动官方 Sans-I/O，不调用 Tokio 本身；取消和挂起遵循托管契约 |
+| 可选 `tokio::LinearReader`（`async`） | `McapAsyncRecordReader.ReadNextRecordAsync` | 替代 | .NET 异步 I/O 驱动官方 Sans-I/O，不调用 Tokio 本身；取消和挂起遵循托管契约 |
 | `sans_io::Decompressor`、`DecompressResult`（`unexposed`） | 无 | 未暴露 | 上游没有自定义解压器注册入口；未实现该 trait 的托管版本 |
 
-功能替代不代表移植特定运行时接口。实现见[异步 reader](../../src/McapAsyncReader.cs)。
+功能替代不代表移植特定运行时接口。实现见[异步 reader](../../src/McapAsyncRecordReader.cs)。
 
-异步消息 lease 是线性引擎之上的绑定能力。消费在途读取后，`GetChannelDescription` 和 `GetSchemaDescription` 可查询 lease 模式已遇到的不可变声明；这不增加上游 API 或本地补丁。
+McapAsyncMessageReader 在线性引擎上提供消息 lease，属于绑定能力。两种异步展开 reader 均在消费当前操作后，通过 GetChannelDescription 和 GetSchemaDescription 查询已遇到的不可变声明，不增加上游 API 或补丁。
 
 ## 本地扩展与绑定能力
 

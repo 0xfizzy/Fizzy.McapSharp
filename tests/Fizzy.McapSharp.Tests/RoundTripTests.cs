@@ -18,9 +18,9 @@ public sealed class RoundTripTests : IDisposable
             var schema = writer.RegisterSchema("type", "jsonschema", "{}"u8);
             var channel = writer.RegisterChannel("/camera", "json", schema, new Dictionary<string, string> { { "device", "测试" } });
             for (uint i = 0; i < 30; i++)
-                writer.WriteMessage(new McapMessageHeader(channel, i, i * 10, i * 10 + 1), System.Text.Encoding.UTF8.GetBytes($"{{\"n\":{i}}}"));
+                writer.WriteToKnownChannel(new McapMessageHeader(channel, i, i * 10, i * 10 + 1), System.Text.Encoding.UTF8.GetBytes($"{{\"n\":{i}}}"));
             var other = writer.RegisterChannel("/motion", "binary");
-            writer.WriteMessage(new McapMessageHeader(other, 0, 50, 51), [1, 2, 3]);
+            writer.WriteToKnownChannel(new McapMessageHeader(other, 0, 50, 51), [1, 2, 3]);
             writer.WriteMetadata("session", new Dictionary<string, string> { { "clock", "monotonic" } });
             writer.WriteAttachment("calibration", "application/octet-stream", 50, 40, [9, 8, 7]);
             writer.Complete();
@@ -47,7 +47,7 @@ public sealed class RoundTripTests : IDisposable
         using (var w = new McapWriter(path, new() { EmitStatistics = false, EmitMessageIndexes = false, EmitChunkIndexes = false, EmitAttachmentIndexes = false, EmitMetadataIndexes = false, RepeatChannels = false, RepeatSchemas = false, UseChunks = false }))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 0, 3, 3), [42]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 0, 3, 3), [42]);
             w.Complete();
         }
 
@@ -63,7 +63,7 @@ public sealed class RoundTripTests : IDisposable
         using (var w = new McapWriter(path))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 1, 1, 1), [42]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 1, 1, 1), [42]);
         }
 
         Assert.Throws<McapException>(() => new McapReaderFactory(path).Validate());
@@ -76,7 +76,7 @@ public sealed class RoundTripTests : IDisposable
         using (var w = new McapWriter(path, new() { UseChunks = false }))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 1, 1, 1), "payload-marker"u8);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 1, 1, 1), "payload-marker"u8);
             w.Complete();
         }
 
@@ -97,7 +97,7 @@ public sealed class RoundTripTests : IDisposable
         var path = PathFor("failure.mcap");
         using (var w = new McapWriter(path, new() { SafeRejections = McapWriterSafeRejections.None }))
         {
-            Assert.Throws<McapException>(() => w.WriteMessage(new McapMessageHeader(99, 1, 1, 1), [1]));
+            Assert.Throws<McapException>(() => w.WriteToKnownChannel(new McapMessageHeader(99, 1, 1, 1), [1]));
             Assert.Throws<InvalidOperationException>(() => w.Complete());
         }
 
@@ -111,7 +111,7 @@ public sealed class RoundTripTests : IDisposable
         using (var w = new McapWriter(path))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 1, 1, 1), [1]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 1, 1, 1), [1]);
             w.Complete();
         }
 
@@ -132,7 +132,7 @@ public sealed class RoundTripTests : IDisposable
         using (var w = new McapWriter(path, new() { UseChunks = false }))
         {
             var c = w.RegisterChannel("t", "raw");
-            w.WriteMessage(new McapMessageHeader(c, 1, 1, 1), [42]);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 1, 1, 1), [42]);
             w.Flush();
         }
 
@@ -173,7 +173,7 @@ public sealed class RoundTripTests : IDisposable
         {
             var s = w.RegisterSchema("schema-marker", "raw", []);
             var c = w.RegisterChannel("t", "raw", s);
-            w.WriteMessage(new McapMessageHeader(c, 1, 1, 1), "payload-marker"u8);
+            w.WriteToKnownChannel(new McapMessageHeader(c, 1, 1, 1), "payload-marker"u8);
             w.WriteAttachment("file", "raw", 1, 1, "attachment-marker"u8);
             w.Complete();
         }
@@ -203,7 +203,7 @@ public sealed class RoundTripTests : IDisposable
         using (var writer = new McapWriter(path))
         {
             var channel = writer.RegisterChannel("test", "raw");
-            writer.WriteMessage(new McapMessageHeader(channel, 0, 1, 1), [1, 2, 3]);
+            writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 1, 1), [1, 2, 3]);
             writer.Complete();
         }
 

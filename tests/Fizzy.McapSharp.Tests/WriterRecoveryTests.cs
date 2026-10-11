@@ -24,7 +24,7 @@ public class WriterRecoveryTests
             {
                 w.RegisterSchema(1, "s", "raw", []);
                 w.RegisterChannel(1, "t", "raw", 1);
-                w.WriteMessage(new McapMessageHeader(1, 0, 10, 10), [1]);
+                w.WriteToKnownChannel(new McapMessageHeader(1, 0, 10, 10), [1]);
                 var writes = stream.Writes; var seeks = stream.Seeks;
                 var e = Assert.Throws<McapException>(() => Reject(w, bit, prepared));
                 Assert.Equal(bit switch { 1 => McapErrorKind.InvalidSchemaId, 2 => McapErrorKind.ConflictingSchemas, 4 => McapErrorKind.UnknownSchema, 8 => McapErrorKind.ConflictingChannels, _ => McapErrorKind.UnknownChannel }, e.Kind);
@@ -33,30 +33,35 @@ public class WriterRecoveryTests
                 if (!e.CanContinueWriting) { Assert.Throws<InvalidOperationException>(() => w.Complete()); return; }
                 w.RegisterSchema(2, "new", "raw", []);
                 w.RegisterChannel(2, "new", "raw", 2);
-                w.WriteMessage(new McapMessageHeader(2, 1, 20, 20), [2]);
+                w.WriteToKnownChannel(new McapMessageHeader(2, 1, 20, 20), [2]);
                 w.Complete();
                 Assert.Equal(2ul, w.GetSummary().Statistics!.MessageCount);
             }
             using Stream input = file ? File.OpenRead(path) : new MemoryStream(stream.ToArray());
-            using var reader = McapReaderFactory.OpenMessages(input, options: McapReaderOptions.Strict);
+            using var reader = McapReaderFactory.OpenMessageSession(input, options: McapReaderOptions.Strict);
             Assert.Equal(new ulong[] { 10, 20 }, reader.ReadMessages().Select(m => m.LogTime));
             Assert.True(reader.IsFullyValidated);
-            Assert.Equal(2, reader.GetSummary()!.SchemaIds.Count);
+            Assert.Equal(2, reader.GetSummary()!.Schemas.Count);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
     static void Reject(McapWriter w, int bit, bool prepared)
     {
-        if (bit == 16) { w.WriteMessage(new McapMessageHeader(2, 99, 999, 999), []); return; }
+        if (bit == 16) { w.WriteToKnownChannel(new McapMessageHeader(2, 99, 999, 999), []); return; }
         if (prepared)
         {
-            using var op = bit switch {
-                1 => McapPreparedOperation.Schema("s", "raw", [], 0),
-                2 => McapPreparedOperation.Schema("conflict", "raw", [], 1),
-                4 => McapPreparedOperation.Channel("new", "raw", 2),
-                _ => McapPreparedOperation.Channel("conflict", "raw", 1, id: 1)
-            };
-            w.WritePrepared(op); return;
+            if (bit is 1 or 2)
+            {
+                using var schema = new McapPreparedSchema(bit == 1 ? "s" : "conflict", "raw", [], bit == 1 ? (ushort)0 : (ushort)1);
+                w.RegisterSchema(schema);
+            }
+            else
+            {
+                using var channel = bit == 4 ? new McapPreparedChannelRegistration("new", "raw", 2)
+                    : new McapPreparedChannelRegistration("conflict", "raw", 1, id: 1);
+                w.RegisterChannel(channel);
+            }
+            return;
         }
         switch (bit) {
             case 1: w.RegisterSchema(0, "s", "raw", []); break;
@@ -77,7 +82,7 @@ public class WriterRecoveryTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new McapWriter(s, options));
         Assert.True(s.CanWrite); Assert.Equal(0, s.Length);
         using var w = new McapWriter(s);
-        Assert.True(Assert.Throws<McapException>(() => w.WriteMessage(new McapMessageHeader(9, 0, 0, 0), [])).CanContinueWriting);
+        Assert.True(Assert.Throws<McapException>(() => w.WriteToKnownChannel(new McapMessageHeader(9, 0, 0, 0), [])).CanContinueWriting);
         w.Complete();
     }
     [Fact]

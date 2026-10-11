@@ -11,8 +11,8 @@ public class BatchFailureContractTests
         using (var writer = new McapWriter(storage, new() { UseChunks = false, Compression = McapCompression.None }, true))
         {
             var channel = writer.RegisterChannel("topic", "raw");
-            writer.WriteMessage(new(channel, 1, 1, 1), [42]);
-            writer.WriteMessage(new(channel, 2, 2, 2), [43]);
+            writer.WriteToKnownChannel(new(channel, 1, 1, 1), [42]);
+            writer.WriteToKnownChannel(new(channel, 2, 2, 2), [43]);
             writer.Complete();
         }
         var data = storage.ToArray();
@@ -28,7 +28,7 @@ public class BatchFailureContractTests
     [Fact]
     public void CallerBuffersCanChangeBeforeBatchFailureAndSessionIsTerminal()
     {
-        using var reader = McapReaderFactory.OpenMessages(new MemoryStream(Prefix()));
+        using var reader = McapReaderFactory.OpenMessageSession(new MemoryStream(Prefix()));
         var headers = new McapMessageHeader[3];
         var ranges = new McapPayloadRange[3];
         var payload = new byte[3];
@@ -43,14 +43,14 @@ public class BatchFailureContractTests
     public void VisitorEffectsRemainButFailurePublishesNoLease()
     {
         int visited = 0;
-        using (var reader = McapReaderFactory.OpenMessages(new MemoryStream(Prefix())))
+        using (var reader = McapReaderFactory.OpenMessageSession(new MemoryStream(Prefix())))
         {
             bool Visit(in McapMessageHeader header, ReadOnlySpan<byte> data) { visited++; return true; }
             Assert.ThrowsAny<Exception>(() => reader.VisitMessages(Visit));
             Assert.Equal(1, visited);
             Assert.Throws<InvalidOperationException>(() => reader.ReadNext([], out _, out _));
         }
-        using var leaseReader = McapReaderFactory.OpenMessages(new MemoryStream(Prefix()));
+        using var leaseReader = McapReaderFactory.OpenMessageSession(new MemoryStream(Prefix()));
         McapMessageBatchLease? lease = null;
         Assert.ThrowsAny<Exception>(() => lease = leaseReader.ReadBatchLease());
         Assert.Null(lease);

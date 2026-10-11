@@ -12,7 +12,7 @@ if (args[0] == "write")
         var schema = writer.RegisterSchema(7, "sample", "jsonschema", "{}"u8);
         var channel = writer.RegisterChannel(9, "/test", "json", schema);
         for (uint n = 0; n < 100; n++)
-            writer.WriteMessage(new McapMessageHeader(channel, n, n * 100, n * 100 + 1), System.Text.Encoding.UTF8.GetBytes($"{{\"n\":{n}}}"));
+            writer.WriteToKnownChannel(new McapMessageHeader(channel, n, n * 100, n * 100 + 1), System.Text.Encoding.UTF8.GetBytes($"{{\"n\":{n}}}"));
         writer.WriteMetadata("session", new Dictionary<string, string> { { "origin", "dotnet" } });
         writer.StartAttachment("sample", "text/plain", 100, 90, 10);
         writer.WriteAttachmentBytes("attach"u8);

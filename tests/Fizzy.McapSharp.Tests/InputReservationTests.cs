@@ -15,13 +15,13 @@ public class InputReservationTests
         using (var writer = new McapWriter(storage, new() { Compression = compression, CompressionThreads = 0, ChunkSize = 1024 }, true))
         {
             var channel = writer.RegisterChannel("t", "raw");
-            writer.WriteMessage(new(channel, 0, 0, 0), []);
-            writer.WriteMessage(new(channel, 1, 1, 1), payload);
-            writer.WriteMessage(new(channel, 2, 2, 2), [42]);
+            writer.WriteToKnownChannel(new(channel, 0, 0, 0), []);
+            writer.WriteToKnownChannel(new(channel, 1, 1, 1), payload);
+            writer.WriteToKnownChannel(new(channel, 2, 2, 2), [42]);
             writer.Complete();
         }
         using var input = new ShortStream(storage.ToArray());
-        using var reader = McapReaderFactory.OpenMessages(input, leaveOpen: true, options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessageSession(input, leaveOpen: true, options: McapReaderOptions.Strict);
         Assert.Equal(McapReadStatus.Success, reader.ReadNext([], out _, out var empty)); Assert.Equal(0UL, empty);
         for (int i = 0; i < 3; i++)
         {

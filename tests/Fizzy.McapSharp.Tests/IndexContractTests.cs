@@ -8,6 +8,22 @@ namespace Fizzy.McapSharp.Tests;
 
 public class IndexContractTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void IndexedFileOrderWithoutFiltersUsesAvailableIndexes()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"indexed-file-order-{Guid.NewGuid():N}.mcap");
+        try
+        {
+            File.WriteAllBytes(path, DeliveryOptimizationTests.Recording(McapCompression.None, 2));
+            var factory = new McapReaderFactory(path);
+            var expected = factory.ReadMessages().Select(m => m.Sequence).ToArray();
+            using var reader = factory.OpenIndexedSession(new() { Order = McapReadOrder.File });
+            Assert.Equal(expected, reader.ReadMessages().Select(m => m.Sequence).ToArray());
+            Assert.False(reader.IsFullyValidated);
+        }
+        finally { File.Delete(path); }
+    }
+
     [Theory]
     [InlineData(McapCompression.None)]
     [InlineData(McapCompression.Lz4)]
@@ -25,7 +41,7 @@ public class IndexContractTests(ITestOutputHelper output)
         BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset + 11), 0);
         using var snapshot = new McapIndexSnapshot(bytes);
         using var prepared = new McapPreparedChunkIndex(chunk);
-        using var session = McapReaderFactory.OpenMessages(new MemoryStream(bytes));
+        using var session = McapReaderFactory.OpenMessageSession(new MemoryStream(bytes));
         var expected = session.ReadMessageIndexes(chunk).OrderBy(g => g.ChannelId).ToArray();
         foreach (var actual in new[] { snapshot.ReadMessageIndexes(chunk), snapshot.ReadMessageIndexes(prepared) })
         {

@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Fizzy.McapSharp;
 /// <summary>Owns one native reader. Calls are serialized and cannot be reentered from Stream callbacks.</summary>
-public sealed partial class McapReadSession : IDisposable
+internal sealed partial class ReadSessionCore : IRecordSource, IMessageSource, IReadProgress, IDeclarationSource
 {
     readonly ReaderHandle handle;
     readonly bool seekable;
@@ -20,7 +20,7 @@ public sealed partial class McapReadSession : IDisposable
     /// <summary>Number of records reported by the completed native scan; updated at EOF, not a live progress counter.</summary>
     public ulong ScannedRecordCount { get { lock (gate) { borrowed.CheckReentry(); return scannedRecordCount; } } private set => scannedRecordCount = value; }
 
-    internal unsafe McapReadSession(string? path, Stream? stream, McapQuery? query, bool messages, McapRecordMode mode, bool leaveOpen, McapReaderOptions? options = null, bool indexedOnly = false)
+    internal unsafe ReadSessionCore(string? path, Stream? stream, McapQuery? query, bool messages, RecordMode mode, bool leaveOpen, McapReaderOptions? options = null, bool indexedOnly = false, bool sequentialOnly = false)
     {
         if (!Enum.IsDefined(mode))
             throw new ArgumentOutOfRangeException(nameof(mode));
@@ -32,10 +32,10 @@ public sealed partial class McapReadSession : IDisposable
         if (query is not null && !Enum.IsDefined(query.Order)) throw new ArgumentOutOfRangeException(nameof(query));
         if (query?.Topic is not null && query.Topics is not null) throw new ArgumentException("Specify Topic or Topics, not both.", nameof(query));
         this.messages = messages;
-        topLevel = mode == McapRecordMode.TopLevel || options.EmitChunks;
+        topLevel = mode == RecordMode.TopLevel || options.EmitChunks;
         if (messages && topLevel) throw new ArgumentException("Messages require expanded chunks.", nameof(options));
         seekable = stream?.CanSeek ?? true;
-        var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), allowBufferedSort = query?.AllowBufferedSort ?? true, indexedOnly, options, maxBufferedSortBytes = query?.MaxBufferedSortBytes, recordLengthLimit = options.RecordLengthLimit });
+        var request = Native.Request(new { path, messages, topLevel, topic = query?.Topic, start = query?.StartTime, end = query?.EndTime, topics = query?.Topics, order = (int)(query?.Order ?? McapReadOrder.File), allowBufferedSort = query?.AllowBufferedSort ?? true, indexedOnly, sequentialOnly, options, maxBufferedSortBytes = query?.MaxBufferedSortBytes, recordLengthLimit = options.RecordLengthLimit });
         StreamBridge? bridge = stream is null ? null : new(stream, false, leaveOpen);
         ReaderHandle? opened = null;
         try
@@ -80,7 +80,13 @@ public sealed partial class McapReadSession : IDisposable
         return Read(destination, out _, out opcode, out requiredLength);
     }
 
-    unsafe McapReadStatus Read(Span<byte> destination, out McapMessageHeader header, out byte opcode, out ulong requiredLength)
+    public McapReadStatus ReadNextMessageRecord(Span<byte> destination, out ulong length)
+    {
+        if (!messages) throw new InvalidOperationException("This is a record session.");
+        return Read(destination, out _, out _, out length, messageRecord: true);
+    }
+
+    unsafe McapReadStatus Read(Span<byte> destination, out McapMessageHeader header, out byte opcode, out ulong requiredLength, bool messageRecord = false)
     {
         lock (gate)
         {
@@ -89,7 +95,10 @@ public sealed partial class McapReadSession : IDisposable
             {
                 fixed (byte* p = destination)
                 {
-                    int status = Native.fm_reader_next(handle, p, (nuint)destination.Length, out var h, out opcode, out var r);
+                    opcode = 5;
+                    int status = messageRecord
+                        ? Native.fm_reader_message_record(handle, p, (nuint)destination.Length, out var h, out var r)
+                        : Native.fm_reader_next(handle, p, (nuint)destination.Length, out h, out opcode, out r);
                     header = new(h.ChannelId, h.Sequence, h.LogTime, h.PublishTime);
                     requiredLength = r.Value;
                     if (status < Protocol.Status.Success)
@@ -293,7 +302,7 @@ public sealed partial class McapReadSession : IDisposable
         while (ReadOwned(sink)) yield return (McapRawRecord)sink.Value!;
     }
 
-    /// <summary>Delivers the valid prefix from a strict message session and returns the original native parsing error, if any. Use a strict file-order session for prefix salvage; time-ordered sessions may fail during their opening scan before recovery can begin. Parsing, Stream and delivery-sink failures terminate the session. Stream and sink exceptions propagate, including McapException. The accept callback receives an owned message after it has been consumed: its exception propagates unchanged without terminating an otherwise usable session, and subsequent reads continue after that message.</summary>
+    /// <summary>Delivers the valid prefix from a strict message session and returns the original native parsing error, if any. Use a strict file-order session for prefix salvage; time-ordered sessions may fail during their opening scan before recovery can begin. Parsing, Stream and delivery-sink failures terminate the session. Stream and sink exceptions propagate, including McapException. The accept callback receives an owned message after it has been consumed: its exception propagates unchanged and terminates this session.</summary>
     public McapRecoveryResult RecoverMessages(Action<McapMessage> accept)
     {
         ArgumentNullException.ThrowIfNull(accept);
@@ -309,7 +318,8 @@ public sealed partial class McapReadSession : IDisposable
             var h = sink.Header;
             if (!channels.TryGetValue(h.ChannelId, out var channel))
                 channels.Add(h.ChannelId, channel = GetChannel(h.ChannelId));
-            accept(new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!));
+            try { accept(new(OwnedReadSink.CopyChannel(channel), h.LogTime, h.PublishTime, h.Sequence, (byte[])sink.Value!)); }
+            catch { lock (gate) failed = true; throw; }
             count++;
         }
     }

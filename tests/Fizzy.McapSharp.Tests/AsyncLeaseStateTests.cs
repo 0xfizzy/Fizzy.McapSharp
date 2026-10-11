@@ -11,8 +11,8 @@ public class AsyncLeaseStateTests
         using (var writer = new McapWriter(output, new() { UseChunks = false }, true))
         {
             var channel = writer.RegisterChannel("t", "raw");
-            writer.WriteMessage(new(channel, 1, 1, 1), [11]);
-            writer.WriteMessage(new(channel, 2, 2, 2), [22]);
+            writer.WriteToKnownChannel(new(channel, 1, 1, 1), [11]);
+            writer.WriteToKnownChannel(new(channel, 2, 2, 2), [22]);
             writer.Complete();
         }
         return output.ToArray();
@@ -23,7 +23,7 @@ public class AsyncLeaseStateTests
     public async Task PendingIoMustBeConsumedBeforeCancellationOrFailureReleasesReader(bool fault)
     {
         using var source = new PausingStream(Recording());
-        using var reader = new McapAsyncReader(source, leaveOpen: true);
+        using var reader = new McapAsyncMessageReader(source, leaveOpen: true);
         using var first = await reader.ReadBatchLeaseAsync(1);
         Assert.NotNull(first);
         source.Pause = true;
@@ -32,7 +32,7 @@ public class AsyncLeaseStateTests
         Assert.False(pending.IsCompleted);
         Assert.Throws<InvalidOperationException>(() => pending.GetAwaiter().GetResult());
         Assert.Throws<InvalidOperationException>(() => reader.ReadBatchLeaseAsync());
-        Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[64]));
+        Assert.Null(typeof(McapAsyncMessageReader).GetMethod("ReadNextRecordAsync"));
         Assert.Throws<InvalidOperationException>(() => reader.Dispose());
         Assert.Throws<InvalidOperationException>(() => reader.IntoInner());
         if (!fault) cancellation.Cancel();
@@ -51,13 +51,13 @@ public class AsyncLeaseStateTests
     public async Task InlineCompletionRequiresConsumptionAndPreservesModeAndEof()
     {
         using var source = new MemoryStream(Recording());
-        using var reader = new McapAsyncReader(source, leaveOpen: true);
+        using var reader = new McapAsyncMessageReader(source, leaveOpen: true);
         var pending = reader.ReadBatchLeaseAsync(1);
         Assert.True(pending.IsCompletedSuccessfully);
         Assert.Throws<InvalidOperationException>(() => reader.Dispose());
         Assert.Throws<InvalidOperationException>(() => reader.ReadBatchLeaseAsync());
         using var first = await pending;
-        Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[64]));
+        Assert.Null(typeof(McapAsyncMessageReader).GetMethod("ReadNextRecordAsync"));
         using var second = await reader.ReadBatchLeaseAsync(1);
         Assert.Equal(22, second!.GetPayload(0)[0]);
         Assert.Null(await reader.ReadBatchLeaseAsync(1));
@@ -65,9 +65,9 @@ public class AsyncLeaseStateTests
         reader.Dispose();
         Assert.Equal(11, first!.GetPayload(0)[0]);
         using var otherSource = new MemoryStream(Recording());
-        using var other = new McapAsyncReader(otherSource);
+        using var other = new McapAsyncRecordReader(otherSource);
         await other.ReadNextRecordAsync(new byte[128]);
-        Assert.Throws<InvalidOperationException>(() => other.ReadBatchLeaseAsync());
+        Assert.Null(typeof(McapAsyncRecordReader).GetMethod("ReadBatchLeaseAsync"));
     }
 
     sealed class PausingStream(byte[] data) : Stream, IValueTaskSource<int>

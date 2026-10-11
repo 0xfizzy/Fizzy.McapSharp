@@ -1,6 +1,6 @@
 namespace Fizzy.McapSharp;
 
-public sealed partial class McapReadSession
+internal sealed partial class ReadSessionCore
 {
     /// <summary>Copies the complete seekable source into an independent snapshot while preserving this cursor position. Source I/O or copy failure terminates the session; successful snapshots outlive it.</summary>
     public McapIndexSnapshot OpenIndexSnapshot() => OpenIndexSnapshot(null);

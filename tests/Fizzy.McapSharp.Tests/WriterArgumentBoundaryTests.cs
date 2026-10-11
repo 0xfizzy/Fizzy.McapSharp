@@ -9,18 +9,18 @@ public class WriterArgumentBoundaryTests
     {
         using var stream = new MemoryStream();
         using var writer = new McapWriter(stream, leaveOpen: true);
-        using var schema = McapPreparedOperation.Schema("schema", "raw", [], id: 7);
-        using var channel = McapPreparedOperation.Channel("topic", "raw", schemaId: 7, id: 0);
-        using var metadata = McapPreparedOperation.Metadata("metadata", new Dictionary<string, string>());
-        using var attachment = McapPreparedOperation.Attachment("attachment", "raw", 0, 0);
-        using var start = McapPreparedOperation.StartAttachment("segmented", "raw", 0, 0, 0);
-        Assert.Equal((ushort?)7, writer.WritePrepared(schema));
-        Assert.Equal((ushort?)0, writer.WritePrepared(channel));
-        Assert.Null(writer.WritePrepared(metadata));
-        Assert.Null(writer.WritePrepared(attachment));
-        Assert.Null(writer.WritePrepared(start));
+        using var schema = new McapPreparedSchema("schema", "raw", [], id: 7);
+        using var channel = new McapPreparedChannelRegistration("topic", "raw", schemaId: 7, id: 0);
+        using var metadata = new McapPreparedMetadata("metadata", new Dictionary<string, string>());
+        using var attachment = new McapPreparedAttachment("attachment", "raw", 0, 0);
+        using var start = new McapPreparedAttachmentStart("segmented", "raw", 0, 0, 0);
+        Assert.Equal((ushort?)7, writer.RegisterSchema(schema));
+        Assert.Equal((ushort?)0, writer.RegisterChannel(channel));
+        writer.WriteMetadata(metadata);
+        writer.WriteAttachment(attachment);
+        writer.StartAttachment(start);
         writer.FinishAttachment();
-        writer.WriteMessage(new McapMessageHeader(0, 0, 1, 1), [42]);
+        writer.WriteToKnownChannel(new McapMessageHeader(0, 0, 1, 1), [42]);
         writer.Complete();
         Assert.Equal(1ul, writer.GetSummary().Statistics!.MessageCount);
         Assert.Equal(2u, writer.GetSummary().Statistics!.AttachmentCount);
@@ -46,26 +46,28 @@ public class WriterArgumentBoundaryTests
         foreach (var call in invalid) Assert.Throws<ArgumentNullException>(call);
         Assert.Throws<ArgumentException>(() => writer.RegisterChannel("topic", "raw", metadata: new Dictionary<string, string> { ["key"] = null! }));
         var channel = writer.RegisterChannel("valid", "raw");
-        writer.WriteMessage(new McapMessageHeader(channel, 0, 1, 1), [42]);
+        writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 1, 1), [42]);
         writer.Complete();
         Assert.Equal(1ul, writer.GetSummary().Statistics!.MessageCount);
     }
 
     [Fact]
-    public void NonAttachmentPreparedPayloadIsRejectedBeforeMutation()
+    public void PreparedPayloadIsExposedOnlyForAttachmentWriting()
     {
         using var stream = new MemoryStream();
         using var writer = new McapWriter(stream, new() { SafeRejections = McapWriterSafeRejections.None }, leaveOpen: true);
-        using var schema = McapPreparedOperation.Schema("schema", "raw", [1]);
-        using var channel = McapPreparedOperation.Channel("topic", "raw");
-        using var metadata = McapPreparedOperation.Metadata("metadata", new Dictionary<string, string>());
-        using var start = McapPreparedOperation.StartAttachment("attachment", "raw", 0, 0, 0);
-        foreach (var operation in new[] { schema, channel, metadata, start })
-            Assert.Throws<ArgumentException>(() => writer.WritePrepared(operation, new byte[] { 9 }));
-        var id = writer.WritePrepared(channel)!.Value;
-        writer.WriteMessage(new McapMessageHeader(id, 0, 1, 1), [42]);
-        using var attachment = McapPreparedOperation.Attachment("attachment", "raw", 0, 0);
-        writer.WritePrepared(attachment, [7]);
+        using var schema = new McapPreparedSchema("schema", "raw", [1]);
+        using var channel = new McapPreparedChannelRegistration("topic", "raw");
+        using var metadata = new McapPreparedMetadata("metadata", new Dictionary<string, string>());
+        using var start = new McapPreparedAttachmentStart("attachment", "raw", 0, 0, 0);
+        Assert.DoesNotContain(typeof(McapWriter).GetMethods(), m => m.Name == "WritePrepared");
+        foreach (var descriptor in new[] { typeof(McapPreparedSchema), typeof(McapPreparedChannelRegistration), typeof(McapPreparedMetadata), typeof(McapPreparedAttachmentStart) })
+            Assert.All(typeof(McapWriter).GetMethods().Where(m => m.GetParameters().Any(p => p.ParameterType == descriptor)),
+                m => Assert.Single(m.GetParameters()));
+        var id = writer.RegisterChannel(channel);
+        writer.WriteToKnownChannel(new McapMessageHeader(id, 0, 1, 1), [42]);
+        using var attachment = new McapPreparedAttachment("attachment", "raw", 0, 0);
+        writer.WriteAttachment(attachment, [7]);
         writer.Complete();
         Assert.Equal(1ul, writer.GetSummary().Statistics!.MessageCount);
         Assert.Equal(1u, writer.GetSummary().Statistics!.AttachmentCount);
@@ -74,10 +76,10 @@ public class WriterArgumentBoundaryTests
     [Fact]
     public void PreparedFactoriesValidateRequiredArguments()
     {
-        Assert.Throws<ArgumentNullException>(() => McapPreparedOperation.Schema(null!, "raw", []));
-        Assert.Throws<ArgumentNullException>(() => McapPreparedOperation.Channel("topic", null!));
-        Assert.Throws<ArgumentNullException>(() => McapPreparedOperation.Metadata("metadata", null!));
-        Assert.Throws<ArgumentNullException>(() => McapPreparedOperation.Attachment("name", null!, 0, 0));
-        Assert.Throws<ArgumentNullException>(() => McapPreparedOperation.StartAttachment(null!, "raw", 0, 0, 0));
+        Assert.Throws<ArgumentNullException>(() => new McapPreparedSchema(null!, "raw", []));
+        Assert.Throws<ArgumentNullException>(() => new McapPreparedChannelRegistration("topic", null!));
+        Assert.Throws<ArgumentNullException>(() => new McapPreparedMetadata("metadata", null!));
+        Assert.Throws<ArgumentNullException>(() => new McapPreparedAttachment("name", null!, 0, 0));
+        Assert.Throws<ArgumentNullException>(() => new McapPreparedAttachmentStart(null!, "raw", 0, 0, 0));
     }
 }

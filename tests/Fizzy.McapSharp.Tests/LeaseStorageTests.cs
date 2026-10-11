@@ -15,7 +15,7 @@ public class LeaseStorageTests
             {
                 var channel = writer.RegisterChannel("t", "raw");
                 var payload = new byte[8192];
-                for (uint i = 0; i < 3; i++) { Array.Fill(payload, (byte)(i + 1)); writer.WriteMessage(new(channel, i, i, 0), payload); }
+                for (uint i = 0; i < 3; i++) { Array.Fill(payload, (byte)(i + 1)); writer.WriteToKnownChannel(new(channel, i, i, 0), payload); }
                 writer.Complete();
             }
             using var snapshot = McapIndexSnapshot.OpenMapped(path, new() { MaxRandomAccessCacheBytes = 16000 });

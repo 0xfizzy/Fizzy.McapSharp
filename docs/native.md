@@ -6,7 +6,7 @@ English | [简体中文](zh-CN/native.md)
 
 ## ABI contract
 
-`fm_abi_version()` returns 16. Managed constructors reject mismatches, including native libraries without indexed owned-record sink delivery. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
+`fm_abi_version()` returns 17. Managed constructors reject mismatches, including native libraries without full summary declarations, configured copied/mapped validation, or shared pending message-body delivery. This is not a stable third-party ABI. Incompatible changes must update both version checks and all platform assets together.
 
 | Entry | Purpose |
 | --- | --- |
@@ -14,7 +14,9 @@ English | [简体中文](zh-CN/native.md)
 | `fm_writer_message` | Fixed message header plus borrowed input pointer/length, consumed synchronously. |
 | `fm_writer_call` | Cold control operations and attachment/private record payloads. |
 | `fm_reader_open` / `fm_reader_release` | Create/release one read session. |
-| `fm_reader_next` | Copy the next message payload or raw record body into caller memory. |
+| `fm_reader_next` / `fm_reader_message_record` | Copy message payload, message wire body or raw record body; all message forms share pending state. |
+| `fm_buffer_reader_configured` | Open copied/mapped input with explicit parsing options and high-level validation scope. |
+| `fm_buffer_reader_schema` / `fm_buffer_reader_state` | Query encountered schema or completed scan state without advancement. |
 | `fm_reader_describe` | Copy a known schema/channel description; schema bytes are separate binary data. |
 | `fm_reader_summary` / `fm_reader_record_at` | Retrieve a summary or random raw record without consuming the pending sequential record. |
 | `fm_validate` | Fully scan a mapped file. |
@@ -63,7 +65,7 @@ The public [API contract](api.md) distinguishes complete validation, indexed que
 
 `fm_buffer_reader_*` owns an input copy and an official Sans-I/O parser configured to match each slice reader. Advancement retains one pending record and encountered declarations; no borrowed iterator survives a call. Chunk adapters feed a synthetic record prefix through the public parser because upstream for_chunk is private. `fm_snapshot_*` owns copied or mapped input and an official summary; random message reads retain shared complete-chunk storage through private handles. `fm_snapshot_call` accepts a synchronous pointer/length to a standard MCAP index record body and both message-index scalars (log time and offset). It parses the supplied index rather than looking it up in the summary. The managed bridge uses bounded stack storage or temporary native memory for index encoding, including UTF-8 strings and channel-offset maps. `fm_reader_record_into`, `fm_parse_record`, `fm_footer` and `fm_chunk_offset` provide caller-buffer or scalar utility operations. `fm_snapshot_chunk_reader` adds independent lazy Chunk cursors sharing immutable native input and summary; releasing a snapshot does not invalidate those cursors. Reader-open status 3 means buffered sorting was prohibited, mapped to managed NotSupportedException. These handles are private SafeHandles; cursor reads have no owned response allocation on success.
 
-The asynchronous reader drives the linear engine with .NET ReadAsync, retaining only managed Memory between waits. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.
+The asynchronous reader drives the linear engine with .NET ReadAsync, writing directly into native parser storage exposed as `Memory<byte>` through a MemoryManager. The Memory wrapper does not make the backing storage managed; the parser and its input storage remain alive and cannot be advanced or released until the pending I/O completes and its ValueTask is consumed. Its reusable completion source and cached continuation avoid per-operation managed allocations. A resource SafeHandle releases the parser before releasing Stream ownership, including abandoned-reader finalization. Cancellation terminates the session; disposal requires consumption of the outstanding operation.
 
 
 `fm_engine_describe` copies a schema (kind 1) or resolved channel (kind 2) already observed by lease reading. It does not advance the engine or turn a missing-ID lookup into a terminal failure. The managed async owner serializes queries with reading and requires consumption of the outstanding ValueTask. Immutable managed descriptions are cached on demand and remain independent of parser disposal.
@@ -87,3 +89,5 @@ Synchronous linear feeding reserves the complete current parser request through 
 Fallback sorting uses a binding-owned arena of headers, ordinals and shared ranges. One fixed-size pending group tracks consecutive owned backing identity and selected bytes; it does not build a file-wide owner map. At group closure, sparse selections may be copied once into message-aligned immutable segments before publication. Mappings and other external owners are not compacted. `SharedBytes::shares_backing` is a read-only local ownership query; compaction decisions and allocations remain in the binding. Existing logical sort checks are unchanged, and old/new storage overlap is outside that allowance. Failures terminate construction without publishing a partial session. There is no ABI change.
 
 The pinned mcap crate supplies official format state machines, codecs and default writing behavior. Shared storage, channel lookup for batch preflight, and disposal without implicit completion are [local patches](patches.md). SafeHandle, managed copies, local cache/sort and asynchronous I/O are binding behavior.
+
+Full summary JSON contains schema and channel maps. Channels reference schema IDs; the private schemaDependencies map supplies data-section schemas omitted from repeated summary declarations without changing the public Schemas map. Async expanded delivery validates bodies and references before publication; raw Sans-I/O linear delivery remains unparsed.

@@ -5,6 +5,24 @@ namespace Fizzy.McapSharp.Tests;
 
 public class ValidationContractTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AsyncDeclarationValidationDoesNotDependOnSummaryCrc(bool summaryCrc)
+    {
+        var data = Recording();
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(Records(data, 5).Single() + 9), 123);
+        using var reader = new McapAsyncRecordReader(new MemoryStream(data),
+            McapReaderOptions.Strict with { ValidateSummarySectionCrc = summaryCrc }, inputBufferSize: 3);
+        var error = await Assert.ThrowsAsync<McapException>(async () =>
+        {
+            var buffer = new byte[4096];
+            while ((await reader.ReadNextRecordAsync(buffer)).Status != McapReadStatus.EndOfStream) { }
+        });
+        Assert.Equal(McapErrorKind.UnknownChannel, error.Kind);
+        Assert.Throws<InvalidOperationException>(() => reader.ReadNextRecordAsync(new byte[4096]));
+    }
+
     static byte[] Recording(McapCompression compression = McapCompression.None, bool chunks = false)
     {
         using var stream = new MemoryStream();
@@ -15,7 +33,7 @@ public class ValidationContractTests
         }, leaveOpen: true))
         {
             var channel = writer.RegisterChannel("topic", "raw");
-            writer.WriteMessage(new(channel, 7, 10, 10), [42]);
+            writer.WriteToKnownChannel(new(channel, 7, 10, 10), [42]);
             writer.WriteAttachment("attachment", "raw", 10, 10, [10, 20]);
             writer.Complete();
         }
@@ -38,7 +56,7 @@ public class ValidationContractTests
         int attachment = Records(data, 9).Single();
         int size = checked((int)BinaryPrimitives.ReadUInt64LittleEndian(data.AsSpan(attachment + 1)));
         data[attachment + 9 + size - 1] ^= 1;
-        using var reader = new McapAsyncReader(new MemoryStream(data), McapReaderOptions.Strict, inputBufferSize: 3);
+        using var reader = new McapAsyncRecordReader(new MemoryStream(data), McapReaderOptions.Strict, inputBufferSize: 3);
         byte[] buffer = [];
         var error = await Assert.ThrowsAsync<McapException>(async () =>
         {
@@ -62,8 +80,8 @@ public class ValidationContractTests
         foreach (var offset in Records(data, 4))
             BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(offset + 11), 123);
         using var reader = messages
-            ? McapReaderFactory.OpenMessages(new MemoryStream(data), options: McapReaderOptions.Strict)
-            : McapReaderFactory.OpenRecords(new MemoryStream(data), options: McapReaderOptions.Strict);
+            ? McapReaderFactory.OpenMessageSession(new MemoryStream(data), options: McapReaderOptions.Strict)
+            : McapReaderFactory.OpenRecordSession(new MemoryStream(data), options: McapReaderOptions.Strict);
         var error = Assert.Throws<McapException>(() => reader.ValidateRemaining());
         Assert.Equal(McapErrorKind.UnknownSchema, error.Kind);
         Assert.False(reader.IsFullyValidated);
@@ -92,8 +110,8 @@ public class ValidationContractTests
         var data = Recording();
         BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(Records(data, 5).Single() + 9), 123);
         using var reader = messages
-            ? McapReaderFactory.OpenMessages(new MemoryStream(data), options: McapReaderOptions.Strict)
-            : McapReaderFactory.OpenRecords(new MemoryStream(data), options: McapReaderOptions.Strict);
+            ? McapReaderFactory.OpenMessageSession(new MemoryStream(data), options: McapReaderOptions.Strict)
+            : McapReaderFactory.OpenRecordSession(new MemoryStream(data), options: McapReaderOptions.Strict);
         Assert.Equal(McapErrorKind.UnknownChannel, Assert.Throws<McapException>(() => reader.ValidateRemaining()).Kind);
     }
 
@@ -110,12 +128,12 @@ public class ValidationContractTests
         {
             var schema = writer.RegisterSchema("schema", "raw", [1]);
             var channel = writer.RegisterChannel("topic", "raw", schema);
-            writer.WriteMessage(new(channel, 0, 1, 1), [42]);
+            writer.WriteToKnownChannel(new(channel, 0, 1, 1), [42]);
             writer.Complete();
         }
         var data = source.ToArray();
         data[Records(data, removeSchema ? (byte)3 : (byte)4).First()] = 0x80;
-        using var reader = McapReaderFactory.OpenRecords(new MemoryStream(data), options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenRecordSession(new MemoryStream(data), options: McapReaderOptions.Strict);
         Assert.NotNull(reader.GetSummary());
         var error = Assert.Throws<McapException>(() => reader.ValidateRemaining());
         Assert.Equal(removeSchema ? McapErrorKind.UnknownSchema : McapErrorKind.UnknownChannel, error.Kind);
@@ -134,11 +152,11 @@ public class ValidationContractTests
         {
             var schema = writer.RegisterSchema("schema", "raw", [1]);
             var channel = writer.RegisterChannel("topic", "raw", schema);
-            writer.WriteMessage(new(channel, 0, 1, 1), [42]);
+            writer.WriteToKnownChannel(new(channel, 0, 1, 1), [42]);
             writer.Complete();
         }
         var data = source.ToArray();
-        using var reader = McapReaderFactory.OpenRecords(new MemoryStream(data), options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenRecordSession(new MemoryStream(data), options: McapReaderOptions.Strict);
         Assert.NotNull(reader.GetSummary());
         Assert.Equal(0ul, reader.ScannedRecordCount);
         Assert.False(reader.IsScanComplete);
@@ -151,7 +169,7 @@ public class ValidationContractTests
     [Fact]
     public void RecoveryRequiresStrictOptionsWithoutAdvancingSession()
     {
-        using var reader = McapReaderFactory.OpenMessages(new MemoryStream(Recording()));
+        using var reader = McapReaderFactory.OpenMessageSession(new MemoryStream(Recording()));
         Assert.Throws<InvalidOperationException>(() => reader.RecoverMessages(_ => { }));
         Assert.Equal(McapReadStatus.Success, reader.ReadNext(new byte[1], out _, out _));
     }
@@ -160,7 +178,7 @@ public class ValidationContractTests
     public void RecoveryPropagatesStreamMcapExceptionByIdentity()
     {
         var expected = new McapException("stream-origin");
-        using var reader = McapReaderFactory.OpenMessages(new ThrowingStream(expected), options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessageSession(new ThrowingStream(expected), options: McapReaderOptions.Strict);
         Assert.Same(expected, Assert.Throws<McapException>(() => reader.RecoverMessages(_ => { })));
         Assert.Throws<InvalidOperationException>(() => reader.ReadNext(new byte[1], out _, out _));
     }
@@ -168,18 +186,18 @@ public class ValidationContractTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void RecoveryConsumerExceptionPreservesIdentityAndContinuesAfterConsumedMessage(bool mcapError)
+    public void RecoveryConsumerExceptionPreservesIdentityAndTerminatesReader(bool mcapError)
     {
         using var source = new MemoryStream();
         using (var writer = new McapWriter(source, new() { UseChunks = false }, leaveOpen: true))
         {
             var channel = writer.RegisterChannel("topic", "raw");
-            writer.WriteMessage(new(channel, 1, 1, 1), [1]);
-            writer.WriteMessage(new(channel, 2, 2, 2), [2]);
+            writer.WriteToKnownChannel(new(channel, 1, 1, 1), [1]);
+            writer.WriteToKnownChannel(new(channel, 2, 2, 2), [2]);
             writer.Complete();
         }
         source.Position = 0;
-        using var reader = McapReaderFactory.OpenMessages(source, options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessageSession(source, options: McapReaderOptions.Strict);
         Exception expected = mcapError ? new McapException("consumer") : new ApplicationException("consumer");
         uint consumed = 0;
         var actual = Record.Exception(() => reader.RecoverMessages(message =>
@@ -190,10 +208,8 @@ public class ValidationContractTests
         Assert.Same(expected, actual);
         Assert.Equal(1u, consumed);
         Assert.False(reader.IsFullyValidated);
-        Assert.Equal(McapReadStatus.Success, reader.ReadNext(new byte[1], out var next, out _));
-        Assert.Equal(2u, next.Sequence);
-        reader.ValidateRemaining();
-        Assert.True(reader.IsFullyValidated);
+        Assert.Throws<InvalidOperationException>(() => reader.ReadNext(new byte[1], out _, out _));
+        Assert.Throws<InvalidOperationException>(() => reader.GetChannel(1));
     }
 
     [Fact]
@@ -201,7 +217,7 @@ public class ValidationContractTests
     {
         var data = Recording(chunks: true);
         data[Records(data, 6).First() + 9 + 24] ^= 1;
-        using var reader = McapReaderFactory.OpenMessages(new MemoryStream(data), options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessageSession(new MemoryStream(data), options: McapReaderOptions.Strict);
         var result = reader.RecoverMessages(_ => throw new InvalidOperationException("Invalid chunk was delivered."));
         Assert.Equal(0ul, result.RecoveredMessageCount);
         Assert.Equal(McapErrorKind.BadChunkCrc, result.Error!.Kind);

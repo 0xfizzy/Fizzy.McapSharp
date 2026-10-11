@@ -32,7 +32,7 @@ static class LeaseGate
         {
             var channel = writer.RegisterChannel("lease", "raw");
             byte[] payload = new byte[PayloadSize]; new Random(31).NextBytes(payload);
-            for (uint i = 0; i < Warmup + Count; i++) writer.WriteMessage(new(channel, i, i, 0), payload);
+            for (uint i = 0; i < Warmup + Count; i++) writer.WriteToKnownChannel(new(channel, i, i, 0), payload);
             writer.Complete();
         }
         return output.ToArray();
@@ -41,7 +41,7 @@ static class LeaseGate
     {
         using Stream source = suspend ? new SuspendingStream(file, quantum) : new MemoryStream(file, false);
         var worker = source as SuspendingStream;
-        using var reader = new McapAsyncReader(source, leaveOpen: true, inputBufferSize: quantum);
+        using var reader = new McapAsyncMessageReader(source, leaveOpen: true, inputBufferSize: quantum);
         for (int i = 0; i < Warmup; i++) { using var batch = Read(reader); }
         worker?.WaitIdle();
         var timings = new long[Count];
@@ -67,7 +67,7 @@ static class LeaseGate
             medianBatchUs = timings[Count / 2] * 1e6 / Stopwatch.Frequency, p95BatchUs = timings[(int)(Count * .95)] * 1e6 / Stopwatch.Frequency }));
         return (allocated, suspensions);
     }
-    static McapMessageBatchLease? Read(McapAsyncReader reader)
+    static McapMessageBatchLease? Read(McapAsyncMessageReader reader)
     {
         var task = reader.ReadBatchLeaseAsync(1);
         long deadline = Environment.TickCount64 + 10000;
@@ -81,7 +81,7 @@ static class LeaseGate
     static void DirectAwait(byte[] file, McapCompression compression)
     {
         using var source = new SuspendingStream(file, 512);
-        using var reader = new McapAsyncReader(source, leaveOpen: true, inputBufferSize: 512);
+        using var reader = new McapAsyncMessageReader(source, leaveOpen: true, inputBufferSize: 512);
         Consume().GetAwaiter().GetResult();
         source.WaitIdle();
         if (source.Suspensions == 0) throw new Exception("Direct lease await did not suspend.");

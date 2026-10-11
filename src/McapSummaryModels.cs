@@ -12,8 +12,8 @@ public sealed record McapAttachmentIndex(ulong Offset, ulong Length, ulong LogTi
 /// <summary>Owned metadata index with byte Offset from the MCAP origin (the initial Stream position for Stream inputs) and complete record Length in bytes.</summary>
 public sealed record McapMetadataIndex(ulong Offset, ulong Length, string Name) : IMcapRecord;
 
-/// <summary>Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Size grows with file indexes and declarations.</summary>
-public sealed record McapSummary(McapStatistics? Statistics, IReadOnlyList<McapChunkIndex> ChunkIndexes, IReadOnlyList<McapAttachmentIndex> AttachmentIndexes, IReadOnlyList<McapMetadataIndex> MetadataIndexes, IReadOnlyList<ushort> SchemaIds, IReadOnlyList<ushort> ChannelIds);
+/// <summary>Summary model. Library-returned snapshots own independent collections; direct construction retains supplied references. Contains complete schema/channel declarations, with shared schema references inside one result. Separate results are independent. Arrays and collections retain ordinary .NET equality semantics. Size grows with file indexes and declarations.</summary>
+public sealed record McapSummary(McapStatistics? Statistics, IReadOnlyList<McapChunkIndex> ChunkIndexes, IReadOnlyList<McapAttachmentIndex> AttachmentIndexes, IReadOnlyList<McapMetadataIndex> MetadataIndexes, IReadOnlyDictionary<ushort, McapSchema> Schemas, IReadOnlyDictionary<ushort, McapChannel> Channels);
 
 /// <summary>Message log time in nanoseconds and byte offset within the uncompressed chunk record stream, not an offset from the MCAP origin.</summary>
 public readonly record struct McapMessageIndexEntry(ulong LogTime, ulong Offset);

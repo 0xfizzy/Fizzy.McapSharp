@@ -16,11 +16,11 @@ public partial class CoverageTests
             writer.RegisterSchema(7, "schema", "raw", [42]);
             writer.RegisterChannel(0, "unused-before", "raw", 7);
             writer.RegisterChannel(1, "used", "raw");
-            writer.WriteMessage(new McapMessageHeader(1, 0, 1, 1), [1]);
+            writer.WriteToKnownChannel(new McapMessageHeader(1, 0, 1, 1), [1]);
             writer.RegisterChannel(ushort.MaxValue, "unused-after", "raw", 7);
             writer.Complete();
         }
-        using var reader = new McapReadCursor(stream.ToArray(), McapCursorMode.RawMessages);
+        using var reader = new ReadCursorCore(stream.ToArray(), CursorMode.RawMessages);
         Assert.Single(reader.ReadMessages());
         Assert.Equal("unused-before", reader.GetChannel(0).Topic);
         Assert.Equal("unused-after", reader.GetChannel(ushort.MaxValue).Topic);
@@ -34,7 +34,7 @@ public partial class CoverageTests
         using var stream = new MemoryStream();
         using (var writer = new McapWriter(stream, leaveOpen: true))
         { writer.RegisterChannel(7, "unused", "raw"); writer.Complete(); }
-        using var reader = new McapReadCursor(stream.ToArray(), McapCursorMode.RawMessages);
+        using var reader = new ReadCursorCore(stream.ToArray(), CursorMode.RawMessages);
         Assert.Empty(reader.ReadMessages());
         Assert.Equal("unused", reader.GetChannel(7).Topic);
     }
@@ -50,7 +50,7 @@ public partial class CoverageTests
             writer.Complete();
         }
         var bytes = stream.ToArray();
-        using var records = new McapReadCursor(bytes, McapCursorMode.TopLevelRecords);
+        using var records = new ReadCursorCore(bytes, CursorMode.TopLevelRecords);
         McapMetadataIndex metadata = null!;
         McapAttachmentIndex attachment = null!;
         ulong offset = 8;
@@ -87,8 +87,8 @@ public partial class CoverageTests
         using (var writer = new McapWriter(stream, new() { Compression = compression }, true))
         {
             writer.RegisterChannel(1, "one", "raw"); writer.RegisterChannel(2, "two", "raw");
-            writer.WriteMessage(new McapMessageHeader(1, 10, 1, 1), [1]);
-            writer.WriteMessage(new McapMessageHeader(2, 20, 2, 2), [2]);
+            writer.WriteToKnownChannel(new McapMessageHeader(1, 10, 1, 1), [1]);
+            writer.WriteToKnownChannel(new McapMessageHeader(2, 20, 2, 2), [2]);
             writer.Complete();
         }
         using var snapshot = new McapIndexSnapshot(stream.ToArray());
@@ -105,7 +105,7 @@ public partial class CoverageTests
         Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.ReadMessageIndexes(selected)).Kind);
         // Upstream message-index reads use the offset map, not the chunk's own offset.
         Assert.Equal(2, snapshot.ReadMessageIndexes(chunk with { ChunkStartOffset = ulong.MaxValue }).Count);
-        Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.OpenChunkReader(chunk with { ChunkLength = ulong.MaxValue })).Kind);
+        Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.OpenChunkMessages(chunk with { ChunkLength = ulong.MaxValue })).Kind);
         Assert.Equal(McapErrorKind.BadIndex, Assert.Throws<McapException>(() => snapshot.SeekMessage(chunk with { ChunkLength = ulong.MaxValue }, entries[0].Records[0])).Kind);
         var changed = chunk with { ChunkStartOffset = 100, Compression = "测试" };
         Assert.Equal(McapRecords.GetCompressedDataOffset(100, System.Text.Encoding.UTF8.GetBytes("测试")), snapshot.GetCompressedDataOffset(changed));

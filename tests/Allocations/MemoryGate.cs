@@ -13,11 +13,11 @@ static class MemoryGate
                 using (var writer = new McapWriter(path, new() { Compression = compression, ChunkSize = null }))
                 {
                     var channel = writer.RegisterChannel("t", "raw");
-                    for (uint i = 0; i < 2000; i++) writer.WriteMessage(new(channel, i, i, 0), payload);
+                    for (uint i = 0; i < 2000; i++) writer.WriteToKnownChannel(new(channel, i, i, 0), payload);
                     writer.Complete();
                 }
                 using var snapshot = McapIndexSnapshot.OpenMapped(path, new());
-                using var reader = snapshot.OpenChunkReader(snapshot.GetSummary()!.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0));
+                using var reader = snapshot.OpenChunkMessages(snapshot.GetSummary()!.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0));
                 for (int i = 0; i < 100; i++) { reader.ReadNext(payload, out _, out _); }
                 long before = GC.GetAllocatedBytesForCurrentThread();
                 while (reader.ReadNext(payload, out _, out _) != McapReadStatus.EndOfStream)
@@ -26,7 +26,7 @@ static class MemoryGate
                 long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
                 if (bytes != 0) throw new Exception($"Mapped cursor allocated {bytes} B");
                 Console.WriteLine($"mapped cursor {compression}: {bytes} B");
-                using var mapped = McapReadCursor.OpenMapped(path);
+                using var mapped = McapMessageReader.OpenMapped(path);
                 for (int i = 0; i < 100; i++) mapped.ReadNext(payload, out _, out _);
                 before = GC.GetAllocatedBytesForCurrentThread();
                 while (mapped.ReadNext(payload, out _, out _) != McapReadStatus.EndOfStream) { }
@@ -36,7 +36,7 @@ static class MemoryGate
                 var chunk = cached.GetSummary()!.ChunkIndexes.First(c => c.MessageIndexOffsets.Count > 0);
                 var entry = cached.ReadMessageIndexes(chunk)[0].Records.Last();
                 using var input = File.OpenRead(path);
-                using var session = McapReaderFactory.OpenMessages(input);
+                using var session = McapReaderFactory.OpenRandomAccess(input);
                 var scratch = new byte[1024];
                 for (int i = 0; i < 100; i++) { cached.SeekMessage(chunk, entry, payload, out _, out _); session.ReadRecordAt(8, scratch, out _, out _); }
                 before = GC.GetAllocatedBytesForCurrentThread();

@@ -25,7 +25,7 @@ Managed entry points are on [McapWriter](../src/McapWriter.cs) and its partial i
 | `WriteOptions`, `Writer::new/with_options` | `McapWriterOptions`, `McapWriter` constructors | Adapted | Builder settings become properties; aggregate summary switch applies before explicit individual overrides |
 | `Writer::add_schema/add_schema_with_id`, `add_channel/add_channel_with_id` | `RegisterSchema`, `RegisterChannel` overloads | Adapted | IDs and binary payload remain separate; prepared descriptors are binding additions |
 | `Writer::write` | `WriteMessage(McapMessage)`, prepared-channel overload | Adapted | Invokes upstream automatic declarations; preparation snapshots mutable descriptions |
-| `Writer::write_to_known_channel` | `WriteMessage(in header, span)` | Adapted | Synchronously consumes borrowed payload; no managed payload copy |
+| `Writer::write_to_known_channel` | `WriteToKnownChannel(in header, span)` | Adapted | Synchronously consumes borrowed payload; no managed payload copy |
 | `Writer::attach`, `start_attachment/put_attachment_bytes/finish_attachment` | `WriteAttachment`, `StartAttachment/WriteAttachmentBytes/FinishAttachment` | Adapted | Segmented attachment requires exact declared length |
 | `Writer::write_metadata`, `write_private_record`, `PrivateRecordOptions` | `WriteMetadata`, `WritePrivateRecord` | Adapted | Private-record placement becomes `includeInChunks` |
 | `Writer::flush`, `finish`, `into_inner` | `Flush`, `Complete/GetSummary`, `IntoInner` | Adapted | Completion and summary retrieval are separate; disposal does not implicitly complete. `FlushToDisk` is a binding addition |
@@ -36,20 +36,20 @@ Defaults follow upstream writer settings, including Zstd, 1 MiB target chunks an
 
 | Official Rust API | .NET entry | Mapping | Key difference or constraint |
 | --- | --- | --- | --- |
-| `read::LinearReader`, `Options`, `sans_magic` | `McapReadCursor` TopLevelRecords/ExpandedRecordsWithoutMagic modes | Adapted | Official Sans-I/O with matching slice-reader configuration; copied or explicitly mapped input |
-| `read::ChunkReader` | `McapReadCursor` ChunkRecords mode | Adapted | Takes a Chunk record body and advances lazily |
-| `read::ChunkFlattener` | `McapReadCursor` ExpandedRecords mode | Adapted | Expands chunks into records |
-| `read::RawMessageStream`, `RawMessage`, `get_channel` | RawMessages mode, header/payload reads, `GetChannel` | Adapted | Retains encountered declarations; no borrowed Rust iterator crosses the ABI |
-| `read::MessageStream` | Messages mode and owned message enumeration | Adapted | Owned results copy payload and mutable declarations; other delivery forms have different ownership |
+| `read::LinearReader`, `Options`, `sans_magic` | `McapLinearReader`, `McapChunkFlattener` + SkipStartMagic/SkipEndMagic | Adapted | Official Sans-I/O with matching slice-reader configuration; copied or explicitly mapped input |
+| `read::ChunkReader` | `McapChunkReader` | Adapted | Takes a Chunk record body and advances lazily |
+| `read::ChunkFlattener` | `McapChunkFlattener` | Adapted | Expands chunks into records |
+| `read::RawMessageStream`, `RawMessage`, `get_channel` | `McapRawMessageReader`, `GetChannel` | Adapted | Retains encountered declarations; no borrowed Rust iterator crosses the ABI |
+| `read::MessageStream` | `McapMessageReader`, `ReadMessages` | Adapted | Owned results copy payload and mutable declarations; other delivery forms have different ownership |
 
-[McapReadCursor](../src/McapReadCursor.cs) consolidates these slice-reader interfaces. `McapReaderFactory.OpenMessages/OpenRecords` additionally provides file/Stream sessions driven by official parsing. Sequential file order, input ownership and delivery ownership are separate choices; see [reading](api.md#read-messages-into-reusable-buffers).
+Five typed readers correspond to the upstream read capabilities; `McapSummaryRecordReader` is a binding extension over retained Summary records. File/Stream construction uses `McapReaderFactory`; copied/mapped construction uses the corresponding type. High-level expanded validation is consistent across inputs and independent of CRC settings. Random Stream access uses `McapRandomAccessReader`; input-owning random access uses `McapIndexSnapshot`.
 
 ## Summary and random access (`random-access`)
 
 | Official Rust API | .NET entry | Mapping | Key difference or constraint |
 | --- | --- | --- | --- |
 | `Summary`, `Summary::read` and summary fields | `McapIndexSnapshot`, `GetSummary`, `OpenSummaryRecords` | Adapted | Snapshot owns copied or mapped input; managed summary and record cursor are different representations |
-| `Summary::stream_chunk` | `OpenChunkReader`, `ReadChunkMessages` | Adapted | Independent lazy cursor shares input and summary, surviving snapshot disposal |
+| `Summary::stream_chunk` | `OpenChunkMessages`, `ReadChunkMessages` | Adapted | Independent lazy cursor shares input and summary, surviving snapshot disposal |
 | `Summary::seek_message` | `SeekMessage` overloads | Adapted | Binding loads/validates the complete chunk; tail corruption can be reported earlier than upstream prefix seek |
 | `Summary::read_message_indexes` | `ReadMessageIndexes` | Adapted | Caller-buffer form uses packed 18-byte rows |
 | `read::attachment`, `read::metadata` | `ReadAttachment`, `ReadMetadata` | Adapted | Uses caller-supplied indexes and validates source ranges |
@@ -60,11 +60,11 @@ See [McapIndexSnapshot](../src/McapIndexSnapshot.cs). Prepared indexes, grouped 
 
 | Official Rust API | .NET entry | Mapping | Key difference or constraint |
 | --- | --- | --- | --- |
-| `sans_io::LinearReader`, `LinearReaderOptions`, `LinearReadEvent` | `McapSansIoReader.CreateLinear`, `McapReaderOptions`, `NextEvent/SupplyInput` | Adapted | Value events and caller buffers replace Rust event borrows and writable input slices |
-| `sans_io::SummaryReader`, options and events | `CreateSummary`, `McapSummaryReaderOptions`, input/seek notification and summary access | Adapted | Caller drives I/O; completion makes summary available for indexed reading |
-| `sans_io::IndexedReader`, options, events and `ReadOrder` | `CreateIndexed`, `McapQuery`, `McapReadOrder`, indexed control operations | Adapted | Direct indexed engine requires indexes and has no scan-and-sort fallback |
+| `sans_io::LinearReader`, `LinearReaderOptions`, `LinearReadEvent` | `McapSansIoLinearReader`, `McapReaderOptions`, `NextEvent/SupplyInput` | Adapted | Value events and caller buffers replace Rust event borrows and writable input slices |
+| `sans_io::SummaryReader`, options and events | `McapSansIoSummaryReader`, `McapSummaryReaderOptions`, input/seek notification and summary access | Adapted | Caller drives I/O; completion makes summary available for indexed reading |
+| `sans_io::IndexedReader`, options, events and `ReadOrder` | `McapSansIoSummaryReader.CreateIndexed`, `McapIndexedQuery`, `McapReadOrder`, indexed control operations | Adapted | Direct indexed engine requires indexes and has no scan-and-sort fallback |
 
-See [SansIo.cs](../src/SansIo.cs) and the symbol inventory for individual events and controls. Optional CRC checks default to upstream settings. Shared-event and direct-fill ownership extensions are listed separately below.
+See [SansIoReaderCore.cs](../src/SansIoReaderCore.cs) and the symbol inventory for individual events and controls. Optional CRC checks default to upstream settings. Shared-event and direct-fill ownership extensions are listed separately below.
 
 ## Records, utilities and errors (`records-and-errors`)
 
@@ -79,12 +79,12 @@ See [SansIo.cs](../src/SansIo.cs) and the symbol inventory for individual events
 
 | Official Rust API | .NET entry | Mapping | Reason or constraint |
 | --- | --- | --- | --- |
-| Optional `tokio::LinearReader` (`async`) | `McapAsyncReader.ReadNextRecordAsync` | Alternative | .NET asynchronous I/O drives official Sans-I/O; Tokio itself is not invoked. Cancellation and suspension follow managed contracts |
+| Optional `tokio::LinearReader` (`async`) | `McapAsyncRecordReader.ReadNextRecordAsync` | Alternative | .NET asynchronous I/O drives official Sans-I/O; Tokio itself is not invoked. Cancellation and suspension follow managed contracts |
 | `sans_io::Decompressor`, `DecompressResult` (`unexposed`) | None | Not exposed | Upstream has no custom-decompressor registration hook; there is no managed implementation of the trait |
 
-Functional alternatives do not imply a port of runtime-specific interfaces. See [asynchronous reader](../src/McapAsyncReader.cs).
+Functional alternatives do not imply a port of runtime-specific interfaces. See [asynchronous reader](../src/McapAsyncRecordReader.cs).
 
-Async message leases are a binding capability over the linear engine. `GetChannelDescription` and `GetSchemaDescription` expose immutable declarations encountered in lease mode after the outstanding read has been consumed; this adds no upstream API or patch.
+`McapAsyncMessageReader` provides message leases as a binding capability over the linear engine. Both asynchronous expanded reader types expose encountered immutable declarations through GetChannelDescription and GetSchemaDescription after consuming the outstanding operation; this adds no upstream API or patch.
 
 ## Local extensions and binding capabilities
 

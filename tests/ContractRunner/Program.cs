@@ -10,7 +10,7 @@ if (args.Length < 2) throw new ArgumentException("Expected command and input pat
 switch (args[0])
 {
     case "stream":
-        using (var reader = new McapReadCursor(File.ReadAllBytes(args[1]), McapCursorMode.ExpandedRecords))
+        using (var reader = new McapChunkFlattener(File.ReadAllBytes(args[1])))
             Print(new { records = reader.ReadRecords().Where(r => r.Opcode != 7).Select(r => Canon.Record(((McapOpcode)r.Opcode).ToString(), McapRecords.Parse(r.Opcode, r.Data))).ToArray() });
         break;
     case "indexed":
@@ -59,11 +59,11 @@ static class Canon
     public static object[] Indexed(string path)
     {
         using var file = File.OpenRead(path);
-        using var summary = McapSansIoReader.CreateSummary(new() { FileSize = (ulong)file.Length });
+        using var summary = new McapSansIoSummaryReader(new() { FileSize = (ulong)file.Length });
         var buffer = new byte[1024 * 1024];
         while (summary.NextEvent(buffer, out var e) != McapReadStatus.EndOfStream)
         {
-            if (e.Kind == McapReadEventKind.Seek) summary.NotifySeeked((ulong)file.Seek(unchecked((long)e.Offset), e.Origin));
+            if (e.Kind == McapSummaryEventKind.Seek) summary.NotifySeeked((ulong)file.Seek(unchecked((long)e.Offset), e.Origin));
             else { int n = file.Read(buffer, 0, (int)Math.Min((ulong)buffer.Length, e.Length)); summary.SupplyInput(buffer.AsSpan(0, n)); }
         }
         using var indexed = summary.CreateIndexed();
@@ -74,7 +74,7 @@ static class Canon
             if (status == McapReadStatus.EndOfStream) break;
             if (e.Length > (ulong)buffer.Length) buffer = new byte[checked((int)e.Length)];
             if (status == McapReadStatus.BufferTooSmall) continue;
-            if (e.Kind == McapReadEventKind.ReadChunk) { file.Position = (long)e.Offset; file.ReadExactly(buffer.AsSpan(0, (int)e.Length)); indexed.SupplyInput(buffer.AsSpan(0, (int)e.Length), e.Offset); }
+            if (e.Kind == McapIndexedEventKind.ReadChunk) { file.Position = (long)e.Offset; file.ReadExactly(buffer.AsSpan(0, (int)e.Length)); indexed.SupplyInput(buffer.AsSpan(0, (int)e.Length), e.Offset); }
             else messages.Add(Record("Message", new McapMessageRecord(e.Header, buffer.AsSpan(0, (int)e.Length).ToArray())));
         }
         return messages.ToArray();
@@ -131,7 +131,7 @@ static class Canon
             {
                 case "Schema": w.RegisterSchema((ushort)U("id"), S("name"), S("encoding"), B()); break;
                 case "Channel": w.RegisterChannel((ushort)U("id"), S("topic"), S("message_encoding"), (ushort)U("schema_id"), D()); break;
-                case "Message": w.WriteMessage(new McapMessageHeader((ushort)U("channel_id"), (uint)U("sequence"), U("log_time"), U("publish_time")), B()); break;
+                case "Message": w.WriteToKnownChannel(new McapMessageHeader((ushort)U("channel_id"), (uint)U("sequence"), U("log_time"), U("publish_time")), B()); break;
                 case "Metadata": w.WriteMetadata(S("name"), D()); break;
                 case "Attachment": w.WriteAttachment(S("name"), S("media_type"), U("log_time"), U("create_time"), B()); break;
             }

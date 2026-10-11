@@ -12,7 +12,7 @@ public class ReaderBoundaryTests
             writer.RegisterSchema(7, "schema", "raw", [9, 8]);
             writer.RegisterSchema(8, "unused", "raw", [7]);
             writer.RegisterChannel(11, "topic", "raw", 7);
-            writer.WriteMessage(new(11, 1, 2, 3), [1, 2, 3]);
+            writer.WriteToKnownChannel(new(11, 1, 2, 3), [1, 2, 3]);
             if (complete) writer.Complete(); else writer.Flush();
         }
         return stream.ToArray();
@@ -23,7 +23,7 @@ public class ReaderBoundaryTests
     public void CompositeRandomAccessValidationFailureTerminatesSession(int invalid)
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = McapReaderFactory.OpenRecords(stream);
+        using var reader = McapReaderFactory.OpenRecordSession(stream);
         var chunk = Assert.Single(reader.GetSummary()!.ChunkIndexes);
         if (invalid == 0)
             Assert.Throws<McapException>(() => reader.ReadChunk(chunk with { ChunkLength = chunk.ChunkLength + 1 }));
@@ -42,7 +42,7 @@ public class ReaderBoundaryTests
     public void RandomAccessArgumentRejectionDoesNotFailSession()
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = McapReaderFactory.OpenRecords(stream);
+        using var reader = McapReaderFactory.OpenRecordSession(stream);
         Assert.Throws<ArgumentNullException>(() => reader.ReadChunk(null!));
         Assert.Throws<ArgumentNullException>(() => reader.ReadMessageIndexes(null!));
         Assert.Equal(McapReadStatus.Success, reader.ReadNextRecord(new byte[4096], out var opcode, out _));
@@ -50,29 +50,30 @@ public class ReaderBoundaryTests
     }
 
     [Theory]
-    [InlineData(McapCursorMode.TopLevelRecords)]
-    [InlineData(McapCursorMode.ExpandedRecordsWithoutMagic)]
-    [InlineData(McapCursorMode.ExpandedRecords)]
-    [InlineData(McapCursorMode.ChunkRecords)]
-    public void RecordOnlyModeRejectsAllMessageDeliveryWithoutAdvancing(McapCursorMode mode)
+    [InlineData((int)CursorMode.TopLevelRecords)]
+    [InlineData((int)CursorMode.ExpandedRecordsWithoutMagic)]
+    [InlineData((int)CursorMode.ExpandedRecords)]
+    [InlineData((int)CursorMode.ChunkRecords)]
+    public void RecordOnlyModeRejectsAllMessageDeliveryWithoutAdvancing(int value)
     {
+        var mode = (CursorMode)value;
         var input = Recording();
-        if (mode == McapCursorMode.ExpandedRecordsWithoutMagic) input = input[8..^8];
-        if (mode == McapCursorMode.ChunkRecords)
+        if (mode == CursorMode.ExpandedRecordsWithoutMagic) input = input[8..^8];
+        if (mode == CursorMode.ChunkRecords)
         {
-            using var top = new McapReadCursor(input, McapCursorMode.TopLevelRecords);
+            using var top = new ReadCursorCore(input, CursorMode.TopLevelRecords);
             input = top.ReadRecords().First(r => r.Opcode == 6).Data;
         }
-        using var reader = new McapReadCursor(input, mode);
+        using var reader = new ReadCursorCore(input, mode);
         AssertMessageMethodsRejected(reader);
         Assert.Equal(McapReadStatus.BufferTooSmall, reader.ReadNextRecord([], out var opcode, out var length));
         AssertMessageMethodsRejected(reader);
         Assert.Equal(McapReadStatus.Success, reader.ReadNextRecord(new byte[checked((int)length)], out var retryOpcode, out _));
         Assert.Equal(opcode, retryOpcode);
-        Assert.Equal(mode == McapCursorMode.ChunkRecords ? 3 : 1, opcode);
+        Assert.Equal(mode == CursorMode.ChunkRecords ? 3 : 1, opcode);
     }
 
-    static void AssertMessageMethodsRejected(McapReadCursor reader)
+    static void AssertMessageMethodsRejected(ReadCursorCore reader)
     {
         Assert.Throws<InvalidOperationException>(() => reader.ReadNext(new byte[100], out _, out _));
         Assert.Throws<InvalidOperationException>(() => reader.ReadNext((in McapMessageHeader _, ReadOnlySpan<byte> _) => true));
@@ -85,12 +86,13 @@ public class ReaderBoundaryTests
     public void InternalSummaryAndChunkCursorsHaveDistinctCapabilities()
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = McapReaderFactory.OpenRecords(stream);
+        using var reader = McapReaderFactory.OpenRecordSession(stream);
         using var snapshot = reader.OpenIndexSnapshot();
         using var summary = snapshot.OpenSummaryRecords();
-        AssertMessageMethodsRejected(summary);
+        Assert.Null(typeof(McapSummaryRecordReader).GetMethod("ReadNext"));
+        Assert.Null(typeof(McapSummaryRecordReader).GetMethod("ReadMessages"));
         Assert.Equal(McapReadStatus.Success, summary.ReadNextRecord(new byte[4096], out _, out _));
-        using var chunk = snapshot.OpenChunkReader(Assert.Single(reader.GetSummary()!.ChunkIndexes));
+        using var chunk = snapshot.OpenChunkMessages(Assert.Single(reader.GetSummary()!.ChunkIndexes));
         Assert.Equal(McapReadStatus.BufferTooSmall, chunk.ReadNext([], out _, out var length));
         Assert.Equal(3ul, length);
         Assert.Equal(McapReadStatus.Success, chunk.ReadNext(new byte[3], out var header, out _));
@@ -101,7 +103,7 @@ public class ReaderBoundaryTests
     public void RecoveryRetainsStructuredParseError()
     {
         using var stream = new MemoryStream(Recording(complete: false));
-        using var reader = McapReaderFactory.OpenMessages(stream, options: McapReaderOptions.Strict);
+        using var reader = McapReaderFactory.OpenMessageSession(stream, options: McapReaderOptions.Strict);
         var result = reader.RecoverMessages(_ => { });
         Assert.Equal(1ul, result.RecoveredMessageCount);
         Assert.False(result.IsFullyValidated);
@@ -115,7 +117,7 @@ public class ReaderBoundaryTests
     public async Task AsyncLeaseDeclarationsAreImmutableCachedAndRequireConsumedOperation(McapCompression compression)
     {
         using var stream = new SuspendedStream(Recording(compression));
-        using var reader = new McapAsyncReader(stream, inputBufferSize: 7);
+        using var reader = new McapAsyncMessageReader(stream, inputBufferSize: 7);
         Assert.Throws<McapException>(() => reader.GetChannelDescription(11));
         Assert.Throws<McapException>(() => reader.GetSchemaDescription(7));
         var operation = reader.ReadBatchLeaseAsync(1);
@@ -141,21 +143,23 @@ public class ReaderBoundaryTests
     }
 
     [Fact]
-    public async Task AsyncRecordConsumptionDoesNotOfferLeaseDeclarations()
+    public async Task AsyncRecordConsumptionCollectsDeclarations()
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = new McapAsyncReader(stream);
+        using var reader = new McapAsyncRecordReader(stream);
         await reader.ReadNextRecordAsync(new byte[4096]);
-        Assert.Throws<InvalidOperationException>(() => reader.GetChannelDescription(11));
-        Assert.Throws<InvalidOperationException>(() => reader.GetSchemaDescription(7));
-        Assert.Equal(McapReadStatus.Success, (await reader.ReadNextRecordAsync(new byte[4096])).Status);
+        Assert.Throws<McapException>(() => reader.GetChannelDescription(11));
+        byte[] buffer = new byte[4096];
+        while ((await reader.ReadNextRecordAsync(buffer)).Status != McapReadStatus.EndOfStream) { }
+        Assert.Equal("topic", reader.GetChannelDescription(11).Topic);
+        Assert.Equal(new byte[] { 9, 8 }, reader.GetSchemaDescription(7).Data.ToArray());
     }
 
     [Fact]
     public async Task AsyncDeclarationLookupRejectsTerminalReaderEvenWithCachedResult()
     {
         using var stream = new MemoryStream(Recording());
-        using var reader = new McapAsyncReader(stream);
+        using var reader = new McapAsyncMessageReader(stream);
         using var batch = await reader.ReadBatchLeaseAsync(1);
         var declaration = reader.GetChannelDescription(11);
         using var cancellation = new CancellationTokenSource();

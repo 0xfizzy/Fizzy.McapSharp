@@ -7,16 +7,18 @@ try
     using (var writer = new McapWriter(path))
     {
         var channel = writer.RegisterChannel("/sample", "json");
-        writer.WriteMessage(new McapMessageHeader(channel, 0, 100, 100), "{\"value\":1}"u8);
-        writer.WriteMessage(new McapMessageHeader(channel, 1, 50, 50), "{\"value\":2}"u8);
+        writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 100, 100), "{\"value\":1}"u8);
+        writer.WriteToKnownChannel(new McapMessageHeader(channel, 1, 50, 50), "{\"value\":2}"u8);
         writer.Complete();
     }
     var factory = new McapReaderFactory(path);
     factory.Validate();
     if (!factory.ReadMessages().Select(m => m.LogTime).SequenceEqual(new ulong[] { 100, 50 }))
         throw new Exception("No-query file order mismatch");
-    // An explicit query defaults to LogTime, even when only Topic is supplied.
-    if (!factory.ReadMessages(new() { Topic = "/sample" }).Select(m => m.LogTime).SequenceEqual(new ulong[] { 50, 100 }))
+    // Adding a sequential filter preserves file order; ordered queries are explicit.
+    if (!factory.ReadMessages(new() { Topic = "/sample" }).Select(m => m.LogTime).SequenceEqual(new ulong[] { 100, 50 }))
+        throw new Exception("Filtered file order mismatch");
+    if (!factory.ReadQueryMessages(new() { Topic = "/sample" }).Select(m => m.LogTime).SequenceEqual(new ulong[] { 50, 100 }))
         throw new Exception("Default query order mismatch");
 
     // 2. The pending record survives a too-small destination. Growth is caller-owned.
@@ -40,7 +42,7 @@ try
     }
 
     // 3. File order streams without collecting a global time sort.
-    using (var query = factory.OpenMessages(new() { Topic = "/sample", Order = McapReadOrder.File }))
+    using (var query = factory.OpenMessages(new() { Topic = "/sample" }))
     {
         var count = 0;
         query.VisitMessages((in McapMessageHeader header, ReadOnlySpan<byte> payload) =>
@@ -55,7 +57,7 @@ try
     }
 
     // Reject global sorting fallback, while allowing supported indexed time order.
-    using (var query = factory.OpenMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false }))
+    using (var query = factory.QueryMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false }))
         if (!query.ReadMessages().Select(m => m.LogTime).SequenceEqual(new ulong[] { 50, 100 }))
             throw new Exception("Time order mismatch");
     // To require indexes instead, use factory.OpenIndexedMessages().
@@ -66,14 +68,14 @@ try
         using (var writer = new McapWriter(unindexed, new() { UseChunks = false, EmitSummaryRecords = false }, leaveOpen: true))
         {
             var channel = writer.RegisterChannel("/sample", "json");
-            writer.WriteMessage(new McapMessageHeader(channel, 0, 100, 100), "{}"u8);
+            writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 100, 100), "{}"u8);
             writer.Complete();
         }
         unindexed.Position = 0;
         var rejected = false;
         try
         {
-            using var query = McapReaderFactory.OpenMessages(unindexed,
+            using var query = McapReaderFactory.QueryMessages(unindexed,
                 new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false }, leaveOpen: true);
         }
         catch (NotSupportedException) { rejected = true; }
@@ -102,7 +104,7 @@ try
 
     // 5. Consume each ValueTask before another operation or disposal.
     await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
-    await using (var reader = new McapAsyncReader(input, leaveOpen: true))
+    await using (var reader = new McapAsyncMessageReader(input, leaveOpen: true))
     {
         var count = 0;
         while (await reader.ReadBatchLeaseAsync() is { } lease)
