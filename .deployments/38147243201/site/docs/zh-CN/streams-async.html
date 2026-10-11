@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Stream 与异步读取 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Stream 与异步读取 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../assets/icon.png">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="stream-与异步读取">Stream 与异步读取</h1>
+
+<p><a href="../streams-async.html">English</a> | 简体中文</p>
+<p>面向已持有 Stream 或需要异步输入的应用开发者。示例沿用<a href="usage.html">教程</a>中的 <code>path</code>。Stream 的所有权与<a href="ownership.html">返回消息的所有权</a>需要分别选择。</p>
+<h2 id="保留调用方拥有的-stream">保留调用方拥有的 Stream</h2>
+<pre><code class="lang-csharp">using var input = File.OpenRead(path);
+using (var session = McapReaderFactory.OpenMessages(input, leaveOpen: true))
+{
+    foreach (var message in session.ReadMessages())
+        Console.WriteLine(message.LogTime);
+}
+input.Position = 0; // The session has released the Stream; the caller can reuse it.
+</code></pre>
+<p>初始位置成为 MCAP 偏移零点；从该位置到流末尾必须恰好包含一个 MCAP。会话增量读取输入。<code>leaveOpen</code> 默认为 false；仅当调用方负责后续使用与清理时设为 true。会话拥有 Stream 期间，不得从外部读取、重新定位或释放它。</p>
+<p>输出时，先在打开 Stream 时决定文件创建行为，再传给 <code>McapWriter</code>。<code>FileMode.CreateNew</code> 拒绝已有文件；<code>FileMode.Create</code> 立即截断已有文件。可寻址输出必须位于末尾。释放前调用 <code>Complete()</code>；<code>leaveOpen</code> 和所有权转移均不隐式完成格式。详见<a href="api.html#%E5%86%99%E5%85%A5%E5%BD%95%E5%88%B6">写入</a>与 <a href="api.html#stream-%E4%BC%9A%E8%AF%9D%E4%B8%8E%E6%89%80%E6%9C%89%E6%9D%83">Stream 契约</a>。</p>
+<h2 id="每次等待一个操作">每次等待一个操作</h2>
+<pre><code class="lang-csharp">await using var input = new FileStream(path, FileMode.Open, FileAccess.Read,
+    FileShare.Read, 4096, FileOptions.Asynchronous);
+await using (var reader = new McapAsyncMessageReader(input, leaveOpen: true))
+{
+    while (await reader.ReadBatchLeaseAsync() is { } lease)
+    {
+        using (lease)
+        {
+            for (int i = 0; i &lt; lease.Count; i++)
+                Console.WriteLine(lease.GetHeader(i).LogTime);
+        }
+    }
+}
+</code></pre>
+<p>此段作为独立示例运行；与前一段合并时需重命名 <code>input</code>。每个 <code>ValueTask</code> 必须且只能消费一次，之后才能启动下一操作、查询声明、转移所有权或释放读取器。每个返回的租约在使用后释放。消息读取器不执行查询排序；调用方缓冲的记录读取能力由独立的 <code>McapAsyncRecordReader</code> 提供。</p>
+<p>批次租约可能分配控制对象。异步批次已有消息时，可在下一次输入请求处提前返回，无需填满目标大小。异步 I/O 不代表任意 Stream 或调用方代码均无分配，详见<a href="api.html#%E5%BC%82%E6%AD%A5%E8%AE%B0%E5%BD%95%E5%92%8C%E9%94%99%E8%AF%AF">异步契约</a>与<a href="api.html#%E5%80%9F%E7%94%A8%E6%89%B9%E6%AC%A1%E4%B8%8E-lease">批次契约</a>。</p>
+<h2 id="取消与清理">取消与清理</h2>
+<p>需要取消时，通过读取 API 传入取消令牌。取消、解析或 I/O 失败会终止该读取器；应释放它，不要重试任意失败操作。此前已交付的租约仍有效，直到各自持有者释放。</p>
+<p>释放前先完成并消费在途操作。读取器的 <code>DisposeAsync()</code> 执行同步释放，对拥有的 Stream 调用 <code>Dispose()</code>；它不等待在途工作，也不调用该 Stream 的 <code>DisposeAsync()</code>。示例使用 <code>leaveOpen: true</code>，将最终的异步 Stream 释放交给外层调用方作用域。</p>
+<p>显式清理失败会报告给调用方。抛异常不代表 Stream 已可安全复用。一次性清理及所有权边界详见 <a href="api.html#stream-%E4%BC%9A%E8%AF%9D%E4%B8%8E%E6%89%80%E6%9C%89%E6%9D%83">Stream 释放与转移契约</a>。</p>
+<p>仅在应用需要自行驱动 I/O 时继续阅读 <a href="sans-io.html">Sans-I/O</a>；其他情况按所选读取器查阅 <a href="api.html">API 契约</a>。</p>
+<p>本页代码在<a href="../../samples/Documentation/ReadingExamples.cs">读取示例</a>中运行，执行方法见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">教程</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
