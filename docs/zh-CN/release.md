@@ -1,6 +1,6 @@
 # 发布与恢复操作规程
 
-[English](../release.md)
+[English](../en/release.md)
 
 面向获得发布授权的维护者：配置发布环境、发布包、更新版本文档及恢复失败部署。源码构建见[开发指南](development.md)，本页命令不构成发布授权。
 

@@ -1,6 +1,6 @@
 # Stream 与异步读取
 
-[English](../streams-async.md) | 简体中文
+[English](../en/streams-async.md) | 简体中文
 
 面向已持有 Stream 或需要异步输入的应用开发者。示例沿用[教程](usage.md)中的 `path`。Stream 的所有权与[返回消息的所有权](ownership.md)需要分别选择。
 

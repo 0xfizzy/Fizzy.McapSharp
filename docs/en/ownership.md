@@ -1,6 +1,6 @@
 # Message ownership and memory choices
 
-English | [简体中文](zh-CN/ownership.md)
+English | [简体中文](../zh-CN/ownership.md)
 
 For applications choosing how long message bytes must remain valid. Start with owned results; use other delivery forms when buffer reuse, synchronous processing or retained sharing fits the workload. Access order is a [separate choice](queries.md).
 
@@ -70,8 +70,8 @@ using (var batch = retained.ReadBatchLease(1))
 
 Copying releases no storage still referenced by another lease, parser or cache. Bound outstanding work using retained backing sizes and duration as well as batch counts. Do not access spans concurrently with lease disposal; cross-thread transfer needs caller synchronization. See [retention contracts](api.md#choosing-storage-for-retained-results).
 
-To forward a batch, register destination schemas/channels first, then call `writer.WriteBatch(batch)` while the lease is alive. Use the header-replacement overload when channel IDs differ. Forwarding is synchronous, does not transfer ownership and does not make a batch atomic. The [runnable example](../samples/Documentation/Program.cs) demonstrates a schema-less channel with matching IDs.
+To forward a batch, register destination schemas/channels first, then call `writer.WriteBatch(batch)` while the lease is alive. Use the header-replacement overload when channel IDs differ. Forwarding is synchronous, does not transfer ownership and does not make a batch atomic. The [runnable example](../../samples/Documentation/Program.cs) demonstrates a schema-less channel with matching IDs.
 
 Next, use [Streams and async](streams-async.md) for asynchronous pipelines, or consult [local limits](api.md#binding-performance-and-local-limits) and [diagnostics](testing.md) before tuning memory behavior.
 
-These snippets run in the [reading examples](../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.
+These snippets run in the [reading examples](../../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.

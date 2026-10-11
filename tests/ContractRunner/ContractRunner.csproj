@@ -3,5 +3,5 @@
     <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../Fizzy.McapSharp.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../src/Fizzy.McapSharp/Fizzy.McapSharp.csproj" /></ItemGroup>
 </Project>

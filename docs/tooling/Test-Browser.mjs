@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile, stat, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-const repo = path.resolve(import.meta.dirname, '..');
+const repo = path.resolve(import.meta.dirname, '../..');
 const site = path.join(repo, 'artifacts/docs/site');
 const urlIndex = process.argv.indexOf('--url');
 const liveUrl = urlIndex >= 0 ? new URL(process.argv[urlIndex + 1]).href.replace(/\/?$/, '/') : null;

@@ -1,6 +1,6 @@
 # API、生命周期与数据所有权
 
-[English](../api.md) | 简体中文
+[English](../en/api.md) | 简体中文
 
 本页是跨 API 契约参考，适合确认默认行为、所有权、失败和验证边界。首次使用请先读[教程](usage.md)；按任务选型请读[查询](queries.md)、[消息所有权](ownership.md)、[Stream 与异步](streams-async.md)或 [Sans-I/O](sans-io.md)。
 

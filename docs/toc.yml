@@ -1,36 +1,8 @@
-- name: Getting started
-  items:
-    - name: Overview
-      href: index.md
-    - name: Your first recording
-      href: usage.md
-- name: Advanced usage
-  items:
-    - name: Queries and random access
-      href: queries.md
-    - name: Message ownership
-      href: ownership.md
-    - name: Streams and async
-      href: streams-async.md
-    - name: Sans-I/O
-      href: sans-io.md
-- name: Reference
-  items:
-    - name: API contracts
-      href: api.md
-    - name: Upstream API correspondence
-      href: coverage.md
-- name: Development and maintenance
-  items:
-    - name: Build and integration
-      href: development.md
-    - name: Validation and diagnostics
-      href: testing.md
-    - name: Native ABI
-      href: native.md
-    - name: Local patches
-      href: patches.md
-    - name: Documentation maintenance
-      href: documentation.md
-    - name: Release and recovery
-      href: release.md
+- name: English
+  href: en/
+  topicHref: en/index.md
+- name: 简体中文
+  href: zh-CN/
+  topicHref: zh-CN/index.md
+- name: API reference (English)
+  href: ../artifacts/docs/api/

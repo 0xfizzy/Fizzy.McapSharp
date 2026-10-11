@@ -21,7 +21,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 
-from build import ROOT, TARGETS, output, run, source_identity, verify_assets, version
+from build import MANAGED_PROJECT, MANAGED_OUTPUT, ROOT, TARGETS, output, run, source_identity, verify_assets, version
 from documentation import digest, tree_hashes, write_json
 
 REPO = '0xfizzy/Fizzy.McapSharp'
@@ -353,7 +353,7 @@ def without_xml_comments(text):
 
 def check_update_changes(base, source="HEAD"):
     changed = output('git', 'diff', '--name-only', base, source).splitlines()
-    allowed = ('docs/',)
+    allowed = ('docs/en/', 'docs/zh-CN/', 'docs/template/')
     for name in changed:
         if name.startswith('src/') and name.endswith('.cs'):
             before = subprocess.check_output(['git', 'show', f'{base}:{name}'], cwd=ROOT, text=True)
@@ -363,7 +363,7 @@ def check_update_changes(base, source="HEAD"):
                 raise ValueError(f'Only XML-comment changes are allowed in documentation source: {name}')
         elif name.startswith('samples/Documentation/') and name.endswith('.cs'):
             continue
-        elif not name.startswith(allowed) and name not in ['README.md', 'README.zh-CN.md', 'index.md', 'toc.yml']:
+        elif not name.startswith(allowed) and name not in ['README.md', 'README.zh-CN.md', 'docs/index.md', 'docs/toc.yml', 'docs/translations.json']:
             raise ValueError(f'Documentation update changes non-documentation file: {name}')
     return changed
 
@@ -374,9 +374,9 @@ def update_build(tag):
     from documentation import build_docs, samples
     from build import build
     build()
-    run('dotnet', 'build', ROOT / 'Fizzy.McapSharp.csproj', '-c', 'Release', '--no-incremental', '-p:DocumentationStrict=true')
+    run('dotnet', 'build', MANAGED_PROJECT, '-c', 'Release', '--no-incremental', '-p:DocumentationStrict=true')
     package = BUNDLE / f'Fizzy.McapSharp.{manifest["version"]}.nupkg'
-    build_docs(package, manifest['commit'], ROOT / 'bin/Release/net8.0/Fizzy.McapSharp.xml')
+    build_docs(package, manifest['commit'], MANAGED_OUTPUT / 'Fizzy.McapSharp.xml')
     samples(BUNDLE)
     return {'version': manifest['version']}
 

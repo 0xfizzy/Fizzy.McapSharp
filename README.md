@@ -3,13 +3,13 @@
 [![NuGet](https://img.shields.io/nuget/v/Fizzy.McapSharp.svg?style=flat)](https://www.nuget.org/packages/Fizzy.McapSharp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
-[![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/api.md)
+[![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/en/api.md)
 
 English | [简体中文](README.zh-CN.md)
 
 .NET 8 bindings to the official Rust `mcap` implementation. [MCAP](https://mcap.dev/spec) is a container format for timestamped messages and their schemas and channels. Read and write messages, metadata and attachments, with compression, time filtering and integrity validation. Applications define payload encoding and clock origins.
 
-Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 Linux build and validation baseline. See [API contracts](docs/api.md) for the full support scope.
+Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 Linux build and validation baseline. See [API contracts](docs/en/api.md) for the full support scope.
 
 ## Quick start
 
@@ -48,9 +48,9 @@ Call `reader.Validate()` separately when a full-file check is needed; it perform
 ## Documentation
 
 - [Documentation website](https://0xfizzy.github.io/Fizzy.McapSharp/): browse guides and the API reference online.
-- [Getting started](docs/usage.md): create a project, write, read, filter and validate.
-- [API contracts](docs/api.md): defaults, lifetime, errors and performance guarantees.
-- [Documentation home](docs/index.md): advanced guides, English member API reference and development/maintenance links.
+- [Getting started](docs/en/usage.md): create a project, write, read, filter and validate.
+- [API contracts](docs/en/api.md): defaults, lifetime, errors and performance guarantees.
+- [Documentation home](docs/en/index.md): advanced guides, English member API reference and development/maintenance links.
 
 All code authored for this project is AI-generated. Third-party dependencies and vendored upstream code retain their original authorship and licenses.
 

@@ -1,14 +1,16 @@
 # Building and maintaining documentation
 
-English | [简体中文](zh-CN/documentation.md)
+English | [简体中文](../zh-CN/documentation.md)
 
 For documentation contributors: build the site, review translations, validate examples and inspect rendered pages. See the [documentation home](index.md) for reader paths and topic organization.
 
 Maintain member contracts in English XML comments, cross-API contracts in [api.md](api.md), and task sequences in [usage.md](usage.md). Review constraints, units, ownership, cancellation, failure and cleanup against implementation. XML coverage is not semantic correctness.
 
+The bilingual site entry and top-level navigation are in `docs/index.md` and `docs/toc.yml`. English guides live in `docs/en/`; Chinese guides live in `docs/zh-CN/`. DocFX and npm configuration and the local .NET tool manifest live under `docs/`. Scripts run these tools from that directory. The build stages selected inputs under `artifacts/docs/source/` so DocFX can resolve repository resources beneath its configuration root; generated output remains under repository-root `artifacts/`. Published guide URLs remain unchanged.
+
 ## Local workflow
 
-Use Python 3.12, PowerShell 7, Node.js 22, the .NET 8 SDK and the pinned Rust toolchain with the host native compiler described in [development](development.md). DocFX is pinned in the local tool manifest; `dotnet tool restore` restores that tool only. No global tool installation is performed.
+Use Python 3.12, PowerShell 7, Node.js 22, the .NET 8 SDK and the pinned Rust toolchain with the host native compiler described in [development](development.md). DocFX is pinned in the local tool manifest; `dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json` restores that tool only. No global tool installation is performed.
 
 ```powershell
 ./scripts/Test-Documentation.ps1
@@ -25,10 +27,10 @@ For generation with manual browser verification, run `./scripts/Build-Docs.ps1 -
 
 ## Translation and changes
 
-Keep English guides in `docs/` and same-name Chinese guides in `docs/zh-CN/`, with independent navigation and language links. The root README uses `README.zh-CN.md`. After reviewing the translated text, explicitly accept the English revision:
+Keep English guides in `docs/en/` and same-name Chinese guides in `docs/zh-CN/`, with independent navigation and language links. The root README uses `README.zh-CN.md`. After reviewing the translated text, explicitly accept the English revision:
 
 ```powershell
-./scripts/Test-Documentation.ps1 -AcceptTranslation docs/usage.md
+./scripts/Test-Documentation.ps1 -AcceptTranslation docs/en/usage.md
 ```
 
 Normalized source hashes record review state, not translation quality. Never accept hashes without review. Both languages share the same sample source and English API reference.

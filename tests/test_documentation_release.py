@@ -38,6 +38,49 @@ class ReleaseTests(unittest.TestCase):
 
 
 
+    def test_documentation_update_rejects_relocated_tools(self):
+        for name in ('docs/docfx.json', 'docs/package.json', 'docs/package-lock.json',
+                     'docs/.config/dotnet-tools.json', 'docs/tooling/Test-Browser.mjs',
+                     'src/Fizzy.McapSharp/Fizzy.McapSharp.csproj'):
+            with self.subTest(name=name), patch.object(release, 'output', return_value=name):
+                with self.assertRaisesRegex(ValueError, 'non-documentation file'):
+                    release.check_update_changes('base')
+        names = ['docs/index.md', 'docs/toc.yml', 'docs/en/usage.md', 'docs/zh-CN/usage.md']
+        with patch.object(release, 'output', return_value='\n'.join(names)):
+            self.assertEqual(names, release.check_update_changes('base'))
+
+    def test_nested_guides_require_translation_review(self):
+        source = self.base / 'guides'
+        for directory in ('docs/en', 'docs/zh-CN'):
+            (source / directory).mkdir(parents=True)
+            (source / directory / 'toc.yml').write_text('- name: Home\n  href: index.md\n', encoding='utf-8')
+        (source / 'docs/index.md').write_text('Home', encoding='utf-8')
+        (source / 'README.md').write_text('[Chinese](README.zh-CN.md)', encoding='utf-8')
+        (source / 'README.zh-CN.md').write_text('[English](README.md)', encoding='utf-8')
+        (source / 'docs/en/index.md').write_text('[Chinese](../zh-CN/index.md)', encoding='utf-8')
+        (source / 'docs/zh-CN/index.md').write_text('[English](../en/index.md)', encoding='utf-8')
+        with patch.object(documentation, 'ROOT', source):
+            self.assertEqual(2, documentation.check_sources(['README.md', 'docs/en/index.md'])['translation_pairs'])
+            (source / 'docs/en/index.md').write_text('[Chinese](../zh-CN/index.md) Changed', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'needs review: docs/en/index.md'):
+                documentation.check_sources()
+            (source / 'docs/zh-CN/index.md').unlink()
+            with self.assertRaisesRegex(ValueError, 'Missing translation'):
+                documentation.check_sources()
+
+    def test_staged_site_preserves_urls_and_source_links(self):
+        with patch.object(documentation, 'DOCS', self.base / 'generated'):
+            config_path = documentation.stage_site_config()
+            config = json.loads(config_path.read_text(encoding='utf-8'))
+            mappings = {item['src']: item['dest'] for item in config['build']['content']}
+            self.assertEqual('.', mappings['docs'])
+            self.assertEqual('docs', mappings['docs/en'])
+            self.assertEqual('docs/zh-CN', mappings['docs/zh-CN'])
+            self.assertEqual('api', mappings['artifacts/docs/api'])
+            for name in ('README.md', 'docs/index.md', 'docs/en/index.md',
+                         'docs/zh-CN/index.md', 'src/Fizzy.McapSharp/Native.cs'):
+                self.assertEqual((release.ROOT / name).read_bytes(), (config_path.parent / name).read_bytes())
+
     def test_stale_main_is_rejected(self):
         site = self.site('1.0.0', None)
         with patch.object(release, 'remote_commit', return_value='b' * 40):
@@ -141,7 +184,7 @@ class ReleaseTests(unittest.TestCase):
         (source / 'docs').mkdir(parents=True)
         (source / 'README.md').write_text('[Chinese](README.zh-CN.md)\n', encoding='utf-8')
         (source / 'README.zh-CN.md').write_text('[English](README.md)\n', encoding='utf-8')
-        (source / 'index.md').write_text('Home\n', encoding='utf-8')
+        (source / 'docs/index.md').write_text('Home\n', encoding='utf-8')
         with patch.object(documentation, 'ROOT', source):
             with self.assertRaisesRegex(ValueError, 'needs review'):
                 documentation.check_sources()
@@ -445,6 +488,8 @@ class UpdateCliTests(unittest.TestCase):
         def validate(args, cwd, check):
             self.assertEqual((update_docs.ROOT / 'scripts/release.py').read_bytes(), (cwd / 'scripts/release.py').read_bytes())
             self.assertEqual((update_docs.ROOT / 'samples/Documentation/Documentation.csproj').read_bytes(), (cwd / 'samples/Documentation/Documentation.csproj').read_bytes())
+            for name in ('docs/docfx.json', 'docs/package.json', 'docs/package-lock.json', 'docs/.config/dotnet-tools.json', 'docs/tooling/Test-Browser.mjs'):
+                self.assertEqual((update_docs.ROOT / name).read_bytes(), (cwd / name).read_bytes())
             self.assertNotEqual(update_docs.ROOT, cwd)
             return subprocess.CompletedProcess(args, 0)
         with patch.object(update_docs, 'run', side_effect=git), patch.object(update_docs.subprocess, 'run', side_effect=validate):

@@ -1,6 +1,6 @@
 # Validation and performance diagnostics
 
-English | [简体中文](zh-CN/testing.md)
+English | [简体中文](../zh-CN/testing.md)
 
 For maintainers choosing correctness checks, allocation gates and performance diagnostics. Build the host native Release library using the [development guide](development.md) first; serialize builds sharing output directories. Diagnostics establish the measured property, not total-memory or universal throughput guarantees.
 

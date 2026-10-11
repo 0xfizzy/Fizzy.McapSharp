@@ -24,7 +24,7 @@ def check_source(tag, source):
         run('git', 'worktree', 'add', '--detach', checkout, source)
         try:
             shutil.copytree(ROOT / 'scripts', checkout / 'scripts', dirs_exist_ok=True)
-            for name in ('docfx.json', 'package.json', 'package-lock.json', '.config/dotnet-tools.json', 'samples/Documentation/Documentation.csproj'):
+            for name in ('docs/docfx.json', 'docs/package.json', 'docs/package-lock.json', 'docs/.config/dotnet-tools.json', 'docs/tooling/Test-Browser.mjs', 'samples/Documentation/Documentation.csproj'):
                 destination = checkout / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(ROOT / name, destination)

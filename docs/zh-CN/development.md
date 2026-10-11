@@ -1,6 +1,6 @@
 # 源码构建、测试与消费者集成
 
-[English](../development.md) | 简体中文
+[English](../en/development.md) | 简体中文
 
 面向源码贡献者：准备工具链、构建本机库、验证完整包，并为消费项目选择引用方式。仅使用 NuGet 的应用开发者请从[入门教程](usage.md)开始。
 
@@ -10,10 +10,10 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| `Fizzy.McapSharp.csproj` | 库项目与包元数据；仅编译 `src/` 下的源码 |
-| `src/` | 公共 .NET API；能力 partial 按所属类型命名，Native 互操作声明独立组织 |
-| `src/McapWriterOptions.cs`、`McapMessageFilter.cs`、`McapQuery.cs`、`McapReadContracts.cs` | 写入配置、消息筛选与具体读取结果 |
-| `src/McapDeclarations.cs`、`McapMessageModels.cs`、`McapDataRecords.cs`、`McapSummaryModels.cs` | 声明、消息、数据记录与摘要／索引模型；不依赖具体 reader 实现 |
+| `src/Fizzy.McapSharp/Fizzy.McapSharp.csproj` | 库项目与包元数据；通过 SDK 默认规则编译项目目录中的源码 |
+| `src/Fizzy.McapSharp/` | 公共 .NET API；能力 partial 按所属类型命名，Native 互操作声明独立组织 |
+| `src/Fizzy.McapSharp/McapWriterOptions.cs`、`McapMessageFilter.cs`、`McapQuery.cs`、`McapReadContracts.cs` | 写入配置、消息筛选与具体读取结果 |
+| `src/Fizzy.McapSharp/McapDeclarations.cs`、`McapMessageModels.cs`、`McapDataRecords.cs`、`McapSummaryModels.cs` | 声明、消息、数据记录与摘要／索引模型；不依赖具体 reader 实现 |
 | `native/src/lib.rs`、`protocol.rs` | 共享 ABI／错误边界及具名协议数值 |
 | `native/src/reader.rs`、`writer.rs`、`summary.rs`、`io.rs` | 文件／Stream 读取会话与查询、writer 状态、摘要序列化及源／回调 I/O |
 | `native/src/engine.rs`、`snapshot.rs`、`prepared_write.rs`、`record_access.rs` | Sans-I/O 引擎、独立索引快照、预准备写入和原始记录工具 |
@@ -28,7 +28,7 @@
 
 文档构建、翻译与示例遵循[文档维护](documentation.md)，版本归档、发布与恢复遵循[发布 SOP](release.md)。公开 API/XML 和指南变更须运行 `./scripts/Build-Docs.ps1`；发布及归档工具变更须运行 `./scripts/Test-Release.ps1`。这些门禁补充而不替代下述 native 及包检查。
 
-公开 API 的 XML 文档由 CS1591 编译门禁要求；在相关成员上说明单位、所有权、适用模式和失败行为。Python 测试同时核对 `src/Native.Protocol.cs` 与 `native/src/protocol.rs` 的私有协议常量；即使数值相同，也保持不同操作域和状态域独立。
+公开 API 的 XML 文档由 CS1591 编译门禁要求；在相关成员上说明单位、所有权、适用模式和失败行为。Python 测试同时核对 `src/Fizzy.McapSharp/Native.Protocol.cs` 与 `native/src/protocol.rs` 的私有协议常量；即使数值相同，也保持不同操作域和状态域独立。
 
 ```powershell
 ./scripts/Build.ps1 -Test

@@ -1,8 +1,8 @@
 # Official Rust API coverage
 
-English | [简体中文](zh-CN/coverage.md)
+English | [简体中文](../zh-CN/coverage.md)
 
-Use this guide to locate the .NET entry for an official Rust capability and understand its adaptation. The baseline is the exact `mcap` dependency in [Cargo.toml](../native/Cargo.toml). For ownership, allocation and usage choices, start with the [API guide](api.md#choose-message-ownership).
+Use this guide to locate the .NET entry for an official Rust capability and understand its adaptation. The baseline is the exact `mcap` dependency in [Cargo.toml](../../native/Cargo.toml). For ownership, allocation and usage choices, start with the [API guide](api.md#choose-message-ownership).
 
 ## Reading the map
 
@@ -10,15 +10,15 @@ The tables group capabilities, not individual declarations. One managed entry ca
 
 | Source | Purpose |
 | --- | --- |
-| [upstream-api.json](upstream-api.json) | Fixed inventory of declarations from unmodified upstream; do not change it to accept local extensions |
-| [api-coverage.json](api-coverage.json) | Symbol-level mappings, capability group, mapping category, origin, implementation/test references and exclusion reasons |
+| [upstream-api.json](../upstream-api.json) | Fixed inventory of declarations from unmodified upstream; do not change it to accept local extensions |
+| [api-coverage.json](../api-coverage.json) | Symbol-level mappings, capability group, mapping category, origin, implementation/test references and exclusion reasons |
 | This guide | Capability navigation and material adaptation differences; detailed usage stays in the API guide |
 
 The reviewed inventory contains 344 official declarations and 18 local extension declarations. These include types, methods, fields, constants and error variants; the counts are not counts of implemented operations or passing tests. Optional Tokio declarations are included even though the binding does not invoke Tokio.
 
 ## Writing (`writing`)
 
-Managed entry points are on [McapWriter](../src/McapWriter.cs) and its partial implementations.
+Managed entry points are on [McapWriter](../../src/Fizzy.McapSharp/McapWriter.cs) and its partial implementations.
 
 | Official Rust API | .NET entry | Mapping | Key difference or constraint |
 | --- | --- | --- | --- |
@@ -54,7 +54,7 @@ Five typed readers correspond to the upstream read capabilities; `McapSummaryRec
 | `Summary::read_message_indexes` | `ReadMessageIndexes` | Adapted | Caller-buffer form uses packed 18-byte rows |
 | `read::attachment`, `read::metadata` | `ReadAttachment`, `ReadMetadata` | Adapted | Uses caller-supplied indexes and validates source ranges |
 
-See [McapIndexedReader](../src/McapIndexedReader.cs). Prepared indexes, grouped seeks and cache retention are binding additions, not additional official methods. Their reuse scopes are described under [random access](api.md#complete-chunk-random-access). Successful indexed reading does not establish full-file validation.
+See [McapIndexedReader](../../src/Fizzy.McapSharp/McapIndexedReader.cs). Prepared indexes, grouped seeks and cache retention are binding additions, not additional official methods. Their reuse scopes are described under [random access](api.md#complete-chunk-random-access). Successful indexed reading does not establish full-file validation.
 
 ## Sans-I/O (`sans-io`)
 
@@ -64,7 +64,7 @@ See [McapIndexedReader](../src/McapIndexedReader.cs). Prepared indexes, grouped 
 | `sans_io::SummaryReader`, options and events | `McapSansIoSummaryReader`, `McapSummaryReaderOptions`, input/seek notification and summary access | Adapted | Caller drives I/O; completion makes summary available for indexed reading |
 | `sans_io::IndexedReader`, options, events and `ReadOrder` | `McapSansIoSummaryReader.CreateIndexed`, `McapIndexedQuery`, `McapReadOrder`, indexed control operations | Adapted | Direct indexed engine requires indexes and has no scan-and-sort fallback |
 
-See [SansIoReaderCore.cs](../src/SansIoReaderCore.cs) and the symbol inventory for individual events and controls. Optional CRC checks default to upstream settings. Shared-event and direct-fill ownership extensions are listed separately below.
+See [SansIoReaderCore.cs](../../src/Fizzy.McapSharp/SansIoReaderCore.cs) and the symbol inventory for individual events and controls. Optional CRC checks default to upstream settings. Shared-event and direct-fill ownership extensions are listed separately below.
 
 ## Records, utilities and errors (`records-and-errors`)
 
@@ -82,7 +82,7 @@ See [SansIoReaderCore.cs](../src/SansIoReaderCore.cs) and the symbol inventory f
 | Optional `tokio::LinearReader` (`async`) | `McapAsyncRecordReader.ReadNextRecordAsync` | Alternative | .NET asynchronous I/O drives official Sans-I/O; Tokio itself is not invoked. Cancellation and suspension follow managed contracts |
 | `sans_io::Decompressor`, `DecompressResult` (`unexposed`) | None | Not exposed | Upstream has no custom-decompressor registration hook; there is no managed implementation of the trait |
 
-Functional alternatives do not imply a port of runtime-specific interfaces. See [asynchronous reader](../src/McapAsyncRecordReader.cs).
+Functional alternatives do not imply a port of runtime-specific interfaces. See [asynchronous reader](../../src/Fizzy.McapSharp/McapAsyncRecordReader.cs).
 
 `McapAsyncMessageReader` provides message leases as a binding capability over the linear engine. Both asynchronous expanded reader types expose encountered immutable declarations through GetChannelDescription and GetSchemaDescription after consuming the outstanding operation; this adds no upstream API or patch.
 

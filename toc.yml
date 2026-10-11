@@ -1,8 +1,0 @@
-- name: English
-  href: docs/
-  topicHref: docs/index.md
-- name: 简体中文
-  href: docs/zh-CN/
-  topicHref: docs/zh-CN/index.md
-- name: API reference (English)
-  href: artifacts/docs/api/

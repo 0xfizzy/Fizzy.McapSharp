@@ -1,6 +1,6 @@
 # 自行驱动 Sans-I/O
 
-[English](../sans-io.md) | 简体中文
+[English](../en/sans-io.md) | 简体中文
 
 仅在应用需要自行执行 I/O 时使用这些协议。[可运行源码](../../samples/Documentation/SansIoExamples.cs) 会执行全部三个循环。下方辅助方法假设完整 MCAP 从源位置零开始；存在前缀时，需要在物理位置与 MCAP 起点之间转换。示例预期包含两条消息。任何循环到达 `End` 都不单独证明全文件验证成功。
 

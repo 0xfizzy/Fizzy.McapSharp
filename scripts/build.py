@@ -13,6 +13,8 @@ import xml.etree.ElementTree as ET
 import traceback
 
 ROOT = Path(__file__).resolve().parents[1]
+MANAGED_PROJECT = ROOT / "src/Fizzy.McapSharp/Fizzy.McapSharp.csproj"
+MANAGED_OUTPUT = MANAGED_PROJECT.parent / "bin/Release/net8.0"
 TARGETS = {
     "win-x64": ("x86_64-pc-windows-msvc", "fizzy_mcap_native.dll"),
     "linux-x64": ("x86_64-unknown-linux-gnu", "libfizzy_mcap_native.so"),
@@ -22,11 +24,11 @@ TARGETS = {
 
 def run(*args, **kwargs):
     print("+ " + " ".join(map(str, args)), flush=True)
-    return subprocess.run(list(map(str, args)), cwd=ROOT, check=True, **kwargs)
+    return subprocess.run(list(map(str, args)), cwd=kwargs.pop("cwd", ROOT), check=True, **kwargs)
 
 
-def output(*args):
-    return subprocess.check_output(list(map(str, args)), cwd=ROOT, text=True).strip()
+def output(*args, cwd=ROOT):
+    return subprocess.check_output(list(map(str, args)), cwd=cwd, text=True).strip()
 
 
 def host_rid():
@@ -40,7 +42,7 @@ def host_rid():
 
 
 def version():
-    return ET.parse(ROOT / "Fizzy.McapSharp.csproj").findtext("./PropertyGroup/Version")
+    return ET.parse(MANAGED_PROJECT).findtext("./PropertyGroup/Version")
 
 
 def source_identity():
@@ -125,7 +127,7 @@ def build(test=False):
     shutil.copy2(source, folder / filename)
     manifest = dict(source_identity(), rid=rid, target=target, sha256=hashlib.sha256(source.read_bytes()).hexdigest())
     (folder / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    run("dotnet", "build", ROOT / "Fizzy.McapSharp.csproj", "-c", "Release")
+    run("dotnet", "build", MANAGED_PROJECT, "-c", "Release")
     if test:
         run(cargo, "test", "--release", "--locked", "--target", target,
             "--target-dir", ROOT / "native/target", "--manifest-path", ROOT / "native/Cargo.toml")
@@ -149,7 +151,7 @@ def main():
         verify_assets()
     if args.command == "pack" or args.pack:
         verify_assets()
-        run("dotnet", "pack", ROOT / "Fizzy.McapSharp.csproj", "-c", "Release", "-o", ROOT / "artifacts/packages")
+        run("dotnet", "pack", MANAGED_PROJECT, "-c", "Release", "-o", ROOT / "artifacts/packages")
 
 
 if __name__ == "__main__":

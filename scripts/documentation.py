@@ -15,7 +15,7 @@ import webbrowser
 import xml.etree.ElementTree as ET
 import zipfile
 
-from build import ROOT, build, output, run, version
+from build import MANAGED_PROJECT, MANAGED_OUTPUT, ROOT, build, output, run, version
 
 DOCS = ROOT / 'artifacts/docs'
 
@@ -38,9 +38,9 @@ def tree_hashes(directory):
 
 
 def translation_pairs():
-    for path in [ROOT / 'README.md', *sorted((ROOT / 'docs').glob('*.md'))]:
+    for path in [ROOT / 'README.md', *sorted((ROOT / 'docs/en').glob('*.md'))]:
         if '.zh-CN.' not in path.name:
-            yield path, path.with_name('README.zh-CN.md') if path.name == 'README.md' else path.parent / 'zh-CN' / path.name
+            yield path, path.with_name('README.zh-CN.md') if path.name == 'README.md' else ROOT / 'docs/zh-CN' / path.name
 
 
 def translation_hash(path):
@@ -65,9 +65,9 @@ def check_sources(accept=None):
         write_json(manifest, hashes)
     errors = []
     for translated in (ROOT / 'docs/zh-CN').glob('*.md'):
-        if not (ROOT / 'docs' / translated.name).exists():
+        if not (ROOT / 'docs/en' / translated.name).exists():
             errors.append(f'Orphan translation: {translated}')
-    for directory in [ROOT / 'docs', ROOT / 'docs/zh-CN']:
+    for directory in [ROOT / 'docs/en', ROOT / 'docs/zh-CN']:
         guide_pages = {p.name for p in directory.glob('*.md')}
         if not guide_pages:
             continue
@@ -85,7 +85,8 @@ def check_sources(accept=None):
         for a, b in [(source, translated), (translated, source)]:
             if os.path.relpath(b, a.parent).replace('\\', '/') not in a.read_text(encoding='utf-8'):
                 errors.append(f'Missing language switch: {a}')
-    for path in [ROOT / 'README.md', ROOT / 'README.zh-CN.md', ROOT / 'index.md', *sorted((ROOT / 'docs').rglob('*.md'))]:
+    for path in [ROOT / 'README.md', ROOT / 'README.zh-CN.md', ROOT / 'docs/index.md',
+                 *sorted((ROOT / 'docs/en').rglob('*.md')), *sorted((ROOT / 'docs/zh-CN').rglob('*.md'))]:
         if not path.exists():
             errors.append(f'Missing source page: {path}')
             continue
@@ -172,10 +173,33 @@ def extract_package(package, destination):
             raise ValueError('Documentation package identity differs from source metadata')
 
 
+def stage_site_config():
+    """Keep DocFX inputs below its config root while preserving source-relative links."""
+    config = json.loads((ROOT / 'docs/docfx.json').read_text(encoding='utf-8'))
+    staging = DOCS / 'source'
+    staging.mkdir(parents=True, exist_ok=True)
+    for kind in ('content', 'resource'):
+        for mapping in config['build'][kind]:
+            source = (ROOT / 'docs' / mapping.get('src', '.')).resolve()
+            relative = source.relative_to(ROOT)
+            for pattern in mapping['files']:
+                for path in source.glob(pattern):
+                    if path.is_file():
+                        destination = staging / path.relative_to(ROOT)
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(path, destination)
+            mapping['src'] = relative.as_posix()
+    config['build']['template'] = ['default', 'modern', str(ROOT / 'docs/template')]
+    config['build']['dest'] = str(DOCS / 'site')
+    path = staging / 'docfx.json'
+    write_json(path, config)
+    return path
+
+
 def build_docs(package=None, release_commit=None, xml_override=None, skip_browser=False):
     check_sources()
     DOCS.mkdir(parents=True, exist_ok=True)
-    for name in ['api', 'site', 'input']:
+    for name in ['api', 'site', 'input', 'source']:
         directory = DOCS / name
         if not directory.resolve().is_relative_to(ROOT.resolve() / 'artifacts'):
             raise ValueError(f'Generated output escapes repository artifacts: {directory}')
@@ -195,9 +219,9 @@ def build_docs(package=None, release_commit=None, xml_override=None, skip_browse
             shutil.copy2(xml_override, DOCS / 'input/Fizzy.McapSharp.xml')
     else:
         build()
-        run('dotnet', 'build', ROOT / 'Fizzy.McapSharp.csproj', '-c', 'Release', '--no-incremental', '-p:DocumentationStrict=true')
+        run('dotnet', 'build', MANAGED_PROJECT, '-c', 'Release', '--no-incremental', '-p:DocumentationStrict=true')
         for name in ['Fizzy.McapSharp.dll', 'Fizzy.McapSharp.xml']:
-            shutil.copy2(ROOT / 'bin/Release/net8.0' / name, DOCS / 'input' / name)
+            shutil.copy2(MANAGED_OUTPUT / name, DOCS / 'input' / name)
     xml = ET.parse(DOCS / 'input/Fizzy.McapSharp.xml')
     members = []
     for member in xml.findall('./members/member'):
@@ -205,11 +229,11 @@ def build_docs(package=None, release_commit=None, xml_override=None, skip_browse
             raise ValueError(f'Missing or duplicate XML summary: {member.attrib["name"]}')
         members.append(member.attrib['name'])
     write_json(DOCS / 'api-contracts.json', members)
-    run('dotnet', 'tool', 'restore')
+    run('dotnet', 'tool', 'restore', cwd=ROOT / 'docs')
     write_json(DOCS / 'metadata.json', {'metadata': [{'src': [{'src': str(DOCS / 'input'), 'files': ['*.dll']}], 'dest': str(DOCS / 'api'), 'disableGitFeatures': True}]})
-    run('dotnet', 'docfx', 'metadata', DOCS / 'metadata.json', '--warningsAsErrors')
+    run('dotnet', 'docfx', 'metadata', DOCS / 'metadata.json', '--warningsAsErrors', cwd=ROOT / 'docs')
     namespace_pages()
-    run('dotnet', 'docfx', 'build', ROOT / 'docfx.json', '--warningsAsErrors')
+    run('dotnet', 'docfx', 'build', stage_site_config(), '--warningsAsErrors', cwd=ROOT / 'docs')
     info = {'version': version(), 'channel': 'release' if package else 'dev', 'release_commit': release_commit or output('git', 'rev-parse', 'HEAD'),
             'docs_commit': output('git', 'rev-parse', 'HEAD'), 'tools': {'dotnet': output('dotnet', '--version'), 'docfx': '2.78.3'},
             'run_id': os.environ.get('GITHUB_RUN_ID', 'local')}
@@ -232,12 +256,12 @@ def build_docs(package=None, release_commit=None, xml_override=None, skip_browse
         report['browser'] = 'skipped (manual verification requested)'
     else:
         npm = 'npm.cmd' if os.name == 'nt' else 'npm'
-        run(npm, 'ci', '--no-audit', '--no-fund')
-        executable = output('node', '-e', "process.stdout.write(require('@playwright/test').chromium.executablePath())")
+        run(npm, 'ci', '--no-audit', '--no-fund', cwd=ROOT / 'docs')
+        executable = output('node', '-e', "process.stdout.write(require('@playwright/test').chromium.executablePath())", cwd=ROOT / 'docs')
         # Reuse the exact pinned browser when present; do not contend for another installer's lock.
         if not Path(executable).is_file():
-            run('node', ROOT / 'node_modules/@playwright/test/cli.js', 'install', 'chromium')
-        run('node', ROOT / 'scripts/Test-Browser.mjs')
+            run('node', ROOT / 'docs/node_modules/@playwright/test/cli.js', 'install', 'chromium')
+        run('node', ROOT / 'docs/tooling/Test-Browser.mjs')
         report['browser'] = 'passed'
     write_json(DOCS / 'files.json', tree_hashes(site))
     # Stable entry timestamps keep retries with identical site bytes reproducible.
@@ -267,7 +291,7 @@ def samples(package_directory=None, published=False):
         reference = f'<PackageReference Include="Fizzy.McapSharp" Version="{version()}" />'
     else:
         build()
-        reference = f'<ProjectReference Include="{ROOT / "Fizzy.McapSharp.csproj"}" />'
+        reference = f'<ProjectReference Include="{MANAGED_PROJECT}" />'
     template = project.read_text(encoding='utf-8')
     if template.count('<!-- REFERENCE -->') != 1 or template.count('<!-- END REFERENCE -->') != 1:
         raise ValueError('Trusted sample project must contain exactly one reference placeholder')

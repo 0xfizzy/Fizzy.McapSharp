@@ -1,19 +1,19 @@
 # Building, testing, and consumer integration
 
-English | [简体中文](zh-CN/development.md)
+English | [简体中文](../zh-CN/development.md)
 
 For source contributors: prepare the toolchain, build the host library, verify a complete package and choose consumer references. Application developers using NuGet should start with the [tutorial](usage.md).
 
 ## Environment and layout
 
-Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Rust 1.98.1, and a native compiler. Windows x64 uses Visual C++ MSVC build tools with the Windows SDK. Linux x64/ARM64 uses Ubuntu 22.04, GCC/build-essential and binutils; install the Rust target for the host listed below. No local VM, WSL, Docker or cross compiler is required for Windows development. See [rust-toolchain.toml](../rust-toolchain.toml) for the toolchain; `native/Cargo.lock` pins the full dependency graph.
+Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Rust 1.98.1, and a native compiler. Windows x64 uses Visual C++ MSVC build tools with the Windows SDK. Linux x64/ARM64 uses Ubuntu 22.04, GCC/build-essential and binutils; install the Rust target for the host listed below. No local VM, WSL, Docker or cross compiler is required for Windows development. See [rust-toolchain.toml](../../rust-toolchain.toml) for the toolchain; `native/Cargo.lock` pins the full dependency graph.
 
 | Path | Responsibility |
 | --- | --- |
-| `Fizzy.McapSharp.csproj` | Library project and package metadata; compiles only `src/` |
-| `src/` | Public .NET API; capability partials are named after their owning type, with separate Native interop declarations |
-| `src/McapWriterOptions.cs`, `McapMessageFilter.cs`, `McapQuery.cs`, `McapReadContracts.cs` | Writing configuration, message selection and typed read outcomes |
-| `src/McapDeclarations.cs`, `McapMessageModels.cs`, `McapDataRecords.cs`, `McapSummaryModels.cs` | Declaration, message, data-record and summary/index models; independent of reader implementations |
+| `src/Fizzy.McapSharp/Fizzy.McapSharp.csproj` | Library project and package metadata; uses SDK default compilation within its project directory |
+| `src/Fizzy.McapSharp/` | Public .NET API; capability partials are named after their owning type, with separate Native interop declarations |
+| `src/Fizzy.McapSharp/McapWriterOptions.cs`, `McapMessageFilter.cs`, `McapQuery.cs`, `McapReadContracts.cs` | Writing configuration, message selection and typed read outcomes |
+| `src/Fizzy.McapSharp/McapDeclarations.cs`, `McapMessageModels.cs`, `McapDataRecords.cs`, `McapSummaryModels.cs` | Declaration, message, data-record and summary/index models; independent of reader implementations |
 | `native/src/lib.rs`, `protocol.rs` | Shared ABI/error boundaries and named wire-protocol values |
 | `native/src/reader.rs`, `writer.rs`, `summary.rs`, `io.rs` | File/Stream read sessions and queries, writer state, summary serialization and source/callback I/O |
 | `native/src/engine.rs`, `snapshot.rs`, `prepared_write.rs`, `record_access.rs` | Sans-I/O engines, independent indexed snapshots, prepared writing and raw-record utilities |
@@ -45,7 +45,7 @@ Linux uses `python scripts/build.py build --test`. Use `python scripts/build.py 
 
 The build script runs `cargo build --release --locked --target <target>` before managed Release builds. Native outputs are isolated in `native/target/<target>/release/` and staged in `artifacts/native/<rid>/` with a manifest recording the commit, source fingerprint, target and binary hash. `-Test` runs build/packaging regression checks and xUnit; the default builds only the host platform. No script installs tools.
 
-Public API XML documentation is required by the CS1591 build gate. Keep units, ownership, supported modes and failure behavior on the relevant members. Private protocol constants in `src/Native.Protocol.cs` and `native/src/protocol.rs` are checked together by the Python test suite; keep operation and status domains separate even when numeric values coincide.
+Public API XML documentation is required by the CS1591 build gate. Keep units, ownership, supported modes and failure behavior on the relevant members. Private protocol constants in `src/Fizzy.McapSharp/Native.Protocol.cs` and `native/src/protocol.rs` are checked together by the Python test suite; keep operation and status domains separate even when numeric values coincide.
 
 Linux builds audit ELF architecture, dynamic dependencies and required GLIBC versions (at most 2.35), and reject external compression libraries and embedded search paths. CPU-specific Rust flags are rejected. Linux ARM64 builds and tests run on native ARM64 runners. macOS, musl, Ubuntu 20.04, Windows ARM64, 32-bit, NativeAOT and single-file publishing are outside the validation matrix.
 
@@ -73,7 +73,7 @@ The reusable validation workflow builds and runs xUnit plus Python interoperabil
 
 PRs, pushes to `main`, and manual dispatch run this workflow. Superseded builds on the same PR/ref are cancelled. Intermediate artifacts expire after one day; only packages passing every job are retained for seven days. Cargo caches are separated by OS, architecture, toolchain, lockfile and native source. Standard hosted runners are used; no paid larger runners or additional cache quota are configured. Public-repository runner time is free under GitHub's current rules; storage remains subject to account allowances.
 
-The manual publish workflow runs the same validation and passes the identical verified package to its protected publishing job without repacking. It persists the package and matching documentation before publication, then separately validates the public NuGet package on three RIDs and deploys the version archive. Resume reuses the original verified candidate. Follow the [release SOP](release.md) and maintainer rules in [AGENTS.md](../AGENTS.md#publishing). Ordinary build CI still validates a local candidate, not NuGet.org availability.
+The manual publish workflow runs the same validation and passes the identical verified package to its protected publishing job without repacking. It persists the package and matching documentation before publication, then separately validates the public NuGet package on three RIDs and deploys the version archive. Resume reuses the original verified candidate. Follow the [release SOP](release.md) and maintainer rules in [AGENTS.md](../../AGENTS.md#publishing). Ordinary build CI still validates a local candidate, not NuGet.org availability.
 
 ## Consumer integration
 

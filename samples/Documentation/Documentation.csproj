@@ -6,6 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <!-- REFERENCE --><ProjectReference Include="../../Fizzy.McapSharp.csproj" /><!-- END REFERENCE -->
+    <!-- REFERENCE --><ProjectReference Include="../../src/Fizzy.McapSharp/Fizzy.McapSharp.csproj" /><!-- END REFERENCE -->
   </ItemGroup>
 </Project>

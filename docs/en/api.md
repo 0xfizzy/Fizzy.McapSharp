@@ -1,6 +1,6 @@
 # API, lifetime, and data ownership
 
-English | [简体中文](zh-CN/api.md)
+English | [简体中文](../zh-CN/api.md)
 
 This is the cross-API contract reference for defaults, ownership, failure and validation boundaries. Start with the [tutorial](usage.md) for first use; consult [queries](queries.md), [message ownership](ownership.md), [Streams and async](streams-async.md) or [Sans-I/O](sans-io.md) for task-oriented guidance.
 

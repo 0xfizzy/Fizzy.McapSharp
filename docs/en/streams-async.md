@@ -1,6 +1,6 @@
 # Streams and asynchronous reading
 
-English | [简体中文](zh-CN/streams-async.md)
+English | [简体中文](../zh-CN/streams-async.md)
 
 For applications that already own a Stream or need asynchronous input. The examples use the `path` from the [tutorial](usage.md). Keep Stream ownership separate from the [ownership of delivered messages](ownership.md).
 
@@ -52,4 +52,4 @@ Explicit cleanup failures are observable. Do not treat an exception as proof tha
 
 Next, use [Sans-I/O](sans-io.md) only if the application needs to drive I/O itself; otherwise consult [API contracts](api.md) for the selected reader.
 
-These snippets run in the [reading examples](../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.
+These snippets run in the [reading examples](../../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.

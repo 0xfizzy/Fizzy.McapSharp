@@ -41,6 +41,12 @@ class ArtifactChecks(unittest.TestCase):
         with patch.object(build, "ROOT", self.root), patch.object(build, "source_identity", return_value=self.identity):
             build.verify_assets()
 
+    def test_version_uses_managed_project_metadata(self):
+        import xml.etree.ElementTree as ET
+        expected = ET.parse(build.MANAGED_PROJECT).findtext('./PropertyGroup/Version')
+        self.assertEqual(expected, build.version())
+        self.assertEqual(build.ROOT / 'src/Fizzy.McapSharp/Fizzy.McapSharp.csproj', build.MANAGED_PROJECT)
+
     def test_matching_assets(self):
         self.stage()
         self.verify()

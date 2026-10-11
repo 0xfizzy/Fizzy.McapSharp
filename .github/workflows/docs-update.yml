@@ -87,16 +87,19 @@ jobs:
           if ($env:DOC_SOURCE -notmatch '^[a-f0-9]{40}$') { throw 'Full source SHA required' }
           New-Item -ItemType Directory -Force artifacts/trusted-tools | Out-Null
           Copy-Item scripts artifacts/trusted-tools/scripts -Recurse
-          Copy-Item docfx.json,package.json,package-lock.json artifacts/trusted-tools/
+          Copy-Item docs/docfx.json,docs/package.json,docs/package-lock.json artifacts/trusted-tools/
+          Copy-Item docs/tooling artifacts/trusted-tools/tooling -Recurse
           Copy-Item samples/Documentation/Documentation.csproj artifacts/trusted-tools/Documentation.csproj
-          Copy-Item .config artifacts/trusted-tools/.config -Recurse
+          Copy-Item docs/.config artifacts/trusted-tools/.config -Recurse
           git fetch origin $env:DOC_SOURCE
           if ($LASTEXITCODE) { throw 'Source fetch failed' }
           git checkout --detach $env:DOC_SOURCE
           if ($LASTEXITCODE) { throw 'Source checkout failed' }
+          New-Item -ItemType Directory -Force docs/.config,docs/tooling | Out-Null
+          Copy-Item artifacts/trusted-tools/tooling/* docs/tooling/ -Recurse -Force
           Copy-Item artifacts/trusted-tools/scripts/* scripts/ -Recurse -Force
-          Copy-Item artifacts/trusted-tools/docfx.json,artifacts/trusted-tools/package.json,artifacts/trusted-tools/package-lock.json ./ -Force
-          Copy-Item artifacts/trusted-tools/.config/* .config/ -Recurse -Force
+          Copy-Item artifacts/trusted-tools/docfx.json,artifacts/trusted-tools/package.json,artifacts/trusted-tools/package-lock.json docs/ -Force
+          Copy-Item artifacts/trusted-tools/.config/* docs/.config/ -Recurse -Force
           Copy-Item artifacts/trusted-tools/Documentation.csproj samples/Documentation/Documentation.csproj -Force
           python scripts/release.py update --tag $env:RELEASE_TAG
           if ($LASTEXITCODE) { throw 'Update validation failed' }

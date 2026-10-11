@@ -1,8 +1,8 @@
 # Drive Sans-I/O yourself
 
-English | [简体中文](zh-CN/sans-io.md)
+English | [简体中文](../zh-CN/sans-io.md)
 
-Use these protocols only when the application must perform I/O itself. The [runnable source](../samples/Documentation/SansIoExamples.cs) executes all three loops. The helpers below assume a complete MCAP begins at source position zero; for a prefixed source, translate physical positions to/from that origin. The sample expects two messages. No loop establishes full-file validation merely by reaching `End`.
+Use these protocols only when the application must perform I/O itself. The [runnable source](../../samples/Documentation/SansIoExamples.cs) executes all three loops. The helpers below assume a complete MCAP begins at source position zero; for a prefixed source, translate physical positions to/from that origin. The sample expects two messages. No loop establishes full-file validation merely by reaching `End`.
 
 Respond to the pending request before asking for another event. `SupplyInput` accepts short reads and treats empty input as EOF; it only responds to `Read`. `InsertChunkData` requires the entire requested compressed-data range, excluding the Chunk header, so complete short reads before calling. `BufferTooSmall` retains output for retry. Wrong responses and parsing failures terminate the parser; dispose it rather than retrying arbitrary failures.
 

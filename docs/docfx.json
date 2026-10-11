@@ -1,0 +1,77 @@
+{
+  "build": {
+    "content": [
+      {
+        "src": ".",
+        "files": [
+          "index.md",
+          "toc.yml"
+        ],
+        "dest": "."
+      },
+      {
+        "src": "en",
+        "files": [
+          "**/*.md",
+          "**/toc.yml"
+        ],
+        "dest": "docs"
+      },
+      {
+        "src": "zh-CN",
+        "files": [
+          "**/*.md",
+          "**/toc.yml"
+        ],
+        "dest": "docs/zh-CN"
+      },
+      {
+        "src": "..",
+        "files": [
+          "README*.md",
+          "AGENTS.md",
+          "THIRD-PARTY-NOTICES.md"
+        ],
+        "dest": "."
+      },
+      {
+        "src": "../artifacts/docs/api",
+        "files": [
+          "**/*.yml"
+        ],
+        "dest": "api"
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "samples/Documentation/*.cs",
+          "samples/Documentation/*.csproj",
+          "docs/api-coverage.json",
+          "docs/translations.json",
+          "assets/*",
+          "LICENSE",
+          "src/Fizzy.McapSharp/*.cs",
+          "native/src/*.rs",
+          "native/Cargo.toml",
+          "rust-toolchain.toml",
+          "docs/upstream-api.json"
+        ],
+        "src": "..",
+        "dest": "."
+      }
+    ],
+    "dest": "../artifacts/docs/site",
+    "template": [
+      "default",
+      "modern",
+      "template"
+    ],
+    "globalMetadata": {
+      "_appTitle": "Fizzy.McapSharp",
+      "_enableSearch": true,
+      "_disableContribution": true
+    },
+    "disableGitFeatures": true
+  }
+}

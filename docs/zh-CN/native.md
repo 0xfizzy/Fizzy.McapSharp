@@ -1,10 +1,10 @@
 # 原生 ABI 与内存边界
 
-[English](../native.md) | 简体中文
+[English](../en/native.md) | 简体中文
 
 面向维护原生互操作层的贡献者：本页定义私有 ABI、数据布局、所有权及错误边界。应用开发者通常只需 [API 契约](api.md)。
 
-.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../../native/src/lib.rs) 负责共享 ABI／错误边界，[reader.rs](../../native/src/reader.rs) 和 [writer.rs](../../native/src/writer.rs) 实现会话操作，[io.rs](../../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../../src/Native.cs) 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
+.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../../native/src/lib.rs) 负责共享 ABI／错误边界，[reader.rs](../../native/src/reader.rs) 和 [writer.rs](../../native/src/writer.rs) 实现会话操作，[io.rs](../../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../../src/Fizzy.McapSharp/Native.cs) 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
 
 ## ABI 契约
 

@@ -1,6 +1,6 @@
 # Release and recovery SOP
 
-[简体中文](zh-CN/release.md)
+[简体中文](../zh-CN/release.md)
 
 For maintainers authorized to release: configure publication, publish packages, update versioned documentation and recover failed deployments. See [development](development.md) for source builds; these commands do not grant publication authorization.
 

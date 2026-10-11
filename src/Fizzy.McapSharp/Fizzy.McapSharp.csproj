@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <EnableDefaultItems>false</EnableDefaultItems>
+    <RepositoryRoot>$(MSBuildThisFileDirectory)../../</RepositoryRoot>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -17,15 +17,14 @@
     <WarningsAsErrors Condition="'$(DocumentationStrict)' == 'true'">$(WarningsAsErrors);1570;1572;1573;1574;1580;1581;1584;1658</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="src/**/*.cs" Exclude="src/**/bin/**;src/**/obj/**" />
-    <None Include="README.md" Pack="true" PackagePath="/" />
-    <None Include="assets/icon.png" Pack="true" PackagePath="/" />
-    <None Include="assets/MCAP-LICENSE.txt" Pack="true" PackagePath="/" />
-    <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+    <None Include="$(RepositoryRoot)README.md" Pack="true" PackagePath="/" />
+    <None Include="$(RepositoryRoot)assets/icon.png" Pack="true" PackagePath="/" />
+    <None Include="$(RepositoryRoot)assets/MCAP-LICENSE.txt" Pack="true" PackagePath="/" />
+    <None Include="$(RepositoryRoot)THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
     <InternalsVisibleTo Include="Fizzy.McapSharp.Tests" />
-    <NativeAsset Include="$(MSBuildThisFileDirectory)artifacts/native/win-x64/fizzy_mcap_native.dll" Rid="win-x64" PackagePath="runtimes/win-x64/native" />
-    <NativeAsset Include="$(MSBuildThisFileDirectory)artifacts/native/linux-x64/libfizzy_mcap_native.so" Rid="linux-x64" PackagePath="runtimes/linux-x64/native" />
-    <NativeAsset Include="$(MSBuildThisFileDirectory)artifacts/native/linux-arm64/libfizzy_mcap_native.so" Rid="linux-arm64" PackagePath="runtimes/linux-arm64/native" />
+    <NativeAsset Include="$(RepositoryRoot)artifacts/native/win-x64/fizzy_mcap_native.dll" Rid="win-x64" PackagePath="runtimes/win-x64/native" />
+    <NativeAsset Include="$(RepositoryRoot)artifacts/native/linux-x64/libfizzy_mcap_native.so" Rid="linux-x64" PackagePath="runtimes/linux-x64/native" />
+    <NativeAsset Include="$(RepositoryRoot)artifacts/native/linux-arm64/libfizzy_mcap_native.so" Rid="linux-arm64" PackagePath="runtimes/linux-arm64/native" />
     <None Include="@(NativeAsset)" Pack="true" />
   </ItemGroup>
   <PropertyGroup>
@@ -38,6 +37,6 @@
   </ItemGroup>
   <Target Name="RequireNativeForPackage" BeforeTargets="GenerateNuspec">
     <Error Condition="!Exists('%(NativeAsset.Identity)')" Text="Missing %(NativeAsset.Rid) native asset. Collect all three assets from the same commit before packing." />
-    <Exec Command="python &quot;$(MSBuildThisFileDirectory)scripts/build.py&quot; verify-assets" />
+    <Exec Command="python &quot;$(RepositoryRoot)scripts/build.py&quot; verify-assets" />
   </Target>
 </Project>

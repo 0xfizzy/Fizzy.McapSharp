@@ -1,14 +1,16 @@
 # 文档构建与维护
 
-[English](../documentation.md) | 简体中文
+[English](../en/documentation.md) | 简体中文
 
 面向文档贡献者：本页说明构建、翻译审阅、示例验证及站点检查。读者入口和专题分层见[文档首页](index.md)。
 
 成员契约放在英文 XML 注释中，跨 API 契约维护在 [api.md](api.md)，任务流程放在[使用指南](usage.md)。对照实现审阅约束、单位、所有权、取消、失败及清理；XML 覆盖不等于语义正确。
 
+双语站点入口和总导航位于 `docs/index.md` 与 `docs/toc.yml`。英文指南位于 `docs/en/`，中文指南位于 `docs/zh-CN/`。DocFX、npm 配置与本地 .NET 工具清单位于 `docs/`，脚本从该目录运行这些工具。构建将选定输入暂存到 `artifacts/docs/source/`，使 DocFX 能在配置根目录下解析仓库资源；生成产物仍写入仓库根目录的 `artifacts/`。已发布指南的 URL 保持不变。
+
 ## 本地流程
 
-使用 Python 3.12、PowerShell 7、Node.js 22、.NET 8 SDK、固定 Rust 工具链和[开发指南](development.md)指定的本机编译器。DocFX 由本地工具清单固定版本，`dotnet tool restore` 只恢复该工具，不安装全局工具。
+使用 Python 3.12、PowerShell 7、Node.js 22、.NET 8 SDK、固定 Rust 工具链和[开发指南](development.md)指定的本机编译器。DocFX 由本地工具清单固定版本，`dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json` 只恢复该工具，不安装全局工具。
 
 ```powershell
 ./scripts/Test-Documentation.ps1
@@ -25,10 +27,10 @@ Build-Docs 先构建 native Release，再构建 managed Release、检查 XML、�
 
 ## 翻译与变更
 
-英文指南位于 `docs/`，同名中文指南位于 `docs/zh-CN/`，分别维护导航和语言切换链接；根 README 对应 `README.zh-CN.md`。人工复核译文后显式接受英文更新：
+英文指南位于 `docs/en/`，同名中文指南位于 `docs/zh-CN/`，分别维护导航和语言切换链接；根 README 对应 `README.zh-CN.md`。人工复核译文后显式接受英文更新：
 
 ```powershell
-./scripts/Test-Documentation.ps1 -AcceptTranslation docs/usage.md
+./scripts/Test-Documentation.ps1 -AcceptTranslation docs/en/usage.md
 ```
 
 规范化源文件哈希记录复核状态，不衡量翻译质量；不得未经复核就接受哈希。双语页面共用示例源码和英文 API 参考。

@@ -11,7 +11,7 @@ def snake(name):
 
 
 def managed_protocol():
-    source = (ROOT / "src/Native.Protocol.cs").read_text(encoding="utf-8")
+    source = (ROOT / "src/Fizzy.McapSharp/Native.Protocol.cs").read_text(encoding="utf-8")
     return {
         snake(domain): {
             snake(name).upper(): ("i32" if kind == "int" else "u32", int(value))
@@ -48,7 +48,7 @@ class ProtocolContracts(unittest.TestCase):
             ("SansIoReaderCore.cs", "McapReadEventKind", "engine_event"),
         ]:
             with self.subTest(public=public):
-                source = (ROOT / "src" / path).read_text(encoding="utf-8")
+                source = (ROOT / "src/Fizzy.McapSharp" / path).read_text(encoding="utf-8")
                 body = re.search(r"internal enum " + public + r"\s*\{([^}]+)\}", source)[1]
                 body = re.sub(r"//[^\n]*", "", body)
                 values = {}

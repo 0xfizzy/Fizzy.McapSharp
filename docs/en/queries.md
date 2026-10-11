@@ -1,6 +1,6 @@
 # Queries and random access
 
-English | [简体中文](zh-CN/queries.md)
+English | [简体中文](../zh-CN/queries.md)
 
 For applications that need filtering, time ordering or partial file access after the [basic tutorial](usage.md). Choose the order and validation scope first, then choose how results are delivered. The examples use the tutorial's `path`.
 
@@ -67,4 +67,4 @@ Individual seeks can load and validate a complete chunk. Prepared indexes reduce
 
 Next, choose [message ownership](ownership.md) independently of access order. Use [API contracts](api.md#validation-and-recovery) to decide whether a separate full-file validation is required.
 
-These snippets run in the [reading examples](../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.
+These snippets run in the [reading examples](../../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.

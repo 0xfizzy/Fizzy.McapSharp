@@ -1,6 +1,6 @@
 # Fizzy.McapSharp 文档
 
-[English](../index.md) · [GitHub 仓库](https://github.com/0xfizzy/Fizzy.McapSharp)
+[English](../en/index.md) · [GitHub 仓库](https://github.com/0xfizzy/Fizzy.McapSharp)
 
 Fizzy.McapSharp 为 .NET 8 提供 MCAP 文件读写。载荷编码和时钟基准由应用决定。按当前任务选择入口，无需先了解 Rust 或原生 ABI。
 

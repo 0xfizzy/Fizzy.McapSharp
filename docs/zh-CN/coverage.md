@@ -1,6 +1,6 @@
 # 官方 Rust API 覆盖
 
-[English](../coverage.md) | 简体中文
+[English](../en/coverage.md) | 简体中文
 
 本文用于查找官方 Rust 能力的 .NET 入口并理解适配差异。基线是 [Cargo.toml](../../native/Cargo.toml) 锁定的 `mcap` 依赖。所有权、分配和使用方式的选择见 [API 指南](api.md#选择消息所有权)。
 
@@ -18,7 +18,7 @@
 
 ## 写入（`writing`）
 
-托管入口位于 [McapWriter](../../src/McapWriter.cs) 及其 partial 实现。
+托管入口位于 [McapWriter](../../src/Fizzy.McapSharp/McapWriter.cs) 及其 partial 实现。
 
 | 官方 Rust API | .NET 入口 | 映射 | 关键差异或约束 |
 | --- | --- | --- | --- |
@@ -54,7 +54,7 @@
 | `Summary::read_message_indexes` | `ReadMessageIndexes` | 适配 | 调用方缓冲形式使用 18 字节打包行 |
 | `read::attachment`、`read::metadata` | `ReadAttachment`、`ReadMetadata` | 适配 | 使用调用方提供的索引并验证源范围 |
 
-入口见 [McapIndexedReader](../../src/McapIndexedReader.cs)。Prepared index、分组 seek 和缓存保留属于绑定扩展，不是新增官方方法；复用范围见[随机访问](api.md#完整-chunk-随机访问)。索引读取成功不代表完整文件校验。
+入口见 [McapIndexedReader](../../src/Fizzy.McapSharp/McapIndexedReader.cs)。Prepared index、分组 seek 和缓存保留属于绑定扩展，不是新增官方方法；复用范围见[随机访问](api.md#完整-chunk-随机访问)。索引读取成功不代表完整文件校验。
 
 ## Sans-I/O（`sans-io`）
 
@@ -64,7 +64,7 @@
 | `sans_io::SummaryReader`、选项及事件 | `McapSansIoSummaryReader`、`McapSummaryReaderOptions`、输入／定位通知及摘要访问 | 适配 | 调用方驱动 I/O；完成后摘要可用于索引读取 |
 | `sans_io::IndexedReader`、选项、事件及 `ReadOrder` | `McapSansIoSummaryReader.CreateIndexed`、`McapIndexedQuery`、`McapReadOrder`、索引控制操作 | 适配 | 直接索引引擎要求索引，不进行扫描排序回退 |
 
-具体事件与控制项见 [SansIoReaderCore.cs](../../src/SansIoReaderCore.cs) 及符号清单。可选 CRC 检查默认遵循上游配置。共享事件和直接填充所有权扩展在下文单列。
+具体事件与控制项见 [SansIoReaderCore.cs](../../src/Fizzy.McapSharp/SansIoReaderCore.cs) 及符号清单。可选 CRC 检查默认遵循上游配置。共享事件和直接填充所有权扩展在下文单列。
 
 ## 记录、工具与错误（`records-and-errors`）
 
@@ -82,7 +82,7 @@
 | 可选 `tokio::LinearReader`（`async`） | `McapAsyncRecordReader.ReadNextRecordAsync` | 替代 | .NET 异步 I/O 驱动官方 Sans-I/O，不调用 Tokio 本身；取消和挂起遵循托管契约 |
 | `sans_io::Decompressor`、`DecompressResult`（`unexposed`） | 无 | 未暴露 | 上游没有自定义解压器注册入口；未实现该 trait 的托管版本 |
 
-功能替代不代表移植特定运行时接口。实现见[异步 reader](../../src/McapAsyncRecordReader.cs)。
+功能替代不代表移植特定运行时接口。实现见[异步 reader](../../src/Fizzy.McapSharp/McapAsyncRecordReader.cs)。
 
 McapAsyncMessageReader 在线性引擎上提供消息 lease，属于绑定能力。两种异步展开 reader 均在消费当前操作后，通过 GetChannelDescription 和 GetSchemaDescription 查询已遇到的不可变声明，不增加上游 API 或补丁。
 

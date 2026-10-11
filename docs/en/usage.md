@@ -1,6 +1,6 @@
 # Getting started: your first recording
 
-English | [简体中文](zh-CN/usage.md)
+English | [简体中文](../zh-CN/usage.md)
 
 For .NET developers using the NuGet package. Create a project, write, read, filter and optionally validate a recording without cloning this repository or installing Rust. Use the .NET 8 SDK on Windows x64 or supported glibc Linux x64/ARM64.
 
@@ -86,4 +86,4 @@ Append `File.Delete(path);` after all operations to remove the example file. App
 
 ## Run repository examples
 
-The [tutorial source](../samples/Documentation/QuickStartExamples.cs) verifies these results and removes its temporary file; the [complete example](../samples/Documentation/Program.cs) also covers advanced reading paths. Source contributors can run `./scripts/Test-Samples.ps1` from the repository root to build the native host library and validate current source. Use `./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages` for an already verified complete package; that is not public NuGet package validation. See [development](development.md) for setup.
+The [tutorial source](../../samples/Documentation/QuickStartExamples.cs) verifies these results and removes its temporary file; the [complete example](../../samples/Documentation/Program.cs) also covers advanced reading paths. Source contributors can run `./scripts/Test-Samples.ps1` from the repository root to build the native host library and validate current source. Use `./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages` for an already verified complete package; that is not public NuGet package validation. See [development](development.md) for setup.
