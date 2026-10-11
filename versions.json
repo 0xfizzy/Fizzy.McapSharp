@@ -1,6 +1,11 @@
 {
   "schema": 2,
-  "latest": null,
+  "latest": "0.2.0",
   "dev": true,
-  "entries": []
+  "entries": [
+    {
+      "version": "0.2.0",
+      "completed": true
+    }
+  ]
 }
