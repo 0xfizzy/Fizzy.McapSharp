@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Class McapReaderFactory | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class McapReaderFactory | Fizzy.McapSharp ">
+      
+      <meta name="description" content="Reusable reader factory with instance methods for a file path and static methods for Streams; construction validates the path but does not open the file. This factory owns no disposable resources. Each opened session or enumeration owns an independent native reader and its input.">
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Fizzy.McapSharp.McapReaderFactory">
+
+
+
+  <h1 id="Fizzy_McapSharp_McapReaderFactory" data-uid="Fizzy.McapSharp.McapReaderFactory" class="text-break">
+Class McapReaderFactory  
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Fizzy.html">Fizzy</a>.<a class="xref" href="Fizzy.McapSharp.html">McapSharp</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Fizzy.McapSharp.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Reusable reader factory with instance methods for a file path and static methods for Streams; construction validates the path but does not open the file. This factory owns no disposable resources. Each opened session or enumeration owns an independent native reader and its input.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class McapReaderFactory</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">McapReaderFactory</span></div>
+    </dd>
+  </dl>
+
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="constructors">Constructors
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory__ctor_" data-uid="Fizzy.McapSharp.McapReaderFactory.#ctor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory__ctor_System_String_" data-uid="Fizzy.McapSharp.McapReaderFactory.#ctor(System.String)">
+  McapReaderFactory(string)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Creates a reusable factory for an absolute-normalized path without opening the input file.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapReaderFactory(string path)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>path</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_CreateCopiedIndexedReader_" data-uid="Fizzy.McapSharp.McapReaderFactory.CreateCopiedIndexedReader*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_CreateCopiedIndexedReader_Fizzy_McapSharp_McapIndexedReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.CreateCopiedIndexedReader(Fizzy.McapSharp.McapIndexedReaderOptions)">
+  CreateCopiedIndexedReader(McapIndexedReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the complete file into an independent indexed reader; dispose the returned reader. Cache allowance excludes input storage.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapIndexedReader CreateCopiedIndexedReader(McapIndexedReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapIndexedReaderOptions.html">McapIndexedReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapIndexedReader.html">McapIndexedReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_CreateCopiedIndexedReader_" data-uid="Fizzy.McapSharp.McapReaderFactory.CreateCopiedIndexedReader*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_CreateCopiedIndexedReader_System_IO_Stream_Fizzy_McapSharp_McapIndexedReaderOptions_System_Boolean_" data-uid="Fizzy.McapSharp.McapReaderFactory.CreateCopiedIndexedReader(System.IO.Stream,Fizzy.McapSharp.McapIndexedReaderOptions,System.Boolean)">
+  CreateCopiedIndexedReader(Stream, McapIndexedReaderOptions?, bool)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Copies the complete seekable source from its initial MCAP position into an independent indexed reader; dispose the returned reader. Owns the Stream unless leaveOpen is true. Copy and cleanup failures are reported.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapIndexedReader CreateCopiedIndexedReader(Stream stream, McapIndexedReaderOptions? options = null, bool leaveOpen = false)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapIndexedReaderOptions.html">McapIndexedReaderOptions</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapIndexedReader.html">McapIndexedReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_GetSummary_" data-uid="Fizzy.McapSharp.McapReaderFactory.GetSummary*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_GetSummary" data-uid="Fizzy.McapSharp.McapReaderFactory.GetSummary">
+  GetSummary()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Reads an independent summary snapshot, or null if absent. Successful summary access does not validate the entire file.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapSummary? GetSummary()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSummary.html">McapSummary</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_GetSummary_" data-uid="Fizzy.McapSharp.McapReaderFactory.GetSummary*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_GetSummary_System_IO_Stream_System_Boolean_" data-uid="Fizzy.McapSharp.McapReaderFactory.GetSummary(System.IO.Stream,System.Boolean)">
+  GetSummary(Stream, bool)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Reads an independent summary. Seekable input uses random access; non-seekable input is scanned to EOF. Owns the Stream unless leaveOpen is true; success alone does not establish full-file validation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapSummary? GetSummary(Stream stream, bool leaveOpen = false)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapSummary.html">McapSummary</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenIndexedMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenIndexedMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenIndexedMessages_Fizzy_McapSharp_McapIndexedQuery_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenIndexedMessages(Fizzy.McapSharp.McapIndexedQuery)">
+  OpenIndexedMessages(McapIndexedQuery?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens indexed messages without scan or buffered-sort fallback. ValidationCapability is PartialInput; success is not full-file validation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMessageReader OpenIndexedMessages(McapIndexedQuery? query = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>query</code> <a class="xref" href="Fizzy.McapSharp.McapIndexedQuery.html">McapIndexedQuery</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageReader.html">McapMessageReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenLinear_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenLinear*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenLinear_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenLinear(Fizzy.McapSharp.McapReaderOptions)">
+  OpenLinear(McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens top-level records without expanding chunks. Does not validate declarations inside chunks.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapLinearReader OpenLinear(McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapLinearReader.html">McapLinearReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenLinear_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenLinear*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenLinear_System_IO_Stream_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenLinear(System.IO.Stream,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  OpenLinear(Stream, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens top-level Stream records without expanding chunks. Owns the Stream unless leaveOpen is true.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapLinearReader OpenLinear(Stream stream, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapLinearReader.html">McapLinearReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenMessages_Fizzy_McapSharp_McapMessageFilter_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenMessages(Fizzy.McapSharp.McapMessageFilter,Fizzy.McapSharp.McapReaderOptions)">
+  OpenMessages(McapMessageFilter?, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens independent file-order message reading with FullScan scope, or StrictFullScan when strict options are supplied. Filtering does not narrow validation. Dispose the reader to release its input.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMessageReader OpenMessages(McapMessageFilter? filter = null, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>filter</code> <a class="xref" href="Fizzy.McapSharp.McapMessageFilter.html">McapMessageFilter</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageReader.html">McapMessageReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenMessages_System_IO_Stream_Fizzy_McapSharp_McapMessageFilter_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenMessages(System.IO.Stream,Fizzy.McapSharp.McapMessageFilter,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  OpenMessages(Stream, McapMessageFilter?, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens file-order messages over a readable Stream with FullScan scope, or StrictFullScan under strict options. Filtering does not narrow validation. Owns the Stream unless leaveOpen is true.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapMessageReader OpenMessages(Stream stream, McapMessageFilter? filter = null, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>filter</code> <a class="xref" href="Fizzy.McapSharp.McapMessageFilter.html">McapMessageFilter</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageReader.html">McapMessageReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenRecordAccessor_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecordAccessor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenRecordAccessor_System_IO_Stream_System_Boolean_System_Nullable_System_UInt64__" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecordAccessor(System.IO.Stream,System.Boolean,System.Nullable{System.UInt64})">
+  OpenRecordAccessor(Stream, bool, ulong?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens raw-record random access over a readable, seekable Stream. Owns the Stream unless leaveOpen is true; offsets start at its initial position.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapRecordAccessor OpenRecordAccessor(Stream stream, bool leaveOpen = false, ulong? recordLengthLimit = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>recordLengthLimit</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a>?</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapRecordAccessor.html">McapRecordAccessor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenRecordAccessor_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecordAccessor*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenRecordAccessor_System_Nullable_System_UInt64__" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecordAccessor(System.Nullable{System.UInt64})">
+  OpenRecordAccessor(ulong?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens raw-record random access without copying the complete file. Dispose the reader to release its input.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapRecordAccessor OpenRecordAccessor(ulong? recordLengthLimit = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>recordLengthLimit</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a>?</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapRecordAccessor.html">McapRecordAccessor</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenRecords_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecords*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenRecords_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecords(Fizzy.McapSharp.McapReaderOptions)">
+  OpenRecords(McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens expanded file records with declaration-reference validation independently of CRC options. ValidationCapability is FullScan, or StrictFullScan with strict options.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapChunkFlattener OpenRecords(McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapChunkFlattener.html">McapChunkFlattener</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_OpenRecords_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecords*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_OpenRecords_System_IO_Stream_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.OpenRecords(System.IO.Stream,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  OpenRecords(Stream, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens expanded records with FullScan scope, or StrictFullScan under strict options. Owns the Stream unless leaveOpen is true.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapChunkFlattener OpenRecords(Stream stream, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapChunkFlattener.html">McapChunkFlattener</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_QueryMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.QueryMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_QueryMessages_Fizzy_McapSharp_McapQuery_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.QueryMessages(Fizzy.McapSharp.McapQuery,Fizzy.McapSharp.McapReaderOptions)">
+  QueryMessages(McapQuery?, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Executes an explicit ordered query using indexes where possible. Buffered fallback follows the query policy; omitted and empty queries default to ascending log time. ValidationCapability reports the actual execution path; indexed and sorted results are PartialInput.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapMessageReader QueryMessages(McapQuery? query = null, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>query</code> <a class="xref" href="Fizzy.McapSharp.McapQuery.html">McapQuery</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageReader.html">McapMessageReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_QueryMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.QueryMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_QueryMessages_System_IO_Stream_Fizzy_McapSharp_McapQuery_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.QueryMessages(System.IO.Stream,Fizzy.McapSharp.McapQuery,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  QueryMessages(Stream, McapQuery?, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Executes an explicit ordered query over a Stream. Owns the Stream unless leaveOpen is true; fallback sorting may consume and retain all selected messages before returning. Indexed and sorted results have PartialInput validation capability.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapMessageReader QueryMessages(Stream stream, McapQuery? query = null, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>query</code> <a class="xref" href="Fizzy.McapSharp.McapQuery.html">McapQuery</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapMessageReader.html">McapMessageReader</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadAttachments_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadAttachments*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadAttachments" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadAttachments">
+  ReadAttachments()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent scan and returns attachments with independent payload arrays.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapAttachment&gt; ReadAttachments()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapAttachment.html">McapAttachment</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadAttachments_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadAttachments*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadAttachments_System_IO_Stream_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadAttachments(System.IO.Stream,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  ReadAttachments(Stream, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Scans a Stream and yields independent owned results. Enumeration owns the session and Stream unless leaveOpen is true; skipped records are not copied into managed objects.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;McapAttachment&gt; ReadAttachments(Stream stream, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapAttachment.html">McapAttachment</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadChannels_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadChannels*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadChannels" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadChannels">
+  ReadChannels()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent scan and copies each channel and its schema once per ID.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapChannel&gt; ReadChannels()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadChannels_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadChannels*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadChannels_System_IO_Stream_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadChannels(System.IO.Stream,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  ReadChannels(Stream, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Scans a Stream and yields independent owned results. Enumeration owns the session and Stream unless leaveOpen is true; skipped records are not copied into managed objects.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;McapChannel&gt; ReadChannels(Stream stream, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapChannel.html">McapChannel</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadMessages_Fizzy_McapSharp_McapMessageFilter_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadMessages(Fizzy.McapSharp.McapMessageFilter)">
+  ReadMessages(McapMessageFilter?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Returns independent mutable results, copying payloads and mutable declarations.
+Use caller-buffer, visitor or lease delivery when independent result objects are not needed.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapMessage&gt; ReadMessages(McapMessageFilter? filter = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>filter</code> <a class="xref" href="Fizzy.McapSharp.McapMessageFilter.html">McapMessageFilter</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadMetadata_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadMetadata*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadMetadata" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadMetadata">
+  ReadMetadata()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent scan and returns owned metadata records.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapMetadata&gt; ReadMetadata()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMetadata.html">McapMetadata</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadMetadata_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadMetadata*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadMetadata_System_IO_Stream_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadMetadata(System.IO.Stream,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  ReadMetadata(Stream, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Scans a Stream and yields independent owned results. Enumeration owns the session and Stream unless leaveOpen is true; skipped records are not copied into managed objects.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;McapMetadata&gt; ReadMetadata(Stream stream, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMetadata.html">McapMetadata</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadQueryMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadQueryMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadQueryMessages_Fizzy_McapSharp_McapQuery_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadQueryMessages(Fizzy.McapSharp.McapQuery)">
+  ReadQueryMessages(McapQuery?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Enumerates independent owned messages from an explicit ordered query. Enumeration owns and disposes its reader.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapMessage&gt; ReadQueryMessages(McapQuery? query = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>query</code> <a class="xref" href="Fizzy.McapSharp.McapQuery.html">McapQuery</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadSchemas_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadSchemas*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadSchemas" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadSchemas">
+  ReadSchemas()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens an independent scan and copies each schema once per ID. Enumeration owns and disposes its session.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IEnumerable&lt;McapSchema&gt; ReadSchemas()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapSchema.html">McapSchema</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_ReadSchemas_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadSchemas*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_ReadSchemas_System_IO_Stream_System_Boolean_Fizzy_McapSharp_McapReaderOptions_" data-uid="Fizzy.McapSharp.McapReaderFactory.ReadSchemas(System.IO.Stream,System.Boolean,Fizzy.McapSharp.McapReaderOptions)">
+  ReadSchemas(Stream, bool, McapReaderOptions?)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Scans a Stream and yields independent owned results. Enumeration owns the session and Stream unless leaveOpen is true; skipped records are not copied into managed objects.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static IEnumerable&lt;McapSchema&gt; ReadSchemas(Stream stream, bool leaveOpen = false, McapReaderOptions? options = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>options</code> <a class="xref" href="Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapSchema.html">McapSchema</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_RecoverMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.RecoverMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_RecoverMessages_System_Action_Fizzy_McapSharp_McapMessage__" data-uid="Fizzy.McapSharp.McapReaderFactory.RecoverMessages(System.Action{Fizzy.McapSharp.McapMessage})">
+  RecoverMessages(Action&lt;McapMessage&gt;)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Opens a strict file-order scan, delivers the valid prefix and retains the original structured parse error in the result. The accept callback receives independently owned messages; its exceptions and Stream exceptions propagate, including McapException. The temporary session is disposed when this method returns or throws.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public McapRecoveryResult RecoverMessages(Action&lt;McapMessage&gt; accept)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>accept</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapRecoveryResult.html">McapRecoveryResult</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_RecoverMessages_" data-uid="Fizzy.McapSharp.McapReaderFactory.RecoverMessages*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_RecoverMessages_System_IO_Stream_System_Action_Fizzy_McapSharp_McapMessage__System_Boolean_" data-uid="Fizzy.McapSharp.McapReaderFactory.RecoverMessages(System.IO.Stream,System.Action{Fizzy.McapSharp.McapMessage},System.Boolean)">
+  RecoverMessages(Stream, Action&lt;McapMessage&gt;, bool)
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Delivers a strict file-order valid prefix from a Stream. Parsing errors are retained in the result; Stream and callback exceptions propagate and terminate reading. Owns the Stream unless leaveOpen is true.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static McapRecoveryResult RecoverMessages(Stream stream, Action&lt;McapMessage&gt; accept, bool leaveOpen = false)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>stream</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">Stream</a></dt>
+    <dd></dd>
+    <dt><code>accept</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="Fizzy.McapSharp.McapMessage.html">McapMessage</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>leaveOpen</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Fizzy.McapSharp.McapRecoveryResult.html">McapRecoveryResult</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Fizzy_McapSharp_McapReaderFactory_Validate_" data-uid="Fizzy.McapSharp.McapReaderFactory.Validate*"></a>
+
+  <h3 id="Fizzy_McapSharp_McapReaderFactory_Validate" data-uid="Fizzy.McapSharp.McapReaderFactory.Validate">
+  Validate()
+  
+  </h3>
+
+  <div class="markdown level1 summary"><p>Strictly scans the entire file and returns its record count, throwing on format or integrity failures.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ulong Validate()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

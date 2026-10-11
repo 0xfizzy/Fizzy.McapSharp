@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Getting started: your first recording | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Getting started: your first recording | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="getting-started-your-first-recording">Getting started: your first recording</h1>
+
+<p>English | <a href="zh-CN/usage.html">简体中文</a></p>
+<p>For .NET developers using the NuGet package. Create a project, write, read, filter and optionally validate a recording without cloning this repository or installing Rust. Use the .NET 8 SDK on Windows x64 or supported glibc Linux x64/ARM64.</p>
+<h2 id="create-a-project">Create a project</h2>
+<pre><code class="lang-powershell">dotnet new console -n McapQuickStart -f net8.0
+cd McapQuickStart
+dotnet add package Fizzy.McapSharp
+</code></pre>
+<p>Replace <code>Program.cs</code> with the writing code below, then append the subsequent code blocks in order. The example uses C# 12 and the project's default implicit usings. Run it with <code>dotnet run</code>.</p>
+<h2 id="write-two-messages">Write two messages</h2>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+using System.Text;
+
+var path = Path.Combine(Path.GetTempPath(), $&quot;sample-{Guid.NewGuid():N}.mcap&quot;);
+using (var writer = new McapWriter(path))
+{
+    var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;json&quot;);
+    writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 100, 100), &quot;{\&quot;value\&quot;:1}&quot;u8);
+    writer.WriteToKnownChannel(new McapMessageHeader(channel, 1, 50, 50), &quot;{\&quot;value\&quot;:2}&quot;u8);
+    writer.Complete();
+}
+</code></pre>
+<p>The channel associates topic <code>/sample</code> with the <code>json</code> encoding; this example registers no schema. Payloads contain UTF-8 JSON, which the library does not decode. <code>LogTime</code> and <code>PublishTime</code> are nanoseconds with an application-defined clock origin. Writing time 100 before time 50 makes the reading order visible.</p>
+<p>The path constructor only creates new files and fails if the file exists. Call <code>Complete()</code> explicitly; leaving the <code>using</code> scope releases resources without implicitly finishing the format. File persistence is a separate request; see <a href="api.html#completion-and-file-persistence">API contracts</a>.</p>
+<h2 id="read-messages">Read messages</h2>
+<pre><code class="lang-csharp">var reader = new McapReaderFactory(path);
+foreach (var message in reader.ReadMessages())
+    Console.WriteLine($&quot;{message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
+</code></pre>
+<p>Output follows file order:</p>
+<pre><code class="lang-text">100: {&quot;value&quot;:1}
+50: {&quot;value&quot;:2}
+</code></pre>
+<p><code>McapReaderFactory</code> itself owns no disposable input resources; each enumeration owns and disposes an independent session. <code>ReadMessages()</code> returns independently owned results suitable for ordinary application code.</p>
+<h2 id="filter-by-topic-and-time">Filter by topic and time</h2>
+<pre><code class="lang-csharp">foreach (var message in reader.ReadMessages(new()
+{
+    Topic = &quot;/sample&quot;,
+    StartTime = 50,
+    EndTime = 100
+}))
+    Console.WriteLine($&quot;{message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
+</code></pre>
+<p>The only output is <code>50: {&quot;value&quot;:2}</code>. Time filtering uses <code>LogTime</code> and the interval <code>[StartTime, EndTime)</code>: 50 is included and 100 is excluded. Adding a filter preserves file order. See <a href="queries.html">queries and random access</a> when you need time ordering or mandatory indexes.</p>
+<h2 id="optional-validation-and-cleanup">Optional validation and cleanup</h2>
+<pre><code class="lang-csharp">ulong recordCount = reader.Validate();
+Console.WriteLine($&quot;Validated {recordCount} records.&quot;);
+</code></pre>
+<p>This is an optional, separate full-file scan and can run before processing messages. It returns a record count, not a message count; format or integrity failures throw. Successful ordinary reading or querying does not replace full validation, and validation does not interpret business payloads. See <a href="api.html#validation-and-recovery">API contracts</a> for validation scope and valid-prefix recovery.</p>
+<p>Append <code>File.Delete(path);</code> after all operations to remove the example file. Application code should apply its own retention policy and handle operation or cleanup failures.</p>
+<h2 id="next-steps">Next steps</h2>
+<ul>
+<li><a href="queries.html">Queries and random access</a>: file order, time order, indexes and chunk cursors.</li>
+<li><a href="ownership.html">Message ownership and memory choices</a>: reusable buffers, synchronous borrowing and storage leases.</li>
+<li><a href="streams-async.html">Streams and asynchronous reading</a>: I/O ownership, async operations and cancellation.</li>
+<li><a href="sans-io.html">Sans-I/O</a>: let the application perform I/O itself. <a href="sans-io.html#linear-records">linear records</a> · <a href="sans-io.html#summary-requests">summary requests</a> · <a href="sans-io.html#indexed-messages">indexed messages</a></li>
+<li><a href="api.html">API contracts</a>: defaults, lifetime, failure and validation boundaries.</li>
+</ul>
+<h2 id="run-repository-examples">Run repository examples</h2>
+<p>The <a href="../samples/Documentation/QuickStartExamples.cs">tutorial source</a> verifies these results and removes its temporary file; the <a href="../samples/Documentation/Program.cs">complete example</a> also covers advanced reading paths. Source contributors can run <code>./scripts/Test-Samples.ps1</code> from the repository root to build the native host library and validate current source. Use <code>./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages</code> for an already verified complete package; that is not public NuGet package validation. See <a href="development.html">development</a> for setup.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

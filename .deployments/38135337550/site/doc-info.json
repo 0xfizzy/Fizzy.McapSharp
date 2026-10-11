@@ -1,0 +1,12 @@
+{
+  "version": "0.1.0",
+  "channel": "dev",
+  "release_commit": "a4d1250200a0fcf6f82b04fc4cbd657a4180544b",
+  "docs_commit": "a4d1250200a0fcf6f82b04fc4cbd657a4180544b",
+  "tools": {
+    "dotnet": "10.0.401",
+    "docfx": "2.78.3"
+  },
+  "run_id": "38135337550",
+  "content_sha256": "7710f24aef575e556835ecade26ad4941783ee09968853af33d2cd61ae6c79c7"
+}
