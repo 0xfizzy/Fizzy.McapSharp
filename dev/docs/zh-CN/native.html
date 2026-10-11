@@ -90,7 +90,8 @@
 <h1 id="原生-abi-与内存边界">原生 ABI 与内存边界</h1>
 
 <p><a href="../native.html">English</a> | 简体中文</p>
-<p>.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。<a href="../../native/src/lib.rs">lib.rs</a> 负责共享 ABI／错误边界，<a href="../../native/src/reader.rs">reader.rs</a> 和 <a href="../../native/src/writer.rs">writer.rs</a> 实现会话操作，<a href="../../native/src/io.rs">io.rs</a> 实现文件/Stream I/O，托管声明见 <a href="../../src/Native.cs">Native.cs</a> 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。</p>
+<p>面向维护原生互操作层的贡献者：本页定义私有 ABI、数据布局、所有权及错误边界。应用开发者通常只需 <a href="api.html">API 契约</a>。</p>
+<p>.NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。<a href="../../native/src/lib.rs">lib.rs</a> 负责共享 ABI／错误边界，<a href="../../native/src/reader.rs">reader.rs</a> 和 <a href="../../native/src/writer.rs">writer.rs</a> 实现会话操作，<a href="../../native/src/io.rs">io.rs</a> 实现文件/Stream I/O，托管声明见 <a href="../../src/Fizzy.McapSharp/Native.cs">Native.cs</a> 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。</p>
 <h2 id="abi-契约">ABI 契约</h2>
 <p><code>fm_abi_version()</code> 返回 18，托管构造函数拒绝不匹配，包括不支持明确 feed 回应种类和 reader 创建执行信息的原生库。这不是稳定的第三方 ABI；不兼容变更必须同时更新版本检查和所有平台原生资产。</p>
 <table>
@@ -174,6 +175,7 @@
 <p>官方格式状态机、codec 及默认写入行为由固定的 mcap crate 提供；共享存储、批次预检所需 channel 查询以及禁止销毁时隐式完成属于<a href="patches.html">本地补丁</a>。SafeHandle、托管副本、局部缓存／排序及异步 I/O 是绑定层行为。</p>
 <p><code>fm_reader_message_record</code> 与 payload 交付共享待处理状态；<code>fm_buffer_reader_configured</code> 为复制／映射输入传递解析选项及验证范围，<code>fm_buffer_reader_schema/state</code> 查询声明和扫描状态。完整摘要 JSON 包含 schema/channel 映射；channel 使用 schema ID 引用，私有 schemaDependencies 为摘要中未重复的 schema 提供数据段声明，不改变公开 Schemas 映射。异步展开交付在发布前验证记录体及引用；原始 Sans-I/O 线性事件不解析记录体。</p>
 <p>Reader 创建成功时，Response.value 表示实际执行路径：0 顺序、1 索引、2 缓存排序。托管层据此在推进前确定不可变的验证能力。<code>fm_engine_feed</code> 签名为 <code>(handle, u32 response_kind, data, length, position, response)</code>；回应种类 1（Read）或 2（Seek）必须匹配待处理事件，Seek 不接收数据。索引输入通过 InsertChunk 控制提交，必须匹配请求的压缩数据偏移和完整长度。公开定位请求直接表达无符号绝对位置或有符号相对偏移，不暴露 ABI 补码编码。</p>
+<p>修改 ABI 或存储边界后，按<a href="testing.html">测试专题</a>验证，并核对<a href="patches.html">本地补丁范围</a>。</p>
 
 </article>
 

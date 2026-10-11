@@ -89,23 +89,52 @@
         <article data-uid="">
 <h1 id="fizzymcapsharp-documentation">Fizzy.McapSharp documentation</h1>
 
-<p><a href="zh-CN/index.html">简体中文</a></p>
-<p>Fizzy.McapSharp provides general MCAP file operations for .NET 8. Payload encoding and clock semantics belong to your application.</p>
-<h2 id="getting-started-and-usage">Getting started and usage</h2>
+<p><a href="zh-CN/index.html">简体中文</a> · <a href="https://github.com/0xfizzy/Fizzy.McapSharp">GitHub repository</a></p>
+<p>Fizzy.McapSharp reads and writes MCAP files from .NET 8. Applications define payload encoding and clock origins. Choose the entry for your task; no Rust or native ABI knowledge is needed to begin.</p>
+<h2 id="getting-started">Getting started</h2>
+<p>Read the <a href="../README.html">README</a> for purpose and supported platforms. When ready to code, follow <a href="usage.html">your first recording</a> to install from NuGet, write, read, filter and optionally validate a file.</p>
+<h2 id="advanced-usage">Advanced usage</h2>
+<table>
+<thead>
+<tr>
+<th>Current need</th>
+<th>Guide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Query by time, require indexes or revisit chunks</td>
+<td><a href="queries.html">Queries and random access</a></td>
+</tr>
+<tr>
+<td>Reuse buffers, process synchronously, retain or forward data</td>
+<td><a href="ownership.html">Message ownership and memory choices</a></td>
+</tr>
+<tr>
+<td>Use an existing Stream, async reading or cancellation</td>
+<td><a href="streams-async.html">Streams and async</a></td>
+</tr>
+<tr>
+<td>Supply input and perform seeks from application code</td>
+<td><a href="sans-io.html">Sans-I/O</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="reference">Reference</h2>
 <ul>
-<li><a href="usage.html">Task guide and runnable examples</a>: write, validate and read your first recording.</li>
-<li><a href="api.html">API contracts</a>: choose <a href="api.html#choose-message-ownership">message ownership</a> and <a href="api.html#choose-an-access-pattern">access patterns</a>, then review completion, disposal, failure and allocation guarantees.</li>
+<li><a href="api.html">API contracts</a>: confirm defaults, lifetime, failure, validation and performance guarantees.</li>
+<li><a class="xref" href="../api/Fizzy.McapSharp.html">API reference (English)</a>: look up types, members, parameters and return values; both guide languages share this English reference.</li>
+<li><a href="coverage.html">Upstream API correspondence</a>: locate official Rust capabilities, binding adaptations and explicit exclusions.</li>
 </ul>
-<h2 id="development-and-internals">Development and internals</h2>
+<h2 id="development-and-maintenance">Development and maintenance</h2>
 <ul>
-<li><a href="development.html">Development</a>: build and validate current source or a complete package.</li>
-<li><a href="native.html">Native ABI</a>: native interoperability and memory boundaries.</li>
-<li><a href="coverage.html">Upstream coverage</a>: correspondence with the official Rust API.</li>
-<li><a href="patches.html">Local patches</a>: permitted extensions and their evidence.</li>
+<li><a href="development.html">Build and integration</a>: source setup, host builds, package contents and consumer references.</li>
+<li><a href="testing.html">Validation and diagnostics</a>: interoperability, allocation gates and storage performance diagnostics.</li>
+<li><a href="native.html">Native ABI</a> and <a href="patches.html">local patches</a>: implementation boundaries, extension contracts and evidence.</li>
+<li><a href="documentation.html">Documentation maintenance</a> and <a href="release.html">release/recovery</a>: documentation builds, translations, archives and publication.</li>
+<li><a href="../AGENTS.html">Repository guidelines</a>: contribution and maintenance rules (English).</li>
 </ul>
-<h2 id="documentation-maintenance">Documentation maintenance</h2>
-<p>Both guide languages share the English generated <strong>API reference (English)</strong> in the site navigation. Consult it for individual member contracts and use the guides for cross-API behavior.</p>
-<p>Use <a href="documentation.html">documentation maintenance</a> to build the site and maintain translations, and the <a href="release.html">release SOP</a> to archive and publish documentation.</p>
+<p>If unsure where to start, complete the <a href="usage.html">tutorial</a>, then choose an advanced guide for your actual workload.</p>
 
 </article>
 

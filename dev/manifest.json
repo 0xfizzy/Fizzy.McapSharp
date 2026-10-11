@@ -1,5 +1,5 @@
 {
-  "source_base_path": "D:/a/Fizzy.McapSharp/Fizzy.McapSharp",
+  "source_base_path": "D:/a/Fizzy.McapSharp/Fizzy.McapSharp/artifacts/docs/source",
   "xrefmap": "xrefmap.yml",
   "files": [
     {
@@ -1371,7 +1371,7 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/api.md",
+      "source_relative_path": "docs/en/api.md",
       "output": {
         ".html": {
           "relative_path": "docs/api.html"
@@ -1381,7 +1381,7 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/coverage.md",
+      "source_relative_path": "docs/en/coverage.md",
       "output": {
         ".html": {
           "relative_path": "docs/coverage.html"
@@ -1391,7 +1391,7 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/development.md",
+      "source_relative_path": "docs/en/development.md",
       "output": {
         ".html": {
           "relative_path": "docs/development.html"
@@ -1401,7 +1401,7 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/documentation.md",
+      "source_relative_path": "docs/en/documentation.md",
       "output": {
         ".html": {
           "relative_path": "docs/documentation.html"
@@ -1411,7 +1411,7 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/index.md",
+      "source_relative_path": "docs/en/index.md",
       "output": {
         ".html": {
           "relative_path": "docs/index.html"
@@ -1421,7 +1421,7 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/native.md",
+      "source_relative_path": "docs/en/native.md",
       "output": {
         ".html": {
           "relative_path": "docs/native.html"
@@ -1431,7 +1431,17 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/patches.md",
+      "source_relative_path": "docs/en/ownership.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/ownership.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/patches.md",
       "output": {
         ".html": {
           "relative_path": "docs/patches.html"
@@ -1441,10 +1451,83 @@
     },
     {
       "type": "Conceptual",
-      "source_relative_path": "docs/release.md",
+      "source_relative_path": "docs/en/queries.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/queries.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/release.md",
       "output": {
         ".html": {
           "relative_path": "docs/release.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/sans-io.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/sans-io.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/streams-async.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/streams-async.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/testing.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/testing.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "docs/en/toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "docs/toc.html"
+        },
+        ".json": {
+          "relative_path": "docs/toc.json"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/usage.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/usage.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/index.md",
+      "output": {
+        ".html": {
+          "relative_path": "index.html"
         }
       },
       "version": ""
@@ -1454,10 +1537,10 @@
       "source_relative_path": "docs/toc.yml",
       "output": {
         ".html": {
-          "relative_path": "docs/toc.html"
+          "relative_path": "toc.html"
         },
         ".json": {
-          "relative_path": "docs/toc.json"
+          "relative_path": "toc.json"
         }
       },
       "version": ""
@@ -1478,16 +1561,6 @@
       "output": {
         "resource": {
           "relative_path": "docs/upstream-api.json"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Conceptual",
-      "source_relative_path": "docs/usage.md",
-      "output": {
-        ".html": {
-          "relative_path": "docs/usage.html"
         }
       },
       "version": ""
@@ -1554,6 +1627,16 @@
     },
     {
       "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/ownership.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/ownership.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
       "source_relative_path": "docs/zh-CN/patches.md",
       "output": {
         ".html": {
@@ -1564,10 +1647,50 @@
     },
     {
       "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/queries.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/queries.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
       "source_relative_path": "docs/zh-CN/release.md",
       "output": {
         ".html": {
           "relative_path": "docs/zh-CN/release.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/sans-io.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/sans-io.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/streams-async.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/streams-async.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/testing.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/testing.html"
         }
       },
       "version": ""
@@ -1591,16 +1714,6 @@
       "output": {
         ".html": {
           "relative_path": "docs/zh-CN/usage.html"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Conceptual",
-      "source_relative_path": "index.md",
-      "output": {
-        ".html": {
-          "relative_path": "index.html"
         }
       },
       "version": ""
@@ -1837,6 +1950,26 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "samples/Documentation/QuickStartExamples.cs",
+      "output": {
+        "resource": {
+          "relative_path": "samples/Documentation/QuickStartExamples.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "samples/Documentation/ReadingExamples.cs",
+      "output": {
+        "resource": {
+          "relative_path": "samples/Documentation/ReadingExamples.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "samples/Documentation/SansIoExamples.cs",
       "output": {
         "resource": {
@@ -1847,873 +1980,860 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ArgumentValidation.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ArgumentValidation.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ArgumentValidation.cs"
+          "relative_path": "src/Fizzy.McapSharp/ArgumentValidation.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/AsyncReaderCore.Descriptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/AsyncReaderCore.Descriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/AsyncReaderCore.Descriptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/AsyncReaderCore.Descriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/AsyncReaderCore.Leases.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/AsyncReaderCore.Leases.cs",
       "output": {
         "resource": {
-          "relative_path": "src/AsyncReaderCore.Leases.cs"
+          "relative_path": "src/Fizzy.McapSharp/AsyncReaderCore.Leases.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/AsyncReaderCore.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/AsyncReaderCore.cs",
       "output": {
         "resource": {
-          "relative_path": "src/AsyncReaderCore.cs"
+          "relative_path": "src/Fizzy.McapSharp/AsyncReaderCore.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/BatchModels.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/BatchModels.cs",
       "output": {
         "resource": {
-          "relative_path": "src/BatchModels.cs"
+          "relative_path": "src/Fizzy.McapSharp/BatchModels.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/BatchSeekModels.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/BatchSeekModels.cs",
       "output": {
         "resource": {
-          "relative_path": "src/BatchSeekModels.cs"
+          "relative_path": "src/Fizzy.McapSharp/BatchSeekModels.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/BorrowedReadSink.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/BorrowedReadSink.cs",
       "output": {
         "resource": {
-          "relative_path": "src/BorrowedReadSink.cs"
+          "relative_path": "src/Fizzy.McapSharp/BorrowedReadSink.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/DeclarationDecoder.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/DeclarationDecoder.cs",
       "output": {
         "resource": {
-          "relative_path": "src/DeclarationDecoder.cs"
+          "relative_path": "src/Fizzy.McapSharp/DeclarationDecoder.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/IMcapRecord.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/IMcapRecord.cs",
       "output": {
         "resource": {
-          "relative_path": "src/IMcapRecord.cs"
+          "relative_path": "src/Fizzy.McapSharp/IMcapRecord.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/IndexEncoding.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/IndexEncoding.cs",
       "output": {
         "resource": {
-          "relative_path": "src/IndexEncoding.cs"
+          "relative_path": "src/Fizzy.McapSharp/IndexEncoding.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/JsonSupport.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/JsonSupport.cs",
       "output": {
         "resource": {
-          "relative_path": "src/JsonSupport.cs"
+          "relative_path": "src/Fizzy.McapSharp/JsonSupport.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapAsyncMessageReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapAsyncMessageReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapAsyncMessageReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapAsyncMessageReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapAsyncRecordReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapAsyncRecordReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapAsyncRecordReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapAsyncRecordReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapChunkFlattener.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapChunkFlattener.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapChunkFlattener.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapChunkFlattener.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapChunkReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapChunkReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapChunkReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapChunkReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapDataRecords.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapDataRecords.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapDataRecords.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapDataRecords.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapDeclarations.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapDeclarations.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapDeclarations.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapDeclarations.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapDescriptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapDescriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapDescriptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapDescriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapException.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapException.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapException.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapException.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexedQuery.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapIndexedQuery.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexedQuery.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapIndexedQuery.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexedReader.BatchSeek.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapIndexedReader.BatchSeek.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexedReader.BatchSeek.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapIndexedReader.BatchSeek.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexedReader.Descriptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapIndexedReader.Descriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexedReader.Descriptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapIndexedReader.Descriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexedReader.Prepared.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapIndexedReader.Prepared.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexedReader.Prepared.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapIndexedReader.Prepared.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexedReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapIndexedReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexedReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapIndexedReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapIndexedReaderOptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapIndexedReaderOptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapIndexedReaderOptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapIndexedReaderOptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapLinearReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapLinearReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapLinearReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapLinearReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapMessageFilter.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapMessageFilter.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapMessageFilter.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapMessageFilter.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapMessageLeases.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapMessageLeases.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapMessageLeases.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapMessageLeases.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapMessageModels.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapMessageModels.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapMessageModels.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapMessageModels.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapMessageReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapMessageReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapMessageReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapMessageReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapPreparedChunkIndex.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapPreparedChunkIndex.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapPreparedChunkIndex.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapPreparedChunkIndex.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapQuery.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapQuery.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapQuery.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapQuery.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapRawMessageReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapRawMessageReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapRawMessageReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapRawMessageReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapReadContracts.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapReadContracts.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapReadContracts.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapReadContracts.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapReaderFactory.Enumeration.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapReaderFactory.Enumeration.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapReaderFactory.Enumeration.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapReaderFactory.Enumeration.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapReaderFactory.Typed.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapReaderFactory.Typed.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapReaderFactory.Typed.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapReaderFactory.Typed.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapReaderFactory.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapReaderFactory.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapReaderFactory.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapReaderFactory.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapRecordAccessor.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapRecordAccessor.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapRecordAccessor.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapRecordAccessor.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapRecordTypes.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapRecordTypes.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapRecordTypes.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapRecordTypes.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapRecordView.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapRecordView.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapRecordView.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapRecordView.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSansIoIndexedReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapSansIoIndexedReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSansIoIndexedReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapSansIoIndexedReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSansIoLinearReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapSansIoLinearReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSansIoLinearReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapSansIoLinearReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSansIoSummaryReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapSansIoSummaryReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSansIoSummaryReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapSansIoSummaryReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSeekRequest.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapSeekRequest.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSeekRequest.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapSeekRequest.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSummaryModels.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapSummaryModels.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSummaryModels.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapSummaryModels.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapSummaryRecordReader.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapSummaryRecordReader.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapSummaryRecordReader.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapSummaryRecordReader.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapWriter.Batch.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapWriter.Batch.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapWriter.Batch.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapWriter.Batch.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapWriter.Descriptors.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapWriter.Descriptors.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapWriter.Descriptors.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapWriter.Descriptors.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapWriter.Owned.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapWriter.Owned.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapWriter.Owned.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapWriter.Owned.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapWriter.Prepared.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapWriter.Prepared.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapWriter.Prepared.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapWriter.Prepared.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapWriter.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapWriter.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapWriter.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapWriter.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/McapWriterOptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/McapWriterOptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/McapWriterOptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/McapWriterOptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/MessageLeaseHandle.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/MessageLeaseHandle.cs",
       "output": {
         "resource": {
-          "relative_path": "src/MessageLeaseHandle.cs"
+          "relative_path": "src/Fizzy.McapSharp/MessageLeaseHandle.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.AsyncDescriptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.AsyncDescriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.AsyncDescriptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.AsyncDescriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.AsyncLeases.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.AsyncLeases.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.AsyncLeases.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.AsyncLeases.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.Batch.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.Batch.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.Batch.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.Batch.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.BatchSeek.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.BatchSeek.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.BatchSeek.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.BatchSeek.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.Index.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.Index.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.Index.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.Index.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.MessageLeases.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.MessageLeases.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.MessageLeases.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.MessageLeases.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.MessageRecord.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.MessageRecord.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.MessageRecord.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.MessageRecord.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.Prepared.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.Prepared.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.Prepared.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.Prepared.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.Protocol.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.Protocol.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.Protocol.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.Protocol.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/Native.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/Native.cs",
       "output": {
         "resource": {
-          "relative_path": "src/Native.cs"
+          "relative_path": "src/Fizzy.McapSharp/Native.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/NativeInputMemory.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/NativeInputMemory.cs",
       "output": {
         "resource": {
-          "relative_path": "src/NativeInputMemory.cs"
+          "relative_path": "src/Fizzy.McapSharp/NativeInputMemory.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/OwnedReadSink.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/OwnedReadSink.cs",
       "output": {
         "resource": {
-          "relative_path": "src/OwnedReadSink.cs"
+          "relative_path": "src/Fizzy.McapSharp/OwnedReadSink.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/PreparedChannel.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/PreparedChannel.cs",
       "output": {
         "resource": {
-          "relative_path": "src/PreparedChannel.cs"
+          "relative_path": "src/Fizzy.McapSharp/PreparedChannel.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/PreparedDescriptors.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/PreparedDescriptors.cs",
       "output": {
         "resource": {
-          "relative_path": "src/PreparedDescriptors.cs"
+          "relative_path": "src/Fizzy.McapSharp/PreparedDescriptors.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/PreparedWrite.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/PreparedWrite.cs",
       "output": {
         "resource": {
-          "relative_path": "src/PreparedWrite.cs"
+          "relative_path": "src/Fizzy.McapSharp/PreparedWrite.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadCursorCore.Batch.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Batch.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadCursorCore.Batch.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Batch.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadCursorCore.Descriptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Descriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadCursorCore.Descriptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Descriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadCursorCore.Leases.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Leases.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadCursorCore.Leases.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Leases.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadCursorCore.Progress.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Progress.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadCursorCore.Progress.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadCursorCore.Progress.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadCursorCore.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadCursorCore.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadCursorCore.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadCursorCore.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadSessionCore.Batch.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Batch.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadSessionCore.Batch.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Batch.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadSessionCore.Descriptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Descriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadSessionCore.Descriptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Descriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadSessionCore.Index.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Index.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadSessionCore.Index.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Index.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadSessionCore.Leases.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Leases.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadSessionCore.Leases.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadSessionCore.Leases.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReadSessionCore.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReadSessionCore.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReadSessionCore.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReadSessionCore.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReaderOptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReaderOptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReaderOptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReaderOptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/ReaderSources.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/ReaderSources.cs",
       "output": {
         "resource": {
-          "relative_path": "src/ReaderSources.cs"
+          "relative_path": "src/Fizzy.McapSharp/ReaderSources.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/RecordDecoder.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/RecordDecoder.cs",
       "output": {
         "resource": {
-          "relative_path": "src/RecordDecoder.cs"
+          "relative_path": "src/Fizzy.McapSharp/RecordDecoder.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/SansIoReaderCore.Descriptions.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/SansIoReaderCore.Descriptions.cs",
       "output": {
         "resource": {
-          "relative_path": "src/SansIoReaderCore.Descriptions.cs"
+          "relative_path": "src/Fizzy.McapSharp/SansIoReaderCore.Descriptions.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/SansIoReaderCore.Leases.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/SansIoReaderCore.Leases.cs",
       "output": {
         "resource": {
-          "relative_path": "src/SansIoReaderCore.Leases.cs"
+          "relative_path": "src/Fizzy.McapSharp/SansIoReaderCore.Leases.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/SansIoReaderCore.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/SansIoReaderCore.cs",
       "output": {
         "resource": {
-          "relative_path": "src/SansIoReaderCore.cs"
+          "relative_path": "src/Fizzy.McapSharp/SansIoReaderCore.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/StreamBridge.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/StreamBridge.cs",
       "output": {
         "resource": {
-          "relative_path": "src/StreamBridge.cs"
+          "relative_path": "src/Fizzy.McapSharp/StreamBridge.cs"
         }
       },
       "version": ""
     },
     {
       "type": "Resource",
-      "source_relative_path": "src/SummaryRecords.cs",
+      "source_relative_path": "src/Fizzy.McapSharp/SummaryRecords.cs",
       "output": {
         "resource": {
-          "relative_path": "src/SummaryRecords.cs"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Toc",
-      "source_relative_path": "toc.yml",
-      "output": {
-        ".html": {
-          "relative_path": "toc.html"
-        },
-        ".json": {
-          "relative_path": "toc.json"
+          "relative_path": "src/Fizzy.McapSharp/SummaryRecords.cs"
         }
       },
       "version": ""

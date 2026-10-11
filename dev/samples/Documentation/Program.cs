@@ -1,5 +1,7 @@
 using Fizzy.McapSharp;
 
+QuickStartExamples.Run();
+
 var path = Path.Combine(Path.GetTempPath(), $"mcap-docs-{Guid.NewGuid():N}.mcap");
 try
 {
@@ -113,6 +115,10 @@ try
         }
         if (count != 2) throw new Exception("Async reading failed");
     }
+    ReadingExamples.Queries(path);
+    ReadingExamples.Ownership(path);
+    ReadingExamples.Streams(path);
+    await ReadingExamples.Async(path);
     SansIoExamples.Run(path);
     Console.WriteLine("Documentation examples passed.");
 }

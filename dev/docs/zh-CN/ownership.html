@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>消息所有权与内存取舍 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="消息所有权与内存取舍 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../favicon.ico">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../logo.svg" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="消息所有权与内存取舍">消息所有权与内存取舍</h1>
+
+<p><a href="../ownership.html">English</a> | 简体中文</p>
+<p>面向需要决定消息字节保留多久的应用开发者。优先使用自有结果；需要复用缓冲、同步处理或保留共享数据时，再选择其他交付方式。访问顺序是<a href="queries.html">另一个独立选择</a>。</p>
+<h2 id="按生命周期选择">按生命周期选择</h2>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>选择</th>
+<th>主要成本或责任</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>独立保留或修改结果</td>
+<td><code>ReadMessages()</code></td>
+<td>分配独立结果对象，复制载荷和可变声明</td>
+</tr>
+<tr>
+<td>复用应用存储</td>
+<td><code>ReadNext(buffer, ...)</code></td>
+<td>复制到调用方存储；容量不足时扩容</td>
+</tr>
+<tr>
+<td>返回前处理完字节</td>
+<td><code>ReadNext(visitor)</code> / <code>VisitMessages</code></td>
+<td>借用的 span 在回调返回时失效；禁止重入读取器</td>
+</tr>
+<tr>
+<td>保留或转发共享字节</td>
+<td><code>ReadBatchLease</code></td>
+<td>租约控制对象可能分配；所有持有者释放后才能回收底层存储</td>
+</tr>
+</tbody>
+</table>
+<p>借用是临时访问，不转移所有权。存储租约（lease）保留不可变底层存储，可能覆盖整个 Chunk 或映射。两者都不保证内存只与选中载荷的字节数成正比。选择交付形式前，先核对<a href="api.html#%E9%80%89%E6%8B%A9%E6%B6%88%E6%81%AF%E6%89%80%E6%9C%89%E6%9D%83">读取器能力与契约</a>。</p>
+<h2 id="复用调用方缓冲">复用调用方缓冲</h2>
+<p>以下循环沿用<a href="usage.html">教程</a>中的 <code>path</code>：</p>
+<pre><code class="lang-csharp">using var session = new McapReaderFactory(path).OpenMessages();
+byte[] buffer = [];
+while (true)
+{
+    var status = session.ReadNext(buffer, out var header, out var length);
+    if (status == McapReadStatus.EndOfStream) break;
+    if (status == McapReadStatus.BufferTooSmall)
+    {
+        buffer = new byte[checked((int)length)];
+        continue;
+    }
+    Console.WriteLine($&quot;{header.LogTime}: {System.Text.Encoding.UTF8.GetString(buffer, 0, checked((int)length))}&quot;);
+}
+</code></pre>
+<p>容量不足时，同一条消息保持待交付状态，供下一次重试。复用缓冲前先处理成功读取的字节；空消息是成功结果，不是 EOF。库的调用方缓冲路径在预热后产生 0 B 托管分配，但示例中的扩容和输出格式化仍会分配，也仍有载荷复制。详见<a href="api.html#%E4%BD%BF%E7%94%A8%E5%8F%AF%E5%A4%8D%E7%94%A8%E7%BC%93%E5%86%B2%E8%AF%BB%E5%8F%96%E6%B6%88%E6%81%AF">缓冲区契约</a>。</p>
+<h2 id="借用并立即处理">借用并立即处理</h2>
+<pre><code class="lang-csharp">using var borrowed = new McapReaderFactory(path).OpenMessages();
+borrowed.VisitMessages((in McapMessageHeader header, ReadOnlySpan&lt;byte&gt; payload) =&gt;
+{
+    Console.WriteLine($&quot;{header.LogTime}: {payload.Length} bytes&quot;);
+    return true;
+});
+</code></pre>
+<p>仅在回调内使用 span。不得从回调读取、查询或释放同一个读取器。返回 false 会在当前消息后正常停止。快照回调对索引读取器及预准备索引有额外限制，详见<a href="api.html#%E5%80%9F%E7%94%A8%E6%89%B9%E6%AC%A1%E4%B8%8E-lease">借用契约</a>。</p>
+<h2 id="只保留应用需要的数据">只保留应用需要的数据</h2>
+<p>短流水线可在处理期间保持批次租约存活，处理结束后释放。租约在读取器推进、释放及缓存驱逐后仍然有效。若少量载荷需要保留更久，可以显式复制：</p>
+<pre><code class="lang-csharp">using var retained = new McapReaderFactory(path).OpenMessages();
+byte[]? savedPayload = null;
+using (var batch = retained.ReadBatchLease(1))
+{
+    if (batch is not null)
+    {
+        savedPayload = new byte[batch.GetPayload(0).Length];
+        batch.CopyTo(0, savedPayload);
+    }
+}
+// savedPayload is independent of the lease and reader.
+</code></pre>
+<p>其他租约、解析器或缓存仍引用的存储，不会因这次复制而释放。限制在途工作时，除批次数量外，还应考虑底层存储大小与保留时长。不得在使用 span 时并发释放租约；跨线程转移需要调用方同步。详见<a href="api.html#%E4%B8%BA%E4%BF%9D%E7%95%99%E7%BB%93%E6%9E%9C%E9%80%89%E6%8B%A9%E5%AD%98%E5%82%A8">保留契约</a>。</p>
+<p>转发批次时，先注册目标 Schema 和 Channel，再在租约存活期间调用 <code>writer.WriteBatch(batch)</code>。Channel ID 不同时使用替换消息头的重载。转发同步完成、不转移所有权，也不保证批次原子性。<a href="../../samples/Documentation/Program.cs">可运行示例</a>演示无 Schema、两端 Channel ID 相同的情况。</p>
+<p>异步流水线请继续阅读 <a href="streams-async.html">Stream 与异步</a>；调整内存行为前，查阅<a href="api.html#%E7%BB%91%E5%AE%9A%E5%B1%82%E6%80%A7%E8%83%BD%E4%B8%8E%E5%B1%80%E9%83%A8%E9%99%90%E5%88%B6">局部限制</a>与<a href="testing.html">诊断方法</a>。</p>
+<p>本页代码在<a href="../../samples/Documentation/ReadingExamples.cs">读取示例</a>中运行，执行方法见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">教程</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

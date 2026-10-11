@@ -90,6 +90,7 @@
 <h1 id="发布与恢复操作规程">发布与恢复操作规程</h1>
 
 <p><a href="../release.html">English</a></p>
+<p>面向获得发布授权的维护者：配置发布环境、发布包、更新版本文档及恢复失败部署。源码构建见<a href="development.html">开发指南</a>，本页命令不构成发布授权。</p>
 <h2 id="配置与包发布">配置与包发布</h2>
 <p>为 <code>publish.yml</code>、<code>nuget</code> 环境和 <code>NUGET_USER</code> 配置 NuGet Trusted Publishing。Pages 使用 GitHub Actions，<code>github-pages</code> 允许 main 和发布 tag；为 <code>documentation-update</code> 配置必要审核。保留 <code>gh-pages</code> 的 Git 历史，禁止强制推送。Actions 产物用于传输，不承担长期存储。</p>
 <p>修改发布工具前运行 <code>./scripts/Test-Release.ps1</code>、完整文档构建及受影响的示例检查。包发布获得授权后，提交版本变更，通过跨平台验证，创建对应 <code>v&lt;version&gt;</code> tag，再执行：</p>
@@ -121,6 +122,7 @@ git -C &lt;source-worktree&gt; push -u origin HEAD
 <p>开发版失败部署使用 <code>Resume -Tag dev -RunId &lt;failed-run-id&gt;</code>；仍然拒绝过期 main 源码，并在部署锁内重新核对恢复时的归档基线。</p>
 <p>Resume 恢复持久化原始字节并校验哈希，不重建；拒绝已完成运行和被后续归档变化取代的候选。候选尚未持久化时，需要在同一源码 SHA 重跑原构建。Rollback 要求当前历史可达的完整归档 SHA，且包含指定版本成功部署；只恢复该版本，以新提交记录，其他版本保持当前状态。SHA 应选择成功完成提交，而不是候选提交。原始 Release bundle 仍是独立的不可变包恢复来源。</p>
 <p>脚本失败返回非零，报告保存在 <code>artifacts/reports/</code>。必须检查运行完成状态和线上身份，分派成功不代表部署成功。离线回归覆盖覆盖/删除、其他版本保留、latest、过期拒绝、原字节恢复、成功标记、回滚和原包来源；离线测试不发包。</p>
+<p>下一步按所需操作执行检查，并确认工作流结果与线上内容。</p>
 
 </article>
 

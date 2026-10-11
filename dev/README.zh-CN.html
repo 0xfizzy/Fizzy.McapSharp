@@ -80,13 +80,15 @@
 <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat" alt=".NET 8"></a>
 <a href="docs/zh-CN/api.html"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat" alt="Platforms: Windows and Linux"></a></p>
 <p><a href="README.html">English</a> | 简体中文</p>
-<p>基于官方 Rust <code>mcap</code> 实现的 .NET 8 文件读写库，支持消息、Schema、Channel、元数据、附件、压缩、时间过滤和完整性校验。</p>
-<p>本项目自身的所有代码均由 AI 生成。第三方依赖及随仓库分发的上游代码保留其原作者归属和许可证。</p>
+<p>基于官方 Rust <code>mcap</code> 实现的 .NET 8 文件读写库。<a href="https://mcap.dev/spec">MCAP</a> 是用于保存带时间戳消息及其 Schema、Channel 等信息的容器格式。本库支持消息、元数据和附件读写，以及压缩、时间过滤和完整性校验；载荷（payload）编码与时钟基准由应用定义。</p>
+<p>支持 Windows x64 和 glibc Linux x64/ARM64；Linux 构建及验证基线为 Ubuntu 22.04。详细支持范围见 <a href="docs/zh-CN/api.html">API 契约</a>。</p>
 <h2 id="快速开始">快速开始</h2>
-<p>在 .NET 8 应用中添加依赖。支持 Windows x64 和 glibc Linux x64/ARM64 进程，Linux 验证基线为 Ubuntu 22.04 及以上：</p>
+<h3 id="安装">安装</h3>
+<p>在 .NET 8 应用目录中运行：</p>
 <pre><code class="lang-powershell">dotnet add package Fizzy.McapSharp
 </code></pre>
-<p>以下示例使用 C# 12。目标文件必须不存在，时间戳单位为纳秒。</p>
+<h3 id="读写消息">读写消息</h3>
+<p>以下示例使用 C# 12。目标文件必须不存在；时间戳单位为纳秒，起点由应用约定。</p>
 <pre><code class="lang-csharp">using Fizzy.McapSharp;
 
 var path = Path.Combine(Path.GetTempPath(), $&quot;sample-{Guid.NewGuid():N}.mcap&quot;);
@@ -98,25 +100,20 @@ using (var writer = new McapWriter(path))
 }
 
 var reader = new McapReaderFactory(path);
-reader.Validate();
-foreach (var message in reader.ReadMessages(new() { Topic = &quot;/sample&quot; }))
+foreach (var message in reader.ReadMessages())
     Console.WriteLine($&quot;{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}&quot;);
 </code></pre>
-<p>必须显式调用 <code>Complete()</code> 完成格式，再按需调用 <code>FlushToDisk()</code> 请求文件持久化；<code>Dispose()</code> 只释放资源。<code>ReadMessages()</code> 不替代完整文件校验。</p>
-<p>大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；先<a href="docs/zh-CN/api.html#%E9%80%89%E6%8B%A9%E6%B6%88%E6%81%AF%E6%89%80%E6%9C%89%E6%9D%83">选择消息所有权</a>，再了解生命周期与局部缓存／排序额度。</p>
-<p>普通应用优先使用 <code>ReadMessages()</code> 返回的独立自有结果；需要控制分配或保留共享存储时，再参考 API 所有权指南。</p>
+<p>必须显式调用 <code>Complete()</code> 完成文件格式；<code>Dispose()</code> 只释放资源。需要请求文件持久化时，在完成后、释放前调用 <code>FlushToDisk()</code>。</p>
+<p>需要完整文件校验时，另行调用 <code>reader.Validate()</code>；它会单独扫描整个文件。普通读取不替代完整校验，也不会验证载荷的业务含义。</p>
 <h2 id="文档入口">文档入口</h2>
 <ul>
-<li><a href="docs/zh-CN/api.html">API、生命周期与数据所有权</a></li>
-<li><a href="docs/zh-CN/development.html">源码构建、测试与消费者集成</a></li>
-<li><a href="docs/zh-CN/native.html">原生 ABI 与内存边界</a></li>
-<li><a href="AGENTS.html">仓库维护约定</a></li>
+<li><a href="https://0xfizzy.github.io/Fizzy.McapSharp/">文档网站</a>：在线浏览中英文指南与 API 参考。</li>
+<li><a href="docs/zh-CN/usage.html">入门教程</a>：创建项目、读写、过滤及校验。</li>
+<li><a href="docs/zh-CN/api.html">API 契约</a>：默认行为、生命周期、错误与性能保证。</li>
+<li><a href="docs/zh-CN/index.html">文档首页</a>：深入使用、英文成员 API 参考和开发维护入口。</li>
 </ul>
+<p>本项目自身的所有代码均由 AI 生成。第三方依赖及随仓库分发的上游代码保留其原作者归属和许可证。</p>
 <p>本项目采用 <a href="LICENSE">MIT 许可证</a>；第三方依赖见 <a href="THIRD-PARTY-NOTICES.html">THIRD-PARTY-NOTICES.md</a>。</p>
-<ul>
-<li><a href="docs/zh-CN/index.html">文档首页</a></li>
-<li><a href="docs/zh-CN/release.html">发布 SOP</a></li>
-</ul>
 
 </article>
 

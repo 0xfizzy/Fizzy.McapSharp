@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>Task guide and runnable examples | Fizzy.McapSharp </title>
+      <title>Getting started: your first recording | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="Task guide and runnable examples | Fizzy.McapSharp ">
+      <meta name="title" content="Getting started: your first recording | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../favicon.ico">
@@ -87,122 +87,67 @@
         </div>
 
         <article data-uid="">
-<h1 id="task-guide-and-runnable-examples">Task guide and runnable examples</h1>
+<h1 id="getting-started-your-first-recording">Getting started: your first recording</h1>
 
 <p>English | <a href="zh-CN/usage.html">简体中文</a></p>
-<p>The <a href="../samples/Documentation/Program.cs">complete example</a> runs without hardware and deletes its temporary recording. Run <code>./scripts/Test-Samples.ps1</code> from the repository root to build the native host library first and execute against current source. For an already verified complete package, use <code>./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages</code>.</p>
-<h2 id="write-and-validate">Write and validate</h2>
-<p>Register a channel, write header/payload messages and call <code>Complete()</code> explicitly. The path constructor rejects an existing file. <code>Dispose()</code> releases resources and does not complete the format. <code>FlushToDisk()</code> is a separate persistence request. Use <code>Validate()</code> for a full-file check before processing trusted-format input; payload interpretation remains the consumer's responsibility. See <a href="api.html#write-a-recording">writing contracts</a>.</p>
-<h2 id="read-into-caller-buffers">Read into caller buffers</h2>
-<p>The example starts with an empty destination, allocates the required size after <code>BufferTooSmall</code>, then retries the pending record. Process successful bytes before reusing the buffer. EOF is not an error. Buffer growth and setup are outside the warmed zero-managed-allocation guarantee; that guarantee does not imply zero native allocations or copies. See <a href="api.html#read-messages-into-reusable-buffers">buffer negotiation</a>.</p>
-<h2 id="select-query-behavior">Select query behavior</h2>
-<p>To filter by topic/time while preserving recording order, call <code>OpenMessages(new() { Topic = &quot;/sample&quot; })</code>; add <code>StartTime</code> / <code>EndTime</code> for an inclusive/exclusive LogTime interval. File order needs no fallback-policy switch. Omitted and empty filters both use file order; adding Topic or Topics does not change it.</p>
-<p>For time order without global scan-and-sort, use <code>QueryMessages(new() { Order = McapReadOrder.LogTime, AllowBufferedSort = false })</code>. If the query cannot use indexes, opening throws <code>NotSupportedException</code> before collecting matches. With the default <code>AllowBufferedSort = true</code>, it may collect all matches before returning the session. <code>ReverseLogTime</code> has the same fallback policy. Neither time order specifies the order of equal timestamps.</p>
-<p>Use <code>OpenIndexedMessages()</code> on the file factory when indexes are mandatory; disabling buffered sorting alone still permits file-order scans. Indexed reading can buffer chunks, and successful queries do not validate the entire file. The example checks file versus default query order, supported time ordering with fallback disabled, and rejection on an unindexed source. See <a href="api.html#choosing-a-query-path">query paths and local allowances</a>.</p>
-<h2 id="borrow-or-retain">Borrow or retain</h2>
-<p>A visitor consumes spans synchronously and must not retain them or reenter its reader. A batch lease retains immutable backing storage after reader disposal; keep it alive until all span access finishes. The example forwards a retained batch synchronously after declaring the destination channel. Leases may retain whole chunks or mappings; payload size is not a total retained-memory bound. See <a href="api.html#borrowing-batches-and-leases">batches and leases</a>.</p>
-<p>Choose <code>ReadMessages()</code> when you need independent mutable results without managing a lease. For a few payloads retained long term, <a href="api.html#choosing-storage-for-retained-results">copy the needed bytes before disposing the lease</a>. Caller buffers copy too, even on a zero-managed-allocation path. A callback avoids the final delivery copy but cannot be retained; a lease avoids that copy while retaining backing storage. These are different costs, not guarantees of low total memory. Check <a href="api.html#choose-message-ownership">reader availability</a> before choosing a delivery form.</p>
-<h2 id="stream-and-asynchronous-ownership">Stream and asynchronous ownership</h2>
-<p>Use <code>leaveOpen: true</code> when the caller keeps the Stream; do not touch it while a session owns it. Await and consume each async result before another operation or disposal. Cancellation terminates that reader; it is not a reset protocol. The example uses <code>McapAsyncMessageReader</code> throughout and disposes every delivered lease. See <a href="api.html#stream-sessions-and-ownership">Stream ownership</a> and <a href="api.html#asynchronous-records-and-errors">asynchronous contracts</a>.</p>
-<p>Examples demonstrate behavior, not throughput measurements. Production code must handle its own payload schema and application error policy.</p>
-<h2 id="drive-a-sans-io-protocol">Drive a Sans-I/O protocol</h2>
-<p>Use these protocols only when the application must perform I/O itself. The <a href="../samples/Documentation/SansIoExamples.cs">runnable source</a> executes all three loops. The helpers below assume a complete MCAP begins at source position zero; for a prefixed source, translate physical positions to/from that origin. The sample expects two messages. No loop establishes full-file validation merely by reaching End.</p>
-<p>Respond to the pending request before asking for another event. SupplyInput accepts short reads and treats empty input as EOF; it only responds to Read. InsertChunkData requires the entire requested compressed-data range, excluding the Chunk header, so complete short reads before calling. BufferTooSmall retains output for retry. Wrong responses and parsing failures terminate the parser; dispose it rather than retrying arbitrary failures.</p>
-<h3 id="linear-records">Linear records</h3>
-<p>A destination holds raw record bodies. Grow it on BufferTooSmall; parse explicitly when typed records are needed.</p>
-<pre><code class="lang-csharp">    static void ReadLinear(Stream input)
-    {
-        using var reader = new McapSansIoLinearReader();
-        byte[] io = new byte[4096], record = [];
-        while (true)
-        {
-            var status = reader.NextEvent(record, out var item);
-            if (status == McapReadStatus.EndOfStream) break;
-            if (status == McapReadStatus.BufferTooSmall)
-            {
-                record = new byte[checked((int)item.Length)];
-                continue;
-            }
-            if (item.Kind == McapLinearEventKind.Read)
-            {
-                int count = input.Read(io, 0, (int)Math.Min((ulong)io.Length, item.Length));
-                reader.SupplyInput(io.AsSpan(0, count)); // A short read is valid; zero signals EOF.
-            }
-            else
-            {
-                // Direct linear events are raw: parse explicitly when interpretation is needed.
-                _ = McapRecords.Parse(item.Opcode, record.AsSpan(0, checked((int)item.Length)));
-            }
-        }
-    }
+<p>For .NET developers using the NuGet package. Create a project, write, read, filter and optionally validate a recording without cloning this repository or installing Rust. Use the .NET 8 SDK on Windows x64 or supported glibc Linux x64/ARM64.</p>
+<h2 id="create-a-project">Create a project</h2>
+<pre><code class="lang-powershell">dotnet new console -n McapQuickStart -f net8.0
+cd McapQuickStart
+dotnet add package Fizzy.McapSharp
+</code></pre>
+<p>Replace <code>Program.cs</code> with the writing code below, then append the subsequent code blocks in order. The example uses C# 12 and the project's default implicit usings. Run it with <code>dotnet run</code>.</p>
+<h2 id="write-two-messages">Write two messages</h2>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+using System.Text;
 
+var path = Path.Combine(Path.GetTempPath(), $&quot;sample-{Guid.NewGuid():N}.mcap&quot;);
+using (var writer = new McapWriter(path))
+{
+    var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;json&quot;);
+    writer.WriteToKnownChannel(new McapMessageHeader(channel, 0, 100, 100), &quot;{\&quot;value\&quot;:1}&quot;u8);
+    writer.WriteToKnownChannel(new McapMessageHeader(channel, 1, 50, 50), &quot;{\&quot;value\&quot;:2}&quot;u8);
+    writer.Complete();
+}
 </code></pre>
-<h3 id="summary-requests">Summary requests</h3>
-<p>Summary returns only Read/Seek/End, with no output buffer. Begin uses AbsolutePosition; Current/End use RelativeOffset. The completed reader is returned to the caller, who must dispose it.</p>
-<pre><code class="lang-csharp">    static McapSansIoSummaryReader ReadSummary(Stream input)
-    {
-        var reader = new McapSansIoSummaryReader();
-        try
-        {
-            byte[] io = new byte[4096];
-            while (reader.NextEvent(out var item) != McapReadStatus.EndOfStream)
-            {
-                if (item.Kind == McapSummaryEventKind.Seek)
-                {
-                    var seek = item.Seek;
-                    long offset = seek.Origin == SeekOrigin.Begin
-                        ? checked((long)seek.AbsolutePosition) : seek.RelativeOffset;
-                    reader.NotifySeeked(checked((ulong)input.Seek(offset, seek.Origin)));
-                }
-                else
-                {
-                    int count = input.Read(io, 0, (int)Math.Min((ulong)io.Length, item.Length));
-                    reader.SupplyInput(io.AsSpan(0, count));
-                }
-            }
-            return reader; // The caller owns the completed parser.
-        }
-        catch (Exception operation)
-        {
-            try { reader.Dispose(); }
-            catch (Exception cleanup) { throw new AggregateException(operation, cleanup); }
-            throw;
-        }
-    }
-
+<p>The channel associates topic <code>/sample</code> with the <code>json</code> encoding; this example registers no schema. Payloads contain UTF-8 JSON, which the library does not decode. <code>LogTime</code> and <code>PublishTime</code> are nanoseconds with an application-defined clock origin. Writing time 100 before time 50 makes the reading order visible.</p>
+<p>The path constructor only creates new files and fails if the file exists. Call <code>Complete()</code> explicitly; leaving the <code>using</code> scope releases resources without implicitly finishing the format. File persistence is a separate request; see <a href="api.html#completion-and-file-persistence">API contracts</a>.</p>
+<h2 id="read-messages">Read messages</h2>
+<pre><code class="lang-csharp">var reader = new McapReaderFactory(path);
+foreach (var message in reader.ReadMessages())
+    Console.WriteLine($&quot;{message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
 </code></pre>
-<h3 id="indexed-messages">Indexed messages</h3>
-<p>After <code>using var summary = ReadSummary(input)</code>, use <code>using var indexed = summary.CreateIndexed()</code> and call <code>ReadIndexed(input, indexed)</code>. Its only input event is ReadChunk; message output uses a caller buffer.</p>
-<pre><code class="lang-csharp">    static void ReadIndexed(Stream input, McapSansIoIndexedReader reader)
-    {
-        byte[] chunk = [], payload = [];
-        int messages = 0;
-        while (true)
-        {
-            var status = reader.NextEvent(payload, out var item);
-            if (status == McapReadStatus.EndOfStream) break;
-            if (status == McapReadStatus.BufferTooSmall)
-            {
-                payload = new byte[checked((int)item.Length)];
-                continue;
-            }
-            if (item.Kind == McapIndexedEventKind.ReadChunk)
-            {
-                int length = checked((int)item.Length);
-                if (chunk.Length &lt; length) chunk = new byte[length];
-                input.Position = checked((long)item.Offset);
-                input.ReadExactly(chunk.AsSpan(0, length)); // Complete short reads before submission.
-                reader.InsertChunkData(item.Offset, chunk.AsSpan(0, length));
-            }
-            else
-            {
-                // Use item.Header and payload[..Length] before reusing the destination.
-                messages++;
-            }
-        }
-        if (messages != 2) throw new Exception(&quot;Indexed protocol example lost messages.&quot;);
-    }
+<p>Output follows file order:</p>
+<pre><code class="lang-text">100: {&quot;value&quot;:1}
+50: {&quot;value&quot;:2}
 </code></pre>
+<p><code>McapReaderFactory</code> itself owns no disposable input resources; each enumeration owns and disposes an independent session. <code>ReadMessages()</code> returns independently owned results suitable for ordinary application code.</p>
+<h2 id="filter-by-topic-and-time">Filter by topic and time</h2>
+<pre><code class="lang-csharp">foreach (var message in reader.ReadMessages(new()
+{
+    Topic = &quot;/sample&quot;,
+    StartTime = 50,
+    EndTime = 100
+}))
+    Console.WriteLine($&quot;{message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
+</code></pre>
+<p>The only output is <code>50: {&quot;value&quot;:2}</code>. Time filtering uses <code>LogTime</code> and the interval <code>[StartTime, EndTime)</code>: 50 is included and 100 is excluded. Adding a filter preserves file order. See <a href="queries.html">queries and random access</a> when you need time ordering or mandatory indexes.</p>
+<h2 id="optional-validation-and-cleanup">Optional validation and cleanup</h2>
+<pre><code class="lang-csharp">ulong recordCount = reader.Validate();
+Console.WriteLine($&quot;Validated {recordCount} records.&quot;);
+</code></pre>
+<p>This is an optional, separate full-file scan and can run before processing messages. It returns a record count, not a message count; format or integrity failures throw. Successful ordinary reading or querying does not replace full validation, and validation does not interpret business payloads. See <a href="api.html#validation-and-recovery">API contracts</a> for validation scope and valid-prefix recovery.</p>
+<p>Append <code>File.Delete(path);</code> after all operations to remove the example file. Application code should apply its own retention policy and handle operation or cleanup failures.</p>
+<h2 id="next-steps">Next steps</h2>
+<ul>
+<li><a href="queries.html">Queries and random access</a>: file order, time order, indexes and chunk cursors.</li>
+<li><a href="ownership.html">Message ownership and memory choices</a>: reusable buffers, synchronous borrowing and storage leases.</li>
+<li><a href="streams-async.html">Streams and asynchronous reading</a>: I/O ownership, async operations and cancellation.</li>
+<li><a href="sans-io.html">Sans-I/O</a>: let the application perform I/O itself. <a href="sans-io.html#linear-records">linear records</a> · <a href="sans-io.html#summary-requests">summary requests</a> · <a href="sans-io.html#indexed-messages">indexed messages</a></li>
+<li><a href="api.html">API contracts</a>: defaults, lifetime, failure and validation boundaries.</li>
+</ul>
+<h2 id="run-repository-examples">Run repository examples</h2>
+<p>The <a href="../samples/Documentation/QuickStartExamples.cs">tutorial source</a> verifies these results and removes its temporary file; the <a href="../samples/Documentation/Program.cs">complete example</a> also covers advanced reading paths. Source contributors can run <code>./scripts/Test-Samples.ps1</code> from the repository root to build the native host library and validate current source. Use <code>./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages</code> for an already verified complete package; that is not public NuGet package validation. See <a href="development.html">development</a> for setup.</p>
 
 </article>
 

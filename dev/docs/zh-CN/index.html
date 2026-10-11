@@ -89,23 +89,52 @@
         <article data-uid="">
 <h1 id="fizzymcapsharp-文档">Fizzy.McapSharp 文档</h1>
 
-<p><a href="../index.html">English</a></p>
-<p>Fizzy.McapSharp 为 .NET 8 提供通用 MCAP 文件操作；payload 编码和时钟语义由应用定义。</p>
-<h2 id="入门与使用">入门与使用</h2>
+<p><a href="../index.html">English</a> · <a href="https://github.com/0xfizzy/Fizzy.McapSharp">GitHub 仓库</a></p>
+<p>Fizzy.McapSharp 为 .NET 8 提供 MCAP 文件读写。载荷编码和时钟基准由应用决定。按当前任务选择入口，无需先了解 Rust 或原生 ABI。</p>
+<h2 id="入门">入门</h2>
+<p>首次接触项目，先看 <a href="../../README.zh-CN.html">README</a>了解用途和支持平台；准备开始编码，阅读<a href="usage.html">第一个文件</a>，通过 NuGet 完成写入、读取、过滤和可选校验。</p>
+<h2 id="深入使用">深入使用</h2>
+<table>
+<thead>
+<tr>
+<th>当前需求</th>
+<th>指南</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>按时间查询、强制索引、重复访问 Chunk</td>
+<td><a href="queries.html">查询与随机访问</a></td>
+</tr>
+<tr>
+<td>复用缓冲、同步处理、跨操作保留或转发数据</td>
+<td><a href="ownership.html">消息所有权与内存取舍</a></td>
+</tr>
+<tr>
+<td>使用已有 Stream、异步读取或取消</td>
+<td><a href="streams-async.html">Stream 与异步</a></td>
+</tr>
+<tr>
+<td>由应用自行提供输入和执行定位</td>
+<td><a href="sans-io.html">Sans-I/O</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="参考">参考</h2>
 <ul>
-<li><a href="usage.html">使用任务与可运行示例</a>：写入、验证和读取第一个文件。</li>
-<li><a href="api.html">API 契约</a>：选择<a href="api.html#%E9%80%89%E6%8B%A9%E6%B6%88%E6%81%AF%E6%89%80%E6%9C%89%E6%9D%83">消息所有权</a>和<a href="api.html#%E9%80%89%E6%8B%A9%E8%AE%BF%E9%97%AE%E6%A8%A1%E5%BC%8F">访问模式</a>，然后了解完成、释放、失败及分配保证。</li>
+<li><a href="api.html">API 契约</a>：确认默认值、生命周期、失败、验证和性能保证。</li>
+<li><a class="xref" href="../../api/Fizzy.McapSharp.html">API reference (English)</a>：查询类型、成员、参数和返回值；中英文指南共用英文成员参考。</li>
+<li><a href="coverage.html">上游 API 对应关系</a>：核对官方 Rust 能力、绑定适配及明确排除项。</li>
 </ul>
-<h2 id="开发与内部实现">开发与内部实现</h2>
+<h2 id="开发与维护">开发与维护</h2>
 <ul>
-<li><a href="development.html">开发指南</a>：构建并验证当前源码或完整包。</li>
-<li><a href="native.html">原生 ABI</a>：原生互操作与内存边界。</li>
-<li><a href="coverage.html">上游覆盖</a>：与官方 Rust API 的对应关系。</li>
-<li><a href="patches.html">本地补丁</a>：允许的扩展及其证据。</li>
+<li><a href="development.html">构建与集成</a>：源码环境、本机构建、包内容及消费项目引用。</li>
+<li><a href="testing.html">验证与诊断</a>：互操作、分配门禁和存储性能诊断。</li>
+<li><a href="native.html">原生 ABI</a>与<a href="patches.html">本地补丁</a>：实现边界、扩展契约及证据。</li>
+<li><a href="documentation.html">文档维护</a>与<a href="release.html">发布恢复</a>：文档构建、翻译、归档及发布操作。</li>
+<li><a href="../../AGENTS.html">仓库约定</a>：贡献和维护规则（英文）。</li>
 </ul>
-<h2 id="文档维护">文档维护</h2>
-<p>两种语言的指南共用站点导航中的英文生成式 <strong>API reference (English)</strong>。成员契约查阅 API 参考，跨 API 行为查阅指南。</p>
-<p>使用<a href="documentation.html">文档维护</a>构建站点并维护翻译，按照<a href="release.html">发布 SOP</a>归档和发布文档。</p>
+<p>不确定从哪里开始时，先完成<a href="usage.html">入门教程</a>，再按实际需求选择深入指南。</p>
 
 </article>
 

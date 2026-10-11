@@ -90,9 +90,11 @@
 <h1 id="building-and-maintaining-documentation">Building and maintaining documentation</h1>
 
 <p>English | <a href="zh-CN/documentation.html">简体中文</a></p>
+<p>For documentation contributors: build the site, review translations, validate examples and inspect rendered pages. See the <a href="index.html">documentation home</a> for reader paths and topic organization.</p>
 <p>Maintain member contracts in English XML comments, cross-API contracts in <a href="api.html">api.md</a>, and task sequences in <a href="usage.html">usage.md</a>. Review constraints, units, ownership, cancellation, failure and cleanup against implementation. XML coverage is not semantic correctness.</p>
+<p>The bilingual site entry and top-level navigation are in <code>docs/index.md</code> and <code>docs/toc.yml</code>. English guides live in <code>docs/en/</code>; Chinese guides live in <code>docs/zh-CN/</code>. DocFX and npm configuration and the local .NET tool manifest live under <code>docs/</code>. Scripts run these tools from that directory. The build stages selected inputs under <code>artifacts/docs/source/</code> so DocFX can resolve repository resources beneath its configuration root; generated output remains under repository-root <code>artifacts/</code>. Published guide URLs remain unchanged.</p>
 <h2 id="local-workflow">Local workflow</h2>
-<p>Use Python 3.12, PowerShell 7, Node.js 22, the .NET 8 SDK and the pinned Rust toolchain with the host native compiler described in <a href="development.html">development</a>. DocFX is pinned in the local tool manifest; <code>dotnet tool restore</code> restores that tool only. No global tool installation is performed.</p>
+<p>Use Python 3.12, PowerShell 7, Node.js 22, the .NET 8 SDK and the pinned Rust toolchain with the host native compiler described in <a href="development.html">development</a>. DocFX is pinned in the local tool manifest; <code>dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json</code> restores that tool only. No global tool installation is performed.</p>
 <pre><code class="lang-powershell">./scripts/Test-Documentation.ps1
 ./scripts/Build-Docs.ps1
 ./scripts/Test-Samples.ps1
@@ -102,14 +104,15 @@
 <p>For a verified complete package, <code>Build-Docs.ps1 -Package &lt;absolute-nupkg-path&gt; -ReleaseCommit &lt;sha&gt;</code> uses its DLL/XML. The package version must match project metadata. This is candidate-package documentation, not proof of published-package availability. To compare a candidate with public NuGet and execute isolated public-source package tests, run <code>./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published</code>.</p>
 <p>For generation with manual browser verification, run <code>./scripts/Build-Docs.ps1 -SkipBrowser</code>. Source, XML and static site checks still run; the report marks the browser check as skipped. This does not replace the full validation required before release.</p>
 <h2 id="translation-and-changes">Translation and changes</h2>
-<p>Keep English guides in <code>docs/</code> and same-name Chinese guides in <code>docs/zh-CN/</code>, with independent navigation and language links. The root README uses <code>README.zh-CN.md</code>. After reviewing the translated text, explicitly accept the English revision:</p>
-<pre><code class="lang-powershell">./scripts/Test-Documentation.ps1 -AcceptTranslation docs/usage.md
+<p>Keep English guides in <code>docs/en/</code> and same-name Chinese guides in <code>docs/zh-CN/</code>, with independent navigation and language links. The root README uses <code>README.zh-CN.md</code>. After reviewing the translated text, explicitly accept the English revision:</p>
+<pre><code class="lang-powershell">./scripts/Test-Documentation.ps1 -AcceptTranslation docs/en/usage.md
 </code></pre>
 <p>Normalized source hashes record review state, not translation quality. Never accept hashes without review. Both languages share the same sample source and English API reference.</p>
 <p>Public/protected API declarations, XML, guides, translations, README, navigation, templates or documentation tooling changes require the full documentation build. Internal-only changes need it only when they affect the generated reference or documented behavior. Compile and run examples when their code or relevant API changes. Run <code>Test-Release.ps1</code> when release, archive, update or restoration behavior changes. Documentation tests never replace native, allocation, interoperability or package tests.</p>
 <h2 id="outputs-and-diagnostics">Outputs and diagnostics</h2>
 <p>Generated API YAML, site, docs.zip, file hashes and API member inventory live under <code>artifacts/docs/</code>. Reports live under <code>artifacts/reports/</code>; scripts exit nonzero on failure. No generated HTML belongs on the source branch. Source checks detect translation drift and missing files; final HTML checks validate local links, anchors, required search output and project-prefix-safe URLs. Chromium verifies English/Chinese/API loading, language links, one API search result, version switching, missing-page language fallback, page script errors and required resources. It writes a JSON result and saves screenshots only on failure; static checks cover the full link/anchor graph.</p>
 <p>The docs workflow validates PRs and updates <code>/dev/</code> only from main. Under the deployment lock, the artifact commit must still equal remote main before archiving and immediately before deployment; stale builds fail explicitly. It does not publish NuGet. See the <a href="release.html">release SOP</a> for package-version documentation, remote setup, updates and recovery.</p>
+<p>After local checks, follow <a href="release.html">release and recovery</a> for versioned documentation updates.</p>
 
 </article>
 

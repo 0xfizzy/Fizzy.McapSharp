@@ -117,7 +117,7 @@
 </table>
 <p>The reviewed inventory contains 344 official declarations and 18 local extension declarations. These include types, methods, fields, constants and error variants; the counts are not counts of implemented operations or passing tests. Optional Tokio declarations are included even though the binding does not invoke Tokio.</p>
 <h2 id="writing-writing">Writing (<code>writing</code>)</h2>
-<p>Managed entry points are on <a href="../src/McapWriter.cs">McapWriter</a> and its partial implementations.</p>
+<p>Managed entry points are on <a href="../src/Fizzy.McapSharp/McapWriter.cs">McapWriter</a> and its partial implementations.</p>
 <table>
 <thead>
 <tr>
@@ -260,7 +260,7 @@
 </tr>
 </tbody>
 </table>
-<p>See <a href="../src/McapIndexedReader.cs">McapIndexedReader</a>. Prepared indexes, grouped seeks and cache retention are binding additions, not additional official methods. Their reuse scopes are described under <a href="api.html#complete-chunk-random-access">random access</a>. Successful indexed reading does not establish full-file validation.</p>
+<p>See <a href="../src/Fizzy.McapSharp/McapIndexedReader.cs">McapIndexedReader</a>. Prepared indexes, grouped seeks and cache retention are binding additions, not additional official methods. Their reuse scopes are described under <a href="api.html#complete-chunk-random-access">random access</a>. Successful indexed reading does not establish full-file validation.</p>
 <h2 id="sans-io-sans-io">Sans-I/O (<code>sans-io</code>)</h2>
 <table>
 <thead>
@@ -292,7 +292,7 @@
 </tr>
 </tbody>
 </table>
-<p>See <a href="../src/SansIoReaderCore.cs">SansIoReaderCore.cs</a> and the symbol inventory for individual events and controls. Optional CRC checks default to upstream settings. Shared-event and direct-fill ownership extensions are listed separately below.</p>
+<p>See <a href="../src/Fizzy.McapSharp/SansIoReaderCore.cs">SansIoReaderCore.cs</a> and the symbol inventory for individual events and controls. Optional CRC checks default to upstream settings. Shared-event and direct-fill ownership extensions are listed separately below.</p>
 <h2 id="records-utilities-and-errors-records-and-errors">Records, utilities and errors (<code>records-and-errors</code>)</h2>
 <table>
 <thead>
@@ -355,7 +355,7 @@
 </tr>
 </tbody>
 </table>
-<p>Functional alternatives do not imply a port of runtime-specific interfaces. See <a href="../src/McapAsyncRecordReader.cs">asynchronous reader</a>.</p>
+<p>Functional alternatives do not imply a port of runtime-specific interfaces. See <a href="../src/Fizzy.McapSharp/McapAsyncRecordReader.cs">asynchronous reader</a>.</p>
 <p><code>McapAsyncMessageReader</code> provides message leases as a binding capability over the linear engine. Both asynchronous expanded reader types expose encountered immutable declarations through GetChannelDescription and GetSchemaDescription after consuming the outstanding operation; this adds no upstream API or patch.</p>
 <h2 id="local-extensions-and-binding-capabilities">Local extensions and binding capabilities</h2>
 <p>Inventory entries with <code>origin: local-extension</code> and group <code>local-extensions</code> identify patched native declarations. They are excluded from official counts. Binding-only managed capabilities need not introduce a Rust public declaration and are not added to the official baseline.</p>
@@ -398,9 +398,10 @@
 <p>Patch motivation and permitted scope belong in <a href="patches.html">patches.md</a>; ABI ownership belongs in <a href="native.html">native.md</a>. Public usage and performance guarantees belong in <a href="api.html">api.md</a>.</p>
 <h2 id="verification-and-maintenance">Verification and maintenance</h2>
 <p>Run <code>python scripts/check_api_coverage.py</code> after changing the map. It compares symbol sets and kinds with the selected native source, checks official/local origin against the fixed baseline, and validates mapping categories, groups, required reasons and referenced files. It does not verify that every mapping description is semantically correct or that the two implementations behave identically; those require review and behavioral tests.</p>
-<p>Behavioral evidence is separate: pinned conformance cases, .NET/Python interoperability, independent unmodified-upstream comparison, lifetime/retry tests and allocation gates address different properties. Tests against the patched source alone are not independent upstream evidence. Binding diagnostics do not establish total-memory bounds or constrain codec allocations. Commands, fixture counts and limitations are maintained in <a href="development.html#external-contract-suites">development.md</a>.</p>
+<p>Behavioral evidence is separate: pinned conformance cases, .NET/Python interoperability, independent unmodified-upstream comparison, lifetime/retry tests and allocation gates address different properties. Tests against the patched source alone are not independent upstream evidence. Binding diagnostics do not establish total-memory bounds or constrain codec allocations. Commands, fixture counts and limitations are maintained in <a href="testing.html#external-contract-suites">testing</a>.</p>
 <p>To review one capability, locate its group above, find its exact <code>rust</code> symbol in the reviewed inventory, then inspect the mapped source and evidence. Preserve the official baseline when adding local capabilities; record alternatives and exclusions explicitly instead of counting them as direct implementations.</p>
 <p>The managed capability boundaries include immutable creation-time <code>ValidationCapability</code> for full expanded scans, explicit <code>CreateCopied</code> versus <code>OpenMapped</code> indexed input, and separate raw-record access through <code>McapRecordAccessor</code>. These are binding contracts, not upstream declarations. Public Sans-I/O summary polling has no destination; indexed events are only Message/ReadChunk/End. <code>McapSeekRequest</code> adapts Rust SeekFrom without unsigned encoding of negative public offsets. <code>McapMessageSeekRequest</code> is the separate prepared batch lookup descriptor. <code>ApiConvergenceTests</code> verifies these public shapes, pre-consumption rejections and protocol loops.</p>
+<p>For usage examples, return to the <a href="usage.html">tutorial</a>; when maintaining mappings, check <a href="api.html">API contracts</a> and <a href="testing.html">validation evidence</a>.</p>
 
 </article>
 

@@ -130,6 +130,7 @@
 <p><code>python scripts/test_upstream.py</code> 独立编译仅引用 registry 的参考实现，对照补丁版本在 None／Lz4／Zstd 下的确定性写入字节、记录、消息、索引定位、有界样本的所有截断点及抽样损坏输入。有限测试不证明全部格式行为。原生共享存储测试检查指针一致性、保留生命周期及 pending 交付零分配；托管测试覆盖释放、映射、重试和异步所有权。Release 分配门禁独立检查预热后的托管热路径。</p>
 <p><code>sort_arena</code> 测试覆盖 backing 身份、紧凑阈值、选中 payload 仅复制一次、分段边界及释放后结果寿命。<code>memory_probe::sort_compaction_profile</code> 对相同输入比较共享与紧凑策略，检查旧 backing 分配释放并报告保留容量、复制字节和组内新旧存储重叠。<code>SortStorageTests</code> 覆盖不同压缩和输入模式下的过滤回退排序、同时间戳、逆序、重试和 lease 寿命。这些测试证明绑定层存储行为；格式参考仍使用独立上游比较。</p>
 <p>修改补丁时重新审查必要性及纯绑定层替代方案，同步本文与相应清单（不得改写上游哈希来接受补丁），并运行独立行为、生命周期及分配检查。便利 API 或上游资源策略不构成扩大补丁的理由。</p>
+<p>独立对照与存储诊断命令见<a href="testing.html">测试专题</a>。</p>
 
 </article>
 
