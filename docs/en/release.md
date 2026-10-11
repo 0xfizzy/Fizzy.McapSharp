@@ -19,6 +19,9 @@ Run `./scripts/Test-Release.ps1`, the full documentation build and affected samp
 
 The publish workflow validates native assets and the identical package across supported platforms, retains an immutable original candidate in Release assets before OIDC NuGet publication, verifies published package content, then deploys its package-bound documentation. Only after successful deployment does it make the Release public. Resume reuses original package assets; it never repacks or overwrites existing assets. A partial asset upload is recovered from the original self-contained bundle. Commands do not authorize version changes, tags or publication by themselves.
 
+
+`Resume` runs the current validated `main` tooling with the explicit `resume_tag` workflow input. Run it from a clean checkout matching remote main after both build and documentation CI succeed. The tooling package version must match the candidate version because package tests and examples select their version from project metadata. Recovery requires an existing saved candidate, verifies its hashes and original tag commit, and never falls back to building a replacement. The workflow uses main for execution and the original tag for candidate identity; keep both main and release tags allowed in the publishing environments and configure Trusted Publishing for this workflow. A moved tag, missing candidate or failed tooling CI stops recovery.
+
 ## Documentation addresses and storage
 
 `/dev/` follows current main and is explicitly unreleased. `/v<version>/` holds the latest documentation for that package; an update replaces the entire directory, including removing deleted pages. Numbered documentation paths are removed, without redirects. The version selector lists only Development and package versions. `/latest/` selects the highest successfully deployed stable semantic version; updating older documentation does not change it. The root enters latest, or dev before the first stable release.

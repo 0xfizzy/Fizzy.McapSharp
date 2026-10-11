@@ -1,6 +1,13 @@
 name: publish
 on:
   workflow_dispatch:
+    inputs:
+      resume_tag:
+        description: 'Existing candidate tag to restore using main tooling (no rebuild)'
+        type: string
+        default: ''
+env:
+  RELEASE_TAG: ${{ inputs.resume_tag || github.ref_name }}
 permissions:
   contents: read
   actions: read
@@ -27,10 +34,15 @@ jobs:
       - id: check
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RESUME_TAG: ${{ inputs.resume_tag }}
         run: |
-          test '${{ github.ref_type }}' = tag
-          python scripts/release.py check --tag "$RELEASE_TAG"
+          if [ -n "$RESUME_TAG" ]; then
+            test "$GITHUB_REF" = refs/heads/main
+            python scripts/release.py check-resume --tag "$RELEASE_TAG"
+          else
+            test "$GITHUB_REF_TYPE" = tag
+            python scripts/release.py check --tag "$RELEASE_TAG"
+          fi
   validate:
     needs: preflight
     if: needs.preflight.outputs.reuse != 'true'
@@ -46,7 +58,6 @@ jobs:
       actions: read
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -119,7 +130,6 @@ jobs:
       id-token: write
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -205,7 +215,6 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

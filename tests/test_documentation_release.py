@@ -276,6 +276,61 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'conflicts'):
                 release.persist('v1.0.0', folder)
 
+    def test_resume_uses_validated_main_and_original_candidate(self):
+        tooling = 'b' * 40
+        original = 'a' * 40
+        def git(*args):
+            return '' if args[1] == 'status' else tooling
+        runs = {'workflow_runs': [{'head_sha': tooling, 'head_branch': 'main', 'event': 'push'}]}
+        with patch.object(release, 'output', side_effect=git), \
+                patch.object(release, 'remote_commit', return_value=tooling), \
+                patch.object(release, 'version', return_value='1.0.0'), \
+                patch.object(release, 'api', return_value=runs) as ci, \
+                patch.object(release, 'restore', return_value={'commit': original}) as restore:
+            result = release.check_resume('v1.0.0')
+            self.assertEqual(result, {'version': '1.0.0', 'tag': 'v1.0.0', 'commit': original,
+                                      'tooling_commit': tooling, 'reuse': True})
+            self.assertEqual(ci.call_count, 2)
+            restore.assert_called_once_with('v1.0.0')
+
+    def test_resume_rejects_unvalidated_tooling_before_restoring(self):
+        for scenario in ('dirty', 'stale', 'version', 'build', 'docs'):
+            with self.subTest(scenario=scenario):
+                def git(*args):
+                    return (' M scripts/release.py' if scenario == 'dirty' else '') if args[1] == 'status' else 'tooling'
+                def ci(route):
+                    invalid = (scenario + '.yml') in route
+                    return {'workflow_runs': [] if invalid else [{'head_sha': 'tooling', 'head_branch': 'main', 'event': 'push'}]}
+                with patch.object(release, 'output', side_effect=git), \
+                        patch.object(release, 'remote_commit', return_value='other' if scenario == 'stale' else 'tooling'), \
+                        patch.object(release, 'version', return_value='2.0.0' if scenario == 'version' else '1.0.0'), \
+                        patch.object(release, 'api', side_effect=ci), patch.object(release, 'restore') as restore:
+                    with self.assertRaises(ValueError):
+                        release.check_resume('v1.0.0')
+                    restore.assert_not_called()
+
+    def test_resume_dispatch_requires_candidate_and_targets_main(self):
+        with patch.object(sys, 'argv', ['release.py', 'resume', '--tag', 'v1.0.0']), \
+                patch.object(release, 'check_resume', side_effect=ValueError('No completed durable candidate')), \
+                patch.object(release, 'gh') as dispatch:
+            with self.assertRaisesRegex(ValueError, 'No completed durable candidate'):
+                release.main()
+            dispatch.assert_not_called()
+        with patch.object(sys, 'argv', ['release.py', 'resume', '--tag', 'v1.0.0']), \
+                patch.object(release, 'check_resume', return_value={'reuse': True}), \
+                patch.object(release, 'set_outputs'), patch.object(release, 'gh') as dispatch:
+            release.main()
+            dispatch.assert_called_once_with('workflow', 'run', 'publish.yml', '--repo', release.REPO,
+                                             '--ref', 'main', '-f', 'resume_tag=v1.0.0')
+
+    def test_recovery_workflow_does_not_fall_back_to_build(self):
+        workflow = (release.ROOT / '.github/workflows/publish.yml').read_text(encoding='utf-8')
+        self.assertIn('RELEASE_TAG: ${{ inputs.resume_tag || github.ref_name }}', workflow)
+        self.assertNotIn('RELEASE_TAG: ${{ github.ref_name }}', workflow)
+        self.assertIn('test "$GITHUB_REF" = refs/heads/main', workflow)
+        self.assertIn('python scripts/release.py check-resume --tag "$RELEASE_TAG"', workflow)
+        self.assertIn("if: needs.preflight.outputs.reuse != 'true'", workflow)
+
     def bundle(self):
         """Synthetic byte fixtures test provenance, never native loading or real packaging."""
         folder = self.base / 'candidate'

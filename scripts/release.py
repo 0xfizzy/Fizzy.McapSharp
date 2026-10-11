@@ -392,12 +392,37 @@ def set_outputs(values):
                 stream.write(f'{key}={str(value).lower() if isinstance(value, bool) else value}\n')
 
 
+def check_resume(tag):
+    """Use validated main tooling, but only restore an existing immutable candidate."""
+    expected = tag_version(tag)
+    if output('git', 'status', '--porcelain'):
+        raise ValueError('Recovery requires a clean tooling checkout')
+    commit = output('git', 'rev-parse', 'HEAD')
+    if commit != remote_commit('main'):
+        raise ValueError('Recovery tooling must match remote main')
+    # Package smoke tests and samples currently select the version from tooling metadata.
+    if version() != expected:
+        raise ValueError('Recovery tooling package version must match the candidate')
+    for workflow in ['build.yml', 'docs.yml']:
+        runs = api(f'repos/{REPO}/actions/workflows/{workflow}/runs?head_sha={commit}&status=success&per_page=100')['workflow_runs']
+        if not any(r['head_sha'] == commit and r['event'] in ['push', 'workflow_dispatch'] and r['head_branch'] == 'main' for r in runs):
+            raise ValueError(f'No successful normal main {workflow} run for recovery tooling')
+    manifest = restore(tag)
+    return {'version': expected, 'tag': tag, 'commit': manifest['commit'], 'tooling_commit': commit, 'reuse': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['check', 'start', 'resume', 'status', 'prepare', 'persist', 'restore', 'publish-state', 'wait-nuget', 'finalize', 'update'])
+    parser.add_argument('command', choices=['check', 'check-resume', 'start', 'resume', 'status', 'prepare', 'persist', 'restore', 'publish-state', 'wait-nuget', 'finalize', 'update'])
     parser.add_argument('--tag', required=True)
     args = parser.parse_args()
     value = tag_version(args.tag)
+    if args.command in ['check-resume', 'resume']:
+        result = check_resume(args.tag)
+        set_outputs(result)
+        if args.command == 'resume':
+            gh('workflow', 'run', 'publish.yml', '--repo', REPO, '--ref', 'main', '-f', f'resume_tag={args.tag}')
+        return result
     if args.command == 'update':
         result = update_build(args.tag)
         set_outputs(result)
@@ -415,10 +440,6 @@ def main():
         if args.command == 'start':
             gh('workflow', 'run', 'publish.yml', '--repo', REPO, '--ref', args.tag)
         return result
-    if args.command == 'resume':
-        restore(args.tag)
-        gh('workflow', 'run', 'publish.yml', '--repo', REPO, '--ref', args.tag)
-        return {'dispatched': args.tag, 'mode': 'restore durable candidate'}
     if args.command == 'prepare':
         return prepare(args.tag)
     if args.command == 'persist':
