@@ -6,3 +6,5 @@
   topicHref: zh-CN/index.md
 - name: API reference (English)
   href: ../artifacts/docs/api/
+- name: GitHub
+  href: https://github.com/0xfizzy/Fizzy.McapSharp
