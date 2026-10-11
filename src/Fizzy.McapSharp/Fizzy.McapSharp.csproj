@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <PackageId>Fizzy.McapSharp</PackageId>
     <Authors>Fizzy</Authors>
     <Description>File-based .NET bindings to the official Rust MCAP implementation.</Description>
