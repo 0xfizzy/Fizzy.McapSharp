@@ -1,3 +1,10 @@
+/* Raster branding must stay inside the navigation row instead of covering content. */
+header .navbar-brand #logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
 /* Keep guide and API headings proportional to body text at every viewport. */
 article h1 { font-size: 2rem; }
 article h2 { font-size: 1.5rem; }
