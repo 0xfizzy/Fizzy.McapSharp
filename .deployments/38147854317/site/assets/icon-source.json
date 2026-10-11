@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/foxglove/mcap",
+  "commit": "60e73f4b4ec065c26324d71b57dfb53085008528",
+  "path": "website/static/img/mcap720.webp",
+  "url": "https://media.githubusercontent.com/media/foxglove/mcap/60e73f4b4ec065c26324d71b57dfb53085008528/website/static/img/mcap720.webp",
+  "sha256": "c55917cf642b51ac8c912efbc047f291049a3ae0d8a5fe613b520afde12e940f",
+  "modifications": "Converted official 960x720 WebP to RGBA; cropped transparent exterior to (31, 56, 928, 663); LANCZOS resized proportionally to 256x173; centered at (0, 41) on a transparent 256x256 canvas. Complete artwork retained without stretching or extra border.",
+  "source_sha256": "d62c44fd12dbe75a4752c31dc0b17e5e2817ecb3a2c337c82037d295100e20e1"
+}

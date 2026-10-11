@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>查询与随机访问 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="查询与随机访问 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../assets/icon.png">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="查询与随机访问">查询与随机访问</h1>
+
+<p><a href="../queries.html">English</a> | 简体中文</p>
+<p>面向已完成<a href="usage.html">入门教程</a>、需要过滤、时间排序或局部文件访问的应用开发者。先选择顺序与验证范围，再选择结果的交付方式。下方示例沿用教程中的 <code>path</code>。</p>
+<h2 id="选择执行路径">选择执行路径</h2>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>入口</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>按文件顺序扫描，可带过滤</td>
+<td><code>ReadMessages</code> / <code>OpenMessages</code></td>
+<td>顺序读取；增加过滤条件不会排序</td>
+</tr>
+<tr>
+<td>按时间读取，允许必要的回退</td>
+<td><code>ReadQueryMessages</code> / <code>QueryMessages</code></td>
+<td>默认按日志时间升序；索引无法满足时可能收集匹配结果</td>
+</tr>
+<tr>
+<td>禁止全局扫描排序</td>
+<td><code>QueryMessages</code> 配置 <code>AllowBufferedSort = false</code></td>
+<td>请求的时间顺序需要缓冲回退时抛异常；仍可按文件顺序扫描</td>
+</tr>
+<tr>
+<td>强制使用可用索引</td>
+<td><code>OpenIndexedMessages</code></td>
+<td>不回退到顺序扫描或缓冲排序</td>
+</tr>
+</tbody>
+</table>
+<p>每个入口的省略与空选项含义相同。主题精确匹配，时间过滤针对 <code>LogTime</code> 的 <code>[StartTime, EndTime)</code> 区间。升序和降序均不规定相同时间戳之间的顺序。索引前提与失败行为见<a href="api.html#%E9%80%89%E6%8B%A9%E6%9F%A5%E8%AF%A2%E8%B7%AF%E5%BE%84">查询契约</a>。</p>
+<h2 id="过滤并保持文件顺序">过滤并保持文件顺序</h2>
+<pre><code class="lang-csharp">var factory = new McapReaderFactory(path);
+foreach (var message in factory.ReadMessages(new() { Topic = &quot;/sample&quot; }))
+    Console.WriteLine(message.LogTime);
+</code></pre>
+<p>教程文件会先输出 100，再输出 50。不需要全局时间顺序时，顺序扫描适合增量处理。</p>
+<h2 id="显式请求时间顺序">显式请求时间顺序</h2>
+<pre><code class="lang-csharp">using var query = factory.QueryMessages(new()
+{
+    Topic = &quot;/sample&quot;,
+    Order = McapReadOrder.LogTime,
+    AllowBufferedSort = false
+});
+foreach (var message in query.ReadMessages())
+    Console.WriteLine(message.LogTime);
+</code></pre>
+<p>带索引的教程文件会先输出 50，再输出 100。索引无法提供此顺序时，打开操作会在收集匹配结果前抛出 <code>NotSupportedException</code>。若允许全局收集并排序，使用默认的 <code>AllowBufferedSort = true</code>。<code>MaxBufferedSortBytes</code> 约束局部收集额度，不是全部保留内存的上限，详见<a href="api.html#%E7%BB%91%E5%AE%9A%E5%B1%82%E6%80%A7%E8%83%BD%E4%B8%8E%E5%B1%80%E9%83%A8%E9%99%90%E5%88%B6">局部限制</a>。</p>
+<p>若必须使用索引，而不只是禁止排序回退：</p>
+<pre><code class="lang-csharp">using var indexed = factory.OpenIndexedMessages(new() { Topic = &quot;/sample&quot; });
+foreach (var message in indexed.ReadMessages())
+    Console.WriteLine(message.LogTime);
+</code></pre>
+<p>索引查询成功不等于全文件验证。索引损坏和 I/O 错误可能直接失败，不触发回退。</p>
+<h2 id="重复访问时减少重复工作">重复访问时减少重复工作</h2>
+<p>索引查询会话与 <code>McapIndexedReader</code> 用途不同：后者持有复制或映射的输入，支持离散定位和 Chunk 游标。</p>
+<table>
+<thead>
+<tr>
+<th>访问模式</th>
+<th>选择</th>
+<th>复用范围</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>按已知偏移读取原始记录</td>
+<td><code>factory.OpenRecordAccessor()</code></td>
+<td>可寻址输入，不复制整个输入</td>
+</tr>
+<tr>
+<td>同一 Chunk 中的多条消息</td>
+<td><code>McapIndexedReader.OpenChunkMessages</code></td>
+<td>同一个游标的遍历</td>
+</tr>
+<tr>
+<td>一组已知消息位置</td>
+<td><code>SeekMessages</code></td>
+<td>一次调用内合并 Chunk 加载</td>
+</tr>
+<tr>
+<td>跨调用反复访问</td>
+<td>为同一个索引读取器设置缓存额度</td>
+<td>Chunk 保留到驱逐或释放</td>
+</tr>
+</tbody>
+</table>
+<p>文件能在所有依赖游标和租约存活期间保持不变时，使用 <code>McapIndexedReader.OpenMapped(path)</code>。需要独立完整输入副本时，选择 <code>factory.CreateCopiedIndexedReader()</code>，其内存随文件大小增长。两种读取器都需要释放；子 Chunk 游标与保留的租约持有各自的存储引用。</p>
+<p>单条定位也可能加载并验证整个 Chunk。预准备索引可减少描述符工作，但不消除缓存未命中时的解压。先观察缓存命中与 Chunk 加载次数，再调整额度，详见<a href="api.html#%E5%AE%8C%E6%95%B4-chunk-%E9%9A%8F%E6%9C%BA%E8%AE%BF%E9%97%AE">随机访问契约</a>。</p>
+<p>下一步独立选择<a href="ownership.html">消息所有权</a>。是否需要另外进行全文件校验，参见 <a href="api.html#%E6%A0%A1%E9%AA%8C%E4%B8%8E%E6%81%A2%E5%A4%8D">API 契约</a>。</p>
+<p>本页代码在<a href="../../samples/Documentation/ReadingExamples.cs">读取示例</a>中运行，执行方法见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">教程</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
