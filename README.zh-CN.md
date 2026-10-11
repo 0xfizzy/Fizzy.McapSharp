@@ -7,19 +7,23 @@
 
 [English](README.md) | 简体中文
 
-基于官方 Rust `mcap` 实现的 .NET 8 文件读写库，支持消息、Schema、Channel、元数据、附件、压缩、时间过滤和完整性校验。
+基于官方 Rust `mcap` 实现的 .NET 8 文件读写库。[MCAP](https://mcap.dev/spec) 是用于保存带时间戳消息及其 Schema、Channel 等信息的容器格式。本库支持消息、元数据和附件读写，以及压缩、时间过滤和完整性校验；载荷（payload）编码与时钟基准由应用定义。
 
-本项目自身的所有代码均由 AI 生成。第三方依赖及随仓库分发的上游代码保留其原作者归属和许可证。
+支持 Windows x64 和 glibc Linux x64/ARM64；Linux 构建及验证基线为 Ubuntu 22.04。详细支持范围见 [API 契约](docs/zh-CN/api.md)。
 
 ## 快速开始
 
-在 .NET 8 应用中添加依赖。支持 Windows x64 和 glibc Linux x64/ARM64 进程，Linux 验证基线为 Ubuntu 22.04 及以上：
+### 安装
+
+在 .NET 8 应用目录中运行：
 
 ```powershell
 dotnet add package Fizzy.McapSharp
 ```
 
-以下示例使用 C# 12。目标文件必须不存在，时间戳单位为纳秒。
+### 读写消息
+
+以下示例使用 C# 12。目标文件必须不存在；时间戳单位为纳秒，起点由应用约定。
 
 ```csharp
 using Fizzy.McapSharp;
@@ -33,25 +37,21 @@ using (var writer = new McapWriter(path))
 }
 
 var reader = new McapReaderFactory(path);
-reader.Validate();
-foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
+foreach (var message in reader.ReadMessages())
     Console.WriteLine($"{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}");
 ```
 
-必须显式调用 `Complete()` 完成格式，再按需调用 `FlushToDisk()` 请求文件持久化；`Dispose()` 只释放资源。`ReadMessages()` 不替代完整文件校验。
+必须显式调用 `Complete()` 完成文件格式；`Dispose()` 只释放资源。需要请求文件持久化时，在完成后、释放前调用 `FlushToDisk()`。
 
-大载荷和流水线可使用同步借用、批量读写及稳定存储 lease；先[选择消息所有权](docs/zh-CN/api.md#选择消息所有权)，再了解生命周期与局部缓存／排序额度。
-
-普通应用优先使用 `ReadMessages()` 返回的独立自有结果；需要控制分配或保留共享存储时，再参考 API 所有权指南。
+需要完整文件校验时，另行调用 `reader.Validate()`；它会单独扫描整个文件。普通读取不替代完整校验，也不会验证载荷的业务含义。
 
 ## 文档入口
 
-- [API、生命周期与数据所有权](docs/zh-CN/api.md)
-- [源码构建、测试与消费者集成](docs/zh-CN/development.md)
-- [原生 ABI 与内存边界](docs/zh-CN/native.md)
-- [仓库维护约定](AGENTS.md)
+- [文档网站](https://0xfizzy.github.io/Fizzy.McapSharp/)：在线浏览中英文指南与 API 参考。
+- [入门教程](docs/zh-CN/usage.md)：创建项目、读写、过滤及校验。
+- [API 契约](docs/zh-CN/api.md)：默认行为、生命周期、错误与性能保证。
+- [文档首页](docs/zh-CN/index.md)：深入使用、英文成员 API 参考和开发维护入口。
+
+本项目自身的所有代码均由 AI 生成。第三方依赖及随仓库分发的上游代码保留其原作者归属和许可证。
 
 本项目采用 [MIT 许可证](LICENSE)；第三方依赖见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
-
-- [文档首页](docs/zh-CN/index.md)
-- [发布 SOP](docs/zh-CN/release.md)

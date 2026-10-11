@@ -1,24 +1,36 @@
-- name: 入门与使用
+- name: 入门
   items:
     - name: 概览
       href: index.md
-    - name: 使用任务与示例
+    - name: 第一个文件
       href: usage.md
+- name: 深入使用
+  items:
+    - name: 查询与随机访问
+      href: queries.md
+    - name: 消息所有权
+      href: ownership.md
+    - name: Stream 与异步
+      href: streams-async.md
+    - name: Sans-I/O
+      href: sans-io.md
+- name: 参考
+  items:
     - name: API 契约
       href: api.md
-- name: 开发与内部实现
+    - name: 上游 API 对应关系
+      href: coverage.md
+- name: 开发与维护
   items:
-    - name: 开发
+    - name: 构建与集成
       href: development.md
+    - name: 验证与诊断
+      href: testing.md
     - name: 原生 ABI
       href: native.md
-    - name: 上游覆盖
-      href: coverage.md
     - name: 本地补丁
       href: patches.md
-- name: 文档维护
-  items:
-    - name: 文档构建
+    - name: 文档维护
       href: documentation.md
-    - name: 发布 SOP
+    - name: 发布与恢复
       href: release.md

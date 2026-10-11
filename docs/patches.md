@@ -26,3 +26,5 @@ No local patch changes CRC rules, record interpretation, compression algorithms,
 `sort_arena` tests check backing identity, compaction thresholds, exact-once selected-payload copying, segment boundaries and retained results after disposal. `memory_probe::sort_compaction_profile` compares shared and compact policies on identical inputs, verifies released backing allocations and reports retained capacity, copy bytes and old/new group overlap. `SortStorageTests` covers filtered fallback sorting, ties, reverse order, retries and lease lifetimes across compression and input modes. These tests establish binding storage behavior; the independent upstream comparison remains the format reference.
 
 For each patch change, review its necessity and binding-only alternatives, update this contract and both manifests as appropriate (never rewrite upstream hashes to accept a patch), and rerun independent behavior, lifetime and allocation checks. New convenience APIs or upstream resource policies do not justify expanding the patch.
+
+See [testing](testing.md) for independent comparisons and storage diagnostics.

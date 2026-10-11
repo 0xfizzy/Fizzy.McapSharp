@@ -104,8 +104,10 @@ McapAsyncMessageReader 在线性引擎上提供消息 lease，属于绑定能力
 
 修改映射后运行 `python scripts/check_api_coverage.py`。脚本对照所用原生源码检查符号集合和种类，通过固定基线区分官方／本地来源，并检查映射类别、分组、必要原因和引用文件。它不验证每条映射描述的语义正确性，也不证明两种实现行为相同；这些需要审查及行为测试。
 
-行为证据单独评估：固定 conformance 用例、.NET／Python 互操作、独立未修改上游对比、生命周期／重试测试及分配门禁分别验证不同性质。仅对补丁源码测试不构成独立上游证据；绑定诊断不证明总内存上限，也不约束 codec 分配。命令、夹具数量和限制集中维护在 [development.md](development.md#外部契约测试套件)。
+行为证据单独评估：固定 conformance 用例、.NET／Python 互操作、独立未修改上游对比、生命周期／重试测试及分配门禁分别验证不同性质。仅对补丁源码测试不构成独立上游证据；绑定诊断不证明总内存上限，也不约束 codec 分配。命令、夹具数量和限制集中维护在 [测试专题](testing.md#外部契约测试套件)。
 
 审查某项能力时，先定位上述分组，再到审查清单查找精确 `rust` 符号，最后检查所映射源码及证据。新增本地能力时保持官方基线不变；明确记录替代和排除项，不将其计作直接实现。
 
 托管能力边界包括完整 expanded 扫描的不可变创建时 ValidationCapability、索引输入的显式 CreateCopied/OpenMapped，以及独立的 McapRecordAccessor 原始记录访问。这些属于绑定契约，不是上游声明。公开 Sans-I/O 摘要轮询不接收目标缓冲区，索引事件仅为 Message/ReadChunk/End。McapSeekRequest 适配 Rust SeekFrom，不把负公开偏移编码为无符号数；McapMessageSeekRequest 则单独表示 prepared 批量消息定位。ApiConvergenceTests 验证公开形状、消费前拒绝和协议循环。
+
+需要操作示例时返回[使用指南](usage.md)；维护映射时同时核对 [API 契约](api.md)与[验证证据](testing.md)。

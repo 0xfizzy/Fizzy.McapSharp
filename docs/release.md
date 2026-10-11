@@ -2,6 +2,8 @@
 
 [简体中文](zh-CN/release.md)
 
+For maintainers authorized to release: configure publication, publish packages, update versioned documentation and recover failed deployments. See [development](development.md) for source builds; these commands do not grant publication authorization.
+
 ## Setup and package publication
 
 Configure NuGet Trusted Publishing for `publish.yml`, the `nuget` environment and `NUGET_USER`. Set Pages to GitHub Actions, and allow main and release tags in `github-pages`. Protect `documentation-update` with required reviewers. Keep `gh-pages` Git history; never force-push it. Actions artifacts are transport, not long-term storage.
@@ -52,3 +54,5 @@ For a failed Development deployment use `Resume -Tag dev -RunId <failed-run-id>`
 Resume loads exact durable bytes and verifies hashes; it does not rebuild. It refuses a completed run or a candidate superseded by archive changes. Failure before a durable candidate exists requires rerunning the original build on the same source SHA. Rollback requires a full archive SHA reachable from current history containing a successful deployment of the selected version, restores only that version and makes a new archive commit; other versions remain current. The archive SHA is the successful completion commit, not the candidate commit. Original Release bundles remain a separate immutable package recovery source.
 
 Scripts fail nonzero and write reports under `artifacts/reports/`. Inspect workflow completion and live identity rather than treating dispatch acceptance as success. Offline regression tests cover replacement/deletion, retained versions, semantic latest, stale guards, exact payload recovery, success markers, rollback and original package provenance. No offline test publishes a package.
+
+For the selected operation, complete its checks and verify workflow results and live content.

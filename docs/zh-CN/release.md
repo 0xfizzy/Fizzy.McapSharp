@@ -2,6 +2,8 @@
 
 [English](../release.md)
 
+面向获得发布授权的维护者：配置发布环境、发布包、更新版本文档及恢复失败部署。源码构建见[开发指南](development.md)，本页命令不构成发布授权。
+
 ## 配置与包发布
 
 为 `publish.yml`、`nuget` 环境和 `NUGET_USER` 配置 NuGet Trusted Publishing。Pages 使用 GitHub Actions，`github-pages` 允许 main 和发布 tag；为 `documentation-update` 配置必要审核。保留 `gh-pages` 的 Git 历史，禁止强制推送。Actions 产物用于传输，不承担长期存储。
@@ -52,3 +54,5 @@ Prepare 要求干净工作区和公开 Release，验证原始包来源，拉取�
 Resume 恢复持久化原始字节并校验哈希，不重建；拒绝已完成运行和被后续归档变化取代的候选。候选尚未持久化时，需要在同一源码 SHA 重跑原构建。Rollback 要求当前历史可达的完整归档 SHA，且包含指定版本成功部署；只恢复该版本，以新提交记录，其他版本保持当前状态。SHA 应选择成功完成提交，而不是候选提交。原始 Release bundle 仍是独立的不可变包恢复来源。
 
 脚本失败返回非零，报告保存在 `artifacts/reports/`。必须检查运行完成状态和线上身份，分派成功不代表部署成功。离线回归覆盖覆盖/删除、其他版本保留、latest、过期拒绝、原字节恢复、成功标记、回滚和原包来源；离线测试不发包。
+
+下一步按所需操作执行检查，并确认工作流结果与线上内容。

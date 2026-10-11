@@ -2,6 +2,8 @@
 
 English | [简体中文](zh-CN/documentation.md)
 
+For documentation contributors: build the site, review translations, validate examples and inspect rendered pages. See the [documentation home](index.md) for reader paths and topic organization.
+
 Maintain member contracts in English XML comments, cross-API contracts in [api.md](api.md), and task sequences in [usage.md](usage.md). Review constraints, units, ownership, cancellation, failure and cleanup against implementation. XML coverage is not semantic correctness.
 
 ## Local workflow
@@ -38,3 +40,5 @@ Public/protected API declarations, XML, guides, translations, README, navigation
 Generated API YAML, site, docs.zip, file hashes and API member inventory live under `artifacts/docs/`. Reports live under `artifacts/reports/`; scripts exit nonzero on failure. No generated HTML belongs on the source branch. Source checks detect translation drift and missing files; final HTML checks validate local links, anchors, required search output and project-prefix-safe URLs. Chromium verifies English/Chinese/API loading, language links, one API search result, version switching, missing-page language fallback, page script errors and required resources. It writes a JSON result and saves screenshots only on failure; static checks cover the full link/anchor graph.
 
 The docs workflow validates PRs and updates `/dev/` only from main. Under the deployment lock, the artifact commit must still equal remote main before archiving and immediately before deployment; stale builds fail explicitly. It does not publish NuGet. See the [release SOP](release.md) for package-version documentation, remote setup, updates and recovery.
+
+After local checks, follow [release and recovery](release.md) for versioned documentation updates.

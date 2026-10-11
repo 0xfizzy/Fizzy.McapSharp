@@ -1,23 +1,34 @@
 # Fizzy.McapSharp documentation
 
-[简体中文](zh-CN/index.md)
+[简体中文](zh-CN/index.md) · [GitHub repository](https://github.com/0xfizzy/Fizzy.McapSharp)
 
-Fizzy.McapSharp provides general MCAP file operations for .NET 8. Payload encoding and clock semantics belong to your application.
+Fizzy.McapSharp reads and writes MCAP files from .NET 8. Applications define payload encoding and clock origins. Choose the entry for your task; no Rust or native ABI knowledge is needed to begin.
 
-## Getting started and usage
+## Getting started
 
-- [Task guide and runnable examples](usage.md): write, validate and read your first recording.
-- [API contracts](api.md): choose [message ownership](api.md#choose-message-ownership) and [access patterns](api.md#choose-an-access-pattern), then review completion, disposal, failure and allocation guarantees.
+Read the [README](../README.md) for purpose and supported platforms. When ready to code, follow [your first recording](usage.md) to install from NuGet, write, read, filter and optionally validate a file.
 
-## Development and internals
+## Advanced usage
 
-- [Development](development.md): build and validate current source or a complete package.
-- [Native ABI](native.md): native interoperability and memory boundaries.
-- [Upstream coverage](coverage.md): correspondence with the official Rust API.
-- [Local patches](patches.md): permitted extensions and their evidence.
+| Current need | Guide |
+| --- | --- |
+| Query by time, require indexes or revisit chunks | [Queries and random access](queries.md) |
+| Reuse buffers, process synchronously, retain or forward data | [Message ownership and memory choices](ownership.md) |
+| Use an existing Stream, async reading or cancellation | [Streams and async](streams-async.md) |
+| Supply input and perform seeks from application code | [Sans-I/O](sans-io.md) |
 
-## Documentation maintenance
+## Reference
 
-Both guide languages share the English generated **API reference (English)** in the site navigation. Consult it for individual member contracts and use the guides for cross-API behavior.
+- [API contracts](api.md): confirm defaults, lifetime, failure, validation and performance guarantees.
+- [API reference (English)](xref:Fizzy.McapSharp): look up types, members, parameters and return values; both guide languages share this English reference.
+- [Upstream API correspondence](coverage.md): locate official Rust capabilities, binding adaptations and explicit exclusions.
 
-Use [documentation maintenance](documentation.md) to build the site and maintain translations, and the [release SOP](release.md) to archive and publish documentation.
+## Development and maintenance
+
+- [Build and integration](development.md): source setup, host builds, package contents and consumer references.
+- [Validation and diagnostics](testing.md): interoperability, allocation gates and storage performance diagnostics.
+- [Native ABI](native.md) and [local patches](patches.md): implementation boundaries, extension contracts and evidence.
+- [Documentation maintenance](documentation.md) and [release/recovery](release.md): documentation builds, translations, archives and publication.
+- [Repository guidelines](../AGENTS.md): contribution and maintenance rules (English).
+
+If unsure where to start, complete the [tutorial](usage.md), then choose an advanced guide for your actual workload.

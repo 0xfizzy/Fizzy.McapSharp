@@ -7,19 +7,23 @@
 
 English | [简体中文](README.zh-CN.md)
 
-.NET bindings to the official Rust `mcap` implementation. Read and write messages, schemas, channels, metadata, and attachments, with compression, time filtering, and integrity validation.
+.NET 8 bindings to the official Rust `mcap` implementation. [MCAP](https://mcap.dev/spec) is a container format for timestamped messages and their schemas and channels. Read and write messages, metadata and attachments, with compression, time filtering and integrity validation. Applications define payload encoding and clock origins.
 
-All code authored for this project is AI-generated. Third-party dependencies and vendored upstream code retain their original authorship and licenses.
+Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 Linux build and validation baseline. See [API contracts](docs/api.md) for the full support scope.
 
 ## Quick start
 
-Add the package to a .NET 8 application. Supported processes: Windows x64 and glibc Linux x64/ARM64 (Ubuntu 22.04 or newer validation baseline):
+### Install
+
+Run from a .NET 8 application directory:
 
 ```powershell
 dotnet add package Fizzy.McapSharp
 ```
 
-The example uses C# 12. The output path must not exist; timestamps are in nanoseconds.
+### Write and read messages
+
+The example uses C# 12. The output path must not exist; timestamps are in nanoseconds with an application-defined origin.
 
 ```csharp
 using Fizzy.McapSharp;
@@ -33,23 +37,21 @@ using (var writer = new McapWriter(path))
 }
 
 var reader = new McapReaderFactory(path);
-reader.Validate();
-foreach (var message in reader.ReadMessages(new() { Topic = "/sample" }))
+foreach (var message in reader.ReadMessages())
     Console.WriteLine($"{message.LogTime}: {System.Text.Encoding.UTF8.GetString(message.Data)}");
 ```
 
-Call `Complete()` explicitly to finish the format, then optionally `FlushToDisk()` to request file persistence; `Dispose()` only releases resources. `ReadMessages()` does not replace full-file validation.
+Call `Complete()` explicitly to finish the format; `Dispose()` only releases resources. To request file persistence, call `FlushToDisk()` after completion and before disposal.
 
-Start with independent owned results from `ReadMessages()`. Large-payload pipelines can use borrowed callbacks, batch reads/writes and stable storage leases; start with [choosing message ownership](docs/api.md#choose-message-ownership), then review lifetimes and local cache/sort allowances.
+Call `reader.Validate()` separately when a full-file check is needed; it performs an additional scan of the entire file. Ordinary reading does not replace full validation or validate business payload semantics.
 
 ## Documentation
 
-- [API, lifetime, and data ownership](docs/api.md)
-- [Building, testing, and consumer integration](docs/development.md)
-- [Native ABI and memory boundaries](docs/native.md)
-- [Repository guidelines](AGENTS.md)
+- [Documentation website](https://0xfizzy.github.io/Fizzy.McapSharp/): browse guides and the API reference online.
+- [Getting started](docs/usage.md): create a project, write, read, filter and validate.
+- [API contracts](docs/api.md): defaults, lifetime, errors and performance guarantees.
+- [Documentation home](docs/index.md): advanced guides, English member API reference and development/maintenance links.
+
+All code authored for this project is AI-generated. Third-party dependencies and vendored upstream code retain their original authorship and licenses.
 
 Licensed under [MIT](LICENSE). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for third-party dependencies.
-
-- [Documentation home](docs/index.md)
-- [Release SOP](docs/release.md)

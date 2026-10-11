@@ -2,6 +2,8 @@
 
 [English](../documentation.md) | 简体中文
 
+面向文档贡献者：本页说明构建、翻译审阅、示例验证及站点检查。读者入口和专题分层见[文档首页](index.md)。
+
 成员契约放在英文 XML 注释中，跨 API 契约维护在 [api.md](api.md)，任务流程放在[使用指南](usage.md)。对照实现审阅约束、单位、所有权、取消、失败及清理；XML 覆盖不等于语义正确。
 
 ## 本地流程
@@ -38,3 +40,5 @@ Build-Docs 先构建 native Release，再构建 managed Release、检查 XML、�
 API YAML、站点、docs.zip、文件哈希及成员清单位于 `artifacts/docs/`，报告位于 `artifacts/reports/`；失败返回非零退出码。生成 HTML 不提交到源码分支。源检查发现翻译漂移和缺失文件；最终 HTML 检查验证链接、锚点、搜索索引及项目路径安全。Chromium 验证双语与 API 页面加载、语言切换、一个 API 搜索结果、版本切换、缺页语言回退、页面脚本错误及必要资源，输出 JSON 结果，仅失败时保存截图；静态检查覆盖全站链接与锚点。
 
 文档工作流校验 PR，仅从 main 更新 `/dev/`，不发布 NuGet。在部署锁内，归档前和部署前均核对产物提交与远程 main，明确拒绝过期构建。包版本文档、远程配置、更新和恢复见[发布 SOP](release.md)。
+
+完成本地检查后，版本文档更新遵循[发布与恢复](release.md)。

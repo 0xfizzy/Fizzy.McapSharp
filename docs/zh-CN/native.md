@@ -2,6 +2,8 @@
 
 [English](../native.md) | 简体中文
 
+面向维护原生互操作层的贡献者：本页定义私有 ABI、数据布局、所有权及错误边界。应用开发者通常只需 [API 契约](api.md)。
+
 .NET 使用 Cdecl P/Invoke 和 SafeHandle 调用 Rust cdylib，底层为官方 mcap 0.25.0，没有 C++ 层。[lib.rs](../../native/src/lib.rs) 负责共享 ABI／错误边界，[reader.rs](../../native/src/reader.rs) 和 [writer.rs](../../native/src/writer.rs) 实现会话操作，[io.rs](../../native/src/io.rs) 实现文件/Stream I/O，托管声明见 [Native.cs](../../src/Native.cs) 及其能力 partial。Windows x64 加载 fizzy_mcap_native.dll，glibc Linux x64/ARM64 加载 libfizzy_mcap_native.so，托管层使用无扩展名的 fizzy_mcap_native。
 
 ## ABI 契约
@@ -91,3 +93,5 @@ pending 保存共享字节或合成记录体。Buffer reader 保留完整 Messag
 `fm_reader_message_record` 与 payload 交付共享待处理状态；`fm_buffer_reader_configured` 为复制／映射输入传递解析选项及验证范围，`fm_buffer_reader_schema/state` 查询声明和扫描状态。完整摘要 JSON 包含 schema/channel 映射；channel 使用 schema ID 引用，私有 schemaDependencies 为摘要中未重复的 schema 提供数据段声明，不改变公开 Schemas 映射。异步展开交付在发布前验证记录体及引用；原始 Sans-I/O 线性事件不解析记录体。
 
 Reader 创建成功时，Response.value 表示实际执行路径：0 顺序、1 索引、2 缓存排序。托管层据此在推进前确定不可变的验证能力。`fm_engine_feed` 签名为 `(handle, u32 response_kind, data, length, position, response)`；回应种类 1（Read）或 2（Seek）必须匹配待处理事件，Seek 不接收数据。索引输入通过 InsertChunk 控制提交，必须匹配请求的压缩数据偏移和完整长度。公开定位请求直接表达无符号绝对位置或有符号相对偏移，不暴露 ABI 补码编码。
+
+修改 ABI 或存储边界后，按[测试专题](testing.md)验证，并核对[本地补丁范围](patches.md)。

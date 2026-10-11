@@ -2,6 +2,8 @@
 
 English | [简体中文](zh-CN/native.md)
 
+For contributors maintaining native interop: this page defines the private ABI, layouts, ownership and error boundaries. Application developers normally need only the [API contracts](api.md).
+
 .NET uses Cdecl P/Invoke and SafeHandle to call a private Rust `cdylib` backed by official `mcap` 0.25.0. There is no C++ layer. [lib.rs](../native/src/lib.rs) owns shared ABI/error boundaries; [reader.rs](../native/src/reader.rs) and [writer.rs](../native/src/writer.rs) implement session operations, while [io.rs](../native/src/io.rs) implements file/Stream I/O. Managed declarations are in [Native.cs](../src/Native.cs) and its capability partials. Windows x64 loads `fizzy_mcap_native.dll`; glibc Linux x64/ARM64 load `libfizzy_mcap_native.so` through the extensionless name `fizzy_mcap_native`.
 
 ## ABI contract
@@ -91,3 +93,5 @@ Fallback sorting uses a binding-owned arena of headers, ordinals and shared rang
 The pinned mcap crate supplies official format state machines, codecs and default writing behavior. Shared storage, channel lookup for batch preflight, and disposal without implicit completion are [local patches](patches.md). SafeHandle, managed copies, local cache/sort and asynchronous I/O are binding behavior.
 
 Full summary JSON contains schema and channel maps. Channels reference schema IDs; the private schemaDependencies map supplies data-section schemas omitted from repeated summary declarations without changing the public Schemas map. Async expanded delivery validates bodies and references before publication; raw Sans-I/O linear delivery remains unparsed.
+
+After changing ABI or storage boundaries, follow [testing](testing.md) and review [local patch boundaries](patches.md).

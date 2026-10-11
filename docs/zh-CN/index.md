@@ -1,23 +1,34 @@
 # Fizzy.McapSharp 文档
 
-[English](../index.md)
+[English](../index.md) · [GitHub 仓库](https://github.com/0xfizzy/Fizzy.McapSharp)
 
-Fizzy.McapSharp 为 .NET 8 提供通用 MCAP 文件操作；payload 编码和时钟语义由应用定义。
+Fizzy.McapSharp 为 .NET 8 提供 MCAP 文件读写。载荷编码和时钟基准由应用决定。按当前任务选择入口，无需先了解 Rust 或原生 ABI。
 
-## 入门与使用
+## 入门
 
-- [使用任务与可运行示例](usage.md)：写入、验证和读取第一个文件。
-- [API 契约](api.md)：选择[消息所有权](api.md#选择消息所有权)和[访问模式](api.md#选择访问模式)，然后了解完成、释放、失败及分配保证。
+首次接触项目，先看 [README](../../README.zh-CN.md)了解用途和支持平台；准备开始编码，阅读[第一个文件](usage.md)，通过 NuGet 完成写入、读取、过滤和可选校验。
 
-## 开发与内部实现
+## 深入使用
 
-- [开发指南](development.md)：构建并验证当前源码或完整包。
-- [原生 ABI](native.md)：原生互操作与内存边界。
-- [上游覆盖](coverage.md)：与官方 Rust API 的对应关系。
-- [本地补丁](patches.md)：允许的扩展及其证据。
+| 当前需求 | 指南 |
+| --- | --- |
+| 按时间查询、强制索引、重复访问 Chunk | [查询与随机访问](queries.md) |
+| 复用缓冲、同步处理、跨操作保留或转发数据 | [消息所有权与内存取舍](ownership.md) |
+| 使用已有 Stream、异步读取或取消 | [Stream 与异步](streams-async.md) |
+| 由应用自行提供输入和执行定位 | [Sans-I/O](sans-io.md) |
 
-## 文档维护
+## 参考
 
-两种语言的指南共用站点导航中的英文生成式 **API reference (English)**。成员契约查阅 API 参考，跨 API 行为查阅指南。
+- [API 契约](api.md)：确认默认值、生命周期、失败、验证和性能保证。
+- [API reference (English)](xref:Fizzy.McapSharp)：查询类型、成员、参数和返回值；中英文指南共用英文成员参考。
+- [上游 API 对应关系](coverage.md)：核对官方 Rust 能力、绑定适配及明确排除项。
 
-使用[文档维护](documentation.md)构建站点并维护翻译，按照[发布 SOP](release.md)归档和发布文档。
+## 开发与维护
+
+- [构建与集成](development.md)：源码环境、本机构建、包内容及消费项目引用。
+- [验证与诊断](testing.md)：互操作、分配门禁和存储性能诊断。
+- [原生 ABI](native.md)与[本地补丁](patches.md)：实现边界、扩展契约及证据。
+- [文档维护](documentation.md)与[发布恢复](release.md)：文档构建、翻译、归档及发布操作。
+- [仓库约定](../../AGENTS.md)：贡献和维护规则（英文）。
+
+不确定从哪里开始时，先完成[入门教程](usage.md)，再按实际需求选择深入指南。
