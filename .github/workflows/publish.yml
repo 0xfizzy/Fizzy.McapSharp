@@ -10,6 +10,10 @@ concurrency:
 jobs:
   preflight:
     runs-on: ubuntu-22.04
+    permissions:
+      # Draft releases require push access even when only inspecting saved candidates.
+      contents: write
+      actions: read
     outputs:
       reuse: ${{ steps.check.outputs.reuse }}
       version: ${{ steps.check.outputs.version }}

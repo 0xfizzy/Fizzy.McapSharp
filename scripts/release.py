@@ -245,8 +245,12 @@ def create_candidate_bundle(folder):
 def persist(tag, folder):
     record = release_record(tag)
     if record is None:
-        gh('release', 'create', tag, '--repo', REPO, '--verify-tag', '--draft', '--title', tag, '--notes', 'Release verification is in progress. See the attached provenance and validation reports.')
-        record = release_record(tag)
+        # Preserve --verify-tag: the release API otherwise creates a missing tag.
+        api(f'repos/{REPO}/git/ref/tags/{tag}')
+        # Use the creation response; the release list can lag behind a successful create.
+        record = json.loads(gh('api', '--method', 'POST', f'repos/{REPO}/releases',
+                              '-f', f'tag_name={tag}', '-F', 'draft=true', '-f', f'name={tag}',
+                              '-f', 'body=Release verification is in progress. See the attached provenance and validation reports.'))
     assets = {a['name']: a for a in record['assets']}
     if (folder / 'provenance.json').exists():
         # Journal immutable identity before uploads, so a partially uploaded candidate can resume.

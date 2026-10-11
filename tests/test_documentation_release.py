@@ -207,6 +207,63 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'missing anchor'):
             documentation.check_site(site)
 
+    def test_new_draft_uses_creation_response_when_release_list_lags(self):
+        folder = self.base / 'bundle'
+        folder.mkdir()
+        asset = folder / 'docs.zip'
+        asset.write_bytes(b'original')
+        def fake_gh(*args, **kwargs):
+            if args[:3] == ('api', '--method', 'POST'):
+                self.assertIn('draft=true', args)
+                self.assertIn('tag_name=v1.0.0', args)
+                return json.dumps({'id': 42, 'tag_name': 'v1.0.0', 'draft': True, 'assets': []})
+            self.assertEqual(args, ('release', 'upload', 'v1.0.0', asset, '--repo', release.REPO))
+            return ''
+        with patch.object(release, 'release_record', return_value=None) as lookup, \
+                patch.object(release, 'api', return_value={'ref': 'refs/tags/v1.0.0'}) as verify_tag, \
+                patch.object(release, 'gh', side_effect=fake_gh) as calls:
+            release.persist('v1.0.0', folder)
+            lookup.assert_called_once_with('v1.0.0')
+            verify_tag.assert_called_once_with(f'repos/{release.REPO}/git/ref/tags/v1.0.0')
+            self.assertEqual(calls.call_count, 2)
+
+    def test_publish_preflight_can_read_draft_candidates(self):
+        workflow = (release.ROOT / '.github/workflows/publish.yml').read_text(encoding='utf-8')
+        preflight = workflow.split('  preflight:\n', 1)[1].split('  validate:\n', 1)[0]
+        self.assertIn('    permissions:\n', preflight)
+        self.assertIn('      contents: write\n', preflight)
+        self.assertIn('      actions: read\n', preflight)
+
+    def test_preflight_restores_existing_draft_candidate(self):
+        record = {'draft': True, 'assets': [{'name': 'release-bundle.zip'}]}
+        with patch.object(sys, 'argv', ['release.py', 'check', '--tag', 'v1.0.0']), \
+                patch.object(release, 'release_record', return_value=record), \
+                patch.object(release, 'local_check', return_value={'version': '1.0.0'}) as check, \
+                patch.object(release, 'restore') as restore, \
+                patch.object(release, 'set_outputs') as outputs:
+            result = release.main()
+            check.assert_called_once_with('v1.0.0', require_ci=False)
+            restore.assert_called_once_with('v1.0.0')
+            self.assertTrue(result['reuse'])
+            outputs.assert_called_once_with(result)
+
+    def test_new_draft_requires_existing_remote_tag(self):
+        with patch.object(release, 'release_record', return_value=None), \
+                patch.object(release, 'api', side_effect=subprocess.CalledProcessError(1, 'gh')), \
+                patch.object(release, 'gh') as calls:
+            with self.assertRaises(subprocess.CalledProcessError):
+                release.persist('v1.0.0', self.base)
+            calls.assert_not_called()
+
+    def test_failed_draft_creation_does_not_upload_assets(self):
+        with patch.object(release, 'release_record', return_value=None), \
+                patch.object(release, 'api', return_value={'ref': 'refs/tags/v1.0.0'}), \
+                patch.object(release, 'gh', side_effect=subprocess.CalledProcessError(1, 'gh')) as calls:
+            with self.assertRaises(subprocess.CalledProcessError):
+                release.persist('v1.0.0', self.base)
+            self.assertEqual(calls.call_count, 1)
+            self.assertEqual(calls.call_args.args[:3], ('api', '--method', 'POST'))
+
     def test_candidate_assets_are_never_overwritten(self):
         folder = self.base / 'bundle'
         folder.mkdir()
