@@ -6,7 +6,7 @@ This is the cross-API contract reference for defaults, ownership, failure and va
 
 Read by responsibility: capability selection → writing → reading and queries → lifetime and errors → validation and recovery → performance guarantees.
 
-`Fizzy.McapSharp` provides MCAP file, Stream, buffer and Sans-I/O operations on .NET 8: Windows x64 and glibc Linux x64/ARM64, built against Ubuntu 22.04. macOS, musl and 32-bit processes are unsupported. Applications define payload encodings and nanosecond clock semantics. Cancellable asynchronous record reading and time sorting are available; payload decoding remains application-defined. See the [official API coverage map](coverage.md).
+`Fizzy.McapSharp` provides MCAP file, Stream, buffer and Sans-I/O operations on .NET 8 / 10: Windows x64 and glibc Linux x64/ARM64, built against Ubuntu 22.04. macOS, musl and 32-bit processes are unsupported. Applications define payload encodings and nanosecond clock semantics. Cancellable asynchronous record reading and time sorting are available; payload decoding remains application-defined. See the [official API coverage map](coverage.md).
 
 ## Read/write capabilities
 

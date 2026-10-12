@@ -22,7 +22,8 @@ jobs:
           node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
+          dotnet-version: 8.0.x
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.98.1

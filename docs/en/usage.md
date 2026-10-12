@@ -2,7 +2,7 @@
 
 English | [简体中文](../zh-CN/usage.md)
 
-For .NET developers using the NuGet package. Create a project, write, read, filter and optionally validate a recording without cloning this repository or installing Rust. Use the .NET 8 SDK on Windows x64 or supported glibc Linux x64/ARM64.
+For .NET developers using the NuGet package. Create a project, write, read, filter and optionally validate a recording without cloning this repository or installing Rust. Use the .NET 8 / 10 SDK on Windows x64 or supported glibc Linux x64/ARM64.
 
 ## Create a project
 

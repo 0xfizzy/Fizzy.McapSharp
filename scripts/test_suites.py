@@ -11,9 +11,9 @@ import traceback
 import urllib.request
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from build import ROOT, host_rid, output
+from build import ROOT, host_rid, output, target_path
 
-DLL = ROOT / 'tests/ContractRunner/bin/Release/net8.0/ContractRunner.dll'
+DLL = target_path(ROOT / 'tests/ContractRunner/ContractRunner.csproj')
 
 
 def run(*command, timeout=30):

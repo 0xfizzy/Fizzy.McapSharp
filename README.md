@@ -2,12 +2,12 @@
 
 [![NuGet](https://img.shields.io/nuget/v/Fizzy.McapSharp.svg?style=flat)](https://www.nuget.org/packages/Fizzy.McapSharp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
-[![.NET 8](https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
+[![.NET 8 / 10](https://img.shields.io/badge/.NET-8%20%2F%2010-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
 [![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/en/api.md)
 
 English | [简体中文](README.zh-CN.md)
 
-.NET 8 bindings to the official Rust `mcap` implementation. [MCAP](https://mcap.dev/spec) is a container format for timestamped messages and their schemas and channels. Read and write messages, metadata and attachments, with compression, time filtering and integrity validation. Applications define payload encoding and clock origins.
+.NET 8 / 10 bindings to the official Rust `mcap` implementation. [MCAP](https://mcap.dev/spec) is a container format for timestamped messages and their schemas and channels. Read and write messages, metadata and attachments, with compression, time filtering and integrity validation. Applications define payload encoding and clock origins.
 
 Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 Linux build and validation baseline. See [API contracts](docs/en/api.md) for the full support scope.
 
@@ -15,7 +15,7 @@ Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 Linux build
 
 ### Install
 
-Run from a .NET 8 application directory:
+Run from a .NET 8 / 10 application directory:
 
 ```powershell
 dotnet add package Fizzy.McapSharp

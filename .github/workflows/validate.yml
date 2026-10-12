@@ -34,6 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
+          global-json-file: global.json
           dotnet-version: 8.0.x
       - uses: actions/setup-python@v5
         with:
@@ -73,6 +74,7 @@ jobs:
           path: |
             artifacts/reports/**/*.json
             artifacts/reports/**/*.trx
+            tests/**/TestResults/*.trx
             artifacts/reports/**/*.log
           retention-days: 7
       - uses: actions/upload-artifact@v4
@@ -100,6 +102,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
+          global-json-file: global.json
           dotnet-version: 8.0.x
       - uses: actions/setup-python@v5
         with:
@@ -144,6 +147,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
+          global-json-file: global.json
           dotnet-version: 8.0.x
       - uses: actions/setup-python@v5
         with:
@@ -172,6 +176,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
+          global-json-file: global.json
           dotnet-version: 8.0.x
       - uses: actions/setup-python@v5
         with:

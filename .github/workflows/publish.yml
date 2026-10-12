@@ -70,7 +70,8 @@ jobs:
           node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
+          dotnet-version: 8.0.x
       - uses: actions/download-artifact@v4
         if: needs.preflight.outputs.reuse != 'true'
         with:
@@ -140,7 +141,8 @@ jobs:
           node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
+          dotnet-version: 8.0.x
       - uses: actions/download-artifact@v4
         with:
           name: release-bundle
@@ -181,12 +183,13 @@ jobs:
           node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
+          dotnet-version: 8.0.x
       - uses: actions/download-artifact@v4
         with:
           name: release-bundle
           path: artifacts/release
-      - run: python scripts/test_package.py --package-directory artifacts/release --published
+      - run: python scripts/test_package.py --package-directory artifacts/release --published --saved-bundle
       - run: python scripts/documentation.py samples --published
       - uses: actions/upload-artifact@v4
         if: always()

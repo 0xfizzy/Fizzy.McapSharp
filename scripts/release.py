@@ -21,7 +21,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 
-from build import MANAGED_PROJECT, MANAGED_OUTPUT, ROOT, TARGETS, output, run, source_identity, verify_assets, version
+from build import MANAGED_PROJECT, API_FRAMEWORK, target_path, ROOT, TARGETS, output, run, source_identity, verify_assets, version
 from documentation import digest, tree_hashes, write_json
 
 REPO = '0xfizzy/Fizzy.McapSharp'
@@ -380,7 +380,7 @@ def update_build(tag):
     build()
     run('dotnet', 'build', MANAGED_PROJECT, '-c', 'Release', '--no-incremental', '-p:DocumentationStrict=true')
     package = BUNDLE / f'Fizzy.McapSharp.{manifest["version"]}.nupkg'
-    build_docs(package, manifest['commit'], MANAGED_OUTPUT / 'Fizzy.McapSharp.xml')
+    build_docs(package, manifest['commit'], target_path(MANAGED_PROJECT, API_FRAMEWORK).with_suffix('.xml'))
     samples(BUNDLE)
     return {'version': manifest['version']}
 

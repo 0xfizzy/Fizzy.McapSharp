@@ -10,7 +10,7 @@ The bilingual site entry and top-level navigation are in `docs/index.md` and `do
 
 ## Local workflow
 
-Use Python 3.12, PowerShell 7, Node.js 22, the .NET 8 SDK and the pinned Rust toolchain with the host native compiler described in [development](development.md). DocFX is pinned in the local tool manifest; `dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json` restores that tool only. No global tool installation is performed.
+Use Python 3.12, PowerShell 7, Node.js 22, the .NET SDK 10.0.401 and the pinned Rust toolchain with the host native compiler described in [development](development.md). DocFX is pinned in the local tool manifest; `dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json` restores that tool only. No global tool installation is performed.
 
 ```powershell
 ./scripts/Test-Documentation.ps1
@@ -22,6 +22,8 @@ Use Python 3.12, PowerShell 7, Node.js 22, the .NET 8 SDK and the pinned Rust to
 Build-Docs builds native Release before managed Release, checks XML, generates API pages and validates the final site, then runs the pinned Chromium smoke gate. Shared build directories must not be used concurrently. Serve-Docs accepts `-SiteDirectory` and serves an existing site under `/Fizzy.McapSharp/dev/` at a loopback HTTP address; Ctrl+C stops it. Do not preview using file URLs. Inspect English and Chinese guides, navigation, search and representative API pages.
 
 For a verified complete package, `Build-Docs.ps1 -Package <absolute-nupkg-path> -ReleaseCommit <sha>` uses its DLL/XML. The package version must match project metadata. This is candidate-package documentation, not proof of published-package availability. To compare a candidate with public NuGet and execute isolated public-source package tests, run `./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published`.
+
+Both targets expose the same API. Shared API reference generation selects the net8.0 DLL/XML explicitly, including when reading an immutable original package containing both frameworks.
 
 For generation with manual browser verification, run `./scripts/Build-Docs.ps1 -SkipBrowser`. Source, XML and static site checks still run; the report marks the browser check as skipped. This does not replace the full validation required before release.
 

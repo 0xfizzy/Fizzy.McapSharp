@@ -2,7 +2,7 @@
 
 [English](../en/index.md) · [GitHub 仓库](https://github.com/0xfizzy/Fizzy.McapSharp)
 
-在 .NET 8 应用中读写 MCAP 文件，保存带时间戳的消息、元数据和附件。支持 Windows x64 和 glibc Linux x64/ARM64，Linux 构建与验证基线为 Ubuntu 22.04。
+在 .NET 8 / 10 应用中读写 MCAP 文件，保存带时间戳的消息、元数据和附件。支持 Windows x64 和 glibc Linux x64/ARM64，Linux 构建与验证基线为 Ubuntu 22.04。
 
 ## 入门
 

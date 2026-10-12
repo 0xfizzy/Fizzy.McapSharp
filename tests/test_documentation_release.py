@@ -109,6 +109,23 @@ class ReleaseTests(unittest.TestCase):
 
 
 
+    def test_dual_target_original_package_selects_net8_api(self):
+        package = self.base / 'dual.nupkg'
+        destination = self.base / 'api'
+        destination.mkdir()
+        with zipfile.ZipFile(package, 'w') as archive:
+            archive.writestr('Fizzy.McapSharp.nuspec',
+                '<package><metadata><id>Fizzy.McapSharp</id><version>1.0.0</version></metadata></package>')
+            for framework in ('net10.0', 'net8.0'):
+                for extension in ('dll', 'xml'):
+                    archive.writestr(f'lib/{framework}/Fizzy.McapSharp.{extension}', framework + extension)
+        original = package.read_bytes()
+        with patch.object(documentation, 'version', return_value='1.0.0'):
+            documentation.extract_package(package, destination)
+        for extension in ('dll', 'xml'):
+            self.assertEqual((destination / f'Fizzy.McapSharp.{extension}').read_text(), 'net8.0' + extension)
+        self.assertEqual(package.read_bytes(), original)
+
     def test_zip_traversal_rejected(self):
         archive = self.base / 'bad.zip'
         with zipfile.ZipFile(archive, 'w') as z:

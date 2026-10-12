@@ -16,7 +16,7 @@
 
 ## 分配验收
 
-`Build.ps1 -Test` 还会运行 `dotnet run --project tests/Allocations -c Release`。门禁在 Writer/Reader 预热后测量 GC.GetAllocatedBytesForCurrentThread，排除准备和报告，要求消息循环托管分配严格为零，这是库热路径的强制契约。覆盖 None/Lz4/Zstd、原生文件 I/O、实际 FileStream、可寻址/非寻址 span 流，以及跨 Chunk、多 Channel、中途声明、空/大消息、缓冲不足重试、重复 EOF 和查询。程序报告吞吐量及平均每条耗时，这是特定负载测量，不是延迟分位数或通用性能保证。功能测试另外检查重试正确性和回调失败。
+`Build.ps1 -Test` 按 net10.0、net8.0 串行运行分配门禁。单独运行一个目标可使用 `dotnet run --project tests/Allocations -c Release -f net8.0`。门禁在 Writer/Reader 预热后测量 GC.GetAllocatedBytesForCurrentThread，排除准备和报告，要求消息循环托管分配严格为零，这是库热路径的强制契约。覆盖 None/Lz4/Zstd、原生文件 I/O、实际 FileStream、可寻址/非寻址 span 流，以及跨 Chunk、多 Channel、中途声明、空/大消息、缓冲不足重试、重复 EOF 和查询。程序报告吞吐量及平均每条耗时，这是特定负载测量，不是延迟分位数或通用性能保证。功能测试另外检查重试正确性和回调失败。
 
 只使用 Release。调用方扩容、初始化、描述/摘要快照、错误及自有记录便利 API 不属于门禁范围。用户 Stream 可能分配；桥接专用测试使用预分配 span 流，并在数组回退时抛异常。原生分配需另用原生分析器。基线数据保存在忽略的 artifacts 中，不写入 API 文档。
 
@@ -27,7 +27,7 @@
 
 ## 单文件 writer 内存诊断
 
-运行 `dotnet run --project tests/Allocations -c Release -- memory-profile 65536` 和 `cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture`，将报告重定向到已忽略的 `artifacts/`。托管诊断使用计数 Stream，不保留输出；比较 None／Lz4／Zstd、可定位／不可定位输出、1／4／16 MiB chunk 目标和频繁 Flush，并分别关闭各类索引。采样阶段包含写入、完成、持有 GetSummary 结果、回收结果和释放 writer，报告私有字节、工作集、托管堆、输出长度、耗时及最终 chunk 数。增加消息数可观察更长录制。采样和强制 GC 会影响计时；各配置的进程采样不是隔离的分配器测量。
+运行 `dotnet run --project tests/Allocations -c Release -f net8.0 -- memory-profile 65536` 和 `cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture`，将报告重定向到已忽略的 `artifacts/`。托管诊断使用计数 Stream，不保留输出；比较 None／Lz4／Zstd、可定位／不可定位输出、1／4／16 MiB chunk 目标和频繁 Flush，并分别关闭各类索引。采样阶段包含写入、完成、持有 GetSummary 结果、回收结果和释放 writer，报告私有字节、工作集、托管堆、输出长度、耗时及最终 chunk 数。增加消息数可观察更长录制。采样和强制 GC 会影响计时；各配置的进程采样不是隔离的分配器测量。
 
 原生 fixture 对相同的 64-chunk 录制比较提前构建 summary JSON 与生产按需路径，在 16／32／48／64 个 chunk 时采样 Rust 存活字节，断言完成后的保留量和峰值降低，检查响应等价与内存释放，并报告累计分配。峰值指测试线程跟踪到的存活分配请求大小，不是进程 RSS，也不包含分配器内部 realloc 重叠。Rust 分配器之外的 codec 分配及分配器缓存不计入。测试约束存储性质，不设置固定字节数或吞吐门槛。托管临时文件测试验证格式、索引及 summary 游标生命周期。上游 chunk 索引仍会增长；这些诊断不证明录制具有恒定内存。
 
@@ -113,8 +113,8 @@ Release 原生测试以指针一致性、释放后的租约有效性及测试专
 默认分配 runner 包含异步 lease 门禁。专项运行：
 
 ```powershell
-dotnet run --project tests/Allocations -c Release -- lease-gate
-dotnet run --project tests/Allocations -c Release -- lease-profile
+dotnet run --project tests/Allocations -c Release -f net8.0 -- lease-gate
+dotnet run --project tests/Allocations -c Release -f net8.0 -- lease-profile
 cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- --nocapture
 ```
 

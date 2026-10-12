@@ -29,6 +29,10 @@ static class Extended
             using (var r = new McapChunkFlattener(bytes))
             {
                 byte[] buffer = new byte[65536];
+                // Finish collection triggered by cold fixture allocation before measuring.
+                // Keep background-GC allocation-counter adjustments outside the hot-path sample.
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+                GC.WaitForPendingFinalizers();
                 for (int i = 0; i < 100; i++) { r.ReadNextRecord(buffer, out var op, out var size); var v = McapRecordView.Parse(op, buffer.AsSpan(0, (int)size)); if (v.Opcode == 5) _ = v.MessageHeader; }
                 var before = GC.GetAllocatedBytesForCurrentThread();
                 while (r.ReadNextRecord(buffer, out var opcode, out var n) != McapReadStatus.EndOfStream)

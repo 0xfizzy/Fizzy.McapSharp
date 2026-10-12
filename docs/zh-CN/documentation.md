@@ -10,7 +10,7 @@
 
 ## 本地流程
 
-使用 Python 3.12、PowerShell 7、Node.js 22、.NET 8 SDK、固定 Rust 工具链和[开发指南](development.md)指定的本机编译器。DocFX 由本地工具清单固定版本，`dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json` 只恢复该工具，不安装全局工具。
+使用 Python 3.12、PowerShell 7、Node.js 22、.NET SDK 10.0.401、固定 Rust 工具链和[开发指南](development.md)指定的本机编译器。DocFX 由本地工具清单固定版本，`dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json` 只恢复该工具，不安装全局工具。
 
 ```powershell
 ./scripts/Test-Documentation.ps1
@@ -22,6 +22,8 @@
 Build-Docs 先构建 native Release，再构建 managed Release、检查 XML、生成 API 页面、校验站点并运行固定版本 Chromium 冒烟门禁。共享输出目录的构建必须串行。Serve-Docs 支持 `-SiteDirectory`，通过本机 HTTP 在 `/Fizzy.McapSharp/dev/` 前缀下提供已有站点，Ctrl+C 停止；不要使用 file URL。检查双语页面、导航、搜索及代表性 API 页面。
 
 已有验证通过的完整包时，`Build-Docs.ps1 -Package <nupkg绝对路径> -ReleaseCommit <sha>` 使用其 DLL/XML。包版本必须匹配项目元数据；这是候选包文档，不代表已发布包验证。比较候选包与公开 NuGet 并执行隔离的公开源包测试，运行 `./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published`。
+
+两个目标提供相同 API。共有 API 参考明确选择 net8.0 DLL/XML，包括从包含两个框架的不可变原始包生成文档时。
 
 如需生成文档并自行进行浏览器验证，运行 `./scripts/Build-Docs.ps1 -SkipBrowser`。仍会执行源文件、XML 和站点静态检查；报告明确标记浏览器检查已跳过。此模式不替代发布前要求的完整验证。
 

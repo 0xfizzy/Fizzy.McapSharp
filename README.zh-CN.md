@@ -2,12 +2,12 @@
 
 [![NuGet](https://img.shields.io/nuget/v/Fizzy.McapSharp.svg?style=flat)](https://www.nuget.org/packages/Fizzy.McapSharp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
-[![.NET 8](https://img.shields.io/badge/.NET-8-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
+[![.NET 8 / 10](https://img.shields.io/badge/.NET-8%20%2F%2010-512BD4.svg?style=flat)](https://dotnet.microsoft.com/)
 [![Platforms: Windows and Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue.svg?style=flat)](docs/zh-CN/api.md)
 
 [English](README.md) | 简体中文
 
-基于官方 Rust `mcap` 实现的 .NET 8 文件读写库。[MCAP](https://mcap.dev/spec) 是用于保存带时间戳消息及其 Schema、Channel 等信息的容器格式。本库支持消息、元数据和附件读写，以及压缩、时间过滤和完整性校验；载荷（payload）编码与时钟基准由应用定义。
+基于官方 Rust `mcap` 实现的 .NET 8 / 10 文件读写库。[MCAP](https://mcap.dev/spec) 是用于保存带时间戳消息及其 Schema、Channel 等信息的容器格式。本库支持消息、元数据和附件读写，以及压缩、时间过滤和完整性校验；载荷（payload）编码与时钟基准由应用定义。
 
 支持 Windows x64 和 glibc Linux x64/ARM64；Linux 构建及验证基线为 Ubuntu 22.04。详细支持范围见 [API 契约](docs/zh-CN/api.md)。
 
@@ -15,7 +15,7 @@
 
 ### 安装
 
-在 .NET 8 应用目录中运行：
+在 .NET 8 / 10 应用目录中运行：
 
 ```powershell
 dotnet add package Fizzy.McapSharp

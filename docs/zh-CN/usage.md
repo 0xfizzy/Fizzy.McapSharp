@@ -2,7 +2,7 @@
 
 [English](../en/usage.md) | 简体中文
 
-面向通过 NuGet 使用本库的 .NET 开发者。本教程从创建项目开始，依次完成写入、读取、过滤和可选的完整校验，无需克隆本仓库或安装 Rust。需要 .NET 8 SDK，并在 Windows x64 或受支持的 glibc Linux x64/ARM64 环境运行。
+面向通过 NuGet 使用本库的 .NET 开发者。本教程从创建项目开始，依次完成写入、读取、过滤和可选的完整校验，无需克隆本仓库或安装 Rust。需要 .NET 8 / 10 SDK，并在 Windows x64 或受支持的 glibc Linux x64/ARM64 环境运行。
 
 ## 创建项目
 

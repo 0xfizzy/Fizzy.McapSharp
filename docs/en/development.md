@@ -6,7 +6,9 @@ For source contributors: prepare the toolchain, build the host library, verify a
 
 ## Environment and layout
 
-Run commands from the repository root. Requirements: Python 3.12, .NET 8 SDK, Rust 1.98.1, and a native compiler. Windows x64 uses Visual C++ MSVC build tools with the Windows SDK. Linux x64/ARM64 uses Ubuntu 22.04, GCC/build-essential and binutils; install the Rust target for the host listed below. No local VM, WSL, Docker or cross compiler is required for Windows development. See [rust-toolchain.toml](../../rust-toolchain.toml) for the toolchain; `native/Cargo.lock` pins the full dependency graph.
+Run commands from the repository root. Requirements: Python 3.12, .NET SDK 10.0.401, Rust 1.98.1, and a native compiler. Windows x64 uses Visual C++ MSVC build tools with the Windows SDK. Linux x64/ARM64 uses Ubuntu 22.04, GCC/build-essential and binutils; install the Rust target for the host listed below. No local VM, WSL, Docker or cross compiler is required for Windows development. See [rust-toolchain.toml](../../rust-toolchain.toml) for the toolchain; `native/Cargo.lock` pins the full dependency graph.
+
+The SDK is selected by `global.json` (`10.0.401`, `latestFeature`, no prereleases). Install both .NET 8 and .NET 10 runtimes for validation. Core xUnit and allocation gates run serially for both frameworks, with separate test results. Auxiliary tools stay on net8.0; sample validation runs both frameworks. Restore uses committed `packages.lock.json` files in locked mode; intentional dependency changes require `dotnet restore <project> -p:RestoreLockedMode=false --force-evaluate`, review of the lockfile diff, then `dotnet restore <project> --locked-mode`.
 
 | Path | Responsibility |
 | --- | --- |
@@ -49,13 +51,13 @@ Public API XML documentation is required by the CS1591 build gate. Keep units, o
 
 Linux builds audit ELF architecture, dynamic dependencies and required GLIBC versions (at most 2.35), and reject external compression libraries and embedded search paths. CPU-specific Rust flags are rejected. Linux ARM64 builds and tests run on native ARM64 runners. macOS, musl, Ubuntu 20.04, Windows ARM64, 32-bit, NativeAOT and single-file publishing are outside the validation matrix.
 
-`Test-Package.ps1` calls `test_package.py`, which creates an independent application and package cache under `artifacts/smoke-<GUID>/`. It obtains the version from project metadata, verifies all packaged native architectures, restores only from the specified package directory, and tests every compression mode both with ordinary execution and RID-specific framework-dependent publishing. Override the package location with `-PackageDirectory` or `--package-directory`. This tests a local package, not NuGet.org availability.
+`Test-Package.ps1` calls `test_package.py`, which creates an independent application and package cache under `artifacts/smoke-<GUID>/`. It obtains the version from project metadata, verifies all packaged native architectures, restores only from the specified package directory, and tests every compression mode both with ordinary execution and RID-specific framework-dependent publishing. Override the package location with `-PackageDirectory` or `--package-directory`. This tests a local package, not NuGet.org availability. Both target DLL/XML pairs are checked; isolated consumers run on .NET 8 and .NET 10, verify NuGet compile/runtime selection and compare the loaded DLL bytes with the corresponding package entry.
 
 Existing xUnit coverage includes all three compression modes, time and topic filtering, metadata, attachments, unindexed reading, incomplete files, CRC corruption, recovery results, terminal writer failure, overwrite prevention, enumerator disposal, and declarations without messages. Tests use temporary files and require no devices.
 
 ## Package contents
 
-The package ID is `Fizzy.McapSharp`, targeting net8.0. One package includes the managed assembly, README, official MCAP icon with its MIT license, third-party notices, and these assets:
+The package ID is `Fizzy.McapSharp`, targeting `net10.0` and `net8.0`. One package includes both managed assemblies and their XML documentation, README, official MCAP icon with its MIT license, third-party notices, and these assets:
 
 ```text
 runtimes/win-x64/native/fizzy_mcap_native.dll
@@ -69,7 +71,7 @@ runtimes/linux-arm64/native/libfizzy_mcap_native.so
 
 The `validate / verified` job is the final gate: it requires every enabled job to succeed, including deep checks for a release. Configure branch protection to require that check. A cancelled or unexpectedly skipped job cannot produce a verified package.
 
-The reusable validation workflow builds and runs xUnit plus Python interoperability on all three native runners, then packs once. Five package-test jobs run on Windows 2022 and Ubuntu 22.04/24.04 x64/ARM64. They restore the complete package into isolated caches, exercise ordinary and RID-published execution, and read fixtures produced by every build platform. Missing fixtures fail validation. Ubuntu is the tested distribution; other glibc distributions also need compatible system libraries and .NET 8.
+The reusable validation workflow builds and runs xUnit plus Python interoperability on all three native runners, then packs once. Five package-test jobs run on Windows 2022 and Ubuntu 22.04/24.04 x64/ARM64. They restore the complete package into isolated caches, exercise ordinary and RID-published execution, and read fixtures produced by every build platform. Missing fixtures fail validation. Ubuntu is the tested distribution; other glibc distributions also need compatible system libraries and .NET 8 / 10.
 
 PRs, pushes to `main`, and manual dispatch run this workflow. Superseded builds on the same PR/ref are cancelled. Intermediate artifacts expire after one day; only packages passing every job are retained for seven days. Cargo caches are separated by OS, architecture, toolchain, lockfile and native source. Standard hosted runners are used; no paid larger runners or additional cache quota are configured. Public-repository runner time is free under GitHub's current rules; storage remains subject to account allowances.
 

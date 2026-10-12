@@ -16,7 +16,7 @@ For maintainers choosing correctness checks, allocation gates and performance di
 
 ## Allocation acceptance
 
-`Build.ps1 -Test` also runs `dotnet run --project tests/Allocations -c Release`. The gate warms the writer/reader before measuring `GC.GetAllocatedBytesForCurrentThread`, excludes setup and reporting, and requires exactly zero managed bytes in the message loop; this is a mandatory hot-path contract for the library. It covers None/Lz4/Zstd, native file I/O, actual FileStream, and seekable/non-seekable span streams, with chunk boundaries, multiple channels, late declarations, empty/large messages, insufficient-buffer retries, repeated EOF and queries. The executable reports throughput and average per-message elapsed time; these are workload measurements, not latency percentiles or universal performance guarantees. Functional tests additionally cover retry correctness and callback failures.
+`Build.ps1 -Test` runs the allocation gate serially on net10.0 and net8.0. To run one target, use `dotnet run --project tests/Allocations -c Release -f net8.0`. The gate warms the writer/reader before measuring `GC.GetAllocatedBytesForCurrentThread`, excludes setup and reporting, and requires exactly zero managed bytes in the message loop; this is a mandatory hot-path contract for the library. It covers None/Lz4/Zstd, native file I/O, actual FileStream, and seekable/non-seekable span streams, with chunk boundaries, multiple channels, late declarations, empty/large messages, insufficient-buffer retries, repeated EOF and queries. The executable reports throughput and average per-message elapsed time; these are workload measurements, not latency percentiles or universal performance guarantees. Functional tests additionally cover retry correctness and callback failures.
 
 Use Release only. Caller buffer growth, initialization, description/summary snapshots, errors and owned-record convenience APIs are outside this gate. User Stream implementations may allocate; bridge-only tests use a preallocated span-based stream whose array fallback throws. Native allocations require a separate native profiler. Keep baseline measurements in ignored artifacts, not in API documentation.
 
@@ -27,7 +27,7 @@ Completion tests distinguish ordinary flushing from explicit file synchronizatio
 
 ## Single-file writer memory diagnostics
 
-Run `dotnet run --project tests/Allocations -c Release -- memory-profile 65536` and `cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture`, redirecting reports under ignored `artifacts/`. The managed profile uses a counting Stream rather than retaining output, compares None/Lz4/Zstd, seekable/non-seekable output, 1/4/16 MiB chunk targets and frequent Flush, and disables each index family separately. It samples writing, completion, a held GetSummary result, result collection and disposal; it reports private bytes, working set, managed heap, output length, elapsed time and final chunk count. Increase the message count to study longer recordings. Sampling and forced GC affect timing; process samples across configurations are not isolated allocator measurements.
+Run `dotnet run --project tests/Allocations -c Release -f net8.0 -- memory-profile 65536` and `cargo test --manifest-path native/Cargo.toml --release --locked writer_summary_profile -- --nocapture`, redirecting reports under ignored `artifacts/`. The managed profile uses a counting Stream rather than retaining output, compares None/Lz4/Zstd, seekable/non-seekable output, 1/4/16 MiB chunk targets and frequent Flush, and disables each index family separately. It samples writing, completion, a held GetSummary result, result collection and disposal; it reports private bytes, working set, managed heap, output length, elapsed time and final chunk count. Increase the message count to study longer recordings. Sampling and forced GC affect timing; process samples across configurations are not isolated allocator measurements.
 
 The native fixture compares identical 64-chunk recordings with eager summary JSON and the production on-demand path. It samples tracked live Rust bytes at 16/32/48/64 chunks, asserts lower completion retention and peak, checks response equivalence and reclamation, and reports cumulative allocations. Peak means tracked live requested allocation sizes on the test thread, not process RSS or allocator-internal realloc overlap. Codec allocations outside the Rust allocator and allocator caches are excluded. The fixture enforces storage properties, not fixed byte counts or throughput thresholds. Managed temporary-file tests verify format, indexes and summary cursor lifetime. Upstream chunk-index growth remains; these diagnostics do not establish constant-memory recording.
 
@@ -47,7 +47,7 @@ Keep this order: .NET writes files, Python validates them and generates files, t
 
 ## Official API and extended allocation gates
 
-`Build.ps1 -Test` also runs locked Release native differential tests and `scripts/check_api_coverage.py`. The reviewed [coverage inventory](coverage.md) is checked against the exact Cargo source, including optional Tokio public declarations. It does not replace behavior tests. The exactly pinned binrw dependency encodes owned upstream records.
+`Build.ps1 -Test` runs the allocation gate serially on net10.0 and net8.0. To run one target, use locked Release native differential tests and `scripts/check_api_coverage.py`. The reviewed [coverage inventory](coverage.md) is checked against the exact Cargo source, including optional Tokio public declarations. It does not replace behavior tests. The exactly pinned binrw dependency encodes owned upstream records.
 
 Extended allocation tests cover prepared complete-message writes (including late declarations), prepared control records, private records, attachments, record views, direct buffer readers and random index/metadata/attachment reads under every compression mode. Asynchronous tests force suspension using a reusable source and a dedicated I/O thread, summing caller and worker allocation counts, and also exercise direct awaiting with inline completion. Initialization, caller growth, owned convenience objects and errors remain excluded. Native snapshot memory is intentionally outside the managed-allocation contract.
 
@@ -113,8 +113,8 @@ Input reservation tests compare complete-request reservation with 64 KiB increme
 The default allocation runner includes the async lease gate. For focused runs:
 
 ```powershell
-dotnet run --project tests/Allocations -c Release -- lease-gate
-dotnet run --project tests/Allocations -c Release -- lease-profile
+dotnet run --project tests/Allocations -c Release -f net8.0 -- lease-gate
+dotnet run --project tests/Allocations -c Release -f net8.0 -- lease-profile
 cargo test --manifest-path native/Cargo.toml --release --locked memory_probe -- --nocapture
 ```
 

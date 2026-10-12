@@ -1,4 +1,6 @@
 """Regression checks for artifact provenance and Linux compatibility gates."""
+import io
+import zipfile
 import hashlib
 import json
 from pathlib import Path
@@ -9,6 +11,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import build
+from test_package import validate_managed_assets
 
 
 class ArtifactChecks(unittest.TestCase):
@@ -111,6 +114,45 @@ class ArtifactChecks(unittest.TestCase):
                 else:
                     with self.assertRaises(RuntimeError):
                         build.host_rid()
+
+
+class ManagedPackageChecks(unittest.TestCase):
+    def archive(self, omitted=None, changed_xml=False, frameworks=build.FRAMEWORKS):
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, 'w') as archive:
+            for framework in frameworks:
+                for extension in ('dll', 'xml'):
+                    name = f'lib/{framework}/Fizzy.McapSharp.{extension}'
+                    if name == omitted:
+                        continue
+                    member = 'T:Changed' if changed_xml and framework == 'net10.0' else 'T:Example'
+                    body = b'MZunit-test-only' if extension == 'dll' else (
+                        '<doc><assembly><name>Fizzy.McapSharp</name></assembly>'
+                        f'<members><member name="{member}" /></members></doc>').encode()
+                    archive.writestr(name, body)
+        data.seek(0)
+        return zipfile.ZipFile(data)
+
+    def test_requires_both_dll_and_xml_for_each_target(self):
+        with self.archive() as archive:
+            validate_managed_assets(archive)
+        for framework in build.FRAMEWORKS:
+            for extension in ('dll', 'xml'):
+                with self.subTest(framework=framework, extension=extension):
+                    with self.archive(f'lib/{framework}/Fizzy.McapSharp.{extension}') as archive:
+                        with self.assertRaisesRegex(RuntimeError, 'Unexpected managed assets'):
+                            validate_managed_assets(archive)
+
+    def test_original_target_set_is_explicit_and_default_stays_strict(self):
+        with self.archive(frameworks=('net8.0',)) as archive:
+            validate_managed_assets(archive, ('net8.0',))
+            with self.assertRaisesRegex(RuntimeError, 'Unexpected managed assets'):
+                validate_managed_assets(archive)
+
+    def test_shared_reference_rejects_target_contract_drift(self):
+        with self.archive(changed_xml=True) as archive:
+            with self.assertRaisesRegex(RuntimeError, 'Target XML contracts differ'):
+                validate_managed_assets(archive)
 
 
 if __name__ == "__main__":

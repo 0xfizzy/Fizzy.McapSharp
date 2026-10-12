@@ -14,7 +14,8 @@ import traceback
 
 ROOT = Path(__file__).resolve().parents[1]
 MANAGED_PROJECT = ROOT / "src/Fizzy.McapSharp/Fizzy.McapSharp.csproj"
-MANAGED_OUTPUT = MANAGED_PROJECT.parent / "bin/Release/net8.0"
+FRAMEWORKS = ("net10.0", "net8.0")
+API_FRAMEWORK = "net8.0"
 TARGETS = {
     "win-x64": ("x86_64-pc-windows-msvc", "fizzy_mcap_native.dll"),
     "linux-x64": ("x86_64-unknown-linux-gnu", "libfizzy_mcap_native.so"),
@@ -29,6 +30,17 @@ def run(*args, **kwargs):
 
 def output(*args, cwd=ROOT):
     return subprocess.check_output(list(map(str, args)), cwd=cwd, text=True).strip()
+
+
+def msbuild_property(project, name, framework=None):
+    args = ["dotnet", "msbuild", project, "-nologo", "-p:Configuration=Release", f"-getProperty:{name}"]
+    if framework:
+        args.append(f"-p:TargetFramework={framework}")
+    return output(*args)
+
+
+def target_path(project, framework=None):
+    return Path(msbuild_property(project, "TargetPath", framework))
 
 
 def host_rid():
@@ -134,9 +146,12 @@ def build(test=False):
         run(sys.executable, "scripts/check_api_coverage.py")
         run(sys.executable, "scripts/test_upstream.py")
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py")
-        run("dotnet", "test", ROOT / "tests/Fizzy.McapSharp.Tests", "-c", "Release",
-            "--logger", "trx;LogFileName=managed.trx", "--results-directory", ROOT / "artifacts/reports")
-        run("dotnet", "run", "--project", ROOT / "tests/Allocations", "-c", "Release")
+        project = ROOT / "tests/Fizzy.McapSharp.Tests/Fizzy.McapSharp.Tests.csproj"
+        for framework in FRAMEWORKS:
+            results = target_path(project, framework).parent / "TestResults"
+            run("dotnet", "test", project, "-c", "Release", "-f", framework,
+                "--logger", "trx;LogFileName=managed.trx", "--results-directory", results)
+            run("dotnet", "run", "--project", ROOT / "tests/Allocations", "-c", "Release", "-f", framework)
 
 
 def main():

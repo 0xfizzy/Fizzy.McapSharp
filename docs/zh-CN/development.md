@@ -6,7 +6,9 @@
 
 ## 环境与目录
 
-在仓库根目录执行命令。需要 Python 3.12、.NET 8 SDK、Rust 1.98.1 和原生编译器。Windows x64 使用包含 Windows SDK 的 Visual C++ MSVC 构建工具；Linux x64/ARM64 使用 Ubuntu 22.04、GCC/build-essential 和 binutils，并安装下表对应的 Rust target。Windows 本地开发不需要虚拟机、WSL、Docker 或交叉编译器。工具链声明见 [rust-toolchain.toml](../../rust-toolchain.toml)，完整依赖锁定在 `native/Cargo.lock`。
+在仓库根目录执行命令。需要 Python 3.12、.NET SDK 10.0.401、Rust 1.98.1 和原生编译器。Windows x64 使用包含 Windows SDK 的 Visual C++ MSVC 构建工具；Linux x64/ARM64 使用 Ubuntu 22.04、GCC/build-essential 和 binutils，并安装下表对应的 Rust target。Windows 本地开发不需要虚拟机、WSL、Docker 或交叉编译器。工具链声明见 [rust-toolchain.toml](../../rust-toolchain.toml)，完整依赖锁定在 `native/Cargo.lock`。
+
+SDK 由 `global.json` 选择（`10.0.401`、`latestFeature`、禁止预览版）。验证需要同时安装 .NET 8 与 .NET 10 运行时。核心 xUnit 与分配门禁按框架串行运行，测试结果分别保存。辅助工具保持 net8.0；示例验证覆盖两个框架。还原使用已提交的 `packages.lock.json` 并启用锁定模式；有意更新依赖时运行 `dotnet restore <project> -p:RestoreLockedMode=false --force-evaluate`，审阅锁文件差异，再运行 `dotnet restore <project> --locked-mode`。
 
 | 路径 | 职责 |
 | --- | --- |
@@ -49,13 +51,13 @@ Linux 使用 `python scripts/build.py build --test`。收齐资产后用 `python
 
 Linux 构建检查 ELF 架构、动态依赖和 GLIBC 符号版本（不得高于 2.35），拒绝外部压缩库依赖和嵌入的库搜索路径，并拒绝自定义 CPU 优化的 Rust 标志。Linux ARM64 使用原生 ARM64 runner 编译和测试。macOS、musl、Ubuntu 20.04、Windows ARM64、32 位、NativeAOT 和单文件发布不属于验证矩阵。
 
-`Test-Package.ps1` 调用 `test_package.py`，在 `artifacts/smoke-<GUID>/` 建立独立应用与包缓存。从项目元数据读取版本，检查所有原生资产的架构，仅从指定包目录还原，并验证普通运行和显式 RID 的 framework-dependent publish 后运行，均覆盖全部压缩模式。可通过 `-PackageDirectory` 或 `--package-directory` 指定包目录。这验证本地包，不代表 NuGet.org 上的包已验证。
+`Test-Package.ps1` 调用 `test_package.py`，在 `artifacts/smoke-<GUID>/` 建立独立应用与包缓存。从项目元数据读取版本，检查所有原生资产的架构，仅从指定包目录还原，并验证普通运行和显式 RID 的 framework-dependent publish 后运行，均覆盖全部压缩模式。可通过 `-PackageDirectory` 或 `--package-directory` 指定包目录。这验证本地包，不代表 NuGet.org 上的包已验证。 检查两个目标的 DLL/XML；隔离消费者分别在 .NET 8 与 .NET 10 运行，核对 NuGet 编译/运行时资产选择，并逐字节比较输出 DLL 与对应包条目。
 
 现有 xUnit 覆盖三种压缩、时间与 Topic 过滤、元数据与附件、无索引读取、未完成文件、CRC 损坏、恢复结果、写入失败终止、不覆盖文件、枚举释放与无消息声明。测试使用临时文件，无需设备。
 
 ## 包内容
 
-包 ID 为 `Fizzy.McapSharp`，目标框架为 net8.0。同一包包含托管程序集、README、官方 MCAP 图标及其 MIT 许可证、第三方声明及以下资产：
+包 ID 为 `Fizzy.McapSharp`，目标框架为 `net10.0` 和 `net8.0`。同一包包含两个框架的托管程序集与 XML 文档、README、官方 MCAP 图标及其 MIT 许可证、第三方声明及以下资产：
 
 ```text
 runtimes/win-x64/native/fizzy_mcap_native.dll
@@ -67,7 +69,7 @@ runtimes/linux-arm64/native/libfizzy_mcap_native.so
 
 ### CI 与发布验证
 
-可复用验证工作流在三个原生 runner 上构建，运行 xUnit 和 Python 双向互操作，再统一打包一次。五个包验证任务分别在 Windows 2022、Ubuntu 22.04/24.04 x64/ARM64 上执行，使用独立缓存还原完整包，验证普通运行和 RID 发布运行，并读取所有构建平台生成的样例；缺少样例即失败。Ubuntu 是已配置的验证发行版；其他 glibc 发行版还需具备兼容系统库和 .NET 8。
+可复用验证工作流在三个原生 runner 上构建，运行 xUnit 和 Python 双向互操作，再统一打包一次。五个包验证任务分别在 Windows 2022、Ubuntu 22.04/24.04 x64/ARM64 上执行，使用独立缓存还原完整包，验证普通运行和 RID 发布运行，并读取所有构建平台生成的样例；缺少样例即失败。Ubuntu 是已配置的验证发行版；其他 glibc 发行版还需具备兼容系统库和 .NET 8 / 10。
 
 PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧构建自动取消。中间产物保留一天，只有通过全部任务的完整包保留七天。Cargo 缓存按系统、架构、工具链、锁文件和原生源码区分。只使用标准托管 runner，不配置付费 larger runner 或额外缓存额度。按 GitHub 当前规则，公开仓库的标准 runner 运行时间免费，存储仍受账户额度约束。
 

@@ -15,7 +15,7 @@ import webbrowser
 import xml.etree.ElementTree as ET
 import zipfile
 
-from build import MANAGED_PROJECT, MANAGED_OUTPUT, ROOT, build, output, run, version
+from build import MANAGED_PROJECT, API_FRAMEWORK, FRAMEWORKS, target_path, ROOT, build, output, run, version
 
 DOCS = ROOT / 'artifacts/docs'
 
@@ -167,7 +167,7 @@ def namespace_pages():
 def extract_package(package, destination):
     with zipfile.ZipFile(package) as archive:
         for name in ['Fizzy.McapSharp.dll', 'Fizzy.McapSharp.xml']:
-            (destination / name).write_bytes(archive.read('lib/net8.0/' + name))
+            (destination / name).write_bytes(archive.read(f'lib/{API_FRAMEWORK}/' + name))
         nuspec = ET.fromstring(archive.read('Fizzy.McapSharp.nuspec'))
         if nuspec.findtext('{*}metadata/{*}id') != 'Fizzy.McapSharp' or nuspec.findtext('{*}metadata/{*}version') != version():
             raise ValueError('Documentation package identity differs from source metadata')
@@ -221,7 +221,7 @@ def build_docs(package=None, release_commit=None, xml_override=None, skip_browse
         build()
         run('dotnet', 'build', MANAGED_PROJECT, '-c', 'Release', '--no-incremental', '-p:DocumentationStrict=true')
         for name in ['Fizzy.McapSharp.dll', 'Fizzy.McapSharp.xml']:
-            shutil.copy2(MANAGED_OUTPUT / name, DOCS / 'input' / name)
+            shutil.copy2(target_path(MANAGED_PROJECT, API_FRAMEWORK).parent / name, DOCS / 'input' / name)
     xml = ET.parse(DOCS / 'input/Fizzy.McapSharp.xml')
     members = []
     for member in xml.findall('./members/member'):
@@ -299,8 +299,15 @@ def samples(package_directory=None, published=False):
     restore = ['dotnet', 'restore', project, '--packages', folder / 'packages']
     if package_directory or published:
         restore += ['--configfile', folder / 'NuGet.Config']
-    run(*restore)
-    run('dotnet', 'run', '--project', project, '-c', 'Release', '--no-restore')
+    for framework in FRAMEWORKS:
+        # Change only the isolated consumer; a global TargetFramework property would
+        # also change the source library restore graph and its committed lockfile.
+        tree = ET.parse(project)
+        tree.find('./PropertyGroup/TargetFramework').text = framework
+        tree.write(project, encoding='utf-8')
+        run(*restore, '-p:RestoreLockedMode=false', '--force-evaluate')
+        run(*restore, '--locked-mode')
+        run('dotnet', 'run', '--project', project, '-c', 'Release', '--no-restore')
     return {'samples': 'passed', 'source': 'published-package' if published else 'local-package' if package_directory else 'current-source'}
 
 

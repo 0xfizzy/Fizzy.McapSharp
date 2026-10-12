@@ -2,7 +2,7 @@
 
 [简体中文](../zh-CN/index.md) · [GitHub repository](https://github.com/0xfizzy/Fizzy.McapSharp)
 
-Read and write MCAP files in .NET 8 applications to store timestamped messages, metadata and attachments. Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 build and validation baseline.
+Read and write MCAP files in .NET 8 / 10 applications to store timestamped messages, metadata and attachments. Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 build and validation baseline.
 
 ## Getting started
 
