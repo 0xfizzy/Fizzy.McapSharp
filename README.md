@@ -45,12 +45,13 @@ Call `Complete()` explicitly to finish the format; `Dispose()` only releases res
 
 Call `reader.Validate()` separately when a full-file check is needed; it performs an additional scan of the entire file. Ordinary reading does not replace full validation or validate business payload semantics.
 
-## Documentation
+<a id="documentation"></a>
 
-- [Documentation website](https://0xfizzy.github.io/Fizzy.McapSharp/): browse guides and the API reference online.
-- [Getting started](docs/en/usage.md): create a project, write, read, filter and validate.
-- [API contracts](docs/en/api.md): defaults, lifetime, errors and performance guarantees.
-- [Documentation home](docs/en/index.md): advanced guides, English member API reference and development/maintenance links.
+## Next steps
+
+- [Getting started](docs/en/usage.md): create a project, then write and read your first file.
+- [Task guides](docs/en/index.md): find help with writing, reading, querying or validating files.
+- [API reference and contracts](docs/en/index.md#reference): look up types and members, defaults, lifetimes and error handling.
 
 All code authored for this project is AI-generated. Third-party dependencies and vendored upstream code retain their original authorship and licenses.
 

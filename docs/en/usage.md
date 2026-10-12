@@ -49,9 +49,11 @@ Output follows file order:
 50: {"value":2}
 ```
 
-`McapReaderFactory` itself owns no disposable input resources; each enumeration owns and disposes an independent session. `ReadMessages()` returns independently owned results suitable for ordinary application code.
+`McapReaderFactory` itself owns no disposable input resources; each enumeration owns and disposes an independent session. Each message returned by `ReadMessages()` contains an independent copy of its data, suitable for ordinary application code.
 
-## Filter by topic and time
+<a id="filter-by-topic-and-time"></a>
+
+## Optional: filter by topic and time
 
 ```csharp
 foreach (var message in reader.ReadMessages(new()
@@ -76,14 +78,12 @@ This is an optional, separate full-file scan and can run before processing messa
 
 Append `File.Delete(path);` after all operations to remove the example file. Application code should apply its own retention policy and handle operation or cleanup failures.
 
-## Next steps
-
-- [Queries and random access](queries.md): file order, time order, indexes and chunk cursors.
-- [Message ownership and memory choices](ownership.md): reusable buffers, synchronous borrowing and storage leases.
-- [Streams and asynchronous reading](streams-async.md): I/O ownership, async operations and cancellation.
-- [Sans-I/O](sans-io.md): let the application perform I/O itself. [linear records](sans-io.md#linear-records) · [summary requests](sans-io.md#summary-requests) · [indexed messages](sans-io.md#indexed-messages)
-- [API contracts](api.md): defaults, lifetime, failure and validation boundaries.
-
 ## Run repository examples
 
-The [tutorial source](../../samples/Documentation/QuickStartExamples.cs) verifies these results and removes its temporary file; the [complete example](../../samples/Documentation/Program.cs) also covers advanced reading paths. Source contributors can run `./scripts/Test-Samples.ps1` from the repository root to build the native host library and validate current source. Use `./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages` for an already verified complete package; that is not public NuGet package validation. See [development](development.md) for setup.
+The [tutorial source](../../samples/Documentation/QuickStartExamples.cs) verifies the output and removes its temporary file. The [example entry point](../../samples/Documentation/Program.cs) also runs writing, reading, forwarding and validation examples. See [development](development.md#run-repository-examples) for build and run instructions.
+
+## Next steps
+
+- [Write files](writing.md): save multiple topics, metadata and attachments.
+- [Read messages](reading.md): read message contents, declarations and other records.
+- [Documentation home](index.md): find query, validation and advanced guides for your task.

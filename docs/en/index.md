@@ -2,20 +2,32 @@
 
 [简体中文](../zh-CN/index.md) · [GitHub repository](https://github.com/0xfizzy/Fizzy.McapSharp)
 
-Fizzy.McapSharp reads and writes MCAP files from .NET 8. Applications define payload encoding and clock origins. Choose the entry for your task; no Rust or native ABI knowledge is needed to begin.
+Read and write MCAP files in .NET 8 applications to store timestamped messages, metadata and attachments. Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 build and validation baseline.
 
 ## Getting started
 
-Read the [README](../../README.md) for purpose and supported platforms. When ready to code, follow [your first recording](usage.md) to install from NuGet, write, read, filter and optionally validate a file.
+**First time here?** [Write and read your first file](usage.md): install the NuGet package, run the example and inspect its output. No Rust installation is needed.
 
-## Advanced usage
+<a id="advanced-usage"></a>
 
-| Current need | Guide |
+<a id="writing"></a>
+
+<a id="reading"></a>
+
+<a id="readwrite-workflows"></a>
+
+## Choose by task
+
+| I want to… | Guide |
 | --- | --- |
-| Query by time, require indexes or revisit chunks | [Queries and random access](queries.md) |
-| Reuse buffers, process synchronously, retain or forward data | [Message ownership and memory choices](ownership.md) |
-| Use an existing Stream, async reading or cancellation | [Streams and async](streams-async.md) |
-| Supply input and perform seeks from application code | [Sans-I/O](sans-io.md) |
+| Save messages from multiple topics, add attachments and finish a file | [Write files](writing.md) |
+| Iterate through messages and read their topics and contents | [Read messages](reading.md) |
+| Filter by topic or time and access data through indexes | [Queries and random access](queries.md) |
+| Check file integrity or read valid messages from incomplete files | [Validation and recovery](validation.md) |
+| Configure compression, chunking and indexes | [Compression, chunks and indexes](writer-options.md) |
+| Reuse read buffers, retain messages or forward them | [Buffers and message forwarding](ownership.md) |
+| Use existing Streams, read asynchronously or cancel operations | [Streams and asynchronous reading](streams-async.md) |
+| Supply input and perform seeks from application code | [Sans-I/O reading](sans-io.md) |
 
 ## Reference
 
@@ -30,5 +42,3 @@ Read the [README](../../README.md) for purpose and supported platforms. When rea
 - [Native ABI](native.md) and [local patches](patches.md): implementation boundaries, extension contracts and evidence.
 - [Documentation maintenance](documentation.md) and [release/recovery](release.md): documentation builds, translations, archives and publication.
 - [Repository guidelines](../../AGENTS.md): contribution and maintenance rules (English).
-
-If unsure where to start, complete the [tutorial](usage.md), then choose an advanced guide for your actual workload.

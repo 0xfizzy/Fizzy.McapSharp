@@ -92,3 +92,7 @@ PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧�
 - [外部契约测试套件](testing.md#外部契约测试套件)
 - [每周及手动深度检查](testing.md#每周及手动深度检查)
 - [原生存储与补丁验证](testing.md#原生存储与补丁验证)
+
+## 运行仓库示例
+
+[教程源码](../../samples/Documentation/QuickStartExamples.cs)验证入门教程的输出并清理临时文件；[示例入口](../../samples/Documentation/Program.cs)还运行写入、读取、转发及校验示例。源码贡献者可在仓库根目录运行 `./scripts/Test-Samples.ps1`，脚本先构建本机原生库，再验证当前源码。已有经过验证的完整包可用 `./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages` 检查；它不代表公开 NuGet 包验证。环境准备见[开发指南](development.md)。

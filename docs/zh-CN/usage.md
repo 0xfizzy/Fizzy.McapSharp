@@ -49,9 +49,11 @@ foreach (var message in reader.ReadMessages())
 50: {"value":2}
 ```
 
-`McapReaderFactory` 本身不持有需要释放的输入资源；每次枚举拥有并释放独立读取会话。`ReadMessages()` 返回独立自有结果，适合普通应用代码。
+`McapReaderFactory` 本身不持有需要释放的输入资源；每次枚举拥有并释放独立读取会话。`ReadMessages()` 返回的每条消息包含独立的数据副本，适合普通应用代码。
 
-## 按主题和时间过滤
+<a id="按主题和时间过滤"></a>
+
+## 可选：按主题和时间过滤
 
 ```csharp
 foreach (var message in reader.ReadMessages(new()
@@ -76,14 +78,12 @@ Console.WriteLine($"Validated {recordCount} records.");
 
 完成所有操作后可追加 `File.Delete(path);` 删除示例文件；应用代码应按自己的保留策略管理文件，并处理操作或清理异常。
 
-## 下一步
-
-- [查询与随机访问](queries.md)：文件顺序、时间顺序、索引与 Chunk 游标。
-- [消息所有权与内存取舍](ownership.md)：复用缓冲、同步借用和存储租约（lease）。
-- [Stream 与异步读取](streams-async.md)：输入输出所有权、异步操作和取消。
-- [Sans-I/O](sans-io.md)：由应用自行执行 I/O。 [线性记录](sans-io.md#线性记录) · [摘要请求](sans-io.md#摘要请求) · [索引消息](sans-io.md#索引消息)
-- [API 契约](api.md)：默认值、生命周期、失败与验证边界。
-
 ## 运行仓库示例
 
-[教程源码](../../samples/Documentation/QuickStartExamples.cs)验证上述结果并清理临时文件；[完整示例](../../samples/Documentation/Program.cs)还覆盖高级读取路径。源码贡献者可在仓库根目录运行 `./scripts/Test-Samples.ps1`，脚本先构建本机原生库，再验证当前源码。已有经过验证的完整包可用 `./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages` 检查；它不代表公开 NuGet 包验证。环境准备见[开发指南](development.md)。
+[教程源码](../../samples/Documentation/QuickStartExamples.cs)验证上述输出并清理临时文件。其他写入、读取、转发和校验示例见[示例入口](../../samples/Documentation/Program.cs)；构建与运行方式见[开发指南](development.md#运行仓库示例)。
+
+## 下一步
+
+- [写入文件](writing.md)：保存多个主题的消息，添加元数据和附件。
+- [读取消息](reading.md)：读取消息内容、声明及其他记录。
+- [文档首页](index.md)：按需求查找查询、校验和进阶指南。

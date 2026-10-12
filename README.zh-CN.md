@@ -45,12 +45,13 @@ foreach (var message in reader.ReadMessages())
 
 需要完整文件校验时，另行调用 `reader.Validate()`；它会单独扫描整个文件。普通读取不替代完整校验，也不会验证载荷的业务含义。
 
-## 文档入口
+<a id="文档入口"></a>
 
-- [文档网站](https://0xfizzy.github.io/Fizzy.McapSharp/)：在线浏览中英文指南与 API 参考。
-- [入门教程](docs/zh-CN/usage.md)：创建项目、读写、过滤及校验。
-- [API 契约](docs/zh-CN/api.md)：默认行为、生命周期、错误与性能保证。
-- [文档首页](docs/zh-CN/index.md)：深入使用、英文成员 API 参考和开发维护入口。
+## 下一步
+
+- [入门教程](docs/zh-CN/usage.md)：从创建项目开始，写入和读取第一个文件。
+- [任务指南](docs/zh-CN/index.md)：按写入、读取、查询或校验等需求选择指南。
+- [API 参考与契约](docs/zh-CN/index.md#参考)：查找类型和成员，确认默认行为、生命周期及错误处理。
 
 本项目自身的所有代码均由 AI 生成。第三方依赖及随仓库分发的上游代码保留其原作者归属和许可证。
 

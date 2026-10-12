@@ -1,30 +1,44 @@
 - name: 入门
   items:
-    - name: 概览
+    - name: 文档首页
       href: index.md
-    - name: 第一个文件
+    - name: 写入和读取第一个文件
       href: usage.md
-- name: 深入使用
+- name: 写入
   items:
+    - name: 写入文件
+      href: writing.md
+    - name: 压缩、分块与索引
+      href: writer-options.md
+- name: 读取
+  items:
+    - name: 读取消息
+      href: reading.md
     - name: 查询与随机访问
       href: queries.md
-    - name: 消息所有权
+    - name: 校验与恢复
+      href: validation.md
+- name: 读写协作
+  items:
+    - name: 缓冲与消息转发
       href: ownership.md
-    - name: Stream 与异步
+    - name: Stream 与异步读取
       href: streams-async.md
-    - name: Sans-I/O
+    - name: Sans-I/O 读取
       href: sans-io.md
 - name: 参考
   items:
     - name: API 契约
       href: api.md
+    - name: 成员 API（英文）
+      uid: Fizzy.McapSharp
     - name: 上游 API 对应关系
       href: coverage.md
 - name: 开发与维护
   items:
     - name: 构建与集成
       href: development.md
-    - name: 验证与诊断
+    - name: 验证与性能诊断
       href: testing.md
     - name: 原生 ABI
       href: native.md

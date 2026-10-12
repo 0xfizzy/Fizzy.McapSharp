@@ -1,23 +1,37 @@
 - name: Getting started
   items:
-    - name: Overview
+    - name: Documentation home
       href: index.md
-    - name: Your first recording
+    - name: Write and read your first file
       href: usage.md
-- name: Advanced usage
+- name: Writing
   items:
+    - name: Write files
+      href: writing.md
+    - name: Compression, chunks and indexes
+      href: writer-options.md
+- name: Reading
+  items:
+    - name: Read messages
+      href: reading.md
     - name: Queries and random access
       href: queries.md
-    - name: Message ownership
+    - name: Validation and recovery
+      href: validation.md
+- name: Read/write workflows
+  items:
+    - name: Buffers and message forwarding
       href: ownership.md
-    - name: Streams and async
+    - name: Streams and asynchronous reading
       href: streams-async.md
-    - name: Sans-I/O
+    - name: Sans-I/O reading
       href: sans-io.md
 - name: Reference
   items:
     - name: API contracts
       href: api.md
+    - name: Member API (English)
+      uid: Fizzy.McapSharp
     - name: Upstream API correspondence
       href: coverage.md
 - name: Development and maintenance

@@ -2,20 +2,32 @@
 
 [English](../en/index.md) · [GitHub 仓库](https://github.com/0xfizzy/Fizzy.McapSharp)
 
-Fizzy.McapSharp 为 .NET 8 提供 MCAP 文件读写。载荷编码和时钟基准由应用决定。按当前任务选择入口，无需先了解 Rust 或原生 ABI。
+在 .NET 8 应用中读写 MCAP 文件，保存带时间戳的消息、元数据和附件。支持 Windows x64 和 glibc Linux x64/ARM64，Linux 构建与验证基线为 Ubuntu 22.04。
 
 ## 入门
 
-首次接触项目，先看 [README](../../README.zh-CN.md)了解用途和支持平台；准备开始编码，阅读[第一个文件](usage.md)，通过 NuGet 完成写入、读取、过滤和可选校验。
+**第一次使用？** 从[写入和读取第一个文件](usage.md)开始：安装 NuGet 包，运行示例并查看结果。无需安装 Rust。
 
-## 深入使用
+<a id="深入使用"></a>
 
-| 当前需求 | 指南 |
+<a id="写入"></a>
+
+<a id="读取"></a>
+
+<a id="读写协作"></a>
+
+## 按任务选择
+
+| 我想要…… | 指南 |
 | --- | --- |
-| 按时间查询、强制索引、重复访问 Chunk | [查询与随机访问](queries.md) |
-| 复用缓冲、同步处理、跨操作保留或转发数据 | [消息所有权与内存取舍](ownership.md) |
-| 使用已有 Stream、异步读取或取消 | [Stream 与异步](streams-async.md) |
-| 由应用自行提供输入和执行定位 | [Sans-I/O](sans-io.md) |
+| 保存多个主题的消息，添加附件并完成文件 | [写入文件](writing.md) |
+| 遍历文件，读取消息内容及主题 | [读取消息](reading.md) |
+| 按主题或时间筛选，使用索引访问数据 | [查询与随机访问](queries.md) |
+| 检查文件完整性，从不完整文件中读取有效消息 | [校验与恢复](validation.md) |
+| 配置压缩，调整分块和索引 | [压缩、分块与索引](writer-options.md) |
+| 复用读取缓冲，保留或转发消息 | [缓冲与消息转发](ownership.md) |
+| 使用已有 Stream，异步读取或取消操作 | [Stream 与异步读取](streams-async.md) |
+| 由应用提供输入并执行定位 | [Sans-I/O 读取](sans-io.md) |
 
 ## 参考
 
@@ -30,5 +42,3 @@ Fizzy.McapSharp 为 .NET 8 提供 MCAP 文件读写。载荷编码和时钟基�
 - [原生 ABI](native.md)与[本地补丁](patches.md)：实现边界、扩展契约及证据。
 - [文档维护](documentation.md)与[发布恢复](release.md)：文档构建、翻译、归档及发布操作。
 - [仓库约定](../../AGENTS.md)：贡献和维护规则（英文）。
-
-不确定从哪里开始时，先完成[入门教程](usage.md)，再按实际需求选择深入指南。

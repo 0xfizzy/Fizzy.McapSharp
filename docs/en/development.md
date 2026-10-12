@@ -94,3 +94,7 @@ After the basic build, choose [validation and diagnostics](testing.md) for the c
 - [External contract suites](testing.md#external-contract-suites)
 - [Weekly and manual deep checks](testing.md#weekly-and-manual-deep-checks)
 - [Native storage and patch validation](testing.md#native-storage-and-patch-validation)
+
+## Run repository examples
+
+The [tutorial source](../../samples/Documentation/QuickStartExamples.cs) verifies the tutorial output and removes its temporary file; the [example entry point](../../samples/Documentation/Program.cs) also runs writing, reading, forwarding and validation examples. Source contributors can run `./scripts/Test-Samples.ps1` from the repository root to build the native host library and validate current source. Use `./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages` for an already verified complete package; that is not public NuGet package validation. See [development](development.md) for setup.
