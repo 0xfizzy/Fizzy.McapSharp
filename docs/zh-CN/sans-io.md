@@ -1,4 +1,6 @@
-# 自行驱动 Sans-I/O
+# Sans-I/O 读取协议
+
+<a id="自行驱动-sans-io"></a>
 
 [English](../en/sans-io.md) | 简体中文
 
@@ -7,6 +9,8 @@
 回应待处理请求后再获取下一事件。`SupplyInput` 允许短读，空输入表示 EOF，且只能回应 `Read`。`InsertChunkData` 要求完整的请求压缩数据范围，不包含 Chunk 头，因此先完成短读拼接再调用。`BufferTooSmall` 保留待交付输出供重试。错误回应和解析失败会终止 parser；应释放它，不重试任意失败。
 
 下方方法使用 `using Fizzy.McapSharp;` 和 .NET 项目的默认隐式 using。在线性读取时打开文件并调用 `ReadLinear(input)`；运行其他循环前重新打开文件或将流定位到起点。
+
+这些是读取协议；写入入口见[写入指南](writing.md)，读取能力选择见[读取指南](reading.md)。
 
 ## 线性记录
 

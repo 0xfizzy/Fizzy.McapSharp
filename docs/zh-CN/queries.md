@@ -68,3 +68,5 @@ foreach (var message in indexed.ReadMessages())
 下一步独立选择[消息所有权](ownership.md)。是否需要另外进行全文件校验，参见 [API 契约](api.md#校验与恢复)。
 
 本页代码在[读取示例](../../samples/Documentation/ReadingExamples.cs)中运行，执行方法见[教程](usage.md#运行仓库示例)。
+
+完整文件检查和不完整输入处理见[校验与有效前缀恢复](validation.md)。

@@ -46,6 +46,15 @@ def main():
                 package_frameworks = (API_FRAMEWORK,)
     smoke = ROOT / "artifacts" / ("smoke-" + uuid.uuid4().hex)
     smoke.mkdir(parents=True)
+    # Isolate package-only projects from the checkout's source build settings.
+    (smoke / "Directory.Build.props").write_text("""<Project>
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)build/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)build/$(Configuration)/tests/$(MSBuildProjectName)/</OutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildThisFileDirectory)build/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>""", encoding="utf-8")
     with zipfile.ZipFile(package) as archive:
         metadata = ET.fromstring(archive.read('Fizzy.McapSharp.nuspec'))
         icon_name = metadata.findtext('{*}metadata/{*}icon')

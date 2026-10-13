@@ -4,7 +4,7 @@ English | [简体中文](../zh-CN/documentation.md)
 
 For documentation contributors: build the site, review translations, validate examples and inspect rendered pages. See the [documentation home](index.md) for reader paths and topic organization.
 
-Maintain member contracts in English XML comments, cross-API contracts in [api.md](api.md), and task sequences in [usage.md](usage.md). Review constraints, units, ownership, cancellation, failure and cleanup against implementation. XML coverage is not semantic correctness.
+Maintain member contracts in English XML comments, cross-API contracts in [api.md](api.md), and the introductory sequence in [usage.md](usage.md), and subsequent tasks in the [writing](writing.md), [reading](reading.md) and read/write workflow guides. Review constraints, units, ownership, cancellation, failure and cleanup against implementation. XML coverage is not semantic correctness.
 
 The bilingual site entry and top-level navigation are in `docs/index.md` and `docs/toc.yml`. English guides live in `docs/en/`; Chinese guides live in `docs/zh-CN/`. DocFX and npm configuration and the local .NET tool manifest live under `docs/`. Scripts run these tools from that directory. The build stages selected inputs under `artifacts/docs/source/` so DocFX can resolve repository resources beneath its configuration root; generated output remains under repository-root `artifacts/`. Published guide URLs remain unchanged.
 

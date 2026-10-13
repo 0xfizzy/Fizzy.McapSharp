@@ -33,7 +33,7 @@ def main():
         run('rustc', '--edition=2021', '-C', 'opt-level=1', '-g', ROOT / 'tests/native_probe.rs', '-L', native,
             '-l', 'dylib=fizzy_mcap_native', '-o', driver, timeout=180)
         os.environ['LD_LIBRARY_PATH'] = str(native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
-        reference_target = ROOT / 'native/target/deep-reference'
+        reference_target = ROOT / 'build/obj/native/deep-reference'
         run('cargo', 'build', '--release', '--locked', '--manifest-path',
             ROOT / 'tests/UpstreamReference/Cargo.toml', '--bin', 'failure_probe',
             '--target-dir', reference_target, timeout=180)

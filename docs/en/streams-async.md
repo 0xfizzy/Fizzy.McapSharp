@@ -1,8 +1,28 @@
-# Streams and asynchronous reading
+# Stream input/output and asynchronous reading
+
+<a id="streams-and-asynchronous-reading"></a>
 
 English | [简体中文](../zh-CN/streams-async.md)
 
-For applications that already own a Stream or need asynchronous input. The examples use the `path` from the [tutorial](usage.md). Keep Stream ownership separate from the [ownership of delivered messages](ownership.md).
+For applications supplying output/input Streams or needing asynchronous reading. The examples use the `path` from the [tutorial](usage.md). Keep Stream ownership separate from the [ownership of delivered messages](ownership.md).
+
+## Supply a Stream to the writer
+
+Choose creation behavior first: `FileMode.CreateNew` rejects existing files; `FileMode.Create` truncates immediately on opening. Seekable output must be at its end. This example uses a new independent path and retains final cleanup responsibility in the caller:
+
+```csharp
+using var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write);
+using (var writer = new McapWriter(output, leaveOpen: true))
+{
+    var channel = writer.RegisterChannel("/sample", "raw");
+    writer.WriteToKnownChannel(new(channel, 0, 0, 0), []);
+    writer.Complete();
+    writer.FlushToDisk();
+}
+// The caller still owns output; dispose it when finished.
+```
+
+Writer calls consume input synchronously; there is no asynchronous writing session. With default `leaveOpen: false`, the writer releases the Stream; with true, the caller does. Do not externally write, reposition or dispose the Stream while the writer holds it. `IntoInner()` can transfer ownership but does not implicitly complete or synchronize the file. See the [writing guide](writing.md) for completion rules.
 
 ## Retain a caller-owned Stream
 
@@ -17,8 +37,6 @@ input.Position = 0; // The session has released the Stream; the caller can reuse
 ```
 
 The initial position becomes MCAP offset zero; input must contain one MCAP from that position to its end. The session reads incrementally. `leaveOpen` defaults to false, so set it to true only when the caller will own subsequent use and cleanup. Do not read, reposition or dispose the Stream externally while a session owns it.
-
-For output, choose file creation behavior when opening the Stream, then pass it to `McapWriter`. `FileMode.CreateNew` rejects an existing file; `FileMode.Create` truncates it immediately. A seekable output must be at its end. Call `Complete()` before disposal; neither `leaveOpen` nor ownership transfer completes the format. See [writing](api.md#write-a-recording) and [Stream contracts](api.md#stream-sessions-and-ownership).
 
 ## Await one operation at a time
 
@@ -53,3 +71,5 @@ Explicit cleanup failures are observable. Do not treat an exception as proof tha
 Next, use [Sans-I/O](sans-io.md) only if the application needs to drive I/O itself; otherwise consult [API contracts](api.md) for the selected reader.
 
 These snippets run in the [reading examples](../../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.
+
+The output example is verified in the [writing examples](../../samples/Documentation/WritingExamples.cs).

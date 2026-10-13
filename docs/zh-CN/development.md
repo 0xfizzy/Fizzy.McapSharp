@@ -47,7 +47,7 @@ Linux 使用 `python scripts/build.py build --test`。收齐资产后用 `python
 | `linux-x64` | `x86_64-unknown-linux-gnu` | `ubuntu-22.04` |
 | `linux-arm64` | `aarch64-unknown-linux-gnu` | `ubuntu-22.04-arm` |
 
-构建脚本先执行 `cargo build --release --locked --target <target>`，再构建托管 Release 项目。原生产物按目标隔离在 `native/target/<target>/release/`，并暂存到 `artifacts/native/<rid>/`，清单记录提交、源码指纹、目标和二进制哈希。`-Test` 运行构建/打包回归检查和 xUnit，默认只构建宿主平台。脚本不安装工具。
+构建脚本先执行 `cargo build --release --locked --target <target>`，再构建托管 Release 项目。原生产物按目标隔离在 `build/obj/native/<target>/release/`，并暂存到 `artifacts/native/<rid>/`，清单记录提交、源码指纹、目标和二进制哈希。`-Test` 运行构建/打包回归检查和 xUnit，默认只构建宿主平台。脚本不安装工具。
 
 Linux 构建检查 ELF 架构、动态依赖和 GLIBC 符号版本（不得高于 2.35），拒绝外部压缩库依赖和嵌入的库搜索路径，并拒绝自定义 CPU 优化的 Rust 标志。Linux ARM64 使用原生 ARM64 runner 编译和测试。macOS、musl、Ubuntu 20.04、Windows ARM64、32 位、NativeAOT 和单文件发布不属于验证矩阵。
 
@@ -94,6 +94,12 @@ PR、推送到 `main` 和手动触发均运行该流程，同一 PR/ref 的旧�
 - [外部契约测试套件](testing.md#外部契约测试套件)
 - [每周及手动深度检查](testing.md#每周及手动深度检查)
 - [原生存储与补丁验证](testing.md#原生存储与补丁验证)
+
+## 构建输出布局
+
+应用和库输出统一位于本仓库 `build/Debug/` 或 `build/Release/`。独立库、工具按项目分目录，必要时继续按目标框架或 RID 隔离。测试程序及夹具位于 `build/<Configuration>/tests/<Project>/`，测试结果位于该项目的 `TestResults/` 子目录。中间文件及还原缓存位于 `build/obj/`，按项目和配置隔离。源码依赖使用各自仓库的输出根目录。
+
+共享输出的构建串行执行。`artifacts/` 用于临时日志、报告、包暂存和发布校验。旧项目内 `bin/`、`obj/` 已排除在编译输入之外，仅在确认不再使用后清理。
 
 ## 运行仓库示例
 

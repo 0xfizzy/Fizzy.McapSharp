@@ -4,6 +4,8 @@
 
 本页是跨 API 契约参考，适合确认默认行为、所有权、失败和验证边界。首次使用请先读[教程](usage.md)；按任务选型请读[查询](queries.md)、[消息所有权](ownership.md)、[Stream 与异步](streams-async.md)或 [Sans-I/O](sans-io.md)。
 
+按任务使用[写入指南](writing.md)与[读取指南](reading.md)；配置取舍见[压缩、分块与索引](writer-options.md)，完整性操作见[校验与恢复](validation.md)。本页集中维护精确契约。
+
 按需查阅：能力选型 → 写入 → 读取与查询 → 生命周期与错误 → 校验与恢复 → 性能保证。
 
 `Fizzy.McapSharp` 提供 MCAP 文件、Stream、缓冲区和 Sans-I/O 操作，支持 .NET 8 / 10、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；支持可取消的异步记录读取和时间排序；业务解码由应用实现。参见[官方 API 覆盖表](coverage.md)。

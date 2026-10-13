@@ -129,8 +129,8 @@ def build(test=False):
         raise RuntimeError("Do not override the portable target CPU baseline")
     # Explicit target directory prevents user Cargo settings from mixing artifacts.
     run(cargo, "build", "--release", "--locked", "--target", target,
-        "--target-dir", ROOT / "native/target", "--manifest-path", ROOT / "native/Cargo.toml")
-    source = ROOT / "native/target" / target / "release" / filename
+        "--target-dir", ROOT / "build/obj/native", "--manifest-path", ROOT / "native/Cargo.toml")
+    source = ROOT / "build/obj/native" / target / "release" / filename
     check_binary(source, rid)
     if rid.startswith("linux-"):
         audit_linux(source)
@@ -142,7 +142,7 @@ def build(test=False):
     run("dotnet", "build", MANAGED_PROJECT, "-c", "Release")
     if test:
         run(cargo, "test", "--release", "--locked", "--target", target,
-            "--target-dir", ROOT / "native/target", "--manifest-path", ROOT / "native/Cargo.toml")
+            "--target-dir", ROOT / "build/obj/native", "--manifest-path", ROOT / "native/Cargo.toml")
         run(sys.executable, "scripts/check_api_coverage.py")
         run(sys.executable, "scripts/test_upstream.py")
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py")

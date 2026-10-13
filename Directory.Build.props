@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+  </PropertyGroup>
+  <!-- Repository-local outputs; keep projects and test fixtures isolated. -->
+  <PropertyGroup>
+    <RepositoryBuildRoot>$(MSBuildThisFileDirectory)build/</RepositoryBuildRoot>
+    <RepositoryProjectPath>$([MSBuild]::MakeRelative('$(MSBuildThisFileDirectory)', '$(MSBuildProjectDirectory)'))</RepositoryProjectPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**;$(RepositoryBuildRoot)**</DefaultItemExcludes>
+    <BaseIntermediateOutputPath>$(RepositoryBuildRoot)obj/$(RepositoryProjectPath)/</BaseIntermediateOutputPath>
+    <OutputPath>$(RepositoryBuildRoot)$(Configuration)/$(MSBuildProjectName)/</OutputPath>
+    <OutputPath Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(RepositoryProjectPath)', '(^|[/\\])tests([/\\]|$)'))">$(RepositoryBuildRoot)$(Configuration)/tests/$(MSBuildProjectName)/</OutputPath>
+    <VSTestResultsDirectory>$(RepositoryBuildRoot)$(Configuration)/tests/$(MSBuildProjectName)/TestResults/</VSTestResultsDirectory>
+  </PropertyGroup>
+</Project>

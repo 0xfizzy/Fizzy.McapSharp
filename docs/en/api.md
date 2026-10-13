@@ -4,6 +4,8 @@ English | [简体中文](../zh-CN/api.md)
 
 This is the cross-API contract reference for defaults, ownership, failure and validation boundaries. Start with the [tutorial](usage.md) for first use; consult [queries](queries.md), [message ownership](ownership.md), [Streams and async](streams-async.md) or [Sans-I/O](sans-io.md) for task-oriented guidance.
 
+Use the [writing](writing.md) and [reading](reading.md) guides for task sequences, [writer configuration](writer-options.md) for layout choices and [validation](validation.md) for integrity operations. This page remains the exact contract reference.
+
 Read by responsibility: capability selection → writing → reading and queries → lifetime and errors → validation and recovery → performance guarantees.
 
 `Fizzy.McapSharp` provides MCAP file, Stream, buffer and Sans-I/O operations on .NET 8 / 10: Windows x64 and glibc Linux x64/ARM64, built against Ubuntu 22.04. macOS, musl and 32-bit processes are unsupported. Applications define payload encodings and nanosecond clock semantics. Cancellable asynchronous record reading and time sorting are available; payload decoding remains application-defined. See the [official API coverage map](coverage.md).

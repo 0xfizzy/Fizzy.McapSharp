@@ -55,7 +55,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            native/target
+            build/obj/native
           key: native-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'native/Cargo.lock') }}-${{ hashFiles('native/src/**', 'native/Cargo.toml') }}
           restore-keys: native-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'native/Cargo.lock') }}-
       - run: python scripts/build.py build --test
@@ -73,7 +73,7 @@ jobs:
           name: reports-${{ matrix.rid }}
           path: |
             artifacts/reports/**/*.json
-            artifacts/reports/**/*.trx
+            build/Release/tests/**/*.trx
             tests/**/TestResults/*.trx
             artifacts/reports/**/*.log
           retention-days: 7

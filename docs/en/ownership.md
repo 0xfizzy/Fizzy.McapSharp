@@ -1,8 +1,16 @@
-# Message ownership and memory choices
+# Message ownership, buffers and batch forwarding
+
+<a id="message-ownership-and-memory-choices"></a>
 
 English | [简体中文](../zh-CN/ownership.md)
 
-For applications choosing how long message bytes must remain valid. Start with owned results; use other delivery forms when buffer reuse, synchronous processing or retained sharing fits the workload. Access order is a [separate choice](queries.md).
+For applications choosing when writer input can be reused and how long reader results must remain valid. Start with owned read results; use other delivery forms when buffer reuse, synchronous processing or retained sharing fits the workload. Access order is a [separate choice](queries.md).
+
+## Writer input and buffer reuse
+
+A writer consumes payload input before each call returns. Reuse the caller array or span afterward; do not mutate it during the call. `WriteToKnownChannel` fits registered channels and reusable buffers; complete owned messages fit existing objects; prepared descriptors snapshot control data for reuse without repeated preparation. Exact allocation guarantees remain in [API contracts](api.md#binding-performance-and-local-limits).
+
+Writing does not transfer input ownership. Lease forwarding likewise requires keeping the lease alive until synchronous writing finishes. A batch can reference multiple backing owners without concatenating payloads. Ordinary caller-buffer reads still copy into caller storage; convenience owned results remain independent copies. See the [writing guide](writing.md) for form selection.
 
 ## Choose by lifetime
 
@@ -50,6 +58,22 @@ borrowed.VisitMessages((in McapMessageHeader header, ReadOnlySpan<byte> payload)
 
 Use the span only inside the callback. Do not read, inspect or dispose the same reader from that callback. Returning false stops normally after the current message. Snapshot callbacks impose additional restrictions on indexed readers and prepared indexes; see [borrowing contracts](api.md#borrowing-batches-and-leases).
 
+## Forward a read batch into a new recording
+
+Read the source channel descriptions, register corresponding schemas and channels on the destination writer, and build a source-to-destination Channel ID map. Replace each header's ChannelId while preserving its other fields; payloads still come from the original lease:
+
+```csharp
+var headers = new McapMessageHeader[batch.Count];
+for (int i = 0; i < batch.Count; i++)
+{
+    var header = batch.GetHeader(i);
+    headers[i] = header with { ChannelId = ids[header.ChannelId] };
+}
+writer.WriteBatch(batch, headers);
+```
+
+This snippet requires a live `batch`, an `ids` map covering every source channel and registered destination declarations. With matching IDs, use `WriteBatch(batch)`. The synchronous call does not transfer ownership and is not atomic; do not replay an entire failed batch. The reader can be disposed first because the independently retained lease still holds payload storage; never access concurrently with lease disposal. The [complete forwarding example](../../samples/Documentation/RecordingExamples.cs) verifies ID remapping and payload round trips for channels with and without schemas.
+
 ## Retain only what the application needs
 
 For short pipelines, keep a batch lease alive through processing and dispose it afterward. A lease survives reader advancement, reader disposal and cache eviction. For a small payload kept much longer, copy it explicitly:
@@ -69,8 +93,6 @@ using (var batch = retained.ReadBatchLease(1))
 ```
 
 Copying releases no storage still referenced by another lease, parser or cache. Bound outstanding work using retained backing sizes and duration as well as batch counts. Do not access spans concurrently with lease disposal; cross-thread transfer needs caller synchronization. See [retention contracts](api.md#choosing-storage-for-retained-results).
-
-To forward a batch, register destination schemas/channels first, then call `writer.WriteBatch(batch)` while the lease is alive. Use the header-replacement overload when channel IDs differ. Forwarding is synchronous, does not transfer ownership and does not make a batch atomic. The [runnable example](../../samples/Documentation/Program.cs) demonstrates a schema-less channel with matching IDs.
 
 Next, use [Streams and async](streams-async.md) for asynchronous pipelines, or consult [local limits](api.md#binding-performance-and-local-limits) and [diagnostics](testing.md) before tuning memory behavior.
 

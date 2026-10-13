@@ -1,4 +1,6 @@
-# Drive Sans-I/O yourself
+# Sans-I/O reading protocols
+
+<a id="drive-sans-io-yourself"></a>
 
 English | [简体中文](../zh-CN/sans-io.md)
 
@@ -7,6 +9,8 @@ Use these protocols only when the application must perform I/O itself. The [runn
 Respond to the pending request before asking for another event. `SupplyInput` accepts short reads and treats empty input as EOF; it only responds to `Read`. `InsertChunkData` requires the entire requested compressed-data range, excluding the Chunk header, so complete short reads before calling. `BufferTooSmall` retains output for retry. Wrong responses and parsing failures terminate the parser; dispose it rather than retrying arbitrary failures.
 
 The methods below use `using Fizzy.McapSharp;` and the .NET project's default implicit usings. Open the file and call `ReadLinear(input)` for linear reading; reopen the file or rewind before running another loop.
+
+These are reading protocols. See the [writing guide](writing.md) for output and the [reading guide](reading.md) for capability selection.
 
 ## Linear records
 

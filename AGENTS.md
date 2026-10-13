@@ -70,7 +70,7 @@
 - For managed or native behavior changes, run `./scripts/Build.ps1 -Test -Pack` after collecting all three native assets from the same source, or the equivalent Python commands in CI. Local host-only validation uses `./scripts/Build.ps1 -Test`; report missing platform assets rather than manufacturing or bypassing them. Also run Python interoperability checks for format, compression, ABI, or read/write changes. Run `./scripts/Test-Package.ps1` for packaging or runtime asset changes.
 - Distinguish current-source, local-package and published-package validation; testing a published dependency does not validate current source. For documentation-only changes, check links, commands, and implementation contracts without claiming unperformed tests.
 - Default to NuGet. For source integration, select exactly one reference type per project and restore after switching modes. Reference-selection configuration belongs to the consuming project; do not commit local paths or source configuration here.
-- Do not commit `.tools/`, `native/target/`, `bin/`, `obj/`, `artifacts/`, or credentials. Publish only through GitHub Actions Trusted Publishing; follow the publishing rules below.
+- Do not commit `.tools/`, `build/obj/native/`, `bin/`, `obj/`, `artifacts/`, or credentials. Publish only through GitHub Actions Trusted Publishing; follow the publishing rules below.
 - Tests use temporary files and require no hardware. Do not operate devices without authorization. Report actual checks, unverified areas, and limitations; a successful build does not validate UI or device behavior.
 
 ## Publishing

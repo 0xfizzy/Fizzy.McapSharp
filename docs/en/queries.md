@@ -68,3 +68,5 @@ Individual seeks can load and validate a complete chunk. Prepared indexes reduce
 Next, choose [message ownership](ownership.md) independently of access order. Use [API contracts](api.md#validation-and-recovery) to decide whether a separate full-file validation is required.
 
 These snippets run in the [reading examples](../../samples/Documentation/ReadingExamples.cs); see the [tutorial](usage.md#run-repository-examples) for execution instructions.
+
+For complete-file checks and incomplete input, see [validation and prefix recovery](validation.md).

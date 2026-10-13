@@ -28,7 +28,7 @@ def main():
     outputs = []
     for manifest in manifests:
         command = [cargo, "run", "--release", "--locked", "--manifest-path", str(manifest),
-                   "--target-dir", str(ROOT / "native/target/reference")]
+                   "--target-dir", str(ROOT / "build/obj/native/reference")]
         if manifest == manifests[1]: command += ["--example", "upstream_reference"]
         result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, timeout=180)
         if result.returncode:

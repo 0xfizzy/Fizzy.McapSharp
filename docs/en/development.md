@@ -45,7 +45,7 @@ Linux uses `python scripts/build.py build --test`. Use `python scripts/build.py 
 | `linux-x64` | `x86_64-unknown-linux-gnu` | `ubuntu-22.04` |
 | `linux-arm64` | `aarch64-unknown-linux-gnu` | `ubuntu-22.04-arm` |
 
-The build script runs `cargo build --release --locked --target <target>` before managed Release builds. Native outputs are isolated in `native/target/<target>/release/` and staged in `artifacts/native/<rid>/` with a manifest recording the commit, source fingerprint, target and binary hash. `-Test` runs build/packaging regression checks and xUnit; the default builds only the host platform. No script installs tools.
+The build script runs `cargo build --release --locked --target <target>` before managed Release builds. Native outputs are isolated in `build/obj/native/<target>/release/` and staged in `artifacts/native/<rid>/` with a manifest recording the commit, source fingerprint, target and binary hash. `-Test` runs build/packaging regression checks and xUnit; the default builds only the host platform. No script installs tools.
 
 Public API XML documentation is required by the CS1591 build gate. Keep units, ownership, supported modes and failure behavior on the relevant members. Private protocol constants in `src/Fizzy.McapSharp/Native.Protocol.cs` and `native/src/protocol.rs` are checked together by the Python test suite; keep operation and status domains separate even when numeric values coincide.
 
@@ -96,6 +96,12 @@ After the basic build, choose [validation and diagnostics](testing.md) for the c
 - [External contract suites](testing.md#external-contract-suites)
 - [Weekly and manual deep checks](testing.md#weekly-and-manual-deep-checks)
 - [Native storage and patch validation](testing.md#native-storage-and-patch-validation)
+
+## Build output layout
+
+Outputs are rooted at this repository's `build/Debug/` or `build/Release/`. Independent libraries and tools use project subdirectories (with framework/RID subdirectories where needed). Test binaries and fixtures use `build/<Configuration>/tests/<Project>/`; test results use that project's `TestResults/` directory. Intermediate and restore files use `build/obj/`, isolated by project and configuration. Source dependencies keep their own repository output roots.
+
+Builds sharing outputs must run serially. `artifacts/` is reserved for temporary logs, reports, package staging and release validation. Old project-local `bin/` and `obj/` trees are excluded from compilation; remove them only after checking that they are no longer in use.
 
 ## Run repository examples
 
