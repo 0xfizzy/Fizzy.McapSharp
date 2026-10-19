@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>写入文件 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="写入文件 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../assets/icon.png">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="写入文件">写入文件</h1>
+
+<p><a id="写入录制"></a></p>
+<p><a href="../writing.html">English</a> | 简体中文</p>
+<p>先用下面的程序保存多个主题的消息，再按需添加元数据、附件或选择其他写入方式。项目准备见<a href="usage.html">入门教程</a>，生成的文件可交给<a href="reading.html">读取消息</a>。</p>
+<h2 id="写入多主题文件">写入多主题文件</h2>
+<p>在入门教程的项目中运行下面的 C# 12 程序。保留打印的路径供读取指南使用，不再需要时删除文件。</p>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+
+var path = Path.Combine(Path.GetTempPath(), $&quot;recording-{Guid.NewGuid():N}.mcap&quot;);
+using (var writer = new McapWriter(path))
+{
+    var schema = writer.RegisterSchema(&quot;value&quot;, &quot;jsonschema&quot;, &quot;{\&quot;type\&quot;:\&quot;object\&quot;}&quot;u8);
+    var values = writer.RegisterChannel(&quot;/values&quot;, &quot;json&quot;, schema);
+    var events = writer.RegisterChannel(&quot;/events&quot;, &quot;text/plain&quot;);
+    writer.WriteToKnownChannel(new(values, 0, 100, 90), &quot;{\&quot;value\&quot;:1}&quot;u8);
+    writer.WriteToKnownChannel(new(events, 0, 50, 50), &quot;started&quot;u8);
+    writer.WriteToKnownChannel(new(events, 1, 110, 110), []);
+    writer.Complete();
+}
+Console.WriteLine(path);
+</code></pre>
+<p>消息刻意按日志时间 100、50、110 写入，写入不会排序。最后一条载荷为空，仍然是一条消息。调用返回前会消费完载荷输入，随后即可复用调用方缓冲。</p>
+<p>目标路径必须不存在。调用 <code>Complete()</code> 完成文件；退出 <code>using</code> 只释放资源，不会自动完成文件。消息头中的日志时间和发布时间均为纳秒，起点由应用约定。</p>
+<h2 id="理解声明与消息">理解声明与消息</h2>
+<p>Schema 描述载荷格式；Channel 将主题、消息编码与可选 Schema 及元数据关联。先注册一次 Schema，再使用其 ID 注册相关通道。Schema ID 为零表示没有 Schema。消息头指定通道，并携带序号、日志时间和发布时间；载荷单独传入。</p>
+<p>应用定义载荷编码、序号策略及纳秒时间戳的时钟基准。库不负责序列化业务对象，也不按 Schema 校验载荷。ID 属于具体录制：转发到其他文件时，应注册目标声明并按需映射 ID。</p>
+<h2 id="添加元数据与附件">添加元数据与附件</h2>
+<p>将以下代码插入上例的 <code>writer.Complete()</code> 之前，再运行程序。读取指南的元数据和附件示例使用这些内容。</p>
+<pre><code class="lang-csharp">writer.WriteMetadata(&quot;recording&quot;, new Dictionary&lt;string, string&gt; { [&quot;operator&quot;] = &quot;sample&quot; });
+writer.WriteAttachment(&quot;notes.txt&quot;, &quot;text/plain&quot;, 100, 90, &quot;notes&quot;u8);
+writer.StartAttachment(&quot;parts.txt&quot;, &quot;text/plain&quot;, 100, 90, 6);
+writer.WriteAttachmentBytes(&quot;abc&quot;u8);
+writer.WriteAttachmentBytes(&quot;def&quot;u8);
+writer.FinishAttachment();
+</code></pre>
+<p>Metadata 保存带名称的字符串键值表。附件保存带名称、媒体类型和时间戳的字节。分段写入无需在调用方缓冲中组装整个载荷，但必须预先给出精确总长度。<code>StartAttachment</code> 与 <code>FinishAttachment</code> 之间只提供该附件的字节；附件开启期间其他 writer 操作会被拒绝，长度不匹配会终止 writer。</p>
+<p>私有记录写入仅支持 0x80–0xFF 操作码。能够读取任意原始记录不代表提供通用原始记录 writer，详见<a href="api.html#%E5%86%99%E5%85%A5%E5%BD%95%E5%88%B6">写入契约</a>。</p>
+<p><a id="完成与失败处理"></a></p>
+<h2 id="完成持久化与释放">完成、持久化与释放</h2>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>写入期间 <code>Flush()</code></td>
+<td>刷新 writer 输出并结束当前 Chunk，不完成文件</td>
+</tr>
+<tr>
+<td><code>Complete()</code></td>
+<td>完成 MCAP 结构并执行普通输出刷新，必须显式调用</td>
+</tr>
+<tr>
+<td>完成后 <code>FlushToDisk()</code></td>
+<td>为路径输出或直接传入的 FileStream 请求文件同步</td>
+</tr>
+<tr>
+<td><code>Dispose()</code></td>
+<td>释放资源，不完成录制</td>
+</tr>
+</tbody>
+</table>
+<p>成功完成后，<code>GetSummary()</code> 返回独立副本；<code>OpenSummaryRecords()</code> 提供保留摘要的游标。摘要、同步及 Stream 转移操作结束后释放 writer。<code>IntoInner()</code> 转移 Stream，不隐式完成或同步文件。同步请求成功并不构成无条件的硬件持久化保证。</p>
+<h2 id="选择输出">选择输出</h2>
+<p><code>new McapWriter(path)</code> 创建新文件，拒绝已有路径且不修改原文件。需要截断或其他输出目标时，自行打开可写 Stream 后交给 writer。可寻址输出必须位于末尾，该位置成为 MCAP 偏移零点；不可寻址输出使用原生 Chunk 缓冲。</p>
+<p>除非指定 <code>leaveOpen: true</code>，writer 拥有传入的 Stream。完整所有权示例见 <a href="streams-async.html">Stream 与异步读取</a>。Writer 操作同步执行并串行化；多个生产者之间的消息顺序由应用决定。</p>
+<h2 id="选择写入形式">选择写入形式</h2>
+<table>
+<thead>
+<tr>
+<th>应用已有的数据</th>
+<th>写入形式</th>
+<th>准备与成本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>已注册通道和可复用字节</td>
+<td><code>WriteToKnownChannel(header, span)</code></td>
+<td>通道注册一次；预热后的绑定消息写入为托管 0 B 分配</td>
+</tr>
+<tr>
+<td>包含完整声明的自有消息</td>
+<td><code>WriteMessage(message)</code></td>
+<td>按给定 ID 自动声明；读取当前输入描述，可能分配</td>
+</tr>
+<tr>
+<td>重复写入完整消息</td>
+<td><code>WriteMessage(prepared, header, span)</code></td>
+<td>对通道做一次快照；写入时声明；消息头 ID 必须匹配</td>
+</tr>
+<tr>
+<td>消息头及已位于同一存储区的载荷</td>
+<td><code>WriteBatch(headers, storage, ranges)</code></td>
+<td>先注册通道；不应仅为批量写入而拼接载荷</td>
+</tr>
+<tr>
+<td>保留的读取批次</td>
+<td><code>WriteBatch(lease, headers)</code></td>
+<td>注册目标声明，按需替换 ID；整个调用期间保留 lease</td>
+</tr>
+</tbody>
+</table>
+<p>自动声明使用完整通道描述，无需另外调用注册：</p>
+<pre><code class="lang-csharp">using var output = new MemoryStream();
+var schema = new McapSchema(1, &quot;value&quot;, &quot;jsonschema&quot;, &quot;{}&quot;u8.ToArray());
+var channel = new McapChannel(7, &quot;/values&quot;, &quot;json&quot;, schema, new Dictionary&lt;string, string&gt;());
+using (var writer = new McapWriter(output, leaveOpen: true))
+{
+    writer.WriteMessage(new McapMessage(channel, 0, 100, 90, &quot;{}&quot;u8.ToArray()));
+    using var prepared = new McapPreparedChannel(channel);
+    writer.WriteMessage(prepared, new(channel.Id, 1, 200, 190), &quot;{}&quot;u8);
+    writer.Complete();
+}
+</code></pre>
+<p>这是独立示例。准备操作对 Schema 字节和元数据做快照，不注册声明。最后一次使用后释放 prepared 描述。显式注册、元数据和附件也有对应的类型化 prepared 描述，详见 <a href="api.html#%E5%AE%8C%E6%95%B4%E6%B6%88%E6%81%AF%E4%B8%8E%E9%A2%84%E5%87%86%E5%A4%87%E5%86%99%E5%85%A5">prepared 契约</a>。批次操作不具备原子性，不应重放整个失败批次，参见<a href="ownership.html">缓冲与消息转发</a>。</p>
+<h2 id="处理失败">处理失败</h2>
+<p>默认允许五类经过审计、发生在变更前的原生拒绝继续写入：注册零 Schema ID、注册冲突 Schema、通道注册引用未知 Schema、注册冲突 Channel，以及消息头/载荷写入引用未知 Channel。它们仍抛出 <code>McapException</code>；检查 <code>CanContinueWriting</code> 并纠正该次输入后再继续。完整消息的自动声明不在白名单内。设置 <code>SafeRejections = McapWriterSafeRejections.None</code> 可使所有原生 writer 失败均为终止性失败。</p>
+<p>I/O、压缩、回调及其他未经审计的原生失败会终止 writer。释放它并开始新录制，不要重试任意失败操作。进入原生写入前的托管参数/状态检查本身不会终止 writer。显式清理也可能失败，必须让调用方观察到。完整规则见<a href="api.html#writer-%E5%AE%89%E5%85%A8%E6%8B%92%E7%BB%9D">安全拒绝</a>与 <a href="api.html#stream-%E4%BC%9A%E8%AF%9D%E4%B8%8E%E6%89%80%E6%9C%89%E6%9D%83">Stream 所有权</a>。</p>
+<h2 id="下一步">下一步</h2>
+<p>选择<a href="writer-options.html">压缩、分块与索引</a>、<a href="reading.html">读取消息</a>，或<a href="ownership.html">缓冲与消息转发</a>。<a href="../../samples/Documentation/WritingExamples.cs">写入示例</a>与<a href="../../samples/Documentation/RecordingExamples.cs">录制往返示例</a>执行并检查上述操作，运行方式见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">示例说明</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Write files | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Write files | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="write-files">Write files</h1>
+
+<p><a id="writing-a-recording"></a></p>
+<p>English | <a href="zh-CN/writing.html">简体中文</a></p>
+<p>Start by saving messages from several topics, then add metadata, attachments or other writing forms as needed. See the <a href="usage.html">tutorial</a> for project setup and <a href="reading.html">Read messages</a> to read the resulting file.</p>
+<h2 id="write-a-multi-topic-file">Write a multi-topic file</h2>
+<p>Run this C# 12 program in the project from the tutorial. Keep the printed path for the reading guide; delete the file when no longer needed.</p>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+
+var path = Path.Combine(Path.GetTempPath(), $&quot;recording-{Guid.NewGuid():N}.mcap&quot;);
+using (var writer = new McapWriter(path))
+{
+    var schema = writer.RegisterSchema(&quot;value&quot;, &quot;jsonschema&quot;, &quot;{\&quot;type\&quot;:\&quot;object\&quot;}&quot;u8);
+    var values = writer.RegisterChannel(&quot;/values&quot;, &quot;json&quot;, schema);
+    var events = writer.RegisterChannel(&quot;/events&quot;, &quot;text/plain&quot;);
+    writer.WriteToKnownChannel(new(values, 0, 100, 90), &quot;{\&quot;value\&quot;:1}&quot;u8);
+    writer.WriteToKnownChannel(new(events, 0, 50, 50), &quot;started&quot;u8);
+    writer.WriteToKnownChannel(new(events, 1, 110, 110), []);
+    writer.Complete();
+}
+Console.WriteLine(path);
+</code></pre>
+<p>The messages are deliberately written at log times 100, 50 and 110; writing does not sort them. The final message has an empty payload and is still a message. Payload input is consumed before the call returns, so caller buffers can then be reused.</p>
+<p>The destination path must not exist. Call <code>Complete()</code> to finish the file; leaving <code>using</code> only releases resources. Log and publish timestamps in the message header are nanoseconds with an application-defined origin.</p>
+<h2 id="understand-declarations-and-messages">Understand declarations and messages</h2>
+<p>A Schema describes a payload format; a Channel associates a topic and message encoding with an optional Schema and metadata. Register a Schema once, then use its ID when registering related channels. Schema ID zero means no schema. A message header identifies its channel and carries sequence, log time and publish time; its payload is supplied separately.</p>
+<p>Applications define payload encoding, sequence policy and the origins of nanosecond timestamps. The library does not serialize application objects or check payloads against schemas. IDs belong to the recording: when forwarding into another file, register destination declarations and map IDs as needed.</p>
+<h2 id="include-metadata-and-attachments">Include metadata and attachments</h2>
+<p>Insert the following code before <code>writer.Complete()</code> in the program above, then run it again. The reading guide uses this data for its metadata and attachment examples.</p>
+<pre><code class="lang-csharp">writer.WriteMetadata(&quot;recording&quot;, new Dictionary&lt;string, string&gt; { [&quot;operator&quot;] = &quot;sample&quot; });
+writer.WriteAttachment(&quot;notes.txt&quot;, &quot;text/plain&quot;, 100, 90, &quot;notes&quot;u8);
+writer.StartAttachment(&quot;parts.txt&quot;, &quot;text/plain&quot;, 100, 90, 6);
+writer.WriteAttachmentBytes(&quot;abc&quot;u8);
+writer.WriteAttachmentBytes(&quot;def&quot;u8);
+writer.FinishAttachment();
+</code></pre>
+<p>Metadata stores named string key/value maps. Attachments store named bytes with a media type and timestamps. Segmentation avoids assembling the entire payload in one caller buffer; it requires the exact total length. Between <code>StartAttachment</code> and <code>FinishAttachment</code>, supply only that attachment's bytes. Other writer operations are rejected while it is open; a length mismatch is terminal.</p>
+<p>Private record writing is limited to opcodes 0x80–0xFF. Reading arbitrary raw records does not imply a general arbitrary-record writer. See <a href="api.html#write-a-recording">writing contracts</a>.</p>
+<p><a id="finish-and-handle-failures"></a></p>
+<h2 id="complete-persist-and-dispose">Complete, persist and dispose</h2>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Flush()</code> while writing</td>
+<td>Flush writer output and finish the active chunk; does not finish the file</td>
+</tr>
+<tr>
+<td><code>Complete()</code></td>
+<td>Finish MCAP structures and ordinarily flush output; call explicitly</td>
+</tr>
+<tr>
+<td><code>FlushToDisk()</code> after completion</td>
+<td>Request file synchronization for path output or a directly supplied FileStream</td>
+</tr>
+<tr>
+<td><code>Dispose()</code></td>
+<td>Release resources; does not complete the recording</td>
+</tr>
+</tbody>
+</table>
+<p>After successful completion, <code>GetSummary()</code> returns an independent copy; <code>OpenSummaryRecords()</code> provides a retained summary cursor. Dispose the writer when summary, synchronization and Stream-transfer work is finished. <code>IntoInner()</code> transfers a Stream without implicitly completing or synchronizing it. A synchronization request succeeding is not an unconditional hardware persistence guarantee.</p>
+<h2 id="choose-an-output">Choose an output</h2>
+<p><code>new McapWriter(path)</code> creates a new file and rejects an existing path without changing it. To choose truncation or supply another destination, open a writable Stream yourself and pass it to the writer. A seekable output must be positioned at its end; that position becomes MCAP offset zero. Non-seekable outputs use native chunk buffering.</p>
+<p>The writer owns a supplied Stream unless <code>leaveOpen: true</code>. See <a href="streams-async.html">Streams and asynchronous reading</a> for a complete ownership example. Writer operations are synchronous and serialized; applications determine message ordering across producers.</p>
+<h2 id="choose-a-writing-form">Choose a writing form</h2>
+<table>
+<thead>
+<tr>
+<th>Existing application data</th>
+<th>Writing form</th>
+<th>Preparation and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Registered channel and reusable bytes</td>
+<td><code>WriteToKnownChannel(header, span)</code></td>
+<td>Register once; warmed binding message writes allocate 0 B managed</td>
+</tr>
+<tr>
+<td>Owned message with complete declarations</td>
+<td><code>WriteMessage(message)</code></td>
+<td>Automatic declarations use supplied IDs; observes current input descriptions and may allocate</td>
+</tr>
+<tr>
+<td>Repeated full-message writes</td>
+<td><code>WriteMessage(prepared, header, span)</code></td>
+<td>Snapshot a channel once; declarations occur when writing; header ID must match</td>
+</tr>
+<tr>
+<td>Headers and payloads already in one storage region</td>
+<td><code>WriteBatch(headers, storage, ranges)</code></td>
+<td>Register channels first; do not concatenate payloads just to use batching</td>
+</tr>
+<tr>
+<td>A retained read batch</td>
+<td><code>WriteBatch(lease, headers)</code></td>
+<td>Register destination declarations and replace IDs if needed; retain lease throughout the call</td>
+</tr>
+</tbody>
+</table>
+<p>For automatic declarations, use a complete channel description instead of calling registration separately:</p>
+<pre><code class="lang-csharp">using var output = new MemoryStream();
+var schema = new McapSchema(1, &quot;value&quot;, &quot;jsonschema&quot;, &quot;{}&quot;u8.ToArray());
+var channel = new McapChannel(7, &quot;/values&quot;, &quot;json&quot;, schema, new Dictionary&lt;string, string&gt;());
+using (var writer = new McapWriter(output, leaveOpen: true))
+{
+    writer.WriteMessage(new McapMessage(channel, 0, 100, 90, &quot;{}&quot;u8.ToArray()));
+    using var prepared = new McapPreparedChannel(channel);
+    writer.WriteMessage(prepared, new(channel.Id, 1, 200, 190), &quot;{}&quot;u8);
+    writer.Complete();
+}
+</code></pre>
+<p>This is a separate example. Preparation snapshots schema bytes and metadata; it does not register declarations. Dispose prepared descriptors after their last use. Typed prepared descriptors also exist for explicit registration, metadata and attachments. See <a href="api.html#complete-messages-and-prepared-writes">prepared contracts</a>. Batch operations are not atomic; do not replay an entire failed batch. See <a href="ownership.html">Buffers and message forwarding</a>.</p>
+<h2 id="handle-failures">Handle failures</h2>
+<p>By default, five audited pre-mutation native rejections permit continuation: invalid schema ID zero, conflicting schema registration, unknown schema on channel registration, conflicting channel registration and unknown channel on header/payload writing. They still throw <code>McapException</code>; inspect <code>CanContinueWriting</code> and correct the specific input before continuing. Full-message automatic declarations are not covered by that whitelist. Set <code>SafeRejections = McapWriterSafeRejections.None</code> to make every native writer failure terminal.</p>
+<p>I/O, compression, callback and other unaudited native failures terminate the writer. Dispose it and begin a new recording; do not retry arbitrary failed operations. Managed argument/state checks before native writing do not by themselves terminate it. Explicit cleanup can also fail and must remain visible. Detailed rules are in <a href="api.html#safe-writer-rejections">safe rejections</a> and <a href="api.html#stream-sessions-and-ownership">Stream ownership</a>.</p>
+<h2 id="next-steps">Next steps</h2>
+<p>Choose <a href="writer-options.html">Compression, chunks and indexes</a>, <a href="reading.html">Read messages</a>, or <a href="ownership.html">Buffers and message forwarding</a>. The <a href="../samples/Documentation/WritingExamples.cs">writing examples</a> and <a href="../samples/Documentation/RecordingExamples.cs">recording round trip</a> execute and check these operations; run them with the <a href="usage.html#run-repository-examples">sample instructions</a>.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

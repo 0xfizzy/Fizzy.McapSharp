@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Compression, chunks and indexes | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Compression, chunks and indexes | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="compression-chunks-and-indexes">Compression, chunks and indexes</h1>
+
+<p>English | <a href="zh-CN/writer-options.html">简体中文</a></p>
+<p>For applications choosing a recording layout after the <a href="writing.html">writing guide</a>. Start with defaults, then change options for a concrete storage or reading requirement. Configuration is fixed when constructing the writer. Exact defaults and option precedence remain in <a href="api.html#writer-options">API contracts</a> and the <a class="xref" href="../api/Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions reference</a>.</p>
+<h2 id="start-with-defaults">Start with defaults</h2>
+<p>The default uses Zstd compression, chunks with a 1 MiB uncompressed size target, upstream-enabled indexes/summary emission and binding-enabled CRC generation. Omitting options and supplying empty options are equivalent. Nullable emission switches keep upstream settings unless their documented group option sets them; null is not generally the same as false.</p>
+<pre><code class="lang-csharp">var options = new McapWriterOptions
+{
+    Compression = McapCompression.Lz4,
+    ChunkSize = 1024 * 1024
+};
+using var writer = new McapWriter(path, options); // path must not exist
+// Register declarations and write as in the writing guide.
+writer.Complete();
+</code></pre>
+<p>This configuration illustrates an explicit choice, not a recommended performance optimum. Measure representative payloads and the intended downstream queries before changing it.</p>
+<h2 id="choose-compression-and-chunk-size">Choose compression and chunk size</h2>
+<p><code>None</code>, <code>Lz4</code> and <code>Zstd</code> select chunk compression. With <code>UseChunks = false</code>, chunk compression and chunk/message indexes are unavailable. Compression level is codec-specific; Zstd worker settings control compression workers, not reader concurrency.</p>
+<p>Larger chunks can reduce chunk counts and index entries, while increasing active storage and the work to load/decompress a chunk for a sparse read. Smaller chunks trade those costs in the opposite direction. <code>ChunkSize</code> is a target, not a hard record-size or memory limit: complete records can exceed it. A null size disables automatic size-based chunk flushing; it does not establish bounded buffering. Choose using throughput, recording duration and random-read latency together.</p>
+<h2 id="keep-indexes-for-the-intended-reader">Keep indexes for the intended reader</h2>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Configuration consideration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sequential file-order scan</td>
+<td>Does not require message/chunk indexes</td>
+</tr>
+<tr>
+<td>Indexed time queries and message seeks</td>
+<td>Preserve chunks and the indexes/declarations required by the selected indexed entry point</td>
+</tr>
+<tr>
+<td>Indexed metadata or attachment reads</td>
+<td>Preserve the corresponding summary indexes</td>
+</tr>
+<tr>
+<td>Summary inspection</td>
+<td>Preserve the needed statistics and repeated declarations</td>
+</tr>
+</tbody>
+</table>
+<p><code>EmitSummaryRecords</code> selects statistics, summary indexes and repeated declarations together. Individual non-null switches override that group selection. It does not control <code>EmitMessageIndexes</code> or <code>EmitSummaryOffsets</code>. Disabling one family is not a universal “no indexes” or “no retained indexes” mode.</p>
+<p>Use <a href="queries.html">query selection</a> to decide whether sequential fallback is acceptable. For example, <code>UseChunks = false</code> with <code>EmitSummaryRecords = false</code> still permits sequential messages, but cannot serve chunk-indexed queries; time sorting with <code>AllowBufferedSort = false</code> must reject unsupported fallback. A successful query is not full-file validation.</p>
+<h2 id="choose-integrity-checks-separately">Choose integrity checks separately</h2>
+<p>Writer CRC options control which checksums are stored. Reader options control whether the corresponding checks are performed. CRC zero represents an absent checksum; validation cannot verify a checksum that was omitted. CRCs do not validate payload schema semantics. Keep default generation unless the workload has a concrete reason to omit checks, and see <a href="validation.html">validation</a> for the read-side checks.</p>
+<h2 id="account-for-flushes-and-long-recordings">Account for flushes and long recordings</h2>
+<p><code>Flush()</code> finishes the active chunk and can increase chunk/index counts when called frequently. It neither completes MCAP nor requests durable storage. Call <code>Complete()</code> at the end; request file synchronization separately when needed.</p>
+<p>Memory includes active chunk/codec storage, declarations, file-level indexes, application queues and the destination itself. Upstream retains a ChunkIndex for each completed chunk even with <code>EmitChunkIndexes = false</code>; that switch controls emission. Message-index disabling omits per-chunk indexes; disabling attachment/metadata indexes stops retaining those respective indexes. A growing MemoryStream retains the recording itself. No automatic segmentation or index spilling occurs.</p>
+<p>Completion has an upstream transient summary-cloning cost. The binding then retains a shared native summary and the output; whole <code>GetSummary()</code> copies scale with summary size. Use a retained summary cursor when that access fits, and release it and the writer after use. These are not constant-memory guarantees. See <a href="api.html#long-recordings-in-one-file">long-recording contracts</a> and <a href="testing.html#single-file-writer-memory-diagnostics">memory diagnostics</a>.</p>
+<p>The <a href="../samples/Documentation/WritingExamples.cs">configuration examples</a> verify None/Lz4/Zstd round trips and unsupported unindexed sorting rejection. They are correctness checks, not allocation or throughput measurements. Run them using the <a href="usage.html#run-repository-examples">sample instructions</a>, then evaluate your own workload before tuning further.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Sans-I/O 读取协议 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Sans-I/O 读取协议 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../assets/icon.png">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="sans-io-读取协议">Sans-I/O 读取协议</h1>
+
+<p><a id="自行驱动-sans-io"></a></p>
+<p><a href="../sans-io.html">English</a> | 简体中文</p>
+<p>仅在应用需要自行执行 I/O 时使用这些协议。<a href="../../samples/Documentation/SansIoExamples.cs">可运行源码</a> 会执行全部三个循环。下方辅助方法假设完整 MCAP 从源位置零开始；存在前缀时，需要在物理位置与 MCAP 起点之间转换。示例预期包含两条消息。任何循环到达 <code>End</code> 都不单独证明全文件验证成功。</p>
+<p>回应待处理请求后再获取下一事件。<code>SupplyInput</code> 允许短读，空输入表示 EOF，且只能回应 <code>Read</code>。<code>InsertChunkData</code> 要求完整的请求压缩数据范围，不包含 Chunk 头，因此先完成短读拼接再调用。<code>BufferTooSmall</code> 保留待交付输出供重试。错误回应和解析失败会终止 parser；应释放它，不重试任意失败。</p>
+<p>下方方法使用 <code>using Fizzy.McapSharp;</code> 和 .NET 项目的默认隐式 using。在线性读取时打开文件并调用 <code>ReadLinear(input)</code>；运行其他循环前重新打开文件或将流定位到起点。</p>
+<p>这些是读取协议；写入入口见<a href="writing.html">写入指南</a>，读取能力选择见<a href="reading.html">读取指南</a>。</p>
+<h2 id="线性记录">线性记录</h2>
+<p>目标缓冲区接收原始记录体。<code>BufferTooSmall</code> 时扩容；需要类型化记录时显式解析。</p>
+<pre><code class="lang-csharp">static void ReadLinear(Stream input)
+{
+    using var reader = new McapSansIoLinearReader();
+    byte[] io = new byte[4096], record = [];
+    while (true)
+    {
+        var status = reader.NextEvent(record, out var item);
+        if (status == McapReadStatus.EndOfStream) break;
+        if (status == McapReadStatus.BufferTooSmall)
+        {
+            record = new byte[checked((int)item.Length)];
+            continue;
+        }
+        if (item.Kind == McapLinearEventKind.Read)
+        {
+            int count = input.Read(io, 0, (int)Math.Min((ulong)io.Length, item.Length));
+            reader.SupplyInput(io.AsSpan(0, count)); // A short read is valid; zero signals EOF.
+        }
+        else
+        {
+            // Direct linear events are raw: parse explicitly when interpretation is needed.
+            _ = McapRecords.Parse(item.Opcode, record.AsSpan(0, checked((int)item.Length)));
+        }
+    }
+}
+</code></pre>
+<h2 id="摘要请求">摘要请求</h2>
+<p>Summary 只有 <code>Read</code>/<code>Seek</code>/<code>End</code>，无输出缓冲区。Begin 使用 <code>AbsolutePosition</code>，Current/<code>End</code> 使用 <code>RelativeOffset</code>。返回已完成的 reader，调用者负责释放。</p>
+<pre><code class="lang-csharp">static McapSansIoSummaryReader ReadSummary(Stream input)
+{
+    var reader = new McapSansIoSummaryReader();
+    try
+    {
+        byte[] io = new byte[4096];
+        while (reader.NextEvent(out var item) != McapReadStatus.EndOfStream)
+        {
+            if (item.Kind == McapSummaryEventKind.Seek)
+            {
+                var seek = item.Seek;
+                long offset = seek.Origin == SeekOrigin.Begin
+                    ? checked((long)seek.AbsolutePosition) : seek.RelativeOffset;
+                reader.NotifySeeked(checked((ulong)input.Seek(offset, seek.Origin)));
+            }
+            else
+            {
+                int count = input.Read(io, 0, (int)Math.Min((ulong)io.Length, item.Length));
+                reader.SupplyInput(io.AsSpan(0, count));
+            }
+        }
+        return reader; // The caller owns the completed parser.
+    }
+    catch (Exception operation)
+    {
+        try { reader.Dispose(); }
+        catch (Exception cleanup) { throw new AggregateException(operation, cleanup); }
+        throw;
+    }
+}
+</code></pre>
+<h2 id="索引消息">索引消息</h2>
+<p>先调用 <code>using var summary = ReadSummary(input)</code>，再用 <code>using var indexed = summary.CreateIndexed()</code> 创建索引 parser，调用 <code>ReadIndexed(input, indexed)</code>。它唯一的输入事件为 <code>ReadChunk</code>，消息输出使用调用者缓冲区。</p>
+<pre><code class="lang-csharp">static void ReadIndexed(Stream input, McapSansIoIndexedReader reader)
+{
+    byte[] chunk = [], payload = [];
+    int messages = 0;
+    while (true)
+    {
+        var status = reader.NextEvent(payload, out var item);
+        if (status == McapReadStatus.EndOfStream) break;
+        if (status == McapReadStatus.BufferTooSmall)
+        {
+            payload = new byte[checked((int)item.Length)];
+            continue;
+        }
+        if (item.Kind == McapIndexedEventKind.ReadChunk)
+        {
+            int length = checked((int)item.Length);
+            if (chunk.Length &lt; length) chunk = new byte[length];
+            input.Position = checked((long)item.Offset);
+            input.ReadExactly(chunk.AsSpan(0, length)); // Complete short reads before submission.
+            reader.InsertChunkData(item.Offset, chunk.AsSpan(0, length));
+        }
+        else
+        {
+            // Use item.Header and payload[..Length] before reusing the destination.
+            messages++;
+        }
+    }
+    if (messages != 2) throw new Exception(&quot;Indexed protocol example lost messages.&quot;);
+}
+</code></pre>
+<p>协议能力与失败边界见 <a href="api.html#%E5%AE%98%E6%96%B9%E8%AF%BB%E5%8F%96%E5%99%A8%E7%9B%B4%E6%8E%A5%E9%80%82%E9%85%8D">API 契约</a>，验证方法见<a href="testing.html">测试专题</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

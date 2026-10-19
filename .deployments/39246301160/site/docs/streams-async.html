@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Stream input/output and asynchronous reading | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Stream input/output and asynchronous reading | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="stream-inputoutput-and-asynchronous-reading">Stream input/output and asynchronous reading</h1>
+
+<p><a id="streams-and-asynchronous-reading"></a></p>
+<p>English | <a href="zh-CN/streams-async.html">简体中文</a></p>
+<p>For applications supplying output/input Streams or needing asynchronous reading. The examples use the <code>path</code> from the <a href="usage.html">tutorial</a>. Keep Stream ownership separate from the <a href="ownership.html">ownership of delivered messages</a>.</p>
+<h2 id="supply-a-stream-to-the-writer">Supply a Stream to the writer</h2>
+<p>Choose creation behavior first: <code>FileMode.CreateNew</code> rejects existing files; <code>FileMode.Create</code> truncates immediately on opening. Seekable output must be at its end. This example uses a new independent path and retains final cleanup responsibility in the caller:</p>
+<pre><code class="lang-csharp">using var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write);
+using (var writer = new McapWriter(output, leaveOpen: true))
+{
+    var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;raw&quot;);
+    writer.WriteToKnownChannel(new(channel, 0, 0, 0), []);
+    writer.Complete();
+    writer.FlushToDisk();
+}
+// The caller still owns output; dispose it when finished.
+</code></pre>
+<p>Writer calls consume input synchronously; there is no asynchronous writing session. With default <code>leaveOpen: false</code>, the writer releases the Stream; with true, the caller does. Do not externally write, reposition or dispose the Stream while the writer holds it. <code>IntoInner()</code> can transfer ownership but does not implicitly complete or synchronize the file. See the <a href="writing.html">writing guide</a> for completion rules.</p>
+<h2 id="retain-a-caller-owned-stream">Retain a caller-owned Stream</h2>
+<pre><code class="lang-csharp">using var input = File.OpenRead(path);
+using (var session = McapReaderFactory.OpenMessages(input, leaveOpen: true))
+{
+    foreach (var message in session.ReadMessages())
+        Console.WriteLine(message.LogTime);
+}
+input.Position = 0; // The session has released the Stream; the caller can reuse it.
+</code></pre>
+<p>The initial position becomes MCAP offset zero; input must contain one MCAP from that position to its end. The session reads incrementally. <code>leaveOpen</code> defaults to false, so set it to true only when the caller will own subsequent use and cleanup. Do not read, reposition or dispose the Stream externally while a session owns it.</p>
+<h2 id="await-one-operation-at-a-time">Await one operation at a time</h2>
+<pre><code class="lang-csharp">await using var input = new FileStream(path, FileMode.Open, FileAccess.Read,
+    FileShare.Read, 4096, FileOptions.Asynchronous);
+await using (var reader = new McapAsyncMessageReader(input, leaveOpen: true))
+{
+    while (await reader.ReadBatchLeaseAsync() is { } lease)
+    {
+        using (lease)
+        {
+            for (int i = 0; i &lt; lease.Count; i++)
+                Console.WriteLine(lease.GetHeader(i).LogTime);
+        }
+    }
+}
+</code></pre>
+<p>Run this as a separate example or rename <code>input</code> if combining it with the previous snippet. Consume each <code>ValueTask</code> exactly once before starting another operation, looking up declarations, transferring ownership or disposing the reader. Dispose each delivered lease after use. The message reader does not sort queries; <code>McapAsyncRecordReader</code> is the separate caller-buffer record capability.</p>
+<p>Batch leases may allocate control objects. A nonempty async batch can return at the next input request before reaching its target size. Async I/O does not imply zero allocations from arbitrary Streams or caller code; see <a href="api.html#asynchronous-records-and-errors">asynchronous contracts</a> and <a href="api.html#borrowing-batches-and-leases">batch contracts</a>.</p>
+<h2 id="cancellation-and-cleanup">Cancellation and cleanup</h2>
+<p>Pass a cancellation token through the reading API when needed. Cancellation, parsing failures and I/O failures terminate that reader; dispose it rather than retrying arbitrary failed operations. Already delivered leases remain valid until their owners release them.</p>
+<p>Finish and consume the outstanding operation before disposal. Reader <code>DisposeAsync()</code> performs synchronous release, including <code>Dispose()</code> on an owned Stream; it does not drain pending work or call that Stream's <code>DisposeAsync()</code>. In the example, <code>leaveOpen: true</code> leaves final asynchronous Stream disposal to the outer caller-owned scope.</p>
+<p>Explicit cleanup failures are observable. Do not treat an exception as proof that the Stream is safe to reuse. See <a href="api.html#stream-sessions-and-ownership">Stream release and transfer contracts</a> for one-shot cleanup and ownership boundaries.</p>
+<p>Next, use <a href="sans-io.html">Sans-I/O</a> only if the application needs to drive I/O itself; otherwise consult <a href="api.html">API contracts</a> for the selected reader.</p>
+<p>These snippets run in the <a href="../samples/Documentation/ReadingExamples.cs">reading examples</a>; see the <a href="usage.html#run-repository-examples">tutorial</a> for execution instructions.</p>
+<p>The output example is verified in the <a href="../samples/Documentation/WritingExamples.cs">writing examples</a>.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

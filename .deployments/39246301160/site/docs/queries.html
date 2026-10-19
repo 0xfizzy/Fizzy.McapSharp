@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Queries and random access | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Queries and random access | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="queries-and-random-access">Queries and random access</h1>
+
+<p>English | <a href="zh-CN/queries.html">简体中文</a></p>
+<p>For applications that need filtering, time ordering or partial file access after the <a href="usage.html">basic tutorial</a>. Choose the order and validation scope first, then choose how results are delivered. The examples use the tutorial's <code>path</code>.</p>
+<h2 id="choose-an-execution-path">Choose an execution path</h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Entry</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scan in file order, optionally filtered</td>
+<td><code>ReadMessages</code> / <code>OpenMessages</code></td>
+<td>Sequential; adding a filter does not sort</td>
+</tr>
+<tr>
+<td>Read in time order with an allowed fallback</td>
+<td><code>ReadQueryMessages</code> / <code>QueryMessages</code></td>
+<td>Ascending log time by default; may collect matches when indexes cannot serve the query</td>
+</tr>
+<tr>
+<td>Reject global scan-and-sort</td>
+<td><code>QueryMessages</code> with <code>AllowBufferedSort = false</code></td>
+<td>Throws if the requested time order needs buffered fallback; file-order scans remain possible</td>
+</tr>
+<tr>
+<td>Require usable indexes</td>
+<td><code>OpenIndexedMessages</code></td>
+<td>No sequential or buffered-sort fallback</td>
+</tr>
+</tbody>
+</table>
+<p>Omitted and empty options are equivalent within each entry point. Topic/time filters use exact topics and <code>[StartTime, EndTime)</code> on <code>LogTime</code>. Neither ascending nor descending time order specifies an order among equal timestamps. See the <a href="api.html#choosing-a-query-path">query contracts</a> for index prerequisites and failure behavior.</p>
+<h2 id="filter-while-preserving-file-order">Filter while preserving file order</h2>
+<pre><code class="lang-csharp">var factory = new McapReaderFactory(path);
+foreach (var message in factory.ReadMessages(new() { Topic = &quot;/sample&quot; }))
+    Console.WriteLine(message.LogTime);
+</code></pre>
+<p>With the tutorial's file, this prints 100 then 50. Scanning is useful for incremental processing when global time order is unnecessary.</p>
+<h2 id="request-time-order-explicitly">Request time order explicitly</h2>
+<pre><code class="lang-csharp">using var query = factory.QueryMessages(new()
+{
+    Topic = &quot;/sample&quot;,
+    Order = McapReadOrder.LogTime,
+    AllowBufferedSort = false
+});
+foreach (var message in query.ReadMessages())
+    Console.WriteLine(message.LogTime);
+</code></pre>
+<p>This prints 50 then 100 for the indexed tutorial file. If indexes cannot provide this time order, opening throws <code>NotSupportedException</code> before collecting matches. To permit global collection and sorting, set <code>AllowBufferedSort = true</code> (the default). <code>MaxBufferedSortBytes</code> controls a local collection allowance, not all retained memory. See <a href="api.html#binding-performance-and-local-limits">local limits</a>.</p>
+<p>To require indexes rather than merely prohibit sorting fallback:</p>
+<pre><code class="lang-csharp">using var indexed = factory.OpenIndexedMessages(new() { Topic = &quot;/sample&quot; });
+foreach (var message in indexed.ReadMessages())
+    Console.WriteLine(message.LogTime);
+</code></pre>
+<p>Indexed success is not full-file validation. Malformed indexes and I/O errors can fail instead of triggering fallback.</p>
+<h2 id="revisit-messages-without-repeated-work">Revisit messages without repeated work</h2>
+<p>An indexed query session and <code>McapIndexedReader</code> serve different needs: the latter owns copied or mapped input and supports discrete seeks and chunk cursors.</p>
+<table>
+<thead>
+<tr>
+<th>Access pattern</th>
+<th>Choice</th>
+<th>What is reused</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Raw records at known offsets</td>
+<td><code>factory.OpenRecordAccessor()</code></td>
+<td>Seekable input, without a complete-input copy</td>
+</tr>
+<tr>
+<td>Many messages in one chunk</td>
+<td><code>McapIndexedReader.OpenChunkMessages</code></td>
+<td>One cursor's traversal</td>
+</tr>
+<tr>
+<td>A known set of message locations</td>
+<td><code>SeekMessages</code></td>
+<td>Chunk loads grouped within that call</td>
+</tr>
+<tr>
+<td>Repeated visits across calls</td>
+<td>One indexed reader with a cache allowance</td>
+<td>Retained chunks until eviction or disposal</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>McapIndexedReader.OpenMapped(path)</code> when the file can remain unchanged for every dependent cursor and lease. Choose <code>factory.CreateCopiedIndexedReader()</code> when the reader must own an independent complete input copy; its memory grows with file size. Dispose either reader. Child chunk cursors and retained leases keep their own storage references.</p>
+<p>Individual seeks can load and validate a complete chunk. Prepared indexes reduce descriptor work but do not eliminate cache-miss decompression. Inspect cache hits and chunk loads before tuning the allowance; see <a href="api.html#complete-chunk-random-access">random-access contracts</a>.</p>
+<p>Next, choose <a href="ownership.html">message ownership</a> independently of access order. Use <a href="api.html#validation-and-recovery">API contracts</a> to decide whether a separate full-file validation is required.</p>
+<p>These snippets run in the <a href="../samples/Documentation/ReadingExamples.cs">reading examples</a>; see the <a href="usage.html#run-repository-examples">tutorial</a> for execution instructions.</p>
+<p>For complete-file checks and incomplete input, see <a href="validation.html">validation and prefix recovery</a>.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Validation and valid-prefix recovery | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Validation and valid-prefix recovery | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="validation-and-valid-prefix-recovery">Validation and valid-prefix recovery</h1>
+
+<p>English | <a href="zh-CN/validation.html">简体中文</a></p>
+<p>For applications deciding whether a recording is complete and structurally valid, or extracting messages from an incomplete file. Start with the <a href="reading.html">reading guide</a>; this page explains what successful reading does and does not prove.</p>
+<h2 id="decide-what-must-be-checked">Decide what must be checked</h2>
+<p>Ordinary high-level expanded reads parse record bodies and validate declaration IDs, conflicts and references. Optional CRC and trailing-byte checks are separate. Reaching EOF, fetching a summary or successfully querying an index does not establish full-file validation. Partial indexed access can leave most of a file unread. Raw, top-level and chunk-local capabilities have narrower documented scopes.</p>
+<p>No container check verifies application payload meaning, schema conformance, clock synchronization or whether the producer recorded every intended message.</p>
+<h2 id="validate-the-entire-recording">Validate the entire recording</h2>
+<p>With <code>path</code> from the <a href="writing.html">writing guide</a>:</p>
+<pre><code class="lang-csharp">var factory = new McapReaderFactory(path);
+ulong records = factory.Validate();
+Console.WriteLine($&quot;Validated {records} records.&quot;);
+</code></pre>
+<p>This performs an independent strict full scan and returns a record count, not a message count. It checks framing, final magic, expanded record/declaration validity and present Chunk, Attachment, Data and Summary CRCs. A zero CRC indicates no checksum was supplied. A format or integrity failure throws; I/O failures also remain visible.</p>
+<p>If an application already needs a sequential session configured strictly from its start, it can finish that session's checks:</p>
+<pre><code class="lang-csharp">using var reader = factory.OpenMessages(options: McapReaderOptions.Strict);
+reader.ValidateRemaining();
+Console.WriteLine(reader.IsFullyValidated);
+</code></pre>
+<p><code>ValidationCapability</code> describes the session's creation-time scope. Only <code>StrictFullScan</code> supports <code>ValidateRemaining</code> and session recovery; a partial indexed/sorted/chunk-local read or a non-strict full scan cannot retroactively gain skipped checks. <code>IsScanComplete</code> reports scan completion, while <code>IsFullyValidated</code> reports successful strict full validation. See <a href="api.html#validation-and-recovery">validation contracts</a>.</p>
+<h2 id="keep-named-checks-distinct">Keep named checks distinct</h2>
+<p><code>ValidateChunkCrcs</code> and <code>PrevalidateChunkCrcs</code> select chunk checksum checking and its timing; <code>ValidateDataSectionCrc</code> and <code>ValidateSummarySectionCrc</code> select their named sections. <code>SkipStartMagic</code>, <code>SkipEndMagic</code> and <code>CheckFinishesAfterEndMagic</code> concern framing and trailing bytes. <code>RecordLengthLimit</code> is a length restriction, not a total-memory budget. Consult <a class="xref" href="../api/Fizzy.McapSharp.McapReaderOptions.html">McapReaderOptions</a> for exact defaults and applicable readers.</p>
+<p>The <code>Strict</code> preset combines integrity checks. Declaration-reference and record-body validation on high-level expanded reads do not depend on that preset. Disabling an optional CRC check does not disable those baseline checks. Writer checksum generation is a <a href="writer-options.html">separate choice</a>.</p>
+<h2 id="recover-a-valid-message-prefix">Recover a valid message prefix</h2>
+<p>Use a separate factory operation on the incomplete input; do not reuse an already failed reader:</p>
+<pre><code class="lang-csharp">var recovered = new List&lt;McapMessage&gt;();
+var result = new McapReaderFactory(incompletePath).RecoverMessages(recovered.Add);
+Console.WriteLine($&quot;Recovered {result.RecoveredMessageCount} messages; validated: {result.IsFullyValidated}&quot;);
+if (result.Error is { } error) Console.WriteLine(error.Message);
+</code></pre>
+<p>The factory opens a strict sequential reader and delivers independent owned messages up to a parse failure. Inspect both <code>IsFullyValidated</code> and <code>Error</code>; a delivered prefix is not proof that the source is complete. Corruption inside a chunk can prevent messages from that chunk being delivered. Bytes never written cannot be recovered. The list retains every delivered message; process each callback immediately instead when a collection is unnecessary.</p>
+<p>Recovery does not modify or repair the source, append a footer, reset a session or resume a writer. To create a new recording from selected messages, explicitly use a new writer and its normal declaration/completion rules. I/O, binding and callback exceptions propagate instead of becoming a parse-error result. An application callback exception terminates the session and retains its original exception identity.</p>
+<h2 id="check-the-examples">Check the examples</h2>
+<p>The <a href="../samples/Documentation/ValidationExamples.cs">validation examples</a> create a complete unchunked recording, verify it, and truncate a separate copy immediately after its first complete top-level Message record. They assert one recovered message, an incomplete result and unchanged source bytes. This deterministic boundary avoids assuming a compressed chunk is partially recoverable. Run with the <a href="usage.html#run-repository-examples">sample instructions</a>.</p>
+<p>For ordinary reading, return to the <a href="reading.html">reading guide</a>. For partial access, choose a <a href="queries.html">query</a> and preserve its narrower validation claim.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

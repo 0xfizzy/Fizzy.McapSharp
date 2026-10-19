@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>压缩、分块与索引配置 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="压缩、分块与索引配置 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../assets/icon.png">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="压缩分块与索引配置">压缩、分块与索引配置</h1>
+
+<p><a href="../writer-options.html">English</a> | 简体中文</p>
+<p>面向完成<a href="writing.html">写入指南</a>、需要选择录制布局的应用。先使用默认值，再按具体存储或读取需求调整。配置在构造 writer 时固定。精确默认值及选项优先级见 <a href="api.html#%E5%86%99%E5%85%A5%E9%80%89%E9%A1%B9">API 契约</a>和 <a class="xref" href="../../api/Fizzy.McapSharp.McapWriterOptions.html">McapWriterOptions 英文参考</a>。</p>
+<h2 id="从默认值开始">从默认值开始</h2>
+<p>默认使用 Zstd 压缩、1 MiB 未压缩大小目标的 Chunk、上游默认启用的索引/摘要输出，以及绑定默认启用的 CRC 生成。省略选项与传入空选项等价。可空输出开关保留上游设置，除非由其规定的组选项设置；null 通常不等于 false。</p>
+<pre><code class="lang-csharp">var options = new McapWriterOptions
+{
+    Compression = McapCompression.Lz4,
+    ChunkSize = 1024 * 1024
+};
+using var writer = new McapWriter(path, options); // path must not exist
+// Register declarations and write as in the writing guide.
+writer.Complete();
+</code></pre>
+<p>这段配置演示显式选择，不代表推荐的性能最优值。调整前应使用有代表性的载荷和实际下游查询进行测量。</p>
+<h2 id="选择压缩与-chunk-大小">选择压缩与 Chunk 大小</h2>
+<p><code>None</code>、<code>Lz4</code> 和 <code>Zstd</code> 选择 Chunk 压缩。<code>UseChunks = false</code> 时没有 Chunk 压缩和 Chunk/消息索引。压缩级别依赖具体 codec；Zstd worker 设置控制压缩工作线程，不控制 reader 并发。</p>
+<p>较大 Chunk 可以减少 Chunk 数和索引条目，但可能增加活跃存储，以及稀疏读取时加载/解压一个 Chunk 的工作量。较小 Chunk 的取舍相反。<code>ChunkSize</code> 是目标，不是记录大小或内存硬上限，完整记录可以超过它。null 大小禁用按大小自动刷新 Chunk，并不建立有界缓冲。应结合吞吐量、录制时长和随机读取延迟选择。</p>
+<h2 id="为目标读取方式保留索引">为目标读取方式保留索引</h2>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>配置考虑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>按文件顺序扫描</td>
+<td>不需要消息/Chunk 索引</td>
+</tr>
+<tr>
+<td>按索引进行时间查询与消息定位</td>
+<td>保留 Chunk，以及所选索引入口要求的索引和声明</td>
+</tr>
+<tr>
+<td>按索引读取元数据或附件</td>
+<td>保留相应摘要索引</td>
+</tr>
+<tr>
+<td>检查摘要</td>
+<td>保留需要的统计和重复声明</td>
+</tr>
+</tbody>
+</table>
+<p><code>EmitSummaryRecords</code> 统一选择统计、摘要索引和重复声明。单独的非 null 开关覆盖该组设置。它不控制 <code>EmitMessageIndexes</code> 或 <code>EmitSummaryOffsets</code>。关闭某类输出并不是通用的“无索引”或“不保留索引”模式。</p>
+<p>通过<a href="queries.html">查询选择</a>决定是否接受顺序回退。例如，<code>UseChunks = false</code> 配合 <code>EmitSummaryRecords = false</code> 仍允许顺序读取消息，但不能满足基于 Chunk 索引的查询；<code>AllowBufferedSort = false</code> 的时间排序必须拒绝不支持的回退。查询成功不等于全文件校验。</p>
+<h2 id="单独选择完整性检查">单独选择完整性检查</h2>
+<p>Writer CRC 选项控制存储哪些校验和，reader 选项控制是否执行对应检查。CRC 为零表示没有校验和；验证无法检查被省略的校验和。CRC 不校验载荷的 Schema 语义。除非工作负载有具体理由省略检查，否则保留默认生成，读取侧检查见<a href="validation.html">校验指南</a>。</p>
+<h2 id="考虑刷新与长时间录制">考虑刷新与长时间录制</h2>
+<p><code>Flush()</code> 结束当前 Chunk，频繁调用可能增加 Chunk 和索引数量。它不完成 MCAP，也不请求持久化。结束时调用 <code>Complete()</code>，需要时另行请求文件同步。</p>
+<p>内存包括活跃 Chunk/codec 存储、声明、文件级索引、应用队列和输出目标本身。即使 <code>EmitChunkIndexes = false</code>，上游仍为每个已完成 Chunk 保留 ChunkIndex；该开关控制输出。禁用消息索引省略每个 Chunk 的索引；禁用附件/元数据索引会停止保留对应索引。持续增长的 MemoryStream 保存录制本身。库不自动分段，也不将索引溢写到磁盘。</p>
+<p>完成时有上游摘要克隆的瞬时成本。之后绑定保留共享原生摘要和输出；完整 <code>GetSummary()</code> 副本随摘要大小增长。访问模式适合时可使用保留摘要的游标，用完后释放游标和 writer。这些不是恒定内存保证，详见<a href="api.html#%E5%8D%95%E6%96%87%E4%BB%B6%E9%95%BF%E6%9C%9F%E5%BD%95%E5%88%B6">长时间录制契约</a>与<a href="testing.html#%E5%8D%95%E6%96%87%E4%BB%B6-writer-%E5%86%85%E5%AD%98%E8%AF%8A%E6%96%AD">内存诊断</a>。</p>
+<p><a href="../../samples/Documentation/WritingExamples.cs">配置示例</a>验证 None/Lz4/Zstd 往返及不支持的无索引排序拒绝。这些是正确性检查，不是分配或吞吐测量。按<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">示例说明</a>运行，然后根据自身工作负载决定是否继续调优。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

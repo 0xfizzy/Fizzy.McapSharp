@@ -1,0 +1,21 @@
+{
+  "README.md": "8ed76aa83988d7dc0a16f4f9a341865433b3fe7608a1d1982e5b9bd4a3c00adb",
+  "docs/en/api.md": "59121cfd09bfb20f4c5290d1f6ac226cea9c77cf823582a125c2f89918cdff71",
+  "docs/en/coverage.md": "f3216b43a149dd20bd259db6107097d44c72c764a39d2983b3f273659638110a",
+  "docs/en/development.md": "8766d138efd4ba7d4304f4be716611d598bca5dc0901f8f8a7802d347a84b641",
+  "docs/en/documentation.md": "698e5428389b6130372c356fad528aaf59683f4b5298c05aad5b06674867e7d1",
+  "docs/en/index.md": "7369c1135ee2dfa8b824dcd4b7ef8a1bce844494671d1dee7c09ef3dc05f5984",
+  "docs/en/native.md": "a8df96e3de36c4a549c5bd5c4ea53da6daa8471313c85460626dacdb08dc440d",
+  "docs/en/ownership.md": "67796dad24a4e51e613ba2ef22696f08ef2c1af673bbf5ab9c2434c85a5b865d",
+  "docs/en/patches.md": "ddd83a5ca5ba8d4dd83ab0657247e4814389bcfcaa34d96c10205bf1cc001df7",
+  "docs/en/queries.md": "d97236c313046a0396a8f547ee122614e52046c8690c5a620cc63498da27f03d",
+  "docs/en/release.md": "cb2934598954cc7a13e029d6294661be45d13a6bf17b82519801494af5bc58aa",
+  "docs/en/sans-io.md": "d32e4361209411a3a3f7a247a43946b06229ccc9074895a98fb116ecf691b150",
+  "docs/en/streams-async.md": "236c2fff3a4fa4e208886dd4682173e452da486edd88ac86e76ee40381482bac",
+  "docs/en/testing.md": "56fc0b99ed7628fb05c057a7d2b4ff945f1c9a931c97cd65f4b62bac75975935",
+  "docs/en/usage.md": "17f2d39155df2fb582682a77e8ac14aa47fa09ef97971764b2ab8dc78b9bee0f",
+  "docs/en/reading.md": "2162547365d40614ea6e35f0b30769f29ef03ba312889ee40732e06df737bd9a",
+  "docs/en/validation.md": "31b951afe9022b181cdfddf7cf499e030d9e75b0dc6da3e416299eb728ab6ebc",
+  "docs/en/writer-options.md": "e42005548e48aeb1de81851b49e920b548becc4cf1d1fa576439deb76958bf88",
+  "docs/en/writing.md": "ef5af53a2ebcd17606473ca4076c06e44e4689f843e74a0aed3f12278225444e"
+}
