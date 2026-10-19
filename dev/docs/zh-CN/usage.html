@@ -90,7 +90,7 @@
 <h1 id="入门写入和读取第一个文件">入门：写入和读取第一个文件</h1>
 
 <p><a href="../usage.html">English</a> | 简体中文</p>
-<p>面向通过 NuGet 使用本库的 .NET 开发者。本教程从创建项目开始，依次完成写入、读取、过滤和可选的完整校验，无需克隆本仓库或安装 Rust。需要 .NET 8 SDK，并在 Windows x64 或受支持的 glibc Linux x64/ARM64 环境运行。</p>
+<p>面向通过 NuGet 使用本库的 .NET 开发者。本教程从创建项目开始，依次完成写入、读取、过滤和可选的完整校验，无需克隆本仓库或安装 Rust。需要 .NET 8 / 10 SDK，并在 Windows x64 或受支持的 glibc Linux x64/ARM64 环境运行。</p>
 <h2 id="创建项目">创建项目</h2>
 <pre><code class="lang-powershell">dotnet new console -n McapQuickStart -f net8.0
 cd McapQuickStart
@@ -121,8 +121,9 @@ foreach (var message in reader.ReadMessages())
 <pre><code class="lang-text">100: {&quot;value&quot;:1}
 50: {&quot;value&quot;:2}
 </code></pre>
-<p><code>McapReaderFactory</code> 本身不持有需要释放的输入资源；每次枚举拥有并释放独立读取会话。<code>ReadMessages()</code> 返回独立自有结果，适合普通应用代码。</p>
-<h2 id="按主题和时间过滤">按主题和时间过滤</h2>
+<p><code>McapReaderFactory</code> 本身不持有需要释放的输入资源；每次枚举拥有并释放独立读取会话。<code>ReadMessages()</code> 返回的每条消息包含独立的数据副本，适合普通应用代码。</p>
+<p><a id="按主题和时间过滤"></a></p>
+<h2 id="可选按主题和时间过滤">可选：按主题和时间过滤</h2>
 <pre><code class="lang-csharp">foreach (var message in reader.ReadMessages(new()
 {
     Topic = &quot;/sample&quot;,
@@ -138,16 +139,14 @@ Console.WriteLine($&quot;Validated {recordCount} records.&quot;);
 </code></pre>
 <p>这是可选的独立全文件扫描，可在处理消息前执行。返回值是记录数，不是消息数；格式或完整性错误会抛异常。普通读取或查询成功不能替代完整校验，校验也不解释业务载荷。详细范围及有效前缀恢复见 <a href="api.html#%E6%A0%A1%E9%AA%8C%E4%B8%8E%E6%81%A2%E5%A4%8D">API 契约</a>。</p>
 <p>完成所有操作后可追加 <code>File.Delete(path);</code> 删除示例文件；应用代码应按自己的保留策略管理文件，并处理操作或清理异常。</p>
+<h2 id="运行仓库示例">运行仓库示例</h2>
+<p><a href="../../samples/Documentation/QuickStartExamples.cs">教程源码</a>验证上述输出并清理临时文件。其他写入、读取、转发和校验示例见<a href="../../samples/Documentation/Program.cs">示例入口</a>；构建与运行方式见<a href="development.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">开发指南</a>。</p>
 <h2 id="下一步">下一步</h2>
 <ul>
-<li><a href="queries.html">查询与随机访问</a>：文件顺序、时间顺序、索引与 Chunk 游标。</li>
-<li><a href="ownership.html">消息所有权与内存取舍</a>：复用缓冲、同步借用和存储租约（lease）。</li>
-<li><a href="streams-async.html">Stream 与异步读取</a>：输入输出所有权、异步操作和取消。</li>
-<li><a href="sans-io.html">Sans-I/O</a>：由应用自行执行 I/O。 <a href="sans-io.html#%E7%BA%BF%E6%80%A7%E8%AE%B0%E5%BD%95">线性记录</a> · <a href="sans-io.html#%E6%91%98%E8%A6%81%E8%AF%B7%E6%B1%82">摘要请求</a> · <a href="sans-io.html#%E7%B4%A2%E5%BC%95%E6%B6%88%E6%81%AF">索引消息</a></li>
-<li><a href="api.html">API 契约</a>：默认值、生命周期、失败与验证边界。</li>
+<li><a href="writing.html">写入文件</a>：保存多个主题的消息，添加元数据和附件。</li>
+<li><a href="reading.html">读取消息</a>：读取消息内容、声明及其他记录。</li>
+<li><a href="index.html">文档首页</a>：按需求查找查询、校验和进阶指南。</li>
 </ul>
-<h2 id="运行仓库示例">运行仓库示例</h2>
-<p><a href="../../samples/Documentation/QuickStartExamples.cs">教程源码</a>验证上述结果并清理临时文件；<a href="../../samples/Documentation/Program.cs">完整示例</a>还覆盖高级读取路径。源码贡献者可在仓库根目录运行 <code>./scripts/Test-Samples.ps1</code>，脚本先构建本机原生库，再验证当前源码。已有经过验证的完整包可用 <code>./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages</code> 检查；它不代表公开 NuGet 包验证。环境准备见<a href="development.html">开发指南</a>。</p>
 
 </article>
 

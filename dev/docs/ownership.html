@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>Message ownership and memory choices | Fizzy.McapSharp </title>
+      <title>Message ownership, buffers and batch forwarding | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="Message ownership and memory choices | Fizzy.McapSharp ">
+      <meta name="title" content="Message ownership, buffers and batch forwarding | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../assets/icon.png">
@@ -87,10 +87,14 @@
         </div>
 
         <article data-uid="">
-<h1 id="message-ownership-and-memory-choices">Message ownership and memory choices</h1>
+<h1 id="message-ownership-buffers-and-batch-forwarding">Message ownership, buffers and batch forwarding</h1>
 
+<p><a id="message-ownership-and-memory-choices"></a></p>
 <p>English | <a href="zh-CN/ownership.html">简体中文</a></p>
-<p>For applications choosing how long message bytes must remain valid. Start with owned results; use other delivery forms when buffer reuse, synchronous processing or retained sharing fits the workload. Access order is a <a href="queries.html">separate choice</a>.</p>
+<p>For applications choosing when writer input can be reused and how long reader results must remain valid. Start with owned read results; use other delivery forms when buffer reuse, synchronous processing or retained sharing fits the workload. Access order is a <a href="queries.html">separate choice</a>.</p>
+<h2 id="writer-input-and-buffer-reuse">Writer input and buffer reuse</h2>
+<p>A writer consumes payload input before each call returns. Reuse the caller array or span afterward; do not mutate it during the call. <code>WriteToKnownChannel</code> fits registered channels and reusable buffers; complete owned messages fit existing objects; prepared descriptors snapshot control data for reuse without repeated preparation. Exact allocation guarantees remain in <a href="api.html#binding-performance-and-local-limits">API contracts</a>.</p>
+<p>Writing does not transfer input ownership. Lease forwarding likewise requires keeping the lease alive until synchronous writing finishes. A batch can reference multiple backing owners without concatenating payloads. Ordinary caller-buffer reads still copy into caller storage; convenience owned results remain independent copies. See the <a href="writing.html">writing guide</a> for form selection.</p>
 <h2 id="choose-by-lifetime">Choose by lifetime</h2>
 <table>
 <thead>
@@ -150,6 +154,17 @@ borrowed.VisitMessages((in McapMessageHeader header, ReadOnlySpan&lt;byte&gt; pa
 });
 </code></pre>
 <p>Use the span only inside the callback. Do not read, inspect or dispose the same reader from that callback. Returning false stops normally after the current message. Snapshot callbacks impose additional restrictions on indexed readers and prepared indexes; see <a href="api.html#borrowing-batches-and-leases">borrowing contracts</a>.</p>
+<h2 id="forward-a-read-batch-into-a-new-recording">Forward a read batch into a new recording</h2>
+<p>Read the source channel descriptions, register corresponding schemas and channels on the destination writer, and build a source-to-destination Channel ID map. Replace each header's ChannelId while preserving its other fields; payloads still come from the original lease:</p>
+<pre><code class="lang-csharp">var headers = new McapMessageHeader[batch.Count];
+for (int i = 0; i &lt; batch.Count; i++)
+{
+    var header = batch.GetHeader(i);
+    headers[i] = header with { ChannelId = ids[header.ChannelId] };
+}
+writer.WriteBatch(batch, headers);
+</code></pre>
+<p>This snippet requires a live <code>batch</code>, an <code>ids</code> map covering every source channel and registered destination declarations. With matching IDs, use <code>WriteBatch(batch)</code>. The synchronous call does not transfer ownership and is not atomic; do not replay an entire failed batch. The reader can be disposed first because the independently retained lease still holds payload storage; never access concurrently with lease disposal. The <a href="../samples/Documentation/RecordingExamples.cs">complete forwarding example</a> verifies ID remapping and payload round trips for channels with and without schemas.</p>
 <h2 id="retain-only-what-the-application-needs">Retain only what the application needs</h2>
 <p>For short pipelines, keep a batch lease alive through processing and dispose it afterward. A lease survives reader advancement, reader disposal and cache eviction. For a small payload kept much longer, copy it explicitly:</p>
 <pre><code class="lang-csharp">using var retained = new McapReaderFactory(path).OpenMessages();
@@ -165,7 +180,6 @@ using (var batch = retained.ReadBatchLease(1))
 // savedPayload is independent of the lease and reader.
 </code></pre>
 <p>Copying releases no storage still referenced by another lease, parser or cache. Bound outstanding work using retained backing sizes and duration as well as batch counts. Do not access spans concurrently with lease disposal; cross-thread transfer needs caller synchronization. See <a href="api.html#choosing-storage-for-retained-results">retention contracts</a>.</p>
-<p>To forward a batch, register destination schemas/channels first, then call <code>writer.WriteBatch(batch)</code> while the lease is alive. Use the header-replacement overload when channel IDs differ. Forwarding is synchronous, does not transfer ownership and does not make a batch atomic. The <a href="../samples/Documentation/Program.cs">runnable example</a> demonstrates a schema-less channel with matching IDs.</p>
 <p>Next, use <a href="streams-async.html">Streams and async</a> for asynchronous pipelines, or consult <a href="api.html#binding-performance-and-local-limits">local limits</a> and <a href="testing.html">diagnostics</a> before tuning memory behavior.</p>
 <p>These snippets run in the <a href="../samples/Documentation/ReadingExamples.cs">reading examples</a>; see the <a href="usage.html#run-repository-examples">tutorial</a> for execution instructions.</p>
 

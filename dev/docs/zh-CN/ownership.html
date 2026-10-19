@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>消息所有权与内存取舍 | Fizzy.McapSharp </title>
+      <title>消息所有权、缓冲与批次转发 | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="消息所有权与内存取舍 | Fizzy.McapSharp ">
+      <meta name="title" content="消息所有权、缓冲与批次转发 | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../../assets/icon.png">
@@ -87,10 +87,14 @@
         </div>
 
         <article data-uid="">
-<h1 id="消息所有权与内存取舍">消息所有权与内存取舍</h1>
+<h1 id="消息所有权缓冲与批次转发">消息所有权、缓冲与批次转发</h1>
 
+<p><a id="消息所有权与内存取舍"></a></p>
 <p><a href="../ownership.html">English</a> | 简体中文</p>
-<p>面向需要决定消息字节保留多久的应用开发者。优先使用自有结果；需要复用缓冲、同步处理或保留共享数据时，再选择其他交付方式。访问顺序是<a href="queries.html">另一个独立选择</a>。</p>
+<p>面向需要决定何时复用写入输入、读取结果应保持多久有效的应用。读取先从自有结果开始；需要复用缓冲、同步处理或保留共享存储时，再选择其他交付形式。访问顺序是<a href="queries.html">独立选择</a>。</p>
+<h2 id="写入输入与缓冲复用">写入输入与缓冲复用</h2>
+<p>Writer 在每次调用返回前消费载荷输入。调用结束后可以复用调用方数组或 span；不要在调用期间修改输入。<code>WriteToKnownChannel</code> 适合已注册通道和复用缓冲；完整自有消息适合已有对象；prepared 描述快照控制数据，复用时不重复准备。精确分配保证见 <a href="api.html#%E7%BB%91%E5%AE%9A%E5%B1%82%E6%80%A7%E8%83%BD%E4%B8%8E%E5%B1%80%E9%83%A8%E9%99%90%E5%88%B6">API 契约</a>。</p>
+<p>输入所有权不因写入而转移。Lease 转发也要求在同步写入结束前保持 lease 有效。批次若已经引用多个底层存储，可直接转发，无需拼接载荷。普通 caller-buffer 读取仍复制到调用方缓冲；便利自有结果仍是独立副本。写入形式选择见<a href="writing.html">写入指南</a>。</p>
 <h2 id="按生命周期选择">按生命周期选择</h2>
 <table>
 <thead>
@@ -150,6 +154,17 @@ borrowed.VisitMessages((in McapMessageHeader header, ReadOnlySpan&lt;byte&gt; pa
 });
 </code></pre>
 <p>仅在回调内使用 span。不得从回调读取、查询或释放同一个读取器。返回 false 会在当前消息后正常停止。快照回调对索引读取器及预准备索引有额外限制，详见<a href="api.html#%E5%80%9F%E7%94%A8%E6%89%B9%E6%AC%A1%E4%B8%8E-lease">借用契约</a>。</p>
+<h2 id="将读取批次转发到新录制">将读取批次转发到新录制</h2>
+<p>先读取源通道描述，在目标 writer 注册对应 Schema 和 Channel，建立源 Channel ID 到目标 ID 的映射。对每条消息替换头部中的 ChannelId，保持其他字段不变；载荷仍来自原 lease：</p>
+<pre><code class="lang-csharp">var headers = new McapMessageHeader[batch.Count];
+for (int i = 0; i &lt; batch.Count; i++)
+{
+    var header = batch.GetHeader(i);
+    headers[i] = header with { ChannelId = ids[header.ChannelId] };
+}
+writer.WriteBatch(batch, headers);
+</code></pre>
+<p>此片段要求 <code>batch</code> 在调用期间有效，<code>ids</code> 包含所有源通道且目标声明已注册。ID 相同时可用 <code>WriteBatch(batch)</code>。同步调用不转移所有权，批次不具备原子性，不重放整个失败批次。读取器可以先释放，独立保留的 lease 继续保有载荷；不要并发访问和释放 lease。<a href="../../samples/Documentation/RecordingExamples.cs">完整转发示例</a>验证带 Schema 和无 Schema 通道的 ID 映射及往返载荷。</p>
 <h2 id="只保留应用需要的数据">只保留应用需要的数据</h2>
 <p>短流水线可在处理期间保持批次租约存活，处理结束后释放。租约在读取器推进、释放及缓存驱逐后仍然有效。若少量载荷需要保留更久，可以显式复制：</p>
 <pre><code class="lang-csharp">using var retained = new McapReaderFactory(path).OpenMessages();
@@ -165,7 +180,6 @@ using (var batch = retained.ReadBatchLease(1))
 // savedPayload is independent of the lease and reader.
 </code></pre>
 <p>其他租约、解析器或缓存仍引用的存储，不会因这次复制而释放。限制在途工作时，除批次数量外，还应考虑底层存储大小与保留时长。不得在使用 span 时并发释放租约；跨线程转移需要调用方同步。详见<a href="api.html#%E4%B8%BA%E4%BF%9D%E7%95%99%E7%BB%93%E6%9E%9C%E9%80%89%E6%8B%A9%E5%AD%98%E5%82%A8">保留契约</a>。</p>
-<p>转发批次时，先注册目标 Schema 和 Channel，再在租约存活期间调用 <code>writer.WriteBatch(batch)</code>。Channel ID 不同时使用替换消息头的重载。转发同步完成、不转移所有权，也不保证批次原子性。<a href="../../samples/Documentation/Program.cs">可运行示例</a>演示无 Schema、两端 Channel ID 相同的情况。</p>
 <p>异步流水线请继续阅读 <a href="streams-async.html">Stream 与异步</a>；调整内存行为前，查阅<a href="api.html#%E7%BB%91%E5%AE%9A%E5%B1%82%E6%80%A7%E8%83%BD%E4%B8%8E%E5%B1%80%E9%83%A8%E9%99%90%E5%88%B6">局部限制</a>与<a href="testing.html">诊断方法</a>。</p>
 <p>本页代码在<a href="../../samples/Documentation/ReadingExamples.cs">读取示例</a>中运行，执行方法见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">教程</a>。</p>
 

@@ -184,6 +184,7 @@ foreach (var message in indexed.ReadMessages())
 <p>单条定位也可能加载并验证整个 Chunk。预准备索引可减少描述符工作，但不消除缓存未命中时的解压。先观察缓存命中与 Chunk 加载次数，再调整额度，详见<a href="api.html#%E5%AE%8C%E6%95%B4-chunk-%E9%9A%8F%E6%9C%BA%E8%AE%BF%E9%97%AE">随机访问契约</a>。</p>
 <p>下一步独立选择<a href="ownership.html">消息所有权</a>。是否需要另外进行全文件校验，参见 <a href="api.html#%E6%A0%A1%E9%AA%8C%E4%B8%8E%E6%81%A2%E5%A4%8D">API 契约</a>。</p>
 <p>本页代码在<a href="../../samples/Documentation/ReadingExamples.cs">读取示例</a>中运行，执行方法见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">教程</a>。</p>
+<p>完整文件检查和不完整输入处理见<a href="validation.html">校验与有效前缀恢复</a>。</p>
 
 </article>
 

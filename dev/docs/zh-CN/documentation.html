@@ -91,10 +91,10 @@
 
 <p><a href="../documentation.html">English</a> | 简体中文</p>
 <p>面向文档贡献者：本页说明构建、翻译审阅、示例验证及站点检查。读者入口和专题分层见<a href="index.html">文档首页</a>。</p>
-<p>成员契约放在英文 XML 注释中，跨 API 契约维护在 <a href="api.html">api.md</a>，任务流程放在<a href="usage.html">使用指南</a>。对照实现审阅约束、单位、所有权、取消、失败及清理；XML 覆盖不等于语义正确。</p>
+<p>成员契约放在英文 XML 注释中，跨 API 契约维护在 <a href="api.html">api.md</a>，入门流程放在<a href="usage.html">使用指南</a>，后续按<a href="writing.html">写入</a>、<a href="reading.html">读取</a>及读写协作专题组织任务流程。对照实现审阅约束、单位、所有权、取消、失败及清理；XML 覆盖不等于语义正确。</p>
 <p>双语站点入口和总导航位于 <code>docs/index.md</code> 与 <code>docs/toc.yml</code>。英文指南位于 <code>docs/en/</code>，中文指南位于 <code>docs/zh-CN/</code>。DocFX、npm 配置与本地 .NET 工具清单位于 <code>docs/</code>，脚本从该目录运行这些工具。构建将选定输入暂存到 <code>artifacts/docs/source/</code>，使 DocFX 能在配置根目录下解析仓库资源；生成产物仍写入仓库根目录的 <code>artifacts/</code>。已发布指南的 URL 保持不变。</p>
 <h2 id="本地流程">本地流程</h2>
-<p>使用 Python 3.12、PowerShell 7、Node.js 22、.NET 8 SDK、固定 Rust 工具链和<a href="development.html">开发指南</a>指定的本机编译器。DocFX 由本地工具清单固定版本，<code>dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json</code> 只恢复该工具，不安装全局工具。</p>
+<p>使用 Python 3.12、PowerShell 7、Node.js 22、.NET SDK 10.0.401、固定 Rust 工具链和<a href="development.html">开发指南</a>指定的本机编译器。DocFX 由本地工具清单固定版本，<code>dotnet tool restore --tool-manifest docs/.config/dotnet-tools.json</code> 只恢复该工具，不安装全局工具。</p>
 <pre><code class="lang-powershell">./scripts/Test-Documentation.ps1
 ./scripts/Build-Docs.ps1
 ./scripts/Test-Samples.ps1
@@ -102,6 +102,7 @@
 </code></pre>
 <p>Build-Docs 先构建 native Release，再构建 managed Release、检查 XML、生成 API 页面、校验站点并运行固定版本 Chromium 冒烟门禁。共享输出目录的构建必须串行。Serve-Docs 支持 <code>-SiteDirectory</code>，通过本机 HTTP 在 <code>/Fizzy.McapSharp/dev/</code> 前缀下提供已有站点，Ctrl+C 停止；不要使用 file URL。检查双语页面、导航、搜索及代表性 API 页面。</p>
 <p>已有验证通过的完整包时，<code>Build-Docs.ps1 -Package &lt;nupkg绝对路径&gt; -ReleaseCommit &lt;sha&gt;</code> 使用其 DLL/XML。包版本必须匹配项目元数据；这是候选包文档，不代表已发布包验证。比较候选包与公开 NuGet 并执行隔离的公开源包测试，运行 <code>./scripts/Test-Package.ps1 -PackageDirectory artifacts/release -Published</code>。</p>
+<p>两个目标提供相同 API。共有 API 参考明确选择 net8.0 DLL/XML，包括从包含两个框架的不可变原始包生成文档时。</p>
 <p>如需生成文档并自行进行浏览器验证，运行 <code>./scripts/Build-Docs.ps1 -SkipBrowser</code>。仍会执行源文件、XML 和站点静态检查；报告明确标记浏览器检查已跳过。此模式不替代发布前要求的完整验证。</p>
 <h2 id="翻译与变更">翻译与变更</h2>
 <p>英文指南位于 <code>docs/en/</code>，同名中文指南位于 <code>docs/zh-CN/</code>，分别维护导航和语言切换链接；根 README 对应 <code>README.zh-CN.md</code>。人工复核译文后显式接受英文更新：</p>

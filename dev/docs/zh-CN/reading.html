@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>读取消息 | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="读取消息 | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../../assets/icon.png">
+      <link rel="stylesheet" href="../../public/docfx.min.css">
+      <link rel="stylesheet" href="../../public/main.css">
+      <meta name="docfx:navrel" content="../../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../../version.css">
+<script defer src="../../version.js" data-doc-root="../../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../../index.html">
+            <img id="logo" class="svg" src="../../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="读取消息">读取消息</h1>
+
+<p><a id="读取录制"></a></p>
+<p><a href="../reading.html">English</a> | 简体中文</p>
+<p>使用 <code>ReadMessages()</code> 按文件顺序遍历消息，每条消息包含独立的数据副本。本指南读取<a href="writing.html">写入文件</a>生成的文件；项目准备见<a href="usage.html">入门教程</a>。</p>
+<h2 id="读取多主题文件">读取多主题文件</h2>
+<p>下面是独立的 C# 12 程序；将写入指南打印的路径传给 <code>dotnet run -- &lt;path&gt;</code>。</p>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+using System.Text;
+
+if (args.Length != 1) throw new ArgumentException(&quot;Supply the recording path.&quot;);
+var factory = new McapReaderFactory(args[0]);
+foreach (var message in factory.ReadMessages())
+    Console.WriteLine($&quot;{message.Channel.Topic} {message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
+</code></pre>
+<p>输出按文件顺序排列，最后一条消息的载荷为空：</p>
+<pre><code class="lang-text">/values 100: {&quot;value&quot;:1}
+/events 50: started
+/events 110:
+</code></pre>
+<h2 id="理解声明与消息">理解声明与消息</h2>
+<p><code>McapMessage</code> 将消息头的序号、纳秒时间戳与已解析的 Channel 和载荷字节组合起来。Channel 包含可选 Schema 和元数据。每条消息的数据副本可以独立修改，这类结果称为自有结果。库解释 MCAP 容器，不解释应用的载荷编码或时钟基准。</p>
+<h2 id="按主题和时间过滤">按主题和时间过滤</h2>
+<p>将下面的代码追加到上例。输出为 <code>/events 50: started</code>。过滤使用 <code>LogTime</code>，包含起点 50，不包含终点 110。增加主题或时间过滤仍保持文件顺序；需要时间排序或仅索引查询时，见<a href="queries.html">查询与随机访问</a>。</p>
+<pre><code class="lang-csharp">foreach (var message in factory.ReadMessages(new()
+{
+    Topic = &quot;/events&quot;,
+    StartTime = 50,
+    EndTime = 110
+}))
+    Console.WriteLine($&quot;{message.Channel.Topic} {message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
+</code></pre>
+<h2 id="读取其他记录与摘要">读取其他记录与摘要</h2>
+<p>如果已按写入指南添加元数据和附件，将以下代码追加到读取程序。每个 factory 操作执行独立读取。元数据输出 <code>recording: sample</code>，附件分别包含 <code>notes</code> 和 <code>abcdef</code>。</p>
+<pre><code class="lang-csharp">foreach (var metadata in factory.ReadMetadata())
+    Console.WriteLine($&quot;{metadata.Name}: {metadata.Values[&quot;operator&quot;]}&quot;);
+foreach (var attachment in factory.ReadAttachments())
+    Console.WriteLine($&quot;{attachment.Name}: {Encoding.UTF8.GetString(attachment.Data)}&quot;);
+var summary = factory.GetSummary();
+Console.WriteLine(summary is null ? &quot;No summary&quot; : &quot;Summary available&quot;);
+</code></pre>
+<p>使用 <code>ReadSchemas()</code> 和 <code>ReadChannels()</code> 枚举声明，包括没有消息的声明。<code>ReadMetadata()</code> 与 <code>ReadAttachments()</code> 返回独立的数据副本。独立的 <code>GetSummary()</code> 结果包含可用声明、统计及索引；没有摘要时返回 null，获取摘要不会校验完整录制。</p>
+<p><code>OpenRecords()</code> 将 Chunk 展开为记录，<code>OpenLinear()</code> 暴露顶层记录。关注记录结构而非解析后的消息时使用这些入口。<code>McapRecordAccessor</code> 提供可寻址原始记录访问；索引读取器支持按索引读取附件/元数据及定位消息。按能力选择读取器，不应假定每种读取器都暴露全部操作。详见<a href="api.html#%E8%87%AA%E6%9C%89%E8%AE%B0%E5%BD%95%E6%91%98%E8%A6%81%E5%92%8C%E5%8E%9F%E5%A7%8B%E8%AE%B0%E5%BD%95">记录契约</a>；应用需要自行驱动输入请求时，使用 <a href="sans-io.html">Sans-I/O 读取</a>。</p>
+<h2 id="选择输入与会话">选择输入与会话</h2>
+<p><code>McapReaderFactory(path)</code> 保存路径，不打开文件，也不拥有需要释放的输入。每次枚举或打开会话都拥有独立读取器。需要便利的自有结果时使用 <code>ReadMessages()</code>；选择缓冲、回调或 lease 时，使用并释放 <code>OpenMessages()</code> 返回的会话。</p>
+<p>已有 Stream 且由调用方负责清理时，使用 <code>McapReaderFactory.OpenMessages(stream, leaveOpen: true)</code>。重复随机访问可使用 <code>McapIndexedReader</code>，它拥有复制或映射的输入并需要释放，不仅是索引集合。详见 <a href="streams-async.html">Stream 与异步读取</a> 与<a href="queries.html">随机访问</a>。</p>
+<p><a id="选择交付形式"></a></p>
+<h2 id="选择如何接收消息">选择如何接收消息</h2>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>入口</th>
+<th>调用方责任</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>独立可变消息</td>
+<td><code>ReadMessages()</code></td>
+<td>拥有副本，遵循普通托管生命周期</td>
+</tr>
+<tr>
+<td>复用载荷存储</td>
+<td><code>ReadNext(buffer, ...)</code></td>
+<td>遇到 <code>BufferTooSmall</code> 扩容；复用前处理字节</td>
+</tr>
+<tr>
+<td>立即同步处理</td>
+<td><code>VisitMessages</code> / <code>ReadNext(visitor)</code></td>
+<td>不保留 span，不从回调重入读取器</td>
+</tr>
+<tr>
+<td>保留或转发批次</td>
+<td><code>ReadBatchLease</code></td>
+<td>所有访问完成后释放 lease，不并发释放</td>
+</tr>
+</tbody>
+</table>
+<p>需要在读取器前进后继续使用消息时，可通过存储租约（lease）保留底层数据，并在使用后释放租约。访问顺序与交付所有权分别选择。Lease 可能保留整个 Chunk 或映射，读取器释放后仍可保留。<a href="ownership.html">缓冲与消息转发</a>给出缓冲、回调与 lease 的可运行示例及成本说明。异步消息 lease 见<a href="streams-async.html">Stream 与异步读取</a>。</p>
+<p>缓冲和回调读取分别交付消息头与字节。使用会话的 <code>GetChannelDescription</code> 获取该会话遇到的不可变声明。仅在摘要中找到的声明不代表已在顺序扫描中遇到。原始消息、展开记录和顶层记录是不同能力，验证范围也不同。</p>
+<h2 id="结束与失败处理">结束与失败处理</h2>
+<p><code>BufferTooSmall</code> 保留同一条待读记录，提供报告的容量后重试。成功的零字节载荷不是 EOF。<code>EndOfStream</code> 表示所选扫描结束，本身不证明完成全文件校验；这一选择见<a href="validation.html">校验与恢复</a>。</p>
+<p>使用后释放打开的会话和枚举器，<code>foreach</code> 会释放枚举器。自有结果及独立保留的 lease 继续遵循各自的生命周期。解析、回调和 I/O 失败会终止会话，重复工作应使用新会话，不应重试任意失败。显式清理失败会报告给调用方。异步读取器必须先消费唯一的在途操作，才能启动下一操作或释放。</p>
+<h2 id="下一步">下一步</h2>
+<p>选择<a href="queries.html">查询与随机访问</a>、<a href="ownership.html">缓冲与消息转发</a>，或<a href="validation.html">校验与恢复</a>。<a href="../../samples/Documentation/RecordingExamples.cs">录制示例</a>对照 writer 输出检查消息、声明、元数据、附件、摘要、缓冲重试和 EOF；<a href="../../samples/Documentation/ReadingExamples.cs">读取示例</a>覆盖交付与 Stream API。运行方式见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">示例说明</a>。</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

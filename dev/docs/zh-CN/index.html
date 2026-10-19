@@ -90,33 +90,53 @@
 <h1 id="fizzymcapsharp-文档">Fizzy.McapSharp 文档</h1>
 
 <p><a href="../index.html">English</a> · <a href="https://github.com/0xfizzy/Fizzy.McapSharp">GitHub 仓库</a></p>
-<p>Fizzy.McapSharp 为 .NET 8 提供 MCAP 文件读写。载荷编码和时钟基准由应用决定。按当前任务选择入口，无需先了解 Rust 或原生 ABI。</p>
+<p>在 .NET 8 / 10 应用中读写 MCAP 文件，保存带时间戳的消息、元数据和附件。支持 Windows x64 和 glibc Linux x64/ARM64，Linux 构建与验证基线为 Ubuntu 22.04。</p>
 <h2 id="入门">入门</h2>
-<p>首次接触项目，先看 <a href="../../README.zh-CN.html">README</a>了解用途和支持平台；准备开始编码，阅读<a href="usage.html">第一个文件</a>，通过 NuGet 完成写入、读取、过滤和可选校验。</p>
-<h2 id="深入使用">深入使用</h2>
+<p><strong>第一次使用？</strong> 从<a href="usage.html">写入和读取第一个文件</a>开始：安装 NuGet 包，运行示例并查看结果。无需安装 Rust。</p>
+<p><a id="深入使用"></a></p>
+<p><a id="写入"></a></p>
+<p><a id="读取"></a></p>
+<p><a id="读写协作"></a></p>
+<h2 id="按任务选择">按任务选择</h2>
 <table>
 <thead>
 <tr>
-<th>当前需求</th>
+<th>我想要……</th>
 <th>指南</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>按时间查询、强制索引、重复访问 Chunk</td>
+<td>保存多个主题的消息，添加附件并完成文件</td>
+<td><a href="writing.html">写入文件</a></td>
+</tr>
+<tr>
+<td>遍历文件，读取消息内容及主题</td>
+<td><a href="reading.html">读取消息</a></td>
+</tr>
+<tr>
+<td>按主题或时间筛选，使用索引访问数据</td>
 <td><a href="queries.html">查询与随机访问</a></td>
 </tr>
 <tr>
-<td>复用缓冲、同步处理、跨操作保留或转发数据</td>
-<td><a href="ownership.html">消息所有权与内存取舍</a></td>
+<td>检查文件完整性，从不完整文件中读取有效消息</td>
+<td><a href="validation.html">校验与恢复</a></td>
 </tr>
 <tr>
-<td>使用已有 Stream、异步读取或取消</td>
-<td><a href="streams-async.html">Stream 与异步</a></td>
+<td>配置压缩，调整分块和索引</td>
+<td><a href="writer-options.html">压缩、分块与索引</a></td>
 </tr>
 <tr>
-<td>由应用自行提供输入和执行定位</td>
-<td><a href="sans-io.html">Sans-I/O</a></td>
+<td>复用读取缓冲，保留或转发消息</td>
+<td><a href="ownership.html">缓冲与消息转发</a></td>
+</tr>
+<tr>
+<td>使用已有 Stream，异步读取或取消操作</td>
+<td><a href="streams-async.html">Stream 与异步读取</a></td>
+</tr>
+<tr>
+<td>由应用提供输入并执行定位</td>
+<td><a href="sans-io.html">Sans-I/O 读取</a></td>
 </tr>
 </tbody>
 </table>
@@ -134,7 +154,6 @@
 <li><a href="documentation.html">文档维护</a>与<a href="release.html">发布恢复</a>：文档构建、翻译、归档及发布操作。</li>
 <li><a href="../../AGENTS.html">仓库约定</a>：贡献和维护规则（英文）。</li>
 </ul>
-<p>不确定从哪里开始时，先完成<a href="usage.html">入门教程</a>，再按实际需求选择深入指南。</p>
 
 </article>
 

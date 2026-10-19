@@ -90,7 +90,7 @@
 <h1 id="getting-started-your-first-recording">Getting started: your first recording</h1>
 
 <p>English | <a href="zh-CN/usage.html">简体中文</a></p>
-<p>For .NET developers using the NuGet package. Create a project, write, read, filter and optionally validate a recording without cloning this repository or installing Rust. Use the .NET 8 SDK on Windows x64 or supported glibc Linux x64/ARM64.</p>
+<p>For .NET developers using the NuGet package. Create a project, write, read, filter and optionally validate a recording without cloning this repository or installing Rust. Use the .NET 8 / 10 SDK on Windows x64 or supported glibc Linux x64/ARM64.</p>
 <h2 id="create-a-project">Create a project</h2>
 <pre><code class="lang-powershell">dotnet new console -n McapQuickStart -f net8.0
 cd McapQuickStart
@@ -121,8 +121,9 @@ foreach (var message in reader.ReadMessages())
 <pre><code class="lang-text">100: {&quot;value&quot;:1}
 50: {&quot;value&quot;:2}
 </code></pre>
-<p><code>McapReaderFactory</code> itself owns no disposable input resources; each enumeration owns and disposes an independent session. <code>ReadMessages()</code> returns independently owned results suitable for ordinary application code.</p>
-<h2 id="filter-by-topic-and-time">Filter by topic and time</h2>
+<p><code>McapReaderFactory</code> itself owns no disposable input resources; each enumeration owns and disposes an independent session. Each message returned by <code>ReadMessages()</code> contains an independent copy of its data, suitable for ordinary application code.</p>
+<p><a id="filter-by-topic-and-time"></a></p>
+<h2 id="optional-filter-by-topic-and-time">Optional: filter by topic and time</h2>
 <pre><code class="lang-csharp">foreach (var message in reader.ReadMessages(new()
 {
     Topic = &quot;/sample&quot;,
@@ -138,16 +139,14 @@ Console.WriteLine($&quot;Validated {recordCount} records.&quot;);
 </code></pre>
 <p>This is an optional, separate full-file scan and can run before processing messages. It returns a record count, not a message count; format or integrity failures throw. Successful ordinary reading or querying does not replace full validation, and validation does not interpret business payloads. See <a href="api.html#validation-and-recovery">API contracts</a> for validation scope and valid-prefix recovery.</p>
 <p>Append <code>File.Delete(path);</code> after all operations to remove the example file. Application code should apply its own retention policy and handle operation or cleanup failures.</p>
+<h2 id="run-repository-examples">Run repository examples</h2>
+<p>The <a href="../samples/Documentation/QuickStartExamples.cs">tutorial source</a> verifies the output and removes its temporary file. The <a href="../samples/Documentation/Program.cs">example entry point</a> also runs writing, reading, forwarding and validation examples. See <a href="development.html#run-repository-examples">development</a> for build and run instructions.</p>
 <h2 id="next-steps">Next steps</h2>
 <ul>
-<li><a href="queries.html">Queries and random access</a>: file order, time order, indexes and chunk cursors.</li>
-<li><a href="ownership.html">Message ownership and memory choices</a>: reusable buffers, synchronous borrowing and storage leases.</li>
-<li><a href="streams-async.html">Streams and asynchronous reading</a>: I/O ownership, async operations and cancellation.</li>
-<li><a href="sans-io.html">Sans-I/O</a>: let the application perform I/O itself. <a href="sans-io.html#linear-records">linear records</a> · <a href="sans-io.html#summary-requests">summary requests</a> · <a href="sans-io.html#indexed-messages">indexed messages</a></li>
-<li><a href="api.html">API contracts</a>: defaults, lifetime, failure and validation boundaries.</li>
+<li><a href="writing.html">Write files</a>: save multiple topics, metadata and attachments.</li>
+<li><a href="reading.html">Read messages</a>: read message contents, declarations and other records.</li>
+<li><a href="index.html">Documentation home</a>: find query, validation and advanced guides for your task.</li>
 </ul>
-<h2 id="run-repository-examples">Run repository examples</h2>
-<p>The <a href="../samples/Documentation/QuickStartExamples.cs">tutorial source</a> verifies these results and removes its temporary file; the <a href="../samples/Documentation/Program.cs">complete example</a> also covers advanced reading paths. Source contributors can run <code>./scripts/Test-Samples.ps1</code> from the repository root to build the native host library and validate current source. Use <code>./scripts/Test-Samples.ps1 -PackageDirectory artifacts/packages</code> for an already verified complete package; that is not public NuGet package validation. See <a href="development.html">development</a> for setup.</p>
 
 </article>
 

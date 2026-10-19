@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>自行驱动 Sans-I/O | Fizzy.McapSharp </title>
+      <title>Sans-I/O 读取协议 | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="自行驱动 Sans-I/O | Fizzy.McapSharp ">
+      <meta name="title" content="Sans-I/O 读取协议 | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../../assets/icon.png">
@@ -87,12 +87,14 @@
         </div>
 
         <article data-uid="">
-<h1 id="自行驱动-sans-io">自行驱动 Sans-I/O</h1>
+<h1 id="sans-io-读取协议">Sans-I/O 读取协议</h1>
 
+<p><a id="自行驱动-sans-io"></a></p>
 <p><a href="../sans-io.html">English</a> | 简体中文</p>
 <p>仅在应用需要自行执行 I/O 时使用这些协议。<a href="../../samples/Documentation/SansIoExamples.cs">可运行源码</a> 会执行全部三个循环。下方辅助方法假设完整 MCAP 从源位置零开始；存在前缀时，需要在物理位置与 MCAP 起点之间转换。示例预期包含两条消息。任何循环到达 <code>End</code> 都不单独证明全文件验证成功。</p>
 <p>回应待处理请求后再获取下一事件。<code>SupplyInput</code> 允许短读，空输入表示 EOF，且只能回应 <code>Read</code>。<code>InsertChunkData</code> 要求完整的请求压缩数据范围，不包含 Chunk 头，因此先完成短读拼接再调用。<code>BufferTooSmall</code> 保留待交付输出供重试。错误回应和解析失败会终止 parser；应释放它，不重试任意失败。</p>
 <p>下方方法使用 <code>using Fizzy.McapSharp;</code> 和 .NET 项目的默认隐式 using。在线性读取时打开文件并调用 <code>ReadLinear(input)</code>；运行其他循环前重新打开文件或将流定位到起点。</p>
+<p>这些是读取协议；写入入口见<a href="writing.html">写入指南</a>，读取能力选择见<a href="reading.html">读取指南</a>。</p>
 <h2 id="线性记录">线性记录</h2>
 <p>目标缓冲区接收原始记录体。<code>BufferTooSmall</code> 时扩容；需要类型化记录时显式解析。</p>
 <pre><code class="lang-csharp">static void ReadLinear(Stream input)

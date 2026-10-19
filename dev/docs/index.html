@@ -90,33 +90,53 @@
 <h1 id="fizzymcapsharp-documentation">Fizzy.McapSharp documentation</h1>
 
 <p><a href="zh-CN/index.html">简体中文</a> · <a href="https://github.com/0xfizzy/Fizzy.McapSharp">GitHub repository</a></p>
-<p>Fizzy.McapSharp reads and writes MCAP files from .NET 8. Applications define payload encoding and clock origins. Choose the entry for your task; no Rust or native ABI knowledge is needed to begin.</p>
+<p>Read and write MCAP files in .NET 8 / 10 applications to store timestamped messages, metadata and attachments. Supports Windows x64 and glibc Linux x64/ARM64, with an Ubuntu 22.04 build and validation baseline.</p>
 <h2 id="getting-started">Getting started</h2>
-<p>Read the <a href="../README.html">README</a> for purpose and supported platforms. When ready to code, follow <a href="usage.html">your first recording</a> to install from NuGet, write, read, filter and optionally validate a file.</p>
-<h2 id="advanced-usage">Advanced usage</h2>
+<p><strong>First time here?</strong> <a href="usage.html">Write and read your first file</a>: install the NuGet package, run the example and inspect its output. No Rust installation is needed.</p>
+<p><a id="advanced-usage"></a></p>
+<p><a id="writing"></a></p>
+<p><a id="reading"></a></p>
+<p><a id="readwrite-workflows"></a></p>
+<h2 id="choose-by-task">Choose by task</h2>
 <table>
 <thead>
 <tr>
-<th>Current need</th>
+<th>I want to…</th>
 <th>Guide</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Query by time, require indexes or revisit chunks</td>
+<td>Save messages from multiple topics, add attachments and finish a file</td>
+<td><a href="writing.html">Write files</a></td>
+</tr>
+<tr>
+<td>Iterate through messages and read their topics and contents</td>
+<td><a href="reading.html">Read messages</a></td>
+</tr>
+<tr>
+<td>Filter by topic or time and access data through indexes</td>
 <td><a href="queries.html">Queries and random access</a></td>
 </tr>
 <tr>
-<td>Reuse buffers, process synchronously, retain or forward data</td>
-<td><a href="ownership.html">Message ownership and memory choices</a></td>
+<td>Check file integrity or read valid messages from incomplete files</td>
+<td><a href="validation.html">Validation and recovery</a></td>
 </tr>
 <tr>
-<td>Use an existing Stream, async reading or cancellation</td>
-<td><a href="streams-async.html">Streams and async</a></td>
+<td>Configure compression, chunking and indexes</td>
+<td><a href="writer-options.html">Compression, chunks and indexes</a></td>
+</tr>
+<tr>
+<td>Reuse read buffers, retain messages or forward them</td>
+<td><a href="ownership.html">Buffers and message forwarding</a></td>
+</tr>
+<tr>
+<td>Use existing Streams, read asynchronously or cancel operations</td>
+<td><a href="streams-async.html">Streams and asynchronous reading</a></td>
 </tr>
 <tr>
 <td>Supply input and perform seeks from application code</td>
-<td><a href="sans-io.html">Sans-I/O</a></td>
+<td><a href="sans-io.html">Sans-I/O reading</a></td>
 </tr>
 </tbody>
 </table>
@@ -134,7 +154,6 @@
 <li><a href="documentation.html">Documentation maintenance</a> and <a href="release.html">release/recovery</a>: documentation builds, translations, archives and publication.</li>
 <li><a href="../AGENTS.html">Repository guidelines</a>: contribution and maintenance rules (English).</li>
 </ul>
-<p>If unsure where to start, complete the <a href="usage.html">tutorial</a>, then choose an advanced guide for your actual workload.</p>
 
 </article>
 

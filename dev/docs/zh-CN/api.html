@@ -91,8 +91,9 @@
 
 <p><a href="../api.html">English</a> | 简体中文</p>
 <p>本页是跨 API 契约参考，适合确认默认行为、所有权、失败和验证边界。首次使用请先读<a href="usage.html">教程</a>；按任务选型请读<a href="queries.html">查询</a>、<a href="ownership.html">消息所有权</a>、<a href="streams-async.html">Stream 与异步</a>或 <a href="sans-io.html">Sans-I/O</a>。</p>
+<p>按任务使用<a href="writing.html">写入指南</a>与<a href="reading.html">读取指南</a>；配置取舍见<a href="writer-options.html">压缩、分块与索引</a>，完整性操作见<a href="validation.html">校验与恢复</a>。本页集中维护精确契约。</p>
 <p>按需查阅：能力选型 → 写入 → 读取与查询 → 生命周期与错误 → 校验与恢复 → 性能保证。</p>
-<p><code>Fizzy.McapSharp</code> 提供 MCAP 文件、Stream、缓冲区和 Sans-I/O 操作，支持 .NET 8、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；支持可取消的异步记录读取和时间排序；业务解码由应用实现。参见<a href="coverage.html">官方 API 覆盖表</a>。</p>
+<p><code>Fizzy.McapSharp</code> 提供 MCAP 文件、Stream、缓冲区和 Sans-I/O 操作，支持 .NET 8 / 10、Windows x64 和 glibc Linux x64/ARM64，Linux 构建基线为 Ubuntu 22.04。不支持 macOS、musl 和 32 位进程。消息编码及纳秒时钟语义由应用定义；支持可取消的异步记录读取和时间排序；业务解码由应用实现。参见<a href="coverage.html">官方 API 覆盖表</a>。</p>
 <h2 id="读写能力总览">读写能力总览</h2>
 <p>先找到所需能力，再选择输入／输出、交付所有权及访问模式。下表列出本库能力；与官方 Rust API 的对应关系见<a href="coverage.html">覆盖指南</a>。</p>
 <table>

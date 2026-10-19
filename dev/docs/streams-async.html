@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>Streams and asynchronous reading | Fizzy.McapSharp </title>
+      <title>Stream input/output and asynchronous reading | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="Streams and asynchronous reading | Fizzy.McapSharp ">
+      <meta name="title" content="Stream input/output and asynchronous reading | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../assets/icon.png">
@@ -87,10 +87,24 @@
         </div>
 
         <article data-uid="">
-<h1 id="streams-and-asynchronous-reading">Streams and asynchronous reading</h1>
+<h1 id="stream-inputoutput-and-asynchronous-reading">Stream input/output and asynchronous reading</h1>
 
+<p><a id="streams-and-asynchronous-reading"></a></p>
 <p>English | <a href="zh-CN/streams-async.html">简体中文</a></p>
-<p>For applications that already own a Stream or need asynchronous input. The examples use the <code>path</code> from the <a href="usage.html">tutorial</a>. Keep Stream ownership separate from the <a href="ownership.html">ownership of delivered messages</a>.</p>
+<p>For applications supplying output/input Streams or needing asynchronous reading. The examples use the <code>path</code> from the <a href="usage.html">tutorial</a>. Keep Stream ownership separate from the <a href="ownership.html">ownership of delivered messages</a>.</p>
+<h2 id="supply-a-stream-to-the-writer">Supply a Stream to the writer</h2>
+<p>Choose creation behavior first: <code>FileMode.CreateNew</code> rejects existing files; <code>FileMode.Create</code> truncates immediately on opening. Seekable output must be at its end. This example uses a new independent path and retains final cleanup responsibility in the caller:</p>
+<pre><code class="lang-csharp">using var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write);
+using (var writer = new McapWriter(output, leaveOpen: true))
+{
+    var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;raw&quot;);
+    writer.WriteToKnownChannel(new(channel, 0, 0, 0), []);
+    writer.Complete();
+    writer.FlushToDisk();
+}
+// The caller still owns output; dispose it when finished.
+</code></pre>
+<p>Writer calls consume input synchronously; there is no asynchronous writing session. With default <code>leaveOpen: false</code>, the writer releases the Stream; with true, the caller does. Do not externally write, reposition or dispose the Stream while the writer holds it. <code>IntoInner()</code> can transfer ownership but does not implicitly complete or synchronize the file. See the <a href="writing.html">writing guide</a> for completion rules.</p>
 <h2 id="retain-a-caller-owned-stream">Retain a caller-owned Stream</h2>
 <pre><code class="lang-csharp">using var input = File.OpenRead(path);
 using (var session = McapReaderFactory.OpenMessages(input, leaveOpen: true))
@@ -101,7 +115,6 @@ using (var session = McapReaderFactory.OpenMessages(input, leaveOpen: true))
 input.Position = 0; // The session has released the Stream; the caller can reuse it.
 </code></pre>
 <p>The initial position becomes MCAP offset zero; input must contain one MCAP from that position to its end. The session reads incrementally. <code>leaveOpen</code> defaults to false, so set it to true only when the caller will own subsequent use and cleanup. Do not read, reposition or dispose the Stream externally while a session owns it.</p>
-<p>For output, choose file creation behavior when opening the Stream, then pass it to <code>McapWriter</code>. <code>FileMode.CreateNew</code> rejects an existing file; <code>FileMode.Create</code> truncates it immediately. A seekable output must be at its end. Call <code>Complete()</code> before disposal; neither <code>leaveOpen</code> nor ownership transfer completes the format. See <a href="api.html#write-a-recording">writing</a> and <a href="api.html#stream-sessions-and-ownership">Stream contracts</a>.</p>
 <h2 id="await-one-operation-at-a-time">Await one operation at a time</h2>
 <pre><code class="lang-csharp">await using var input = new FileStream(path, FileMode.Open, FileAccess.Read,
     FileShare.Read, 4096, FileOptions.Asynchronous);
@@ -125,6 +138,7 @@ await using (var reader = new McapAsyncMessageReader(input, leaveOpen: true))
 <p>Explicit cleanup failures are observable. Do not treat an exception as proof that the Stream is safe to reuse. See <a href="api.html#stream-sessions-and-ownership">Stream release and transfer contracts</a> for one-shot cleanup and ownership boundaries.</p>
 <p>Next, use <a href="sans-io.html">Sans-I/O</a> only if the application needs to drive I/O itself; otherwise consult <a href="api.html">API contracts</a> for the selected reader.</p>
 <p>These snippets run in the <a href="../samples/Documentation/ReadingExamples.cs">reading examples</a>; see the <a href="usage.html#run-repository-examples">tutorial</a> for execution instructions.</p>
+<p>The output example is verified in the <a href="../samples/Documentation/WritingExamples.cs">writing examples</a>.</p>
 
 </article>
 

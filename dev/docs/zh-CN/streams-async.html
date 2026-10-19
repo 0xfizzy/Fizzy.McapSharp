@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8">
-      <title>Stream 与异步读取 | Fizzy.McapSharp </title>
+      <title>Stream 输入输出与异步读取 | Fizzy.McapSharp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="Stream 与异步读取 | Fizzy.McapSharp ">
+      <meta name="title" content="Stream 输入输出与异步读取 | Fizzy.McapSharp ">
       
       
       <link rel="icon" href="../../assets/icon.png">
@@ -87,10 +87,24 @@
         </div>
 
         <article data-uid="">
-<h1 id="stream-与异步读取">Stream 与异步读取</h1>
+<h1 id="stream-输入输出与异步读取">Stream 输入输出与异步读取</h1>
 
+<p><a id="stream-与异步读取"></a></p>
 <p><a href="../streams-async.html">English</a> | 简体中文</p>
-<p>面向已持有 Stream 或需要异步输入的应用开发者。示例沿用<a href="usage.html">教程</a>中的 <code>path</code>。Stream 的所有权与<a href="ownership.html">返回消息的所有权</a>需要分别选择。</p>
+<p>面向提供输出/输入 Stream 或需要异步读取的应用开发者。示例沿用<a href="usage.html">教程</a>中的 <code>path</code>。Stream 的所有权与<a href="ownership.html">返回消息的所有权</a>需要分别选择。</p>
+<h2 id="将-stream-交给-writer">将 Stream 交给 writer</h2>
+<p>先决定创建行为：<code>FileMode.CreateNew</code> 拒绝已有文件；<code>FileMode.Create</code> 打开时立即截断原文件。可寻址输出必须位于末尾。下面使用一个新的独立路径，并由调用方保留最终清理责任：</p>
+<pre><code class="lang-csharp">using var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write);
+using (var writer = new McapWriter(output, leaveOpen: true))
+{
+    var channel = writer.RegisterChannel(&quot;/sample&quot;, &quot;raw&quot;);
+    writer.WriteToKnownChannel(new(channel, 0, 0, 0), []);
+    writer.Complete();
+    writer.FlushToDisk();
+}
+// The caller still owns output; dispose it when finished.
+</code></pre>
+<p>Writer 调用同步消费输入，不提供异步写入会话。默认 <code>leaveOpen: false</code> 时，writer 负责释放 Stream；设为 true 时由调用方负责。Writer 持有期间，不从外部写入、重新定位或释放该 Stream。<code>IntoInner()</code> 可转移所有权，但不会隐式完成或同步文件。输出完成规则见<a href="writing.html">写入指南</a>。</p>
 <h2 id="保留调用方拥有的-stream">保留调用方拥有的 Stream</h2>
 <pre><code class="lang-csharp">using var input = File.OpenRead(path);
 using (var session = McapReaderFactory.OpenMessages(input, leaveOpen: true))
@@ -101,7 +115,6 @@ using (var session = McapReaderFactory.OpenMessages(input, leaveOpen: true))
 input.Position = 0; // The session has released the Stream; the caller can reuse it.
 </code></pre>
 <p>初始位置成为 MCAP 偏移零点；从该位置到流末尾必须恰好包含一个 MCAP。会话增量读取输入。<code>leaveOpen</code> 默认为 false；仅当调用方负责后续使用与清理时设为 true。会话拥有 Stream 期间，不得从外部读取、重新定位或释放它。</p>
-<p>输出时，先在打开 Stream 时决定文件创建行为，再传给 <code>McapWriter</code>。<code>FileMode.CreateNew</code> 拒绝已有文件；<code>FileMode.Create</code> 立即截断已有文件。可寻址输出必须位于末尾。释放前调用 <code>Complete()</code>；<code>leaveOpen</code> 和所有权转移均不隐式完成格式。详见<a href="api.html#%E5%86%99%E5%85%A5%E5%BD%95%E5%88%B6">写入</a>与 <a href="api.html#stream-%E4%BC%9A%E8%AF%9D%E4%B8%8E%E6%89%80%E6%9C%89%E6%9D%83">Stream 契约</a>。</p>
 <h2 id="每次等待一个操作">每次等待一个操作</h2>
 <pre><code class="lang-csharp">await using var input = new FileStream(path, FileMode.Open, FileAccess.Read,
     FileShare.Read, 4096, FileOptions.Asynchronous);
@@ -125,6 +138,7 @@ await using (var reader = new McapAsyncMessageReader(input, leaveOpen: true))
 <p>显式清理失败会报告给调用方。抛异常不代表 Stream 已可安全复用。一次性清理及所有权边界详见 <a href="api.html#stream-%E4%BC%9A%E8%AF%9D%E4%B8%8E%E6%89%80%E6%9C%89%E6%9D%83">Stream 释放与转移契约</a>。</p>
 <p>仅在应用需要自行驱动 I/O 时继续阅读 <a href="sans-io.html">Sans-I/O</a>；其他情况按所选读取器查阅 <a href="api.html">API 契约</a>。</p>
 <p>本页代码在<a href="../../samples/Documentation/ReadingExamples.cs">读取示例</a>中运行，执行方法见<a href="usage.html#%E8%BF%90%E8%A1%8C%E4%BB%93%E5%BA%93%E7%A4%BA%E4%BE%8B">教程</a>。</p>
+<p>输出示例在<a href="../../samples/Documentation/WritingExamples.cs">写入示例</a>中验证。</p>
 
 </article>
 

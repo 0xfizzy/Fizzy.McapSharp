@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Read messages | Fizzy.McapSharp </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Read messages | Fizzy.McapSharp ">
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <link rel="stylesheet" href="../version.css">
+<script defer src="../version.js" data-doc-root="../"></script>
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/icon.png" alt="">
+            
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="read-messages">Read messages</h1>
+
+<p><a id="reading-a-recording"></a></p>
+<p>English | <a href="zh-CN/reading.html">简体中文</a></p>
+<p>Use <code>ReadMessages()</code> to iterate in file order, with an independent copy of each message’s data. This guide reads the file produced by the <a href="writing.html">Write files</a> guide. See the <a href="usage.html">tutorial</a> for project setup.</p>
+<h2 id="read-the-multi-topic-file">Read the multi-topic file</h2>
+<p>Use this as a standalone C# 12 program; run <code>dotnet run -- &lt;path&gt;</code> with the path printed by the writing guide.</p>
+<pre><code class="lang-csharp">using Fizzy.McapSharp;
+using System.Text;
+
+if (args.Length != 1) throw new ArgumentException(&quot;Supply the recording path.&quot;);
+var factory = new McapReaderFactory(args[0]);
+foreach (var message in factory.ReadMessages())
+    Console.WriteLine($&quot;{message.Channel.Topic} {message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
+</code></pre>
+<p>Output follows file order; the last message has an empty payload:</p>
+<pre><code class="lang-text">/values 100: {&quot;value&quot;:1}
+/events 50: started
+/events 110:
+</code></pre>
+<h2 id="understand-declarations-and-messages">Understand declarations and messages</h2>
+<p><code>McapMessage</code> combines a header's sequence and nanosecond timestamps with a resolved Channel and payload bytes. Its Channel includes the optional Schema and metadata. Each message owns a separate, mutable copy of its data; these are called owned results. The library interprets the MCAP container, not the application payload encoding or clock origin.</p>
+<h2 id="filter-by-topic-and-time">Filter by topic and time</h2>
+<p>Append this to the program above. It prints <code>/events 50: started</code>. Filtering uses <code>LogTime</code>, includes 50 and excludes 110. Topic or time filters preserve file order; see <a href="queries.html">queries and random access</a> for time ordering or indexed-only access.</p>
+<pre><code class="lang-csharp">foreach (var message in factory.ReadMessages(new()
+{
+    Topic = &quot;/events&quot;,
+    StartTime = 50,
+    EndTime = 110
+}))
+    Console.WriteLine($&quot;{message.Channel.Topic} {message.LogTime}: {Encoding.UTF8.GetString(message.Data)}&quot;);
+</code></pre>
+<h2 id="read-other-records-and-summaries">Read other records and summaries</h2>
+<p>If you added the metadata and attachments from the writing guide, append this to the reading program. Each factory operation performs its own read. Metadata prints <code>recording: sample</code>; attachments contain <code>notes</code> and <code>abcdef</code>.</p>
+<pre><code class="lang-csharp">foreach (var metadata in factory.ReadMetadata())
+    Console.WriteLine($&quot;{metadata.Name}: {metadata.Values[&quot;operator&quot;]}&quot;);
+foreach (var attachment in factory.ReadAttachments())
+    Console.WriteLine($&quot;{attachment.Name}: {Encoding.UTF8.GetString(attachment.Data)}&quot;);
+var summary = factory.GetSummary();
+Console.WriteLine(summary is null ? &quot;No summary&quot; : &quot;Summary available&quot;);
+</code></pre>
+<p>Use <code>ReadSchemas()</code> and <code>ReadChannels()</code> to enumerate declarations, including declarations without messages. <code>ReadMetadata()</code> and <code>ReadAttachments()</code> return independent copies of the data. An independent <code>GetSummary()</code> result includes the available declarations, statistics and indexes, or is null when no summary exists; fetching it does not validate the whole recording.</p>
+<p><code>OpenRecords()</code> expands chunks into records; <code>OpenLinear()</code> exposes top-level records. Use these when record structure matters instead of resolved messages. <code>McapRecordAccessor</code> supplies seekable raw-record access, while an indexed reader supports indexed attachment/metadata access and message seeks. Select by capability rather than expecting every reader to expose every operation. See <a href="api.html#owned-records-summaries-and-raw-records">record contracts</a> and <a href="sans-io.html">Sans-I/O reading</a> when the application must drive input requests itself.</p>
+<h2 id="choose-an-input-and-session">Choose an input and session</h2>
+<p><code>McapReaderFactory(path)</code> stores a path without opening the file and owns no disposable input. Each enumeration or opened session owns an independent reader. Use <code>ReadMessages()</code> for convenient owned results, or dispose the session returned by <code>OpenMessages()</code> when choosing buffers, callbacks or leases.</p>
+<p>For an existing Stream, use <code>McapReaderFactory.OpenMessages(stream, leaveOpen: true)</code> when the caller retains cleanup responsibility. For repeated random access, <code>McapIndexedReader</code> owns copied or mapped input and requires disposal; it is not just an index collection. See <a href="streams-async.html">Streams and asynchronous reading</a> and <a href="queries.html">random access</a>.</p>
+<p><a id="choose-a-delivery-form"></a></p>
+<h2 id="choose-how-to-receive-messages">Choose how to receive messages</h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Entry</th>
+<th>Caller responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Independent mutable messages</td>
+<td><code>ReadMessages()</code></td>
+<td>Owns copies; ordinary managed lifetime</td>
+</tr>
+<tr>
+<td>Reuse payload storage</td>
+<td><code>ReadNext(buffer, ...)</code></td>
+<td>Grow on <code>BufferTooSmall</code>; process bytes before buffer reuse</td>
+</tr>
+<tr>
+<td>Immediate synchronous processing</td>
+<td><code>VisitMessages</code> / <code>ReadNext(visitor)</code></td>
+<td>Do not retain spans or reenter the reader from the callback</td>
+</tr>
+<tr>
+<td>Retain or forward a batch</td>
+<td><code>ReadBatchLease</code></td>
+<td>Dispose the lease after all access; do not dispose concurrently</td>
+</tr>
+</tbody>
+</table>
+<p>A storage lease keeps data available after the reader advances; dispose it after use. Access order and delivery ownership are separate decisions. A lease may retain an entire chunk or mapping, including after reader disposal. <a href="ownership.html">Buffers and message forwarding</a> provides runnable buffer, callback and lease examples and explains their costs. Async message leases are covered in <a href="streams-async.html">Streams and asynchronous reading</a>.</p>
+<p>Buffer and callback reads deliver a header and bytes separately. Use the session's <code>GetChannelDescription</code> for immutable declarations encountered by that session. Do not assume a declaration found only in the summary has already appeared in a sequential scan. Raw messages, expanded records and top-level records are distinct capabilities with distinct validation scopes.</p>
+<h2 id="finish-and-handle-failures">Finish and handle failures</h2>
+<p><code>BufferTooSmall</code> retains the same pending record: provide the reported capacity and retry. A successful zero-byte payload is not EOF. <code>EndOfStream</code> ends the selected scan but does not by itself establish full-file validation. Use <a href="validation.html">Validation and recovery</a> for that separate decision.</p>
+<p>Dispose opened sessions and enumerators after use; <code>foreach</code> disposes its enumerator. Owned results and independently retained leases keep their documented lifetimes. Parsing, callback and I/O failures terminate the session; repeat work through a new session instead of retrying arbitrary failures. Explicit cleanup failures remain visible. Async readers require consuming their one outstanding operation before starting another or disposing them.</p>
+<h2 id="next-steps">Next steps</h2>
+<p>Choose <a href="queries.html">queries and random access</a>, <a href="ownership.html">Buffers and message forwarding</a>, or <a href="validation.html">Validation and recovery</a>. The <a href="../samples/Documentation/RecordingExamples.cs">recording examples</a> check messages, declarations, metadata, attachments, summary, buffer retries and EOF against the writer's output. The <a href="../samples/Documentation/ReadingExamples.cs">reading examples</a> cover delivery and Stream APIs; run them using the <a href="usage.html#run-repository-examples">sample instructions</a>.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

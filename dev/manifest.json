@@ -1461,6 +1461,16 @@
     },
     {
       "type": "Conceptual",
+      "source_relative_path": "docs/en/reading.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/reading.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
       "source_relative_path": "docs/en/release.md",
       "output": {
         ".html": {
@@ -1518,6 +1528,36 @@
       "output": {
         ".html": {
           "relative_path": "docs/usage.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/validation.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/validation.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/writer-options.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/writer-options.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/en/writing.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/writing.html"
         }
       },
       "version": ""
@@ -1657,6 +1697,16 @@
     },
     {
       "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/reading.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/reading.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
       "source_relative_path": "docs/zh-CN/release.md",
       "output": {
         ".html": {
@@ -1714,6 +1764,36 @@
       "output": {
         ".html": {
           "relative_path": "docs/zh-CN/usage.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/validation.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/validation.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/writer-options.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/writer-options.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "docs/zh-CN/writing.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/zh-CN/writing.html"
         }
       },
       "version": ""
@@ -1970,10 +2050,50 @@
     },
     {
       "type": "Resource",
+      "source_relative_path": "samples/Documentation/ReadingWorkflowExamples.cs",
+      "output": {
+        "resource": {
+          "relative_path": "samples/Documentation/ReadingWorkflowExamples.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "samples/Documentation/RecordingExamples.cs",
+      "output": {
+        "resource": {
+          "relative_path": "samples/Documentation/RecordingExamples.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
       "source_relative_path": "samples/Documentation/SansIoExamples.cs",
       "output": {
         "resource": {
           "relative_path": "samples/Documentation/SansIoExamples.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "samples/Documentation/ValidationExamples.cs",
+      "output": {
+        "resource": {
+          "relative_path": "samples/Documentation/ValidationExamples.cs"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "samples/Documentation/WritingExamples.cs",
+      "output": {
+        "resource": {
+          "relative_path": "samples/Documentation/WritingExamples.cs"
         }
       },
       "version": ""

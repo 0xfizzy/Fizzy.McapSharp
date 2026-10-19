@@ -184,6 +184,7 @@ foreach (var message in indexed.ReadMessages())
 <p>Individual seeks can load and validate a complete chunk. Prepared indexes reduce descriptor work but do not eliminate cache-miss decompression. Inspect cache hits and chunk loads before tuning the allowance; see <a href="api.html#complete-chunk-random-access">random-access contracts</a>.</p>
 <p>Next, choose <a href="ownership.html">message ownership</a> independently of access order. Use <a href="api.html#validation-and-recovery">API contracts</a> to decide whether a separate full-file validation is required.</p>
 <p>These snippets run in the <a href="../samples/Documentation/ReadingExamples.cs">reading examples</a>; see the <a href="usage.html#run-repository-examples">tutorial</a> for execution instructions.</p>
+<p>For complete-file checks and incomplete input, see <a href="validation.html">validation and prefix recovery</a>.</p>
 
 </article>
 
